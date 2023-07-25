@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="ProgressWindow">
+            <connections>
+                <outlet property="_operationTextField" destination="l3X-0i-43O" id="6st-T1-0We"/>
+                <outlet property="_progressBar" destination="BEx-ax-QrL" id="c4w-dS-UxH"/>
+                <outlet property="_stopButton" destination="TqJ-3l-b12" id="YSD-XN-Ck0"/>
+            </connections>
+        </customObject>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
+        <view id="865-qb-qGe">
+            <rect key="frame" x="0.0" y="0.0" width="413" height="102"/>
+            <autoresizingMask key="autoresizingMask"/>
+            <subviews>
+                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="l3X-0i-43O">
+                    <rect key="frame" x="18" y="60" width="83" height="16"/>
+                    <textFieldCell key="cell" lineBreakMode="clipping" title="Processing..." id="vpU-nh-4ZZ">
+                        <font key="font" metaFont="system"/>
+                        <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                    </textFieldCell>
+                </textField>
+                <progressIndicator horizontalHuggingPriority="251" maxValue="1" style="bar" translatesAutoresizingMaskIntoConstraints="NO" id="BEx-ax-QrL">
+                    <rect key="frame" x="20" y="19" width="350" height="34"/>
+                    <constraints>
+                        <constraint firstAttribute="width" constant="350" id="baK-7K-GJ2"/>
+                    </constraints>
+                </progressIndicator>
+                <button toolTip="Cancel operation" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="TqJ-3l-b12" userLabel="stop">
+                    <rect key="frame" x="378" y="29" width="15" height="15"/>
+                    <constraints>
+                        <constraint firstAttribute="width" constant="15" id="E3M-V9-c62"/>
+                        <constraint firstAttribute="height" constant="15" id="GHy-y3-SNC"/>
+                    </constraints>
+                    <buttonCell key="cell" type="inline" title="Inline" bezelStyle="inline" image="close" imagePosition="only" alignment="center" inset="2" id="ayD-8w-xhi">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="smallSystemBold"/>
+                        <string key="keyEquivalent" base64-UTF8="YES">
+Gw
+</string>
+                    </buttonCell>
+                    <connections>
+                        <action selector="cancelOperation:" target="-2" id="8IH-3P-SmQ"/>
+                    </connections>
+                </button>
+            </subviews>
+            <constraints>
+                <constraint firstItem="TqJ-3l-b12" firstAttribute="centerY" secondItem="BEx-ax-QrL" secondAttribute="centerY" id="4gM-P0-V75"/>
+                <constraint firstAttribute="bottom" secondItem="BEx-ax-QrL" secondAttribute="bottom" constant="20" symbolic="YES" id="9JH-5C-Oja"/>
+                <constraint firstItem="TqJ-3l-b12" firstAttribute="leading" secondItem="BEx-ax-QrL" secondAttribute="trailing" constant="8" symbolic="YES" id="G97-rh-pgf"/>
+                <constraint firstItem="l3X-0i-43O" firstAttribute="top" secondItem="865-qb-qGe" secondAttribute="top" constant="26" id="HK6-4j-mwu"/>
+                <constraint firstItem="BEx-ax-QrL" firstAttribute="leading" secondItem="865-qb-qGe" secondAttribute="leading" constant="20" symbolic="YES" id="N8h-ic-mss"/>
+                <constraint firstItem="BEx-ax-QrL" firstAttribute="top" secondItem="l3X-0i-43O" secondAttribute="bottom" constant="8" symbolic="YES" id="Vne-NM-L08"/>
+                <constraint firstAttribute="trailing" secondItem="TqJ-3l-b12" secondAttribute="trailing" constant="20" symbolic="YES" id="WNB-Xx-jPs"/>
+                <constraint firstItem="l3X-0i-43O" firstAttribute="leading" secondItem="BEx-ax-QrL" secondAttribute="leading" id="hQK-Ah-Y5x"/>
+            </constraints>
+            <point key="canvasLocation" x="80" y="58"/>
+        </view>
+    </objects>
+    <resources>
+        <image name="close" width="15" height="15"/>
+    </resources>
+</document>

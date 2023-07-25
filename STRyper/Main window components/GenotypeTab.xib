@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="GenotypeTableController">
+            <connections>
+                <outlet property="_tableContent" destination="t85-dl-98d" id="5YP-w6-yNc"/>
+                <outlet property="_tableView" destination="EP9-jv-hOU" id="a5B-gm-5Ie"/>
+                <outlet property="view" destination="zDR-oD-NhW" id="LUJ-88-jIE"/>
+            </connections>
+        </customObject>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
+        <view identifier="tab" id="zDR-oD-NhW">
+            <rect key="frame" x="0.0" y="0.0" width="659" height="627"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="17" horizontalPageScroll="10" verticalLineScroll="17" verticalPageScroll="10" id="KXV-TJ-ooR">
+                    <rect key="frame" x="0.0" y="30" width="659" height="597"/>
+                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                    <clipView key="contentView" id="vQ5-hg-J4f">
+                        <rect key="frame" x="0.0" y="0.0" width="659" height="597"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <tableView identifier="genotypeTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="fullWidth" alternatingRowBackgroundColors="YES" autosaveColumns="NO" rowSizeStyle="automatic" headerView="6Hg-kz-OZW" viewBased="YES" floatsGroupRows="NO" id="EP9-jv-hOU" userLabel="Genotype table">
+                                <rect key="frame" x="0.0" y="0.0" width="659" height="569"/>
+                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                <size key="intercellSpacing" width="3" height="0.0"/>
+                                <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
+                                <tableColumns>
+                                    <tableColumn identifier="genotypeStatusColumn" width="75" minWidth="10" maxWidth="3.4028234663852886e+38" id="bWM-Vd-AoQ">
+                                        <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Status">
+                                            <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
+                                            <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        </tableHeaderCell>
+                                        <textFieldCell key="dataCell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" alignment="left" title="Text Cell" id="S1f-ej-AHh">
+                                            <font key="font" metaFont="system"/>
+                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                            <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                        </textFieldCell>
+                                        <sortDescriptor key="sortDescriptorPrototype" selector="compare:" sortKey="status"/>
+                                        <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
+                                    </tableColumn>
+                                </tableColumns>
+                                <connections>
+                                    <action selector="tableViewIsClicked:" target="-1" id="ses-UO-n1i"/>
+                                    <outlet property="menu" destination="iKd-rY-qln" id="ypN-kX-xex"/>
+                                </connections>
+                            </tableView>
+                        </subviews>
+                    </clipView>
+                    <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="5JH-XE-4Mb">
+                        <rect key="frame" x="0.0" y="203" width="648" height="16"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </scroller>
+                    <scroller key="verticalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="Cff-F7-9ff">
+                        <rect key="frame" x="632" y="28" width="16" height="14"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </scroller>
+                    <tableHeaderView key="headerView" wantsLayer="YES" id="6Hg-kz-OZW" customClass="TableHeaderView">
+                        <rect key="frame" x="0.0" y="0.0" width="659" height="28"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </tableHeaderView>
+                </scrollView>
+                <button toolTip="Call/re-call alleles" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="HUG-HJ-2n8" userLabel="call genotypes">
+                    <rect key="frame" x="10" y="5" width="25" height="20"/>
+                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="call genotypes" imagePosition="overlaps" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5wo-h7-G60">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="smallSystemBold"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="callAlleles:" target="-2" id="fkX-me-bKk"/>
+                        <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="GIu-hi-que"/>
+                    </connections>
+                </button>
+                <button toolTip="Export genotypes" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="674-57-fTx" userLabel="Export">
+                    <rect key="frame" x="43" y="7" width="15" height="17"/>
+                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="6e9-gU-clX">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="smallSystemBold"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="exportGenotypes:" target="-2" id="TNc-6N-HNi"/>
+                        <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="d1Z-6Y-MRe"/>
+                    </connections>
+                </button>
+            </subviews>
+            <constraints>
+                <constraint firstItem="674-57-fTx" firstAttribute="leading" secondItem="HUG-HJ-2n8" secondAttribute="trailing" constant="8" symbolic="YES" id="E4h-GK-OhO"/>
+                <constraint firstItem="HUG-HJ-2n8" firstAttribute="leading" secondItem="zDR-oD-NhW" secondAttribute="leading" constant="10" id="VnY-mp-vW3"/>
+                <constraint firstItem="674-57-fTx" firstAttribute="centerY" secondItem="HUG-HJ-2n8" secondAttribute="centerY" id="bgg-ZM-WZh"/>
+                <constraint firstItem="HUG-HJ-2n8" firstAttribute="centerY" secondItem="zDR-oD-NhW" secondAttribute="bottom" constant="-15" id="mrf-B7-N1P"/>
+            </constraints>
+            <point key="canvasLocation" x="-320.5" y="144.5"/>
+        </view>
+        <arrayController mode="entity" entityName="" editable="NO" selectsInsertedObjects="NO" avoidsEmptySelection="NO" id="t85-dl-98d" userLabel="Genotypes"/>
+        <menu identifier="Genotypes" id="iKd-rY-qln" userLabel="Genotype menu">
+            <items>
+                <menuItem title="Show Source Sample(s)" offStateImage="stackChannelsButton" tag="1" id="QVy-ar-pUX">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="showSamples:" target="-2" id="e55-wK-ZgY"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Call Alleles" offStateImage="callAllelesBadge" id="8Qs-Zp-pFu">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="callAlleles:" target="-2" id="AHG-1e-yc5"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Reset Offset(s)" offStateImage="reset" id="Ef6-hr-YRw">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="resetOffsets:" target="-2" id="LBe-Cb-VjF"/>
+                    </connections>
+                </menuItem>
+                <menuItem isSeparatorItem="YES" id="gtQ-cy-wxo"/>
+                <menuItem title="Copy" offStateImage="copy" id="XqU-TZ-hGC">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="copy:" target="-2" id="gYo-GI-8sL"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Export Table to File…" offStateImage="export" id="EcG-k0-wtA">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="exportGenotypes:" target="-2" id="Oeo-Wr-dwt"/>
+                    </connections>
+                </menuItem>
+            </items>
+            <connections>
+                <outlet property="delegate" destination="-2" id="V0Y-Nb-kkr"/>
+            </connections>
+            <point key="canvasLocation" x="-288.5" y="576.5"/>
+        </menu>
+    </objects>
+    <resources>
+        <image name="call genotypes" width="25" height="20"/>
+        <image name="callAllelesBadge" width="15" height="15"/>
+        <image name="copy" width="15" height="14"/>
+        <image name="export" width="15" height="17"/>
+        <image name="reset" width="14" height="14"/>
+        <image name="stackChannelsButton" width="25" height="20"/>
+    </resources>
+</document>

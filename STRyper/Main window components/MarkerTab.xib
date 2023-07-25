@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="PanelListController">
+            <connections>
+                <outlet property="_markerTableController" destination="QKk-0z-dMc" id="3xc-x3-cas"/>
+                <outlet property="_tableView" destination="loV-Lj-b5u" id="kYQ-bl-vV4"/>
+                <outlet property="view" destination="Qq8-Lh-G3s" id="Gvo-TZ-aeZ"/>
+            </connections>
+        </customObject>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
+        <arrayController mode="entity" entityName="" automaticallyPreparesContent="YES" avoidsEmptySelection="NO" id="du3-Sj-t3r" userLabel="Markers">
+            <connections>
+                <binding destination="-2" name="contentSet" keyPath="selectedFolder.markers" id="d4b-XZ-iDC">
+                    <dictionary key="options">
+                        <bool key="NSDeletesObjectsOnRemove" value="YES"/>
+                    </dictionary>
+                </binding>
+            </connections>
+        </arrayController>
+        <viewController id="QKk-0z-dMc" userLabel="Marker Table Controller" customClass="MarkerTableController">
+            <connections>
+                <outlet property="_tableContent" destination="du3-Sj-t3r" id="EMm-g2-HXi"/>
+                <outlet property="_tableView" destination="JeK-rO-5Ed" id="cPQ-8w-Mg2"/>
+                <outlet property="view" destination="JeK-rO-5Ed" id="BW3-Jr-E4z"/>
+            </connections>
+        </viewController>
+        <viewController id="0wd-Oj-HLV" userLabel="New Marker Popover View Controller"/>
+        <popover behavior="semitransient" id="vNM-A9-Q1V" userLabel="New marker">
+            <connections>
+                <outlet property="contentViewController" destination="0wd-Oj-HLV" id="Qob-W5-m7P"/>
+            </connections>
+        </popover>
+        <menu id="vcq-wz-ppO" userLabel="panel outlineview menu">
+            <items>
+                <menuItem title="Rename" offStateImage="edited" id="Gcv-Gs-e9K">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="rename:" target="-2" id="Gxg-qX-8aN"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Delete" offStateImage="trash" id="ldR-YE-2a0">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="remove:" target="-2" id="kNB-CP-Czv"/>
+                    </connections>
+                </menuItem>
+                <menuItem isSeparatorItem="YES" id="g8G-aH-xxe"/>
+                <menuItem title="Add Panel" offStateImage="panelBadge" tag="4" id="j4M-X4-dDa">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="addFolder:" target="-2" id="K5C-aA-koJ"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Add Subfolder" offStateImage="folderBadge" tag="1" id="P4M-aJ-kpb">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="addFolder:" target="-2" id="v5z-DL-rDx"/>
+                    </connections>
+                </menuItem>
+                <menuItem isSeparatorItem="YES" id="J5H-eF-Izb"/>
+                <menuItem title="Export to Text File…" offStateImage="export" tag="5" id="G9K-mB-0tl">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="exportSelection:" target="-2" id="Wm5-aQ-5Bv"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Import Panel from File…" offStateImage="import" tag="1" id="2kL-np-h37">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="importPanel:" target="-2" id="ehO-WY-a9T"/>
+                    </connections>
+                </menuItem>
+            </items>
+            <connections>
+                <outlet property="delegate" destination="-2" id="muP-Ci-UpD"/>
+            </connections>
+            <point key="canvasLocation" x="-803" y="816"/>
+        </menu>
+        <splitView identifier="tab" autosaveName="MarkerSplitView" dividerStyle="thin" vertical="YES" id="Qq8-Lh-G3s">
+            <rect key="frame" x="0.0" y="0.0" width="659" height="318"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <customView translatesAutoresizingMaskIntoConstraints="NO" id="oDb-VZ-IPJ" userLabel="left pane">
+                    <rect key="frame" x="0.0" y="0.0" width="257" height="318"/>
+                    <subviews>
+                        <popUpButton horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="T6b-gG-WBE" userLabel="+">
+                            <rect key="frame" x="1" y="8" width="34" height="14"/>
+                            <popUpButtonCell key="cell" type="bevel" bezelStyle="regularSquare" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="FVo-Kf-QHh" id="xEx-lV-DlA">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                <font key="font" metaFont="menu"/>
+                                <menu key="menu" autoenablesItems="NO" id="PYj-qF-yhZ">
+                                    <items>
+                                        <menuItem image="add" hidden="YES" id="FVo-Kf-QHh">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                        </menuItem>
+                                        <menuItem title="New Panel" offStateImage="panelBadge" tag="4" id="t24-C7-NOb">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="addFolder:" target="-2" id="Num-eg-w54"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="New Folder" offStateImage="folderBadge" id="dvT-dl-z7K">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="addFolder:" target="-2" id="cKj-Wd-f07"/>
+                                            </connections>
+                                        </menuItem>
+                                    </items>
+                                </menu>
+                            </popUpButtonCell>
+                            <color key="contentTintColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
+                        </popUpButton>
+                        <button toolTip="Import panel from text file" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="viV-H4-jv5" userLabel="Import">
+                            <rect key="frame" x="43" y="7" width="15" height="16"/>
+                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="import" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="ZaB-EL-ydc">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                <font key="font" metaFont="smallSystemBold"/>
+                            </buttonCell>
+                            <connections>
+                                <action selector="importPanel:" target="-2" id="ck7-I3-tJj"/>
+                            </connections>
+                        </button>
+                        <button toolTip="Export selected panel" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="751" translatesAutoresizingMaskIntoConstraints="NO" id="ZyM-Z3-m9b" userLabel="Export">
+                            <rect key="frame" x="66" y="7" width="15" height="17"/>
+                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5vj-B1-RUT">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                <font key="font" metaFont="smallSystemBold"/>
+                            </buttonCell>
+                            <connections>
+                                <action selector="exportSelection:" target="-2" id="wIY-td-FqQ"/>
+                                <binding destination="-2" name="enabled" keyPath="selectedFolder.isPanel" id="Wkh-n8-Jgm"/>
+                            </connections>
+                        </button>
+                        <scrollView fixedFrame="YES" borderType="none" autohidesScrollers="YES" horizontalLineScroll="25" horizontalPageScroll="10" verticalLineScroll="25" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" horizontalScrollElasticity="none" translatesAutoresizingMaskIntoConstraints="NO" id="TE0-VN-HPf">
+                            <rect key="frame" x="0.0" y="30" width="257" height="288"/>
+                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                            <clipView key="contentView" drawsBackground="NO" id="Iih-SD-Lox">
+                                <rect key="frame" x="0.0" y="0.0" width="257" height="288"/>
+                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                <subviews>
+                                    <outlineView identifier="panelOutlineView" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="inset" columnReordering="NO" columnResizing="NO" multipleSelection="NO" emptySelection="NO" autosaveColumns="NO" typeSelect="NO" rowHeight="25" rowSizeStyle="automatic" viewBased="YES" indentationPerLevel="5" autosaveExpandedItems="YES" outlineTableColumn="lrQ-Bq-BV3" id="loV-Lj-b5u" userLabel="Panel outlineview">
+                                        <rect key="frame" x="0.0" y="0.0" width="257" height="288"/>
+                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                        <size key="intercellSpacing" width="17" height="0.0"/>
+                                        <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                        <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
+                                        <tableColumns>
+                                            <tableColumn width="225" minWidth="40" maxWidth="1000" id="lrQ-Bq-BV3">
+                                                <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" title="Panels">
+                                                    <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
+                                                    <color key="backgroundColor" name="headerColor" catalog="System" colorSpace="catalog"/>
+                                                </tableHeaderCell>
+                                                <textFieldCell key="dataCell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" title="Text Cell" id="WNI-dx-Je6">
+                                                    <font key="font" metaFont="system"/>
+                                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                    <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                </textFieldCell>
+                                                <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
+                                                <prototypeCellViews>
+                                                    <tableCellView identifier="topSection" id="dJ9-r2-Skc">
+                                                        <rect key="frame" x="18" y="0.0" width="220" height="24"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <subviews>
+                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
+                                                                <rect key="frame" x="0.0" y="4" width="220" height="16"/>
+                                                                <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Marker panels" id="7FA-Ui-YsX">
+                                                                    <font key="font" usesAppearanceFont="YES"/>
+                                                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                                </textFieldCell>
+                                                            </textField>
+                                                        </subviews>
+                                                        <constraints>
+                                                            <constraint firstAttribute="trailing" secondItem="dAW-rY-AWx" secondAttribute="trailing" constant="2" id="K5a-sp-LvW"/>
+                                                            <constraint firstItem="dAW-rY-AWx" firstAttribute="centerY" secondItem="dJ9-r2-Skc" secondAttribute="centerY" id="RdG-es-tYl"/>
+                                                            <constraint firstItem="dAW-rY-AWx" firstAttribute="leading" secondItem="dJ9-r2-Skc" secondAttribute="leading" constant="2" id="eqU-37-cEs"/>
+                                                        </constraints>
+                                                        <connections>
+                                                            <outlet property="textField" destination="dAW-rY-AWx" id="lQx-0c-gHW"/>
+                                                        </connections>
+                                                    </tableCellView>
+                                                    <tableCellView identifier="mainCell" id="wv8-RZ-J3F">
+                                                        <rect key="frame" x="18" y="24" width="220" height="25"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES" flexibleMaxY="YES"/>
+                                                        <subviews>
+                                                            <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="AJc-3f-MN7">
+                                                                <rect key="frame" x="3" y="3" width="25" height="20"/>
+                                                                <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="Panel" id="7bN-jX-rDv"/>
+                                                            </imageView>
+                                                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
+                                                                <rect key="frame" x="29" y="6" width="191" height="14"/>
+                                                                <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" title="Name" id="sPR-x9-rNz">
+                                                                    <font key="font" metaFont="smallSystem"/>
+                                                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                                                </textFieldCell>
+                                                                <connections>
+                                                                    <binding destination="wv8-RZ-J3F" name="value" keyPath="objectValue.name" id="ktW-VZ-EjP">
+                                                                        <dictionary key="options">
+                                                                            <bool key="NSValidatesImmediately" value="YES"/>
+                                                                        </dictionary>
+                                                                    </binding>
+                                                                </connections>
+                                                            </textField>
+                                                        </subviews>
+                                                        <constraints>
+                                                            <constraint firstItem="XbY-Eq-tHV" firstAttribute="leading" secondItem="AJc-3f-MN7" secondAttribute="trailing" constant="3" id="6ZE-De-ktc"/>
+                                                            <constraint firstAttribute="trailing" secondItem="XbY-Eq-tHV" secondAttribute="trailing" constant="2" id="ThW-AI-3Gt"/>
+                                                            <constraint firstItem="AJc-3f-MN7" firstAttribute="centerY" secondItem="wv8-RZ-J3F" secondAttribute="centerY" id="YN0-hN-GKi"/>
+                                                            <constraint firstItem="XbY-Eq-tHV" firstAttribute="centerY" secondItem="AJc-3f-MN7" secondAttribute="centerY" id="ZcQ-L7-R7e"/>
+                                                            <constraint firstItem="AJc-3f-MN7" firstAttribute="leading" secondItem="wv8-RZ-J3F" secondAttribute="leading" constant="3" id="bxO-c8-mBR"/>
+                                                        </constraints>
+                                                        <connections>
+                                                            <outlet property="imageView" destination="AJc-3f-MN7" id="tE4-kI-K02"/>
+                                                            <outlet property="textField" destination="XbY-Eq-tHV" id="5gM-0r-FVK"/>
+                                                        </connections>
+                                                    </tableCellView>
+                                                </prototypeCellViews>
+                                            </tableColumn>
+                                        </tableColumns>
+                                        <connections>
+                                            <outlet property="menu" destination="vcq-wz-ppO" id="Ib9-9Z-u4L"/>
+                                        </connections>
+                                    </outlineView>
+                                </subviews>
+                                <nil key="backgroundColor"/>
+                            </clipView>
+                            <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="TQq-aC-I51">
+                                <rect key="frame" x="-100" y="-100" width="228" height="16"/>
+                                <autoresizingMask key="autoresizingMask"/>
+                            </scroller>
+                            <scroller key="verticalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="NO" id="XKN-Js-PT3">
+                                <rect key="frame" x="224" y="17" width="15" height="102"/>
+                                <autoresizingMask key="autoresizingMask"/>
+                            </scroller>
+                        </scrollView>
+                    </subviews>
+                    <constraints>
+                        <constraint firstItem="T6b-gG-WBE" firstAttribute="leading" secondItem="oDb-VZ-IPJ" secondAttribute="leading" constant="6" id="0ry-dM-sf2"/>
+                        <constraint firstItem="viV-H4-jv5" firstAttribute="centerY" secondItem="T6b-gG-WBE" secondAttribute="centerY" id="B54-Zf-ZGy"/>
+                        <constraint firstItem="viV-H4-jv5" firstAttribute="leading" secondItem="T6b-gG-WBE" secondAttribute="trailing" constant="8" symbolic="YES" id="OSu-2X-flm"/>
+                        <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="ZyM-Z3-m9b" secondAttribute="trailing" constant="5" id="dfU-nW-QhP"/>
+                        <constraint firstItem="ZyM-Z3-m9b" firstAttribute="centerY" secondItem="viV-H4-jv5" secondAttribute="centerY" id="fIx-4E-J4G"/>
+                        <constraint firstItem="ZyM-Z3-m9b" firstAttribute="leading" secondItem="viV-H4-jv5" secondAttribute="trailing" constant="8" symbolic="YES" id="m8w-ab-HZB"/>
+                        <constraint firstItem="T6b-gG-WBE" firstAttribute="centerY" secondItem="oDb-VZ-IPJ" secondAttribute="bottom" constant="-15" id="sVC-8F-8X4"/>
+                    </constraints>
+                </customView>
+                <customView translatesAutoresizingMaskIntoConstraints="NO" id="lk9-j4-JLf" userLabel="right pane">
+                    <rect key="frame" x="258" y="0.0" width="401" height="318"/>
+                    <subviews>
+                        <button toolTip="New Marker" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="S4B-gN-1PE" userLabel="+">
+                            <rect key="frame" x="6" y="8" width="14" height="14"/>
+                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="add" imagePosition="only" alignment="center" state="on" imageScaling="proportionallyDown" inset="2" id="l7E-R5-IzX">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                <font key="font" metaFont="smallSystemBold"/>
+                            </buttonCell>
+                            <connections>
+                                <action selector="newMarkerPrompt:" target="QKk-0z-dMc" id="EUj-Oo-tIx"/>
+                                <binding destination="-2" name="enabled" keyPath="selectedFolder.isPanel" id="0mW-Sm-Waa"/>
+                            </connections>
+                        </button>
+                        <button toolTip="Remove Selected Marker(s)" verticalHuggingPriority="750" tag="4" translatesAutoresizingMaskIntoConstraints="NO" id="aNO-oA-uzk" userLabel="—">
+                            <rect key="frame" x="28" y="8" width="14" height="14"/>
+                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="remove" imagePosition="only" alignment="center" state="on" inset="2" id="kwx-Sg-0pu">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                <font key="font" metaFont="smallSystemBold"/>
+                            </buttonCell>
+                            <connections>
+                                <action selector="remove:" target="QKk-0z-dMc" id="iTz-HO-2es"/>
+                                <binding destination="du3-Sj-t3r" name="enabled" keyPath="selectedObjects.@count" id="FEx-Ro-bTC"/>
+                            </connections>
+                        </button>
+                        <scrollView fixedFrame="YES" borderType="none" autohidesScrollers="YES" horizontalLineScroll="17" horizontalPageScroll="10" verticalLineScroll="17" verticalPageScroll="10" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="gJR-y5-XLs">
+                            <rect key="frame" x="0.0" y="30" width="401" height="288"/>
+                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                            <clipView key="contentView" id="eHE-je-1Jj">
+                                <rect key="frame" x="0.0" y="0.0" width="401" height="288"/>
+                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                <subviews>
+                                    <tableView identifier="markerTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="plain" autosaveColumns="NO" rowSizeStyle="small" headerView="aQD-FX-ACV" viewBased="YES" id="JeK-rO-5Ed" userLabel="Marker table">
+                                        <rect key="frame" x="0.0" y="0.0" width="401" height="260"/>
+                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                        <size key="intercellSpacing" width="17" height="0.0"/>
+                                        <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                        <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
+                                        <tableColumns>
+                                            <tableColumn identifier="markerNameColumn" width="64" minWidth="10" maxWidth="3.4028234663852886e+38" id="fJg-kT-8at">
+                                                <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Marker">
+                                                    <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
+                                                    <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                </tableHeaderCell>
+                                                <textFieldCell key="dataCell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" editable="YES" alignment="left" title="Text Cell" id="T0L-RD-9xb">
+                                                    <font key="font" metaFont="smallSystem"/>
+                                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                    <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                </textFieldCell>
+                                                <sortDescriptor key="sortDescriptorPrototype" selector="compare:" sortKey="name"/>
+                                                <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
+                                            </tableColumn>
+                                        </tableColumns>
+                                        <connections>
+                                            <action selector="tableViewIsClicked:" target="-1" id="IXn-Ow-9Ig"/>
+                                        </connections>
+                                    </tableView>
+                                </subviews>
+                            </clipView>
+                            <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="pAz-5d-kf1">
+                                <rect key="frame" x="0.0" y="272" width="401" height="16"/>
+                                <autoresizingMask key="autoresizingMask"/>
+                            </scroller>
+                            <scroller key="verticalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="NO" id="5We-Yk-eep">
+                                <rect key="frame" x="224" y="17" width="15" height="102"/>
+                                <autoresizingMask key="autoresizingMask"/>
+                            </scroller>
+                            <tableHeaderView key="headerView" wantsLayer="YES" id="aQD-FX-ACV" customClass="TableHeaderView">
+                                <rect key="frame" x="0.0" y="0.0" width="401" height="28"/>
+                                <autoresizingMask key="autoresizingMask"/>
+                            </tableHeaderView>
+                        </scrollView>
+                    </subviews>
+                    <constraints>
+                        <constraint firstItem="aNO-oA-uzk" firstAttribute="leading" secondItem="S4B-gN-1PE" secondAttribute="trailing" constant="8" symbolic="YES" id="KKs-t3-adG"/>
+                        <constraint firstItem="S4B-gN-1PE" firstAttribute="centerY" secondItem="lk9-j4-JLf" secondAttribute="bottom" constant="-15" id="MXm-Sp-1Si"/>
+                        <constraint firstItem="aNO-oA-uzk" firstAttribute="centerY" secondItem="S4B-gN-1PE" secondAttribute="centerY" id="Ytu-UA-Fce"/>
+                        <constraint firstItem="aNO-oA-uzk" firstAttribute="trailing" relation="lessThanOrEqual" secondItem="lk9-j4-JLf" secondAttribute="trailing" constant="-5" id="ex1-Dt-ONi"/>
+                        <constraint firstItem="S4B-gN-1PE" firstAttribute="leading" secondItem="lk9-j4-JLf" secondAttribute="leading" constant="6" id="qnA-Zc-xtQ"/>
+                    </constraints>
+                </customView>
+            </subviews>
+            <holdingPriorities>
+                <real value="248"/>
+                <real value="247"/>
+            </holdingPriorities>
+            <point key="canvasLocation" x="-212.5" y="982"/>
+        </splitView>
+    </objects>
+    <resources>
+        <image name="Panel" width="25" height="20"/>
+        <image name="add" width="14" height="14"/>
+        <image name="edited" width="15" height="15"/>
+        <image name="export" width="15" height="17"/>
+        <image name="folderBadge" width="20" height="15"/>
+        <image name="import" width="15" height="16"/>
+        <image name="panelBadge" width="20" height="15"/>
+        <image name="remove" width="14" height="14"/>
+        <image name="trash" width="15" height="15"/>
+    </resources>
+</document>

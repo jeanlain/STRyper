@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="DetailedViewController">
+            <connections>
+                <outlet property="_tableView" destination="0qS-ci-Tr3" id="PWR-Rk-HQ9"/>
+                <outlet property="view" destination="TaJ-5Y-vS7" id="9Yg-Xg-ETN"/>
+            </connections>
+        </customObject>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
+        <userDefaultsController representsSharedInstance="YES" id="KQm-tu-aY2"/>
+        <customView id="TaJ-5Y-vS7" userLabel="Right Pane">
+            <rect key="frame" x="0.0" y="0.0" width="652" height="736"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <scrollView borderType="none" horizontalLineScroll="100" horizontalPageScroll="10" verticalLineScroll="100" verticalPageScroll="0.0" translatesAutoresizingMaskIntoConstraints="NO" id="MzI-yj-wFf">
+                    <rect key="frame" x="0.0" y="30" width="652" height="706"/>
+                    <clipView key="contentView" id="odp-jd-7as">
+                        <rect key="frame" x="0.0" y="0.0" width="652" height="706"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <outlineView identifier="traceOutlineView" verticalHuggingPriority="750" tag="3" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" selectionHighlightStyle="none" multipleSelection="NO" autosaveColumns="NO" typeSelect="NO" rowHeight="98" headerView="c1B-BF-T33" viewBased="YES" floatsGroupRows="NO" outlineTableColumn="zpk-aZ-Se7" id="0qS-ci-Tr3">
+                                <rect key="frame" x="0.0" y="0.0" width="652" height="678"/>
+                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                <size key="intercellSpacing" width="3" height="2"/>
+                                <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
+                                <tableColumns>
+                                    <tableColumn identifier="sampleNameColumn" width="181" minWidth="16" maxWidth="1000" id="zpk-aZ-Se7">
+                                        <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Sample">
+                                            <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
+                                            <color key="backgroundColor" white="0.33333298560000002" alpha="1" colorSpace="calibratedWhite"/>
+                                        </tableHeaderCell>
+                                        <textFieldCell key="dataCell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" alignment="left" title="Text Cell" id="clC-19-nIp">
+                                            <font key="font" metaFont="system"/>
+                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                            <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                        </textFieldCell>
+                                        <sortDescriptor key="sortDescriptorPrototype" selector="compare:" sortKey="sampleName"/>
+                                        <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
+                                        <prototypeCellViews>
+                                            <customView identifier="noTraceRowViewKey" focusRingType="none" id="1Os-f9-fUB" customClass="NSTableRowView">
+                                                <rect key="frame" x="1" y="1" width="181" height="96"/>
+                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                <subviews>
+                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="AuF-mM-PES">
+                                                        <rect key="frame" x="5" y="40" width="172" height="17"/>
+                                                        <textFieldCell key="cell" alignment="center" title="No data for this channel" id="3Zi-IZ-n5W">
+                                                            <font key="font" metaFont="systemBold" size="14"/>
+                                                            <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" red="1" green="0.44831780139999999" blue="0.41013671270000002" alpha="0.84705882349999995" colorSpace="custom" customColorSpace="sRGB"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                </subviews>
+                                                <constraints>
+                                                    <constraint firstItem="AuF-mM-PES" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="1Os-f9-fUB" secondAttribute="leading" constant="5" id="5BQ-gN-pqg"/>
+                                                    <constraint firstItem="AuF-mM-PES" firstAttribute="centerX" secondItem="1Os-f9-fUB" secondAttribute="centerX" id="nya-sP-rWz"/>
+                                                    <constraint firstItem="AuF-mM-PES" firstAttribute="centerY" secondItem="1Os-f9-fUB" secondAttribute="centerY" id="qyr-U0-XoE"/>
+                                                </constraints>
+                                            </customView>
+                                            <button identifier="loadContentButton" verticalHuggingPriority="750" id="Td8-U2-Jj3">
+                                                <rect key="frame" x="1" y="99" width="181" height="22"/>
+                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                                <buttonCell key="cell" type="inline" title="Load Samples" bezelStyle="inline" alignment="center" lineBreakMode="truncatingTail" state="on" borderStyle="border" identifier="loadButton" imageScaling="proportionallyDown" inset="2" id="aAV-8T-h3v">
+                                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                                    <font key="font" metaFont="smallSystemBold"/>
+                                                </buttonCell>
+                                            </button>
+                                        </prototypeCellViews>
+                                    </tableColumn>
+                                </tableColumns>
+                                <connections>
+                                    <outlet property="delegate" destination="-2" id="cZI-H3-LUI"/>
+                                </connections>
+                            </outlineView>
+                        </subviews>
+                    </clipView>
+                    <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="7Jw-gM-kpN">
+                        <rect key="frame" x="0.0" y="690" width="652" height="16"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </scroller>
+                    <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="NO" id="6JR-Nv-5mi">
+                        <rect key="frame" x="636" y="28" width="16" height="678"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </scroller>
+                    <tableHeaderView key="headerView" wantsLayer="YES" id="c1B-BF-T33" customClass="TableHeaderView">
+                        <rect key="frame" x="0.0" y="0.0" width="652" height="28"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </tableHeaderView>
+                </scrollView>
+                <slider toolTip="Adjust Row Height" verticalHuggingPriority="750" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="nLK-eJ-TDt" userLabel="Traces per window">
+                    <rect key="frame" x="10" y="5" width="81" height="20"/>
+                    <constraints>
+                        <constraint firstAttribute="width" constant="77" id="xcX-Iu-AzF"/>
+                    </constraints>
+                    <sliderCell key="cell" controlSize="small" state="on" alignment="left" minValue="1" maxValue="5" doubleValue="1" tickMarkPosition="above" numberOfTickMarks="5" allowsTickMarkValuesOnly="YES" sliderType="linear" id="mYF-Jh-Whi"/>
+                </slider>
+                <segmentedControl focusRingType="none" verticalHuggingPriority="750" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="0e3-85-8Um" userLabel="vScaleMode">
+                    <rect key="frame" x="95" y="3" width="108" height="24"/>
+                    <segmentedCell key="cell" borderStyle="border" focusRingType="none" alignment="left" style="rounded" trackingMode="selectOne" id="vqj-hP-rXe">
+                        <font key="font" metaFont="system"/>
+                        <segments>
+                            <segment toolTip="Synchronize the vertical scale of traces" image="syncVscalesPressed" imageScaling="none" width="32" tag="98"/>
+                            <segment toolTip="Set the vertical scale of traces independently" image="syncVscalesOff" imageScaling="none" width="32" selected="YES" tag="1"/>
+                            <segment toolTip="Automatically scale traces to the highest visible peak" image="fitVertically" imageScaling="none" width="32"/>
+                        </segments>
+                    </segmentedCell>
+                </segmentedControl>
+                <button toolTip="Syncrhonize  Positions (^H)" horizontalCompressionResistancePriority="752" tag="-2" translatesAutoresizingMaskIntoConstraints="NO" id="XLb-W5-J7u" userLabel="sync horizontally">
+                    <rect key="frame" x="206" y="5" width="20" height="20"/>
+                    <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="sync views magnet off" imagePosition="only" alignment="center" alternateImage="sync views magnet pressed" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="Dzt-JX-Nuj">
+                        <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <binding destination="-2" name="enabled" keyPath="showGenotypes" id="Dx7-qB-78U">
+                            <dictionary key="options">
+                                <string key="NSValueTransformerName">NSNegateBoolean</string>
+                            </dictionary>
+                        </binding>
+                    </connections>
+                </button>
+                <button toolTip="Show saturation (^O)" horizontalCompressionResistancePriority="752" tag="-3" translatesAutoresizingMaskIntoConstraints="NO" id="reI-m3-TlB" userLabel="show offscale">
+                    <rect key="frame" x="231" y="5" width="21" height="20"/>
+                    <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="show offscale off" imagePosition="only" alignment="center" alternateImage="show offscale pressed" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="0q8-dl-ag7">
+                        <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                </button>
+                <button toolTip="Show Bins (^B)" horizontalHuggingPriority="249" horizontalCompressionResistancePriority="752" tag="-4" translatesAutoresizingMaskIntoConstraints="NO" id="gqP-TL-Pv8" userLabel="show bins">
+                    <rect key="frame" x="257" y="5" width="22" height="20"/>
+                    <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="show bins" imagePosition="only" alignment="center" alternateImage="show bins pressed" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="J0D-aX-orp">
+                        <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                </button>
+                <button identifier="blue" translatesAutoresizingMaskIntoConstraints="NO" id="jbA-aD-n2b" userLabel="blue button">
+                    <rect key="frame" x="284" y="5" width="21" height="21"/>
+                    <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="showBlueButton" imagePosition="only" alignment="center" alternateImage="showBlueButtonPressed" imageScaling="proportionallyUpOrDown" inset="2" id="f08-Ha-h8r">
+                        <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="channelsToShow:" target="-2" id="kuA-gw-zoM"/>
+                    </connections>
+                </button>
+                <button identifier="green" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="qWz-lV-an7" userLabel="green Button">
+                    <rect key="frame" x="305" y="5" width="21" height="21"/>
+                    <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="showGreenButton" imagePosition="only" alignment="center" alternateImage="showGreenButtonPressed" imageScaling="proportionallyUpOrDown" inset="2" id="irC-z2-7r0">
+                        <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="channelsToShow:" target="-2" id="LKA-M8-t1Z"/>
+                    </connections>
+                </button>
+                <button identifier="black" tag="2" translatesAutoresizingMaskIntoConstraints="NO" id="y5f-Y3-ZVL" userLabel="black Button">
+                    <rect key="frame" x="326" y="5" width="21" height="21"/>
+                    <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="showBlackButton" imagePosition="only" alignment="center" alternateImage="showBlackButtonPressed" imageScaling="proportionallyUpOrDown" inset="2" id="41v-bE-DfT">
+                        <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="channelsToShow:" target="-2" id="UyT-iq-sWc"/>
+                    </connections>
+                </button>
+                <button identifier="red" tag="3" translatesAutoresizingMaskIntoConstraints="NO" id="4DP-HO-d6o" userLabel="red Button">
+                    <rect key="frame" x="347" y="5" width="21" height="21"/>
+                    <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="showRedButton" imagePosition="only" alignment="center" alternateImage="showRedButtonPressed" imageScaling="proportionallyUpOrDown" inset="2" id="VRN-BY-FbJ">
+                        <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="channelsToShow:" target="-2" id="Twz-ze-LCk"/>
+                    </connections>
+                </button>
+                <button identifier="orange" tag="4" translatesAutoresizingMaskIntoConstraints="NO" id="DFZ-jG-3HR" userLabel="orange Button">
+                    <rect key="frame" x="368" y="5" width="21" height="21"/>
+                    <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="showOrangeButton" imagePosition="only" alignment="center" alternateImage="showOrangeButtonPressed" imageScaling="proportionallyUpOrDown" inset="2" id="w51-kp-rgX">
+                        <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="channelsToShow:" target="-2" id="xD6-4M-IB1"/>
+                    </connections>
+                </button>
+                <segmentedControl focusRingType="none" verticalHuggingPriority="750" tag="-5" translatesAutoresizingMaskIntoConstraints="NO" id="p5z-uG-8w6" userLabel="stackMode">
+                    <rect key="frame" x="395" y="3" width="108" height="24"/>
+                    <segmentedCell key="cell" borderStyle="border" focusRingType="none" alignment="left" style="rounded" trackingMode="selectOne" id="j4L-yN-XHY">
+                        <font key="font" metaFont="system"/>
+                        <segments>
+                            <segment toolTip="Show one trace per row" image="separate curves" imageScaling="none" width="32" tag="-5"/>
+                            <segment toolTip="Show one sample per row" image="stackChannelsButton" imageScaling="none" width="32" selected="YES" tag="1"/>
+                            <segment toolTip="Show one dye per row (all samples)" image="stackSamples" imageScaling="none" width="32"/>
+                        </segments>
+                    </segmentedCell>
+                </segmentedControl>
+            </subviews>
+            <constraints>
+                <constraint firstItem="nLK-eJ-TDt" firstAttribute="centerY" secondItem="TaJ-5Y-vS7" secondAttribute="bottom" constant="-15" id="60y-zm-Up4"/>
+                <constraint firstItem="y5f-Y3-ZVL" firstAttribute="leading" secondItem="qWz-lV-an7" secondAttribute="trailing" id="6dT-za-fyd"/>
+                <constraint firstItem="XLb-W5-J7u" firstAttribute="centerY" secondItem="0e3-85-8Um" secondAttribute="centerY" id="8S1-j6-EJp"/>
+                <constraint firstItem="DFZ-jG-3HR" firstAttribute="centerY" secondItem="4DP-HO-d6o" secondAttribute="centerY" id="9Nq-pt-MtQ"/>
+                <constraint firstItem="jbA-aD-n2b" firstAttribute="leading" secondItem="gqP-TL-Pv8" secondAttribute="trailing" constant="5" id="CPW-F9-qy5"/>
+                <constraint firstItem="qWz-lV-an7" firstAttribute="leading" secondItem="jbA-aD-n2b" secondAttribute="trailing" id="FwR-3q-hHA"/>
+                <constraint firstItem="4DP-HO-d6o" firstAttribute="centerY" secondItem="y5f-Y3-ZVL" secondAttribute="centerY" id="J1z-BL-PGP"/>
+                <constraint firstItem="MzI-yj-wFf" firstAttribute="leading" secondItem="TaJ-5Y-vS7" secondAttribute="leading" id="Jow-fZ-HK6"/>
+                <constraint firstAttribute="bottom" secondItem="MzI-yj-wFf" secondAttribute="bottom" constant="30" id="JrQ-XP-pMx"/>
+                <constraint firstAttribute="trailing" secondItem="MzI-yj-wFf" secondAttribute="trailing" id="MgR-hN-6uO"/>
+                <constraint firstItem="p5z-uG-8w6" firstAttribute="centerY" secondItem="DFZ-jG-3HR" secondAttribute="centerY" id="RUd-CB-4UL"/>
+                <constraint firstItem="jbA-aD-n2b" firstAttribute="centerY" secondItem="gqP-TL-Pv8" secondAttribute="centerY" id="T9U-yw-pr9"/>
+                <constraint firstItem="nLK-eJ-TDt" firstAttribute="leading" secondItem="TaJ-5Y-vS7" secondAttribute="leading" constant="12" id="TPh-WL-per"/>
+                <constraint firstItem="MzI-yj-wFf" firstAttribute="top" secondItem="TaJ-5Y-vS7" secondAttribute="top" id="W4v-ab-H0b"/>
+                <constraint firstItem="XLb-W5-J7u" firstAttribute="leading" secondItem="0e3-85-8Um" secondAttribute="trailing" constant="5" id="WdA-hL-cGg"/>
+                <constraint firstItem="reI-m3-TlB" firstAttribute="leading" secondItem="XLb-W5-J7u" secondAttribute="trailing" constant="5" id="aMn-fe-Bls"/>
+                <constraint firstItem="y5f-Y3-ZVL" firstAttribute="centerY" secondItem="qWz-lV-an7" secondAttribute="centerY" id="akW-xq-SfP"/>
+                <constraint firstItem="0e3-85-8Um" firstAttribute="leading" secondItem="nLK-eJ-TDt" secondAttribute="trailing" constant="8" symbolic="YES" id="bVD-MA-rfO"/>
+                <constraint firstItem="0e3-85-8Um" firstAttribute="centerY" secondItem="nLK-eJ-TDt" secondAttribute="centerY" id="bem-zx-gud"/>
+                <constraint firstItem="4DP-HO-d6o" firstAttribute="trailing" secondItem="DFZ-jG-3HR" secondAttribute="leading" id="c9o-07-Rhv"/>
+                <constraint firstItem="qWz-lV-an7" firstAttribute="centerY" secondItem="jbA-aD-n2b" secondAttribute="centerY" id="da1-Qj-v1J"/>
+                <constraint firstItem="gqP-TL-Pv8" firstAttribute="centerY" secondItem="reI-m3-TlB" secondAttribute="centerY" id="kpS-vj-JFe"/>
+                <constraint firstItem="p5z-uG-8w6" firstAttribute="leading" secondItem="DFZ-jG-3HR" secondAttribute="trailing" constant="8" symbolic="YES" id="oad-12-KLo"/>
+                <constraint firstItem="gqP-TL-Pv8" firstAttribute="leading" secondItem="reI-m3-TlB" secondAttribute="trailing" constant="5" id="pj6-hT-7KV"/>
+                <constraint firstItem="4DP-HO-d6o" firstAttribute="leading" secondItem="y5f-Y3-ZVL" secondAttribute="trailing" id="wLi-mz-Bjf"/>
+                <constraint firstItem="reI-m3-TlB" firstAttribute="centerY" secondItem="XLb-W5-J7u" secondAttribute="centerY" id="yic-MO-5b3"/>
+            </constraints>
+            <point key="canvasLocation" x="447" y="117"/>
+        </customView>
+    </objects>
+    <resources>
+        <image name="fitVertically" width="25" height="20"/>
+        <image name="separate curves" width="25" height="20"/>
+        <image name="show bins" width="22" height="20"/>
+        <image name="show bins pressed" width="22" height="20"/>
+        <image name="show offscale off" width="21" height="20"/>
+        <image name="show offscale pressed" width="21" height="20"/>
+        <image name="showBlackButton" width="21" height="21"/>
+        <image name="showBlackButtonPressed" width="21" height="21"/>
+        <image name="showBlueButton" width="21" height="21"/>
+        <image name="showBlueButtonPressed" width="21" height="21"/>
+        <image name="showGreenButton" width="21" height="21"/>
+        <image name="showGreenButtonPressed" width="21" height="21"/>
+        <image name="showOrangeButton" width="21" height="21"/>
+        <image name="showOrangeButtonPressed" width="21" height="21"/>
+        <image name="showRedButton" width="21" height="21"/>
+        <image name="showRedButtonPressed" width="21" height="21"/>
+        <image name="stackChannelsButton" width="25" height="20"/>
+        <image name="stackSamples" width="25" height="20"/>
+        <image name="sync views magnet off" width="20" height="20"/>
+        <image name="sync views magnet pressed" width="20" height="20"/>
+        <image name="syncVscalesOff" width="25" height="20"/>
+        <image name="syncVscalesPressed" width="25" height="20"/>
+    </resources>
+</document>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>showOffScale</key>
+	<false/>
+	<key>antiAliasing</key>
+	<true/>
+	<key>outlinePeaks</key>
+	<false/>
+	<key>defaultStartSize</key>
+	<integer>50</integer>
+	<key>defaultEndSize</key>
+	<integer>450</integer>
+	<key>stackChannels</key>
+	<false/>
+	<key>stackSamples</key>
+	<false/>
+	<key>synchronizeViews</key>
+	<true/>
+	<key>synchronizeVScales</key>
+	<false/>
+	<key>showRawData</key>
+	<false/>
+	<key>tracesPerWindow</key>
+	<integer>2</integer>
+	<key>bottomTab</key>
+	<integer>0</integer>
+	<key>sampleNameColumn</key>
+	<true/>
+	<key>sampleFileColumn</key>
+	<true/>
+	<key>sampleSizeStandardColumn</key>
+	<true/>
+	<key>sampleWellColumn</key>
+	<true/>
+	<key>sampleLaneColumn</key>
+	<true/>
+	<key>sampleRunDateColumn</key>
+	<true/>
+	<key>samplePanelColumn</key>
+	<true/>
+	<key>channel1</key>
+	<true/>
+	<key>channel2</key>
+	<true/>
+	<key>channel3</key>
+	<true/>
+	<key>channel4</key>
+	<true/>
+	<key>channel0</key>
+	<true/>
+</dict>
+</plist>

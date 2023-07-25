@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22F82" minimumToolsVersion="Xcode 8.0" sourceLanguage="Objective-C" userDefinedModelVersionIdentifier="1.0">
+    <entity name="Allele" representedClassName="Allele" parentEntity="LadderFragment" syncable="YES">
+        <attribute name="additionnal" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="NO" syncable="YES"/>
+        <relationship name="genotype" maxCount="1" deletionRule="Nullify" destinationEntity="Genotype" inverseName="alleles" inverseEntity="Genotype" syncable="YES"/>
+    </entity>
+    <entity name="Bin" representedClassName="Bin" parentEntity="Region" syncable="YES">
+        <relationship name="marker" maxCount="1" deletionRule="Nullify" destinationEntity="Marker" inverseName="bins" inverseEntity="Marker" syncable="YES"/>
+    </entity>
+    <entity name="Chromatogram" representedClassName="Chromatogram" syncable="YES">
+        <attribute name="coefs" optional="YES" attributeType="Binary" syncable="YES"/>
+        <attribute name="comment" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="gelType" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="importDate" optional="YES" attributeType="Date" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="instrument" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="intercept" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="lane" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="nChannels" optional="YES" attributeType="Integer 16" minValueString="4" maxValueString="6" defaultValueString="4" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="nScans" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="offscaleRegions" optional="YES" attributeType="Binary" syncable="YES"/>
+        <attribute name="offScaleScans" optional="YES" attributeType="Binary" syncable="YES"/>
+        <attribute name="owner" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="panelName" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="panelVersion" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="plate" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="polynomialOrder" attributeType="Integer 16" minValueString="-1" maxValueString="3" defaultValueString="-1" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="protocol" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="resultsGroup" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="reverseCoefs" optional="YES" attributeType="Binary" syncable="YES"/>
+        <attribute name="runName" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="runStopTime" optional="YES" attributeType="Date" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="sampleName" optional="YES" attributeType="String" minValueString="0" defaultValueString="" syncable="YES"/>
+        <attribute name="sampleType" optional="YES" attributeType="String" defaultValueString="" syncable="YES"/>
+        <attribute name="sizingQuality" optional="YES" attributeType="Float" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="sizingSlope" attributeType="Float" defaultValueString="1" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="sourceFile" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="standardName" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="well" optional="YES" attributeType="String" syncable="YES"/>
+        <relationship name="folder" maxCount="1" deletionRule="Nullify" destinationEntity="SampleFolder" inverseName="samples" inverseEntity="SampleFolder" syncable="YES"/>
+        <relationship name="genotypes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Genotype" inverseName="sample" inverseEntity="Genotype" syncable="YES"/>
+        <relationship name="panel" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Panel" inverseName="samples" inverseEntity="Panel" syncable="YES"/>
+        <relationship name="sizeStandard" optional="YES" minCount="1" maxCount="1" deletionRule="Nullify" destinationEntity="SizeStandard" inverseName="samples" inverseEntity="SizeStandard" syncable="YES"/>
+        <relationship name="traces" toMany="YES" minCount="4" maxCount="6" deletionRule="Cascade" destinationEntity="Trace" inverseName="chromatogram" inverseEntity="Trace" syncable="YES"/>
+    </entity>
+    <entity name="Folder" representedClassName="Folder" isAbstract="YES" syncable="YES">
+        <attribute name="name" optional="YES" attributeType="String" syncable="YES"/>
+        <relationship name="parent" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Folder" inverseName="subfolders" inverseEntity="Folder" syncable="YES"/>
+        <relationship name="subfolders" optional="YES" toMany="YES" deletionRule="Cascade" ordered="YES" destinationEntity="Folder" inverseName="parent" inverseEntity="Folder" syncable="YES"/>
+    </entity>
+    <entity name="Genotype" representedClassName="Genotype" syncable="YES">
+        <attribute name="notes" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="offsetData" optional="YES" attributeType="Binary" syncable="YES"/>
+        <attribute name="status" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <relationship name="alleles" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Allele" inverseName="genotype" inverseEntity="Allele" syncable="YES"/>
+        <relationship name="marker" maxCount="1" deletionRule="Nullify" destinationEntity="Marker" inverseName="genotypes" inverseEntity="Marker" syncable="YES"/>
+        <relationship name="sample" maxCount="1" deletionRule="Nullify" destinationEntity="Chromatogram" inverseName="genotypes" inverseEntity="Chromatogram" syncable="YES"/>
+    </entity>
+    <entity name="LadderFragment" representedClassName="LadderFragment" syncable="YES">
+        <attribute name="name" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="offset" optional="YES" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="scan" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="size" optional="YES" attributeType="Float" minValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <relationship name="trace" minCount="1" maxCount="1" deletionRule="Nullify" destinationEntity="Trace" inverseName="fragments" inverseEntity="Trace" syncable="YES"/>
+    </entity>
+    <entity name="Marker" representedClassName="Mmarker" parentEntity="Region" syncable="YES">
+        <attribute name="channel" attributeType="Integer 16" minValueString="0" maxValueString="4" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="motiveLength" attributeType="Integer 16" minValueString="1" maxValueString="10" defaultValueString="2" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="ploidy" attributeType="Integer 16" minValueString="1" maxValueString="2" defaultValueString="2" usesScalarValueType="NO" syncable="YES"/>
+        <relationship name="bins" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Bin" inverseName="marker" inverseEntity="Bin" syncable="YES"/>
+        <relationship name="genotypes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Genotype" inverseName="marker" inverseEntity="Genotype" syncable="YES">
+            <userInfo>
+                <entry key="doNotCopy" value="YES"/>
+            </userInfo>
+        </relationship>
+        <relationship name="panel" maxCount="1" deletionRule="Nullify" destinationEntity="Panel" inverseName="markers" inverseEntity="Panel" syncable="YES"/>
+    </entity>
+    <entity name="Panel" representedClassName="Panel" parentEntity="Folder" syncable="YES">
+        <attribute name="version" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="NO" syncable="YES"/>
+        <relationship name="markers" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Marker" inverseName="panel" inverseEntity="Marker" syncable="YES"/>
+        <relationship name="samples" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Chromatogram" inverseName="panel" inverseEntity="Chromatogram" syncable="YES"/>
+    </entity>
+    <entity name="PanelFolder" representedClassName="PanelFolder" parentEntity="Folder" syncable="YES"/>
+    <entity name="Region" representedClassName="Region" isAbstract="YES" syncable="YES">
+        <attribute name="end" attributeType="Float" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="name" optional="YES" attributeType="String" defaultValueString="unnamed" syncable="YES"/>
+        <attribute name="start" attributeType="Float" usesScalarValueType="YES" syncable="YES"/>
+    </entity>
+    <entity name="SampleFolder" representedClassName="SampleFolder" parentEntity="Folder" syncable="YES">
+        <relationship name="samples" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Chromatogram" inverseName="folder" inverseEntity="Chromatogram" syncable="YES"/>
+    </entity>
+    <entity name="SizeStandard" representedClassName="SizeStandard" syncable="YES">
+        <attribute name="editable" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="name" attributeType="String" minValueString="1" defaultValueString="new standard" syncable="YES"/>
+        <relationship name="samples" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Chromatogram" inverseName="sizeStandard" inverseEntity="Chromatogram" syncable="YES"/>
+        <relationship name="sizes" toMany="YES" minCount="3" deletionRule="Cascade" destinationEntity="SizeStandardSize" inverseName="sizeStandard" inverseEntity="SizeStandardSize" syncable="YES"/>
+    </entity>
+    <entity name="SizeStandardSize" representedClassName="SizeStandardSize" syncable="YES">
+        <attribute name="size" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <relationship name="sizeStandard" minCount="1" maxCount="1" deletionRule="Nullify" destinationEntity="SizeStandard" inverseName="sizes" inverseEntity="SizeStandard" syncable="YES"/>
+    </entity>
+    <entity name="SmartFolder" representedClassName="SmartFolder" parentEntity="Folder" syncable="YES">
+        <attribute name="genotypeSearch" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="searchPredicateData" optional="YES" attributeType="Binary" syncable="YES"/>
+    </entity>
+    <entity name="Trace" representedClassName="Trace" syncable="YES">
+        <attribute name="channel" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="dyeName" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="isLadder" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="maxFluo" attributeType="Integer 16" defaultValueString="32000" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="peaks" optional="YES" attributeType="Binary" syncable="YES"/>
+        <attribute name="peakThreshold" attributeType="Integer 16" defaultValueString="100" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="rawData" attributeType="Binary" syncable="YES"/>
+        <relationship name="chromatogram" maxCount="1" deletionRule="Nullify" destinationEntity="Chromatogram" inverseName="traces" inverseEntity="Chromatogram" syncable="YES"/>
+        <relationship name="fragments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LadderFragment" inverseName="trace" inverseEntity="LadderFragment" syncable="YES">
+            <userInfo>
+                <entry key="doNotCopy" value="YES"/>
+            </userInfo>
+        </relationship>
+    </entity>
+    <fetchRequest name="exactSizeStandardName" entity="SizeStandard" predicateString="name == $SIZE_STANDARD_NAME" fetchLimit="1"/>
+</model>

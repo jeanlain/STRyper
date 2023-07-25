@@ -1,0 +1,18 @@
+{
+  "images" : [
+    {
+      "filename" : "showGreenDye.pdf",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "showGreenDye 1.pdf",
+      "idiom" : "mac",
+      "scale" : "2x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

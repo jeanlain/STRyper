@@ -1,0 +1,40 @@
+{
+  "images" : [
+    {
+      "filename" : "show bins pressed dark2.pdf",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "show bins pressed2 2.pdf",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "show bins pressed dark2 2.pdf",
+      "idiom" : "mac",
+      "scale" : "2x"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "show bins pressed2 3.pdf",
+      "idiom" : "mac",
+      "scale" : "2x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

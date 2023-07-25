@@ -1,0 +1,18 @@
+{
+  "images" : [
+    {
+      "filename" : "import samples fill.pdf",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "import samples fill-1.pdf",
+      "idiom" : "mac",
+      "scale" : "2x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

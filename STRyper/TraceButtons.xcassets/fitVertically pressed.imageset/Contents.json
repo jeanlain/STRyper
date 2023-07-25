@@ -1,0 +1,40 @@
+{
+  "images" : [
+    {
+      "filename" : "fitVertically pressed.pdf",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "fitVertically pressed dark.pdf",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "fitVertically pressed 1.pdf",
+      "idiom" : "mac",
+      "scale" : "2x"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "fitVertically pressed dark 1.pdf",
+      "idiom" : "mac",
+      "scale" : "2x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
