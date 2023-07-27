@@ -264,11 +264,15 @@ static const float minTraceRowHeight = 40.0;
 		}
 		return (self.stackMode == stackModeSamples && !self.showGenotypes && !self.showMarkers)? self.displayedChannels.count : count;  /// if we stack sample curves, the number of rows is the number of channels to show
 	}
-	if([item isKindOfClass: Genotype.class]) return 1;	/// a genotype has one child, which is the trace corresponding to the marker's channel for the chromatogram
-	if([item isKindOfClass: Chromatogram.class]) {		/// the number of children of a chromatogram depends on whether the channels are stacked or not
+	if([item isKindOfClass: Genotype.class]) {
+		return 1;	/// a genotype has one child, which is the trace corresponding to the marker's channel for the chromatogram
+	}
+	
+	if([item isKindOfClass: Chromatogram.class]) {
+		/// the number of children of a chromatogram depends on whether the channels are stacked or not
 		return (self.stackMode == stackModeChannels && !self.showGenotypes)? 1 : self.displayedChannels.count;  /// which is the number of rows in each sample (1 if channels overlap, or the number of channels to show separately, depending on the view setting)
 	}
-	return 0;												/// other types of items have no children as they are represented by trace rows. They are not expandable.
+	return 0;	/// other types of items have no children as they are represented by trace rows. They are not expandable.
 }
 
 - (id) outlineView:(id)outlineView child:(NSInteger)index ofItem:(id)item {
@@ -491,7 +495,7 @@ static const float minTraceRowHeight = 40.0;
 		self.loadContentButton.hidden = YES;
 	} else {
 		self.loadContentButton.hidden = NO;
-		self.loadContentButton.title = [NSString stringWithFormat:@"Load %ld %@", content.count, itemType];
+		self.loadContentButton.title = [NSString stringWithFormat:@"Show %ld %@", content.count, itemType];
 		
 		/// we show no content behind the button, but we need to differentiate this case from a case where no sample is selected.
 		/// Otherwise, the binding machinery would see no change in content if all samples get deselected.
@@ -1022,17 +1026,12 @@ static const float minTraceRowHeight = 40.0;
 - (void)traceViewDidChangeRangeVisibleRange:(TraceView *)traceView {
 	if (self.synchronizeViews && !self.showGenotypes && !self.showMarkers) {
 		BaseRange range = traceView.visibleRange;
-		if(!traceOutlineView.inLiveResize) {
-			/// the range may have changed due to the user resizing the window or pane,
-			/// in this case we should not synchronize, as all traceViews send this message
-			
-			for(TraceView *aTraceView in traceViews) {
-				if(aTraceView != traceView) {
-					[aTraceView setVisibleRangeAndDontNotify:range];
-				}
+		for(TraceView *aTraceView in traceViews) {
+			if(aTraceView != traceView) {
+				[aTraceView setVisibleRangeAndDontNotify:range];
 			}
-			referenceRange = range;
 		}
+		referenceRange = range;
 	}
 }
 

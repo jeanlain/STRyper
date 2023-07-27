@@ -22,24 +22,24 @@
 
 #import "TraceView.h"
 
-extern const float ruleThickness;
 
-/// An view that indicates the horizontal scale of a ``TraceView`` in base pairs.
+/// A view that indicates the horizontal scale of a ``TraceView`` in base pairs.
 ///
-///	A ruler view is the horizontal ruler of a scrollview whose document view is a ``TraceView``. It may have a ``MarkerView`` as its accessory view.
+///	A `RulerView` is the horizontal ruler of a scrollview whose document view is a ``TraceView``. It may have a ``MarkerView`` as its accessory view.
 ///
 ///	The ruler view shows tick-marks and text labels indicating sizes in base pairs, which constitute the X-axis of the plot containing the curves shown by the ``TraceView``,
 ///	or the range of markers shown by the ``MarkerView``.
 ///
-///	If the trace(s) shown by the trace view belong to a sample that has no suitable sizing data (no size standard was, or could be, applied), the view shows a text instead of size labels.
+///	If the trace(s) shown by the trace view belong to a sample that has no suitable sizing data (no size standard was, or could be, applied),
+///	the view signifies that with some text instead of showing size labels.
 ///
 /// IMPORTANT: a view of this class must be a horizontal ruler, and will not work as a vertical ruler.
 /// The scrollview's document view must be a ``TraceView``.
 ///
 /// This class does not override methods of `NSRulerView` to display the size labels, hence these methods have no effect on what the view shows.
-/// The position of size labels is derived from properties and methods implement by ``TraceView`` and accounts for the _offset_ of markers (see ``STRyper``guide and ``Genotype/offset``).
+/// The position of size labels is derived from properties and methods implement by ``TraceView`` and accounts for the _offset_ of markers (see ``STRyper`` guide and ``Genotype/offset``).
 ///
-/// A ruler view shows a movable label indicating a particular size, typically the position of the cursor on its client view.
+/// A ruler view can show a mobile label indicating a particular size, typically the position of the cursor on its client view.
 /// It implements methods that allow the user to zoom the trace view to a given range.
 @interface RulerView : NSRulerView 
 
@@ -55,7 +55,7 @@ extern const float ruleThickness;
 /// Tells the view whether it needs to change its appearance (dark/light) to conform to the app theme.
 ///
 /// As a ruler view use core animation layers, it must change their colors explicitly.
-/// Setting this property to YES sets `needsDisplay` to YES.
+/// Setting this property to `YES` sets `needsDisplay` to `YES`.
 ///
 ///	This property is set as appropriate and avoids setting the colors of `CALayer` objects at each redisplay.
 @property (nonatomic) BOOL needsChangeAppearance;
@@ -63,8 +63,10 @@ extern const float ruleThickness;
 /// Tells that view that it needs to the update the offsets of size labels to show within marker ranges.
 ///
 /// Offset are updated at the beginning of `-drawRect`.
-/// This property should return YES if the offset of one or several marker(s) shown by the trace view has/have changed.
+/// This property should return `YES` if the offset of one or several marker(s) shown by the trace view has/have changed.
 @property (nonatomic) BOOL needsUpdateOffsets;
 
+/// The thickness of the ruler view
+extern const float ruleThickness;
 
 @end

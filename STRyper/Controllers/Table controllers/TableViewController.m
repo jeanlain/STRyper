@@ -209,6 +209,34 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 	
 }
 
+
+- (NSString *)tableView:(NSTableView *)tableView typeSelectStringForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
+	/// Overridden for performance. We take advantage of the fact that we know which value of an item a table cell  shows
+	NSDictionary *columnDescription = self.columnDescription;
+	if(_tableContent && columnDescription) {
+		NSDictionary *dic = columnDescription[tableColumn.identifier];
+		if(![dic[CellViewID] isEqualToString:@"imageCellView"]) {
+			/// This type of column does not show any text (or number), so we don't use it
+			if([_tableContent.arrangedObjects count] > row) {
+				id itemAtRow = _tableContent.arrangedObjects[row];
+				NSString *keyPath = dic[KeyPathToBind];
+				if(keyPath) {
+					id value = [itemAtRow valueForKeyPath:keyPath];
+					if(value) {
+						if([value isKindOfClass:NSString.class]) {
+							return value;
+						}
+						return [NSString stringWithFormat:@"%@", value];
+					} else {
+						return @"";
+					}
+				}
+			}
+		}
+	}
+	return nil;
+}
+
 #pragma mark - column visibility and width
 
 - (BOOL)shouldMakeTableHeaderMenu {

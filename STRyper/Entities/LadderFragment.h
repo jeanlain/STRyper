@@ -59,7 +59,7 @@
 /// Convenience method that returns the ``size`` of the fragment, rounded to the second decimal.
 ///
 /// For the ``Allele`` class, this returns the allele name if it is not an empty string (otherwise, its size).
--(NSString *)string;
+@property (readonly, nonatomic) NSString *string;
 
 
 @end

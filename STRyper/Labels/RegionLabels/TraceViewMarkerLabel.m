@@ -626,6 +626,18 @@
 }
 
 
+- (RegionLabel *)addLabelForBin:(Bin *)bin {
+	RegionLabel *binLabel = [RegionLabel regionLabelWithRegion:bin view:self.view];
+	binLabel.offset = self.offset;
+	if(!_binLabels) {
+		_binLabels = @[binLabel];
+	} else {
+		_binLabels = [_binLabels arrayByAddingObject:binLabel];
+	}
+	return binLabel;
+}
+
+
 - (NSArray<BinLabel *> *)binLabels {
 	if(_binLabels) {
 		return _binLabels;
@@ -634,7 +646,7 @@
 	NSMutableArray *temp = NSMutableArray.new;
 	TraceView *view = self.view;
 	BOOL hide = !view.showDisabledBins && !self.enabled && view.trace != nil;		/// we hide the new bin labels if needed. Ideally, we should let the view decide that,
-														/// but since we are enumerate the labels (below), this is a bit more efficient
+														/// but since we enumerate the labels (below), this is a bit more efficient
 														/// the view does not have re-enumerate the labels, which may speedup the load of contents
 	BOOL enable = self.editState == editStateBins;
 	for (Bin *bin in marker.bins) {

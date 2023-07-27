@@ -393,7 +393,7 @@ enum addBinPopoverTag : NSInteger {
 
 - (void)spawnRegionPopover:(id)sender {
 	Mmarker *marker = self.region;
-	if(self.newRegion && marker) {
+	if(marker.objectID.isTemporaryID) {
 		if(!newMarkerPopover) {
 			newMarkerPopover = NewMarkerPopover.popover;
 			newMarkerPopover.behavior = NSPopoverBehaviorTransient;
@@ -452,10 +452,10 @@ enum addBinPopoverTag : NSInteger {
 			error = errors.firstObject;
 		}
 		
-		[[NSAlert alertWithError:error] runModal];
+		[NSApp presentError:error];
 		return;
 	}
-	[self.view labelDidAddNewRegion:self];
+	[self.view labelDidUpdateNewRegion:self];
 	[newMarkerPopover close];
 }
 

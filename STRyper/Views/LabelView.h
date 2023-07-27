@@ -26,7 +26,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// An abstract class for views that show molecular marker as ``RegionLabel`` objects.
+/// An abstract class for views that show  ``ViewLabel`` objects.
 ///
 /// A ``LabelView`` implements methods for views that show molecular marker (``Mmarker`` objects) represented by ``RegionLabel`` objects, and by extension, other classes of ``ViewLabel``.
 ///
@@ -68,7 +68,7 @@ NS_ASSUME_NONNULL_BEGIN
 	/// The marker label that is hovered.
 	__weak RegionLabel *hoveredMarkerLabel;
 	
-	/// The label that is being fragged
+	/// The label that is being dragged
 	ViewLabel *draggedLabel;
 	
 	/// Whether the mouse has entered the view and not yet exited.
@@ -163,12 +163,14 @@ NS_ASSUME_NONNULL_BEGIN
 -(void)labelDidChangeEditState:(RegionLabel *)label;
 
 
--(void)labelDidAddNewRegion:(RegionLabel *)label;
+/// Called by a ``RegionLabel`` that has added a new ``Region`` (via click & drag)
+/// - Parameter label: The label that added the region.
+-(void)labelDidUpdateNewRegion:(RegionLabel *)label;
 
 /// Property set to YES after ``visibleOrigin`` or ``hScale`` is modified, then to NO after 0.1 seconds.
 ///
 /// This property is used internally it to avoid doing certain calculations.
-/// This should ideally not be a public property, but the markerView may query the traceView for it and since it's readonly, it doesn't hurt.
+/// This pertains to internal implementation, but the markerView may query the traceView for this property.
 @property (nonatomic, readonly) BOOL isMoving;
 
 #pragma mark - labels managed by the view and represented objects

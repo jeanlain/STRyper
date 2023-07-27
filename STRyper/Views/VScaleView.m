@@ -60,48 +60,6 @@ static NSDictionary *labels;
 }
 
 
-+ (float) maxFluoOf: (NSArray *)traces inRange: (BaseRange)range useRawData:(BOOL)useRawData ignoreCrosstalk:(BOOL)ignoreCrosstalk {
-	int16_t maxLocalFluo = 0;
-	float startSize = range.start, endSize = range.start + range.len;
-
-	for (Trace *trace in traces) {
-		
-		if(!trace.peaks) {
-			/// we do not determine the maximum fluorescence by scanning all the data. We use peaks annotated in traces.
-			continue;
-		}
-		Chromatogram *sample = trace.chromatogram;
-		const float *sizes = sample.sizes.bytes;
-		long nSizes = sample.sizes.length / sizeof(float);
-		const Peak *peaks = trace.peaks.bytes;
-		long nPeaks = trace.peaks.length/sizeof(Peak);
-		int minScan = sample.minScan, maxScan = sample.maxScan;
-		NSData *fluoData = useRawData? trace.primitiveRawData : [trace adjustedDataMaintainingPeakHeights:NO];
-		NSInteger nScans = fluoData.length/sizeof(int16_t);
-		const int16_t *fluo = fluoData.bytes;
-		for(int i = 0; i < nPeaks; i++) {
-			Peak peak = peaks[i];
-			if(ignoreCrosstalk && peak.crossTalk < 0) {
-				continue;
-			}
-			int scan = peak.startScan + peak.scansToTip;
-			if(peakEndScan(peak) > maxScan || scan >= nSizes || sizes[scan] > endSize || scan >= nScans) {
-				break;
-			}
-			if(peak.startScan < minScan || sizes[scan] < startSize) {
-				continue;
-			}
-		
-			if(fluo[scan] > maxLocalFluo) {
-				maxLocalFluo = fluo[scan];
-			}
-		}
-	}
-	
-	
-	return (float)maxLocalFluo;
-
-}
 
 
 - (void)viewDidMoveToWindow {

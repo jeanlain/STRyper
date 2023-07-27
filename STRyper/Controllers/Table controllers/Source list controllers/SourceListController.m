@@ -163,8 +163,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 			folder.parent = self.rootFolder;
 			[folder autoName];
 		}
-		
-		[MOC save:nil];
 		/// we save a reference of the root folder in the user defaults for quick retrieval
 		[NSUserDefaults.standardUserDefaults setObject: self.rootFolder.objectID.URIRepresentation.absoluteString
 												forKey:[@"root" stringByAppendingString:self.entityName]];
@@ -639,7 +637,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	}
 	/// we identify the dragged folder by its object ID.
 	if(draggedFolder.objectID.isTemporaryID) {
-		if(![draggedFolder.managedObjectContext save:nil]) {
+		if(![draggedFolder.managedObjectContext obtainPermanentIDsForObjects:@[draggedFolder] error:nil]) {
 			return nil;
 		}
 	}

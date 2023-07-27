@@ -529,18 +529,17 @@ enum ButtonTag : NSUInteger {
 		float end = (position < clickedPosition) ? clickedPosition:position;
 		
 		/// we add a new marker in a child context of the view context, as the marker is not in its final state until mouseUp, and changes should not be undoable
-		BOOL saved = YES;
 		
-		if(panel.managedObjectContext.hasChanges) {
-			saved = [panel.managedObjectContext save: nil];
+		if(panel.objectID.isTemporaryID) {
+			 [panel.managedObjectContext obtainPermanentIDsForObjects:@[panel] error:nil];
 		}
 		temporaryContext =[[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
 		temporaryContext.parentContext = panel.managedObjectContext;
 		/// we materialize the panel in this context, as the new marker must be added to it
 		panel = [temporaryContext existingObjectWithID:panel.objectID error:nil];
 
-		if(panel.managedObjectContext != temporaryContext || !saved) {
-			NSError *error = [NSError errorWithDescription:@"The marker could not be added because an error occurred saving the database." suggestion:@"You may quit the application and try again."];
+		if(panel.managedObjectContext != temporaryContext) {
+			NSError *error = [NSError errorWithDescription:@"The marker could not be added because an error occurred in the database." suggestion:@"You may quit the application and try again."];
 			[[NSAlert alertWithError:error] beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
 			}];
 			return;
@@ -559,7 +558,6 @@ enum ButtonTag : NSUInteger {
 		label.highlighted = YES;
 		label.clicked = YES;
 		label.clickedEdge = position < clickedPosition? leftEdge: rightEdge;
-		label.newRegion = YES;
 		[NSCursor.resizeLeftRightCursor set];
 
 		self.inAddMode = NO;

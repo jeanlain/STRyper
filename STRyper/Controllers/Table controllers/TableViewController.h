@@ -64,10 +64,10 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This view may differ from the `-view` property of the receiver, but in this case, it must be a subview of it.
 /// Otherwise, the receiver may not receive messages resulting from user actions on this table.
-@property (weak, readonly) NSTableView *tableView;
+@property (weak, readonly, nonatomic) NSTableView *tableView;
 
 ///The controller objet providing content to the ``tableView``.
-@property (readonly, nullable) NSArrayController *tableContent;
+@property (readonly, nullable, nonatomic) NSArrayController *tableContent;
 
 /// A method that can be overridden to configure the ``tableContent`` array controller.
 ///
@@ -81,14 +81,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// The name of the entity that the ``tableContent`` array controller controls.
 ///
 /// The default implementation returns the ``CodingObject`` entity name.
--(NSString *) entityName;
+@property (readonly, nonatomic) NSString *entityName;
 
 /// The optional dictionary describing, for each column, what cell view it should have and how to bind it with keyPaths of the items the ``tableView`` shows.
 ///
 /// The keys are the column identifiers, the values are itself dictionaries describing the cell views (keys are of type ``ColumnDescriptorKey``).
-- (nullable NSDictionary *)columnDescription;
+@property (readonly, nullable, nonatomic) NSDictionary *columnDescription;
 
-/// Keys of the NSDictionary describing cell to make to a column of the ``TableViewController/tableView``.
+/// Keys of the NSDictionary describing cells that populate a given column the ``TableViewController/tableView``.
 typedef NSString *const ColumnDescriptorKey;
 extern ColumnDescriptorKey KeyPathToBind, /// the keyPath to bind to the textField value of the cells. Value must be an NSString.
 IsTextFieldEditable,		/// Whether the cell text field is editable. The value must be an NSNumber (bool).
@@ -106,29 +106,29 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 ///	These identifiers must be among the keys of the ``columnDescription`` dictionary.
 ///
 /// This is only relevant if columns are generated programmatically.
-- (nullable NSArray<NSString *> *)orderedColumnIDs;
+@property (readonly, nonatomic, nullable) NSArray<NSString *> *orderedColumnIDs;
 
 /// Whether the ``tableView`` saves its configuration.
 ///
 /// The default implementation returns YES;
-- (BOOL) shouldAutoSaveTable;
+@property (readonly, nonatomic) BOOL shouldAutoSaveTable;
 
 
 /// Whether the header of the ``tableView`` has a menu allowing to hide/show columns (and possibly sort).
 ///
 /// The default implementation returns NO;
-- (BOOL) shouldMakeTableHeaderMenu;
+@property (readonly, nonatomic) BOOL shouldMakeTableHeaderMenu;
 
 /// Whether the ``tableView`` can be sorted via sort sheet (see ``showSortCriteria:``).
 ///
 /// The default implementation returns the same value as ``shouldMakeTableHeaderMenu``.
-- (BOOL) canSortByMultipleColumns;
+@property (readonly, nonatomic) BOOL canSortByMultipleColumns;
 
 
 /// Whether items should be deleted from their managed object context with the ``removeItems:`` method on the ``tableContent``.
 ///
 /// The default implementation returns `YES`.
-- (BOOL) shouldDeleteObjectsOnRemove;
+@property (readonly, nonatomic) BOOL shouldDeleteObjectsOnRemove;
 
 
 /****methods used to manage addition or deletion of objects shown in the tableview***************/
@@ -224,7 +224,7 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 /// Whether ``cannotRemoveAlertForItems:`` never returns an alert indicating that items cannot be removed from the table.
 ///
 /// The default implementation returns `YES`, hence no alert is shown.
-- (BOOL) canAlwaysRemove;
+@property (readonly, nonatomic) BOOL canAlwaysRemove;
 
 
 /// The action sent to the receiver by the ``tableView`` when it is when clicked.

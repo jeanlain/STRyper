@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 ///	IMPORTANT: this view does not check which of its subviews is a scrollview. It will resize its first subview regardless of its class.
 ///
-/// ``STRyper``, uses this class for table rows containing ``TraceScrollView`` views.
+/// ``STRyper`` uses this class for table rows containing ``TraceScrollView`` views.
 @interface STableRowView : NSTableRowView
 
 

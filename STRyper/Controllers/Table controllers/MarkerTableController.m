@@ -224,12 +224,10 @@ static NSArray *channelColorImages;
 		return;
 	}
 	
-	BOOL saveError = NO;
-	if(panel.managedObjectContext.hasChanges) {
-		saveError = ![panel.managedObjectContext save:&error];
+	if(panel.objectID.isTemporaryID) {
+		[panel.managedObjectContext obtainPermanentIDsForObjects:@[panel] error:&error];
 		if(error) {
-			[MainWindowController.sharedController populateErrorLogWithError:error];
-			error = [NSError errorWithDescription:@"The marker could not be created because of an inconsistency in the database." suggestion:@"Recent changes will be undone to solve this inconsistency."];
+			error = [NSError errorWithDescription:@"The marker could not be created because of an inconsistency in the database." suggestion:@""];
 		}
 	}
 	
@@ -242,9 +240,6 @@ static NSArray *channelColorImages;
 
 	if(error) {
 		[NSApp presentError:error];
-		if(saveError) {
-			[AppDelegate recoverFromErrorInContext:panel.managedObjectContext showLog:YES];
-		}
 		return;
 	}
 
@@ -260,7 +255,7 @@ static NSArray *channelColorImages;
 		if(errors.count > 0) {
 			error = errors.firstObject;
 		}
-		[[NSAlert alertWithError:error] runModal];
+		[NSApp presentError:error];
 		return;
 	}
 	
@@ -269,11 +264,15 @@ static NSArray *channelColorImages;
 		newGenotype = [[Genotype alloc] initWithMarker:newMarker sample:sample];
 	}
 	
-	[self.undoManager setActionName:@"Add Marker"];
-
-	[MOC save:nil];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
-
+	BOOL saved = [MOC save:nil];
+	if(saved) {
+		[self.undoManager setActionName:@"Add Marker"];
+		[(AppDelegate *)NSApp.delegate saveAction:self];
+	} else {
+		error = [NSError errorWithDescription:@"The marker could not be created because an inconsistency in the database." suggestion:@"You may quit the application and try again."];
+		[NSApp presentError:error];
+	}
+	
 	[newMarkerPopover close];
 	
 }

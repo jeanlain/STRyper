@@ -66,7 +66,7 @@
                                             <button identifier="loadContentButton" verticalHuggingPriority="750" id="Td8-U2-Jj3">
                                                 <rect key="frame" x="1" y="99" width="181" height="22"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                                <buttonCell key="cell" type="inline" title="Load Samples" bezelStyle="inline" alignment="center" lineBreakMode="truncatingTail" state="on" borderStyle="border" identifier="loadButton" imageScaling="proportionallyDown" inset="2" id="aAV-8T-h3v">
+                                                <buttonCell key="cell" type="inline" title="Show Samples" bezelStyle="inline" alignment="center" lineBreakMode="truncatingTail" state="on" borderStyle="border" identifier="loadButton" imageScaling="proportionallyDown" inset="2" id="aAV-8T-h3v">
                                                     <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                     <font key="font" metaFont="smallSystemBold"/>
                                                 </buttonCell>
@@ -93,7 +93,7 @@
                         <autoresizingMask key="autoresizingMask"/>
                     </tableHeaderView>
                 </scrollView>
-                <slider toolTip="Adjust Row Height" verticalHuggingPriority="750" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="nLK-eJ-TDt" userLabel="Traces per window">
+                <slider toolTip="Number of visible rows" verticalHuggingPriority="750" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="nLK-eJ-TDt" userLabel="Traces per window">
                     <rect key="frame" x="10" y="5" width="81" height="20"/>
                     <constraints>
                         <constraint firstAttribute="width" constant="77" id="xcX-Iu-AzF"/>

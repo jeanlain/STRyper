@@ -19,7 +19,6 @@
 
 
 #import "RegionLabel.h"
-@class Bin;
 
 NS_ASSUME_NONNULL_BEGIN
 

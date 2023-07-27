@@ -110,10 +110,10 @@ static NSArray *defaultColorsForChannels;
 
 - (void)mouseUp:(NSEvent *)event {
 	
+	draggedLabel = nil;
 	self.mouseUpPoint = [self convertPoint:event.locationInWindow fromView:nil];
 	[self updateTrackingAreas];
 
-	draggedLabel = nil;
 
 	/// if the user has double-clicked a label
 	ViewLabel *activeLabel = self.activeLabel;
@@ -364,11 +364,8 @@ static NSArray *defaultColorsForChannels;
 *********************************************/
 
 
-- (void)labelDidAddNewRegion:(RegionLabel *)label {
-	if(!label.newRegion) {
-		return;
-	}
-	label.newRegion = NO;
+- (void)labelDidUpdateNewRegion:(RegionLabel *)label {
+
 	Region *region = label.region;
 	if(region.managedObjectContext == temporaryContext) {
 						
@@ -387,14 +384,22 @@ static NSArray *defaultColorsForChannels;
 		if(temporaryContext.hasChanges) {
 			saved = [region.managedObjectContext save:nil];
 		}
+
 		doNotCreateLabels = NO;
 		if(saved) {
 			/// we need to materialize the region in the view context, to attach it to the label.
 			Region *theRegion = [self.panel.managedObjectContext objectWithID:region.objectID];
-			if(!theRegion.isFault) {
+			if(theRegion.objectID.isTemporaryID) {
+				[theRegion.managedObjectContext obtainPermanentIDsForObjects:@[theRegion] error:nil];
+			}
+			if(theRegion) {
 				label.region = theRegion;
 			}
 			[self.undoManager setActionName:[@"Add " stringByAppendingString:region.entity.name]];
+		} else {
+			NSString *description = [NSString stringWithFormat:@"The %@ could not be added because of an error in the database", region.entity.name.lowercaseString];
+			[NSApp presentError:[NSError errorWithDescription:description suggestion:@""]];
+			[label removeFromView];
 		}
 	}
 }

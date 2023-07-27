@@ -66,7 +66,6 @@
 		0F7E2D76291F993900665EA6 /* SampleInspector.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F7E2D75291F993900665EA6 /* SampleInspector.xib */; };
 		0F8B63CB2994028100383375 /* NSManagedObjectContext+NSManagedObjectContextAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F8B63CA2994028100383375 /* NSManagedObjectContext+NSManagedObjectContextAdditions.m */; };
 		0F8BA31A29FE427900DB05A6 /* MarkerLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F8BA31929FE427900DB05A6 /* MarkerLabel.m */; };
-		0F8C6DC72A253FDE00E7B7A9 /* NSSet+NSSetAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F8C6DC62A253FDE00E7B7A9 /* NSSet+NSSetAdditions.m */; };
 		0F96D47029915F1B00D18033 /* MainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F96D46F29915F1B00D18033 /* MainWindow.xib */; };
 		0F9858BD28A50F9000F42119 /* SamplePane.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F9858BC28A50F9000F42119 /* SamplePane.xib */; };
 		0F9883EA289A52B70095FE08 /* Settings.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F9883E9289A52B70095FE08 /* Settings.xib */; };
@@ -202,8 +201,6 @@
 		0F8B63C92994028100383375 /* NSManagedObjectContext+NSManagedObjectContextAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSManagedObjectContext+NSManagedObjectContextAdditions.h"; sourceTree = "<group>"; };
 		0F8B63CA2994028100383375 /* NSManagedObjectContext+NSManagedObjectContextAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSManagedObjectContext+NSManagedObjectContextAdditions.m"; sourceTree = "<group>"; };
 		0F8BA31929FE427900DB05A6 /* MarkerLabel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MarkerLabel.m; sourceTree = "<group>"; };
-		0F8C6DC52A253FDE00E7B7A9 /* NSSet+NSSetAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "NSSet+NSSetAdditions.h"; path = "STRyper/Categories/NSSet+NSSetAdditions.h"; sourceTree = SOURCE_ROOT; };
-		0F8C6DC62A253FDE00E7B7A9 /* NSSet+NSSetAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = "NSSet+NSSetAdditions.m"; path = "STRyper/Categories/NSSet+NSSetAdditions.m"; sourceTree = SOURCE_ROOT; };
 		0F96D46F29915F1B00D18033 /* MainWindow.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainWindow.xib; sourceTree = "<group>"; };
 		0F9858BC28A50F9000F42119 /* SamplePane.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = SamplePane.xib; sourceTree = "<group>"; };
 		0F9883E9289A52B70095FE08 /* Settings.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Settings.xib; sourceTree = "<group>"; };
@@ -444,8 +441,6 @@
 		0F8B63CC2994028A00383375 /* Categories */ = {
 			isa = PBXGroup;
 			children = (
-				0F8C6DC52A253FDE00E7B7A9 /* NSSet+NSSetAdditions.h */,
-				0F8C6DC62A253FDE00E7B7A9 /* NSSet+NSSetAdditions.m */,
 				0F2CB43729698B6F00B5532A /* NSSplitViewController+SplitViewControllerAdditions.h */,
 				0F2CB43829698B6F00B5532A /* NSSplitViewController+SplitViewControllerAdditions.m */,
 				0F8B63C92994028100383375 /* NSManagedObjectContext+NSManagedObjectContextAdditions.h */,
@@ -690,7 +685,6 @@
 				0F1257CC2940CCFD0080A3B4 /* SampleSearchHelper.m in Sources */,
 				0F1B5133297C655B00727963 /* NSError+NSErrorAdditions.m in Sources */,
 				0FA623C7289E5540006A23FE /* SampleTableController.m in Sources */,
-				0F8C6DC72A253FDE00E7B7A9 /* NSSet+NSSetAdditions.m in Sources */,
 				0F3D2F4028075974006FAAF2 /* Mmarker.m in Sources */,
 				0FAD5F3F292FE83100438776 /* PanelFolder.m in Sources */,
 				0F8B63CB2994028100383375 /* NSManagedObjectContext+NSManagedObjectContextAdditions.m in Sources */,

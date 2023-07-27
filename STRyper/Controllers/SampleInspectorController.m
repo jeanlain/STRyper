@@ -287,10 +287,9 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 	}
 	BOOL reachable = [NSWorkspace.sharedWorkspace selectFile:clickedURL.path inFileViewerRootedAtPath:@""];
 	if(!reachable) {
-		NSAlert *alert = NSAlert.new;
-		alert.messageText = @"The destination could not be opened.";
-		alert.informativeText = @"The file may have been moved or deleted since it was imported.";
-		[alert runModal];
+		NSError *error = [NSError errorWithDescription:@"The destination could not be opened."
+											suggestion: @"The file may have been moved or deleted since it was imported."];
+		[NSApp presentError:error];
 	}
 }
 

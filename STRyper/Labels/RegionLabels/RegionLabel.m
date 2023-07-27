@@ -633,35 +633,46 @@ enum controlTag : NSInteger {
 /// Transfers start and end positions to that of our region.
 - (void)updateRegion {
 	
-	float start = self.start;
 	Region *region = self.region;
-	/// We check if the coordinates to set are valid. They should be, as we use limits in the -drag method, but we check anyway.
+	float start = self.start, end = self.end;
+	BOOL validNewStart = NO, validNewEnd = NO, invalid = NO;
+	
 	if(start != region.start) {
-		BaseRange range = [region allowedRangeForEdge:leftEdge];
-		if(start >= range.start && start <= range.start + range.len) {
-			region.start = start;
+		if(start >= leftLimit && start <= rightLimit) {
+			validNewStart = YES;
 		} else {
-			self.start = region.start;
+			invalid = YES;
 			NSLog(@"Start position %f of %@ '%@' is out of allowed range! Not updating region.", start, region.entity.name, region.name);
-			return;
-		}
-	}
-	float end = self.end;
-	if(end != region.end) {
-		BaseRange range = [region allowedRangeForEdge:rightEdge];
-		if(end <= range.start + range.len && end >= range.start) {
-			region.end = end;
-		} else {
-			self.end = region.end;
-			NSLog(@"End position %f of %@ '%@' is out of allowed range! Not updating region.", end, region.entity.name, region.name);
-			return;
 		}
 	}
 	
-	if(self.newRegion) {
+	if(end != region.end) {
+		if(end >= leftLimit && end <= rightLimit) {
+			validNewEnd = YES;
+		} else {
+			invalid = YES;
+			NSLog(@"End position %f of %@ '%@' is out of allowed range! Not updating region.", end, region.entity.name, region.name);
+		}
+	}
+	
+	if(invalid) {
+		self.start = region.start;
+		self.end = region.end;
+		return;
+	}
+	
+	if(validNewStart) {
+		region.start = start;
+	}
+	
+	if(validNewEnd) {
+		region.end = end;
+	}
+	
+	if(self.region.objectID.isTemporaryID) {
 		[region autoName];
 		if(self.isBinLabel) {
-			[self.view labelDidAddNewRegion:self];
+			[self.view labelDidUpdateNewRegion:self];
 		} else if(self.isMarkerLabel) {
 			[self spawnRegionPopover:self];
 		}
@@ -733,6 +744,12 @@ enum controlTag : NSInteger {
 
 - (void)resetBinLabels {
 	
+}
+
+
+
+-(RegionLabel *)addLabelForBin:(Bin *)bin {
+	return nil;
 }
 
 

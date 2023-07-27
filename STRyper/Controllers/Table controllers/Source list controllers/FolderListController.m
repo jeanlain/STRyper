@@ -126,7 +126,6 @@
 		if(!_trashFolder) {
 			_trashFolder = [NSEntityDescription insertNewObjectForEntityForName:self.entityName inManagedObjectContext:MOC];
 			_trashFolder.name = @"Trash";
-			[MOC save:nil];
 			/// we save a reference of the trash folder in the user defaults to be able to retrieve it
 			[NSUserDefaults.standardUserDefaults setObject: _trashFolder.objectID.URIRepresentation.absoluteString
 													forKey:[@"trash" stringByAppendingString:self.entityName]];
@@ -148,7 +147,6 @@
 		if(!_smartFolderContainer) {
 			_smartFolderContainer = [NSEntityDescription insertNewObjectForEntityForName:entityName inManagedObjectContext:MOC];
 			_smartFolderContainer.name = @"__smartFolderContainer";
-			[MOC save:nil];
 			/// we save a reference of the trash folder in the user defaults to be able to retrieve it
 			[NSUserDefaults.standardUserDefaults setObject: _smartFolderContainer.objectID.URIRepresentation.absoluteString
 													forKey:@"smartFolderContainer"];
@@ -451,7 +449,7 @@
 				}
 				
 				if(error) {
-					[[NSAlert alertWithError:error] runModal];
+					[NSApp presentError:error];
 					if(saveError) {
 						[AppDelegate recoverFromErrorInContext:folder.managedObjectContext showLog:YES];
 					}

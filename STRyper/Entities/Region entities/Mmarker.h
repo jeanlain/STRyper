@@ -96,7 +96,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A string representation describing the attributes of the marker.
 ///
 /// The string is composed of the ``Region/name``, ``Region/start``, ``Region/end``, ``channel`` and ``ploidy`` attributes, separated by tabs.
-- (NSString *)stringRepresentation;
+@property (readonly, nonatomic) NSString *stringRepresentation;
 
 
 /// Gives an allele the name of a bin that the marker possesses.

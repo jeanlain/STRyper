@@ -53,7 +53,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A string representation describing the attributes of the receiver.
 ///
 /// The string is composed of the ``Region/name``, ``Region/start`` and ``Region/end`` attributes, separated by tabs.
--(NSString *)stringRepresentation;
+@property (readonly, nonatomic) NSString *stringRepresentation;
 
 @end
 

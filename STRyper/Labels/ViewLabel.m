@@ -63,6 +63,7 @@
 - (void)removeFromView {
 	if(_view) {
 		[self removeTrackingArea];
+		self.hovered = NO;
 		_view = nil;
 	}
 	if(layer.superlayer) {
@@ -269,7 +270,7 @@
 
 
 - (void)setHovered:(BOOL)hovered {
-    if (self.hovered != hovered) {
+    if (_hovered != hovered) {
 		_hovered = hovered;
 		[self updateAppearance];
 		[self.view labelDidChangeHoveredState:self];

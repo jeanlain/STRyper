@@ -111,8 +111,8 @@
 		return NO;
 	}
 	NSError *error;
-	if(destination.managedObjectContext.hasChanges) {
-		[destination.managedObjectContext save:&error];
+	if(destination.objectID.isTemporaryID) {
+		[self.managedObjectContext obtainPermanentIDsForObjects:@[destination] error:nil];
 	}
 	/// we paste in another context that has no undo manager (as we may not validate the transfer of copied markers, hence discard the copies)
 	/// by default, decoded objects are materialized in this context (seen initWithCoder: of CodingObject.m)

@@ -91,7 +91,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 @implementation TraceView {
 	
 	float height;					/// a shortcut to the view's height (not used often. Could be removed)
-	BOOL isDragging;               	/// the views must know whether the some mouse buttons are being pressed, which we use to drag or resize the view
+	BOOL isDragging;               	/// the views must know whether the some mouse buttons are being pressed, which we use to drag or resize the view (not currently used)
 	float maxReadLength;			/// the length (in base pairs) of the longest trace the view shows
 	float viewLength;				/// It is either the maxReadLength or the max end size the user as set in the preferences, whichever is longer
 	__weak MarkerView *_markerView;	/// the view showing the markers, which is the accessory view of the ruler view
@@ -556,6 +556,10 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 -(void)markerBinsDidChange:(NSNotification *)notification {
+	if(doNotCreateLabels) {
+		return;
+	}
+	
 	Mmarker *marker = notification.object;
 	
 	for(RegionLabel *markerLabel in self.markerLabels) {
@@ -1348,7 +1352,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	BaseRange refRange;
 	if(self.marker) {
 		/// if we show a genotype or just a marker, we show the range of the marker
-		refRange = [self ourMarkerRange];
+		refRange = self.ourMarkerRange;
 	} else {
 		/// else we ask our delegate
 		refRange = [self.delegate visibleRangeForTraceView:self];
@@ -1387,9 +1391,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			trace.visibleRange = _visibleRange;
 		}
 	}
-	
-//	[self setVisibleRangeAndDontNotify:refRange];
-	
+		
 	self.markerView.hidden = (trace && self.channel < 0) || trace.isLadder;
 			
 	[self fitToIntrinsicContentSize];			/// these are safety measures
@@ -1431,44 +1433,15 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (void)resizeWithOldSuperviewSize:(NSSize)oldSize {
-	/// we react to changes in our clipview geometry
-	float hScale = self.hScale;
-	if(hScale <= 0.0) {
+	/// we react to changes in our clipview size to maintain our visible range and fit vertically to this view
+	if(self.hScale <= 0.0) {
 		return;  				/// we do not react when our visible range is not yet set
 	}
 	
 	[self fitVertically];		/// we adjust to our clipview height
-
-	/// we must also reflect any change in our visible rectangle to our visible range
-	NSRect visibleRect = self.visibleRect;
 	
-	/// Resizing toward the right may scroll us automatically (without calling scrollClipView on our scroll view) when we have reached our right edge
-	/// in this case, this visible rect origin should be reflected in our visible range
-	float origin = visibleRect.origin.x;
-	
-	/// but in some cases (during certain animations), our visible rect origin is changed by appkit even though the visible rect is far from our right side. In these cases, we do not react.
-	/// Otherwise, we would set a range that is out of sync with other view and that the user has not asked
-	if(origin != self.visibleOrigin && NSMaxX(visibleRect) < NSMaxY(self.bounds)) {
-		return;
-	}
-	
-	float visibleWidth = self.visibleWidth;
-	BaseRange visibleRange = self.visibleRange;
-	BaseRange newRange = MakeBaseRange([self sizeForX:origin], visibleWidth / hScale);
-	if(newRange.len > viewLength || self.marker != nil)  {
-		/// if our clipView gets wider than the whole trace, we don't increase the visible range (as we don't show anything past the final scan).
-		/// Instead, we increase our hScale so that the trace still fits the whole view
-		self.hScale =  visibleWidth / visibleRange.len;
-		if(self.marker) {
-			/// if we show a genotype or marker, resizing the view doesn't change the visible range either, but we we have to scroll to maintain it.
-			self.visibleOrigin = (visibleRange.start - self.sampleStartSize) * self.hScale;
-			
-		}
-	} else {
-		/// we set the new range
-		self.visibleRange = newRange;
-	}
-	
+	self.hScale = self.visibleWidth / _visibleRange.len;;
+	self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
 }
 
 
@@ -1512,9 +1485,48 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 -(float)topFluoForRange:(BaseRange)range {		
-	float fluo = [VScaleView maxFluoOf:visibleTraces inRange:range useRawData:self.showRawData || self.maintainPeakHeights ignoreCrosstalk:self.ignoreCrosstalkPeaks];
-	fluo += fluo * 20/self.frame.size.height;		/// we leave a 20-point margin above the highest peak
-	return fluo;
+	int16_t maxLocalFluo = 0;
+	float startSize = range.start, endSize = range.start + range.len;
+	BOOL useRawData = self.showRawData || self.maintainPeakHeights;
+	BOOL ignoreCrosstalk = self.ignoreCrosstalkPeaks;
+	
+	for (Trace *trace in visibleTraces) {
+		NSData *tracePeaks = trace.peaks;
+		if(!tracePeaks) {
+			/// we do not determine the maximum fluorescence by scanning all the data. We use peaks annotated in traces.
+			continue;
+		}
+		Chromatogram *sample = trace.chromatogram;
+		const float *sizes = sample.sizes.bytes;
+		long nSizes = sample.sizes.length / sizeof(float);
+		const Peak *peaks = tracePeaks.bytes;
+		long nPeaks = tracePeaks.length/sizeof(Peak);
+		int minScan = sample.minScan, maxScan = sample.maxScan;
+		NSData *fluoData = useRawData? trace.primitiveRawData : [trace adjustedDataMaintainingPeakHeights:NO];
+		NSInteger nScans = fluoData.length/sizeof(int16_t);
+		const int16_t *fluo = fluoData.bytes;
+		for(int i = 0; i < nPeaks; i++) {
+			Peak peak = peaks[i];
+			if(ignoreCrosstalk && peak.crossTalk < 0) {
+				continue;
+			}
+			int scan = peak.startScan + peak.scansToTip;
+			if(peakEndScan(peak) > maxScan || scan >= nSizes || sizes[scan] > endSize || scan >= nScans) {
+				break;
+			}
+			if(peak.startScan < minScan || sizes[scan] < startSize) {
+				continue;
+			}
+		
+			if(fluo[scan] > maxLocalFluo) {
+				maxLocalFluo = fluo[scan];
+			}
+		}
+	}
+	
+
+	maxLocalFluo += maxLocalFluo * 20/self.frame.size.height;		/// we leave a 20-point margin above the highest peak
+	return maxLocalFluo;
 }
 
 
@@ -1982,16 +1994,15 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			float end = (position < clickedPosition) ? clickedPosition:position;
 			
 			
-			BOOL saved = YES;
-			if(marker.managedObjectContext.hasChanges) {
-				saved = [marker.managedObjectContext save: nil];
+			if(marker.objectID.isTemporaryID) {
+				[marker.managedObjectContext obtainPermanentIDsForObjects:@[marker] error:nil];
 			}
 			temporaryContext =[[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
 			temporaryContext.parentContext = marker.managedObjectContext;
 			marker = [temporaryContext existingObjectWithID:marker.objectID error:nil];
 			
-			if(marker.managedObjectContext != temporaryContext || !saved) {
-				NSError *error = [NSError errorWithDescription:@"The bin could not be added because an error occurred saving the database." suggestion:@"You may quit the application and try again"];
+			if(marker.managedObjectContext != temporaryContext) {
+				NSError *error = [NSError errorWithDescription:@"The bin could not be added because an error occurred in the database." suggestion:@"You may quit the application and try again"];
 				[[NSAlert alertWithError:error] beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
 				}];
 				return;
@@ -2002,15 +2013,15 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 				return;
 			}
 			newRegion.name = @" ";
-			RegionLabel *label = [RegionLabel regionLabelWithRegion:newRegion view:self];
-			label.offset = enabledMarkerLabel.offset;
-			self.binLabels = [self.binLabels arrayByAddingObject:label];
-			draggedLabel = label;
-			label.highlighted = YES;            /// we highlight the label and the correct edge to allow immediate sizing (see above)
-			label.clicked = YES;
-			label.clickedEdge = position < clickedPosition? leftEdge: rightEdge;
-			label.newRegion  = YES;
-			[NSCursor.resizeLeftRightCursor set];
+			RegionLabel *label = [enabledMarkerLabel addLabelForBin:newRegion];
+			if(label) {
+				self.binLabels = [self.binLabels arrayByAddingObject:label];
+				draggedLabel = label;
+				label.highlighted = YES;            /// we highlight the label and the correct edge to allow immediate sizing (see above)
+				label.clicked = YES;
+				label.clickedEdge = position < clickedPosition? leftEdge: rightEdge;
+				[NSCursor.resizeLeftRightCursor set];
+			}
 			return;
 		}
 	}
@@ -2078,7 +2089,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 - (void)updateTrackingAreas {
 	
 	if(self.isMoving) {
-		return;			  /// to avoid updating the tracking areas while zooming (for performance reasons).
+		return;			  /// we avoid updating the tracking areas while zooming or scrolling (for performance reasons).
 	}
 	[super updateTrackingAreas];  			  /// this updates the view's main tracking area, which occupies the visible rect
 	

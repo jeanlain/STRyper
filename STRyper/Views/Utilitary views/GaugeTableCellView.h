@@ -62,7 +62,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Whether changes in gauge width should be animated.
 ///
 /// The default value is YES.
-@property BOOL animateGauge;
+@property (nonatomic) BOOL animateGauge;
 
 @end
 

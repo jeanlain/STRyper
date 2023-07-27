@@ -1379,9 +1379,9 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 		}
 		
 		/// since we write our object id, we must ensure that it is not temporary.
-		if(self.objectID.isTemporaryID && self.managedObjectContext.hasChanges) {
-			if(![self.managedObjectContext save:nil]) {
-				NSLog(@"Error saving the context for sample %@: copy not made.", self.description);
+		if(self.objectID.isTemporaryID) {
+			if(![self.managedObjectContext obtainPermanentIDsForObjects:@[self] error:nil]) {
+				NSLog(@"Error obtaining permanent ID for sample '%@': copy not made.", self.description);
 				return nil;
 			}
 		}

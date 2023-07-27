@@ -142,6 +142,10 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		}];
 	}
 	
+	if(MOC.hasChanges) {
+		[MOC save:nil];
+	}
+	
 	[mainWindow.undoManager removeAllActions];		/// Loading the application may generate some undo actions. We remove them.
 											
 	saveTimer = [NSTimer timerWithTimeInterval:30 target:self selector:@selector(saveAction:) userInfo:nil repeats:NO];
@@ -362,7 +366,7 @@ enum TextFieldTag: NSInteger {
 				NSAlert *alert = NSAlert.new;
 				alert.messageText = @"Sorry, the new database could not be created.";
 				[alert addButtonWithTitle:@"Quit"];
-				[alert addButtonWithTitle:@"Report Issue"];		/// button no implemented yet. TO DO
+				//[alert addButtonWithTitle:@"Report Issue"];		/// button no implemented yet. TO DO
 				[alert runModal];
 				abort();
 			}
@@ -422,7 +426,7 @@ enum TextFieldTag: NSInteger {
 		NSString *log = [MainWindowController.sharedController populateErrorLogWithError:error];
 		NSError *postedError = [NSError errorWithDescription:@"Sorry. The database could not be saved because of an inconsistency in the data." suggestion:@"The last action(s) will be undone to resolve the issue."];
 		
-		[[NSAlert alertWithError:postedError] runModal];
+		[NSApp presentError:postedError];
 		[self.class recoverFromErrorInContext:context showLog:log.length > 0];
 	}
 	

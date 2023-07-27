@@ -28,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 /// Returns the top supermenu of the receiver's menu, which is the menu itself if is has no supermenu.
--(NSMenu *)topMenu;
+@property (readonly, nonatomic) NSMenu *topMenu;
 
 @end
 

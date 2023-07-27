@@ -20,7 +20,7 @@
 
 
 #import "ViewLabel.h"
-#import "Region.h"
+#import "Bin.h"
 #import "Genotype.h"
 
 @class LabelView;
@@ -195,15 +195,18 @@ typedef enum EditState : NSUInteger {
 
 /// For a label representing a marker on a ``TraceView``, this returns region labels for the marker's ``Mmarker/bins``.
 ///
-/// Other types of labels return nil.
+/// Other types of labels return `nil`.
 @property (nonatomic, nullable, readonly) NSArray <__kindof RegionLabel *> *binLabels;
 
+/// Return a label representing a bin, and adds it to the  receiver's ``binLabels`` array.
+///
+/// If the receiver does not represent a marker on a ``TraceView``, the method returns nil.
+/// The method does not check if a bin already has a label or if it belongs to the ``Bin/marker`` that the receiver represents.
+/// - Parameter bin: The bin that should be represented by the label.
+-(RegionLabel *)addLabelForBin:(Bin *)bin;
 
 /// The label will return new bin labels for ``binLabels`` after this message is sent.
 -(void)resetBinLabels;
-
-
-@property (nonatomic) BOOL newRegion;
 
 /// Internal method that updates the ``Genotype/offset`` of the target genotypes to reflect the ``offset`` of the label.
 -(void)_updateTargetSamples:(EditState)targets withOffset:(MarkerOffset)offset;

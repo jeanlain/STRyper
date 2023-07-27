@@ -28,16 +28,16 @@ extern NSString *const STRyperErrorDomain;
 
 @interface NSError (NSErrorAdditions)
 
-/// convenience method to return a generic formatted error with the most basic information
+/// Convenience method to return a generic formatted error with the most basic information.
 + (instancetype)errorWithDescription:(nullable NSString *)description suggestion:(nullable NSString *) suggestion;
 
-/// convenience method to return a error that describes a cancel operation (as specified in the error code)
+/// Convenience method to return a error that describes a cancel operation (as specified in the error code).
 + (instancetype)cancelOperationErrorWithDescription:(nullable NSString *)description suggestion:(nullable NSString *) suggestion;
 
-/// convenience method to return a error that describes a file read error (as specified in the error code)
+/// Convenience method to return a error that describes a file read error (as specified in the error code).
 + (instancetype)fileReadErrorWithDescription:(NSString *)description suggestion:(NSString *)suggestion filePath:(NSString *)filePath reason:(NSString *)reason;
 
-/// convenience method to return a error that describes a managed object validation error (as specified in the error code)
+/// Convenience method to return a error that describes a managed object validation error (as specified in the error code).
 + (instancetype)managedObjectValidationErrorWithDescription:(NSString *)description suggestion:(NSString *)suggestion object:(id)object reason:(NSString *)reason;
 
 @end

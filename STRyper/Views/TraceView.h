@@ -87,7 +87,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Makes the view show a genotype.
 ///
-/// This makes the view show the trace associated with the ``Mmarker/channel`` of the genotype's ``Genotype/marker``,
+/// This method makes the view show the trace associated with the ``Mmarker/channel`` of the genotype's ``Genotype/marker``,
 /// and set its ``visibleRange``  to the range of this marker.
 /// - Parameter genotype: The genotype to show in the view.
 -(void)loadGenotype:(Genotype*)genotype;
@@ -339,9 +339,7 @@ ShowPeakTooltipsBinding;
 
 /// Returns the desired ``topFluoLevel`` the view should have so that it scales to the highest visible peak in the given range.
 ///
-/// This methods calls ``VScaleView/maxFluoOf:inRange:useRawData:ignoreCrosstalk:``.
-///
-/// The peaks considered at those from the view's ``loadedTraces``.
+/// The peaks considered are those from the view's ``loadedTraces``.
 /// The fluorescence data to use is determined by ``showRawData``.
 /// Peaks resulting from crosstalk are ignored if ``ignoreCrosstalkPeaks`` returns YES.
 /// - Parameter range: The range in which peaks are evaluated.

@@ -87,8 +87,6 @@ NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStan
 			}
 		}
 	}
-	
-	[MOC save:nil];	
 }
 
 
