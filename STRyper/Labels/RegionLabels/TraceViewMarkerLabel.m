@@ -53,6 +53,7 @@
 	
 }
 
+# pragma mark - attributes and appearance
 
 - (BOOL)isMarkerLabel {
 	return YES;
@@ -185,36 +186,47 @@
 }
 
 
-
-
-/*
--(NSMenu *)menu {
-	if(self.targetSampleTag == targetSamplesBinset) {
-		return nil;
+- (void)setClicked:(BOOL)clicked {
+	/// overridden to show our anchorLayer when appropriate
+	if(clicked != self.clicked) {
+		super.clicked = clicked;
+		if(self.highlighted && self.clickedEdge == betweenEdges) {
+			if(clickedPosition > self.start +1 && clickedPosition < self.end -1) {
+				anchorPos = clickedPosition;
+				if(!anchorLayer) {
+					anchorLayer = CALayer.new;
+					anchorLayer.delegate = self;
+					anchorLayer.backgroundColor = NSColor.redColor.CGColor;
+					anchorLayer.anchorPoint = CGPointMake(1, 0);
+					anchorLayer.zPosition = 10.0;		/// this layer shows on top
+					anchorLayer.actions = @{@"position": NSNull.null};
+					anchorSymbolLayer = CALayer.new;
+					anchorSymbolLayer.contents = [NSImage imageNamed:@"anchor"];
+					anchorSymbolLayer.bounds = CGRectMake(0, 0, 11.0, 12.0);
+					//	anchorSymbolLayer.actions = @{@"position": NSNull.null};
+					[anchorLayer addSublayer:anchorSymbolLayer];
+					[self.view.layer addSublayer:anchorLayer];
+				}
+				anchorLayer.hidden = NO;
+				[self reposition];
+			} else {
+				anchorLayer.hidden = YES;
+				anchorPos = -1;
+			}
+		}
 	}
-	GenotypeOffset offset = self.offset;
-	if(offset.intercept == 0.0 && offset.slope == 1.0) {
-		return nil;
-	}
-	if(!_menu) {
-		_menu = NSMenu.new;
-		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Reset Offset" action:@selector(resetOffset:) keyEquivalent:@""];
-		item.image = [NSImage imageNamed:@"reset"];
-		item.target = self;
-		[_menu addItem:item];
-	}
-	return _menu;
 }
 
+# pragma mark -  actions / dragging
 
--(void)resetOffset:(NSMenuItem *)sender {
-	self.offset = GenotypeOffsetNone;
-	[self reposition];
-	for (BinLabel *binLabel in self.binLabels) {
-		[binLabel reposition];
+- (void)mouseDownInView {
+	if(!NSPointInRect(self.view.clickedPoint, self.frame)) {
+		/// if the user has clicked outside our frame on the view, we end the editing of all labels showing our marker
+		self.region.editState = editStateNil;
 	}
-}  */
 
+	[super mouseDownInView];
+}
 
 
 - (void)setEditState:(EditState)editState {
@@ -268,58 +280,6 @@
 		binLabel.enabled = binEnabledState;
 	}
 
-}
-
-
-
-- (void)setClicked:(BOOL)clicked {
-	/// overridden to show our anchorLayer when appropriate
-	if(clicked != self.clicked) {
-		super.clicked = clicked;
-		if(self.highlighted && self.clickedEdge == betweenEdges) {
-			if(clickedPosition > self.start +1 && clickedPosition < self.end -1) {
-				anchorPos = clickedPosition;
-				if(!anchorLayer) {
-					anchorLayer = CALayer.new;
-					anchorLayer.delegate = self;
-					anchorLayer.backgroundColor = NSColor.redColor.CGColor;
-					anchorLayer.anchorPoint = CGPointMake(1, 0);
-					anchorLayer.zPosition = 10.0;		/// this layer shows on top
-					anchorLayer.actions = @{@"position": NSNull.null};
-					anchorSymbolLayer = CALayer.new;
-					anchorSymbolLayer.contents = [NSImage imageNamed:@"anchor"];
-					anchorSymbolLayer.bounds = CGRectMake(0, 0, 11.0, 12.0);
-					//	anchorSymbolLayer.actions = @{@"position": NSNull.null};
-					[anchorLayer addSublayer:anchorSymbolLayer];
-					[self.view.layer addSublayer:anchorLayer];
-				}
-				anchorLayer.hidden = NO;
-				[self reposition];
-			} else {
-				anchorLayer.hidden = YES;
-				anchorPos = -1;
-			}
-		}
-	}
-}
-
-
-/// Returns the range occupied by our marker's bins
--(BaseRange) binSetRange {
-	float minStart = self.end;
-	float maxEnd = self.start;
-	
-	for(Bin *bin in [self.region bins]) {
-		float binStart = bin.start;
-		if(binStart < minStart) {
-			minStart = binStart;
-		}
-		float binEnd = bin.end;
-		if(binEnd > maxEnd) {
-			maxEnd = binEnd;
-		}
-	}
-	return MakeBaseRange(minStart, maxEnd - minStart);
 }
 
 
@@ -428,7 +388,6 @@
 	}
 	
 }
-
 
 
 - (void)drag {
@@ -548,6 +507,8 @@
 
 }
 
+#pragma mark - geometry
+
 - (void)setStart:(float)pos {
 	if(self.start != pos) {
 		_start = pos;
@@ -616,13 +577,29 @@
 }
 
 
-- (void)mouseDownInView {
-	if(!NSPointInRect(self.view.clickedPoint, self.frame)) {
-		/// if the user has clicked outside our frame on the view, we end the editing of all labels showing our marker
-		self.region.editState = editStateNil;
-	}
+-(void)setFrame:(NSRect)frame {
+	_frame = frame;
+}
 
-	[super mouseDownInView];
+
+#pragma mark - bins
+
+/// Returns the range occupied by our marker's bins
+-(BaseRange) binSetRange {
+	float minStart = self.end;
+	float maxEnd = self.start;
+	
+	for(Bin *bin in [self.region bins]) {
+		float binStart = bin.start;
+		if(binStart < minStart) {
+			minStart = binStart;
+		}
+		float binEnd = bin.end;
+		if(binEnd > maxEnd) {
+			maxEnd = binEnd;
+		}
+	}
+	return MakeBaseRange(minStart, maxEnd - minStart);
 }
 
 
@@ -676,11 +653,6 @@
 			binLabel.offset = offset;
 		}
 	}
-}
-
-
--(void)setFrame:(NSRect)frame {
-	_frame = frame;
 }
 
 

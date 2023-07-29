@@ -235,6 +235,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	return 1;
 }
 
+
 - (RulerView *)rulerView {
 	if(!_rulerView) {
 		NSScrollView *scrollView = self.enclosingScrollView;
@@ -301,7 +302,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	
 	/// we determine the channel that we show
 	/// we remember our previous channel to determine if we should load the panel or keep the previous one, as we only show markers associated with a single channel
-	NSInteger previousChannel = self.channel;
+	ChannelNumber previousChannel = self.channel;
 	if(marker) {
 		self.channel = marker.channel;
 	} else {
@@ -326,8 +327,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	Trace *aTrace = traces.count > 0? traces.firstObject : nil;
 	float maxReadLength = -1;		/// we don't use the @max operator, as it is much slower than an enumeration.
 	for (Trace *trace in traces) {
-		if (trace.chromatogram.readLength > maxReadLength && trace.chromatogram.sizingQuality) {
-			maxReadLength = trace.chromatogram.readLength;
+		Chromatogram *chromatogram = trace.chromatogram;
+		if (chromatogram.readLength > maxReadLength && chromatogram.sizingQuality) {
+			maxReadLength = chromatogram.readLength;
 			aTrace = trace;
 		}
 	}
@@ -388,15 +390,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (void)setTrace:(Trace *)aTrace {
-	
 	_trace = aTrace;
 	Chromatogram *sample = aTrace.chromatogram;
-	if(sample) {
-		_sampleStartSize = sample.startSize;
-	} else {
-		_sampleStartSize = 0.0;
-	}
-	
+	_sampleStartSize = sample != nil? sample.startSize : 0.0;
 	[self setViewLength];
 }
 
@@ -484,11 +480,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	_panel = panel;
 	NSArray *markersShown = [panel markersForChannel:self.channel];
 	[self createLabelsForMarkers: markersShown];
-//	NSSet *bins = [markersShown valueForKeyPath:@"@unionOfSets.bins"];
-//	[self createLabelsForBins:bins];
 }
-
-
 
 
 -(void)panelMarkersDidChange:(NSNotification *)notification {
@@ -592,6 +584,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	if(!genotype.sample || genotype.sample != self.trace.chromatogram) {
 		return;
 	}
+	
 	Mmarker *marker = genotype.marker;
 	MarkerOffset offset = genotype.offset;	
 	
@@ -772,16 +765,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	return [self.panelLabels arrayByAddingObjectsFromArray:self.fragmentLabels];
 }
 
-/*  disabled for TESTING (delete method if ok)
-- (void)repositionLabels:(NSArray *)labels {
-	[super repositionLabels:labels];
-	if(!self.isMoving && self.hScale > 0) {
-		/// if we repositionned labels not in response to view resizing, we update their tacking areas "manually"
-		/// This is because updateTrackingAreas won't be called by appkit.
-		[self updateTrackingAreasOf:labels];
-	}
-}  */
-
 
 - (void)setNeedsLayoutFragmentLabels:(BOOL)needsLayoutFragmentLabels {
 	_needsLayoutFragmentLabels = needsLayoutFragmentLabels;
@@ -853,7 +836,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	
 	
 	if(self.needsUpdateLabelAppearance) {
-		/// if this method is called because the appearance has changed, we must change the bin labels, whose appearance depends on the theme.
+		/// if this method is called because the app theme has changed, we must change the bin labels, whose appearance depends on the theme.
 		for(RegionLabel *label in self.binLabels) {
 			[label updateForTheme];
 		}
@@ -861,7 +844,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	
 	/// we draw traces
-	if(self.trace) [self drawTracesInRect:dirtyRect];
+	if(visibleTraces.count > 0) {
+		[self drawTracesInRect:dirtyRect];
+	}
 }
 
 /// Draws trace-related elements in the view. Called during drawRect:
@@ -1008,15 +993,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			[label draw];
 		}
 	}
-	
-	/* some performance reports...
-	 NSAttributedString *ratio = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"scans: %d, tot: %d, skipped: %d", totPoints, totDrawn, skipped] attributes:gLabelFontStyle];
-	 NSPoint point = NSMakePoint(NSMidX(self.visibleRect), NSMidY(self.visibleRect));
-	 NSRect rect = {point, ratio.size};
-	 [[NSColor windowBackgroundColor]set];
-	 NSRectFill(rect);
-	 [ratio drawInRect:rect];
-	 */
 }
 
 
@@ -1161,7 +1137,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-
 - (void)setVisibleOrigin:(float)newVisibleOrigin {
 	if (newVisibleOrigin != _visibleOrigin) {
 		/// as our markerView doesn't scroll, it needs to reposition its marker labels to reflect our range
@@ -1193,9 +1168,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		_hScale = newScale;
 		[self fitToIntrinsicContentSize];
 		self.markerView.needsLayoutLabels = YES;
-		
 	}
 }
+
 
 /// Makes the view as wide as it needs to be,
 - (void)fitToIntrinsicContentSize {
@@ -1207,6 +1182,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	self.needsDisplay = YES;
 }
+
 
 /// scrolls to our visible origin
 - (void)scrollToVisibleOrigin {
@@ -1220,7 +1196,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-#pragma mark - zooming and scrolling
+#pragma mark - zooming
 
 - (void)setVisibleRange:(BaseRange)visibleRange animate:(BOOL)animate  {
 	if(visibleRange.len < 0) {
@@ -1335,6 +1311,13 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		return [self.markerView safeRangeForBaseRange:range];
 	}
 	return range;
+}
+
+
+- (void)swipeWithEvent:(NSEvent *)event {
+	if(self.markerView) {
+		[self.markerView swipeWithEvent:event];
+	}
 }
 
 
@@ -1905,7 +1888,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
 	if(menuItem.action == @selector(deleteBackward:)) {
 		NSString *title = self.activeLabel.deleteActionTitle;
@@ -2114,8 +2096,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 # pragma mark - others
-
-
 
 - (void)dealloc {
 	[self stopObservingSamples];

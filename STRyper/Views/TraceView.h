@@ -35,7 +35,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A view that shows traces and associated labels (``ViewLabel`` objects) for peaks, fragments, markers and bins.
 ///
 ///	A trace view shows the fluorescence data of ``Trace`` objects as curves whose colors reflect the trace ``Trace/channel``.
-/// These curves constitute a plot in which the x axis represent the size in base pairs, and the x axis the trace fluorescence level.
+/// The view draws a plot in which the x axis represent the size in base pairs, and the x axis the trace fluorescence level.
 ///
 ///	This view also shows ``Chromatogram/offscaleRegions`` as colored rectangles behind the curves.
 ///

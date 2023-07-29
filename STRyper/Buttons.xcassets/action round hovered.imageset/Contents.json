@@ -1,12 +1,12 @@
 {
   "images" : [
     {
-      "filename" : "action filled 15.pdf",
+      "filename" : "action filled hovered 1.pdf",
       "idiom" : "mac",
       "scale" : "1x"
     },
     {
-      "filename" : "action filled 16.pdf",
+      "filename" : "action filled hovered.pdf",
       "idiom" : "mac",
       "scale" : "2x"
     }
@@ -14,8 +14,5 @@
   "info" : {
     "author" : "xcode",
     "version" : 1
-  },
-  "properties" : {
-    "template-rendering-intent" : "template"
   }
 }

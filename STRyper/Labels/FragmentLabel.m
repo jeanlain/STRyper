@@ -191,7 +191,7 @@ typedef enum FragmentLabelType : NSUInteger {
 	if(type == ladderFragmentLabel) {
 		/// a ladder fragment label without a scan shows differently
 		backgroundColor =  self.fragment.scan > 0? [NSColor colorWithCalibratedWhite:1 alpha:0.7] : [NSColor colorWithCalibratedWhite:0.5 alpha:0.7];
-		layer.backgroundColor = backgroundColor.CGColor;
+		[self updateAppearance];
 	}
 }
 
@@ -226,6 +226,12 @@ typedef enum FragmentLabelType : NSUInteger {
 
 
 - (void)updateAppearance {
+	[layer setNeedsLayout]; /// Which avoid updating our appearance too many times
+}
+
+
+- (void)layoutSublayersOfLayer:(CALayer *)layer {
+	/// The layer doesn't have sublayer, but this method is useful to update its content, though this method is not meant for that...
 	layer.borderWidth = self.highlighted?  2.0 : 0.0; /// the border becomes visible when the label is highlighted
 	/// we have a grey background when disabled
 	layer.backgroundColor = self.enabled? backgroundColor.CGColor : NSColor.darkGrayColor.CGColor;

@@ -204,8 +204,8 @@ extern const float vScaleViewWidth;
 		[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:NO];
 
 	} else {
-		/// if the user mostly scrolls vertically, we pass the event up in the hierarchy as we don't scroll vertically
-		if (fabs(theEvent.scrollingDeltaX) < fabs(theEvent.scrollingDeltaY)) {
+		/// if the user started to scrolls vertically, we pass the event up in the hierarchy as we don't scroll vertically
+		if (theEvent.phase <= NSEventPhaseBegan && fabs(theEvent.scrollingDeltaX) < fabs(theEvent.scrollingDeltaY)) {
 			[self.nextResponder scrollWheel:theEvent];
 		} else {
 			/// we do not scroll if the mouse is down. This prevents unwanted scrolling that may happen with the magic mouse

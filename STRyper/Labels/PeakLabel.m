@@ -217,7 +217,10 @@ static NSBezierPath *peakArea;
 //	[self drawDefaultState];
 }
 
-/// Draws the label in its highlighted state.
+/// Draws the label in its highlighted state (paints the peak area)
+///
+/// This is no longer used, we don't show the peak highlighted state (it was useful when a peak label showed a menu, which is no longer the case.
+/// We keep the method here in case we need it in the future.
 - (void)drawHighlightedState {
 	/// Paints the peak area under the curve with the color corresponding to the channel
 	NSColor *peakColor = self.view.colorsForChannels[self.trace.channel];
@@ -263,6 +266,7 @@ static NSBezierPath *peakArea;
 /// The layer that draw the handle from the peak label when the user drags.
 /// We use a single instance for all  peak labels, since only one handle show appear at a time
 static CALayer *dragLineLayer;
+
 
 - (void)drag {
 	/// draws a handle from the peak to the mouse, to assign a peak to a bin (manual genotyping)

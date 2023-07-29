@@ -370,18 +370,20 @@ static void * const regionPropertyChangedContext = (void*)&regionPropertyChanged
 
 
 - (void)mouseEntered:(NSEvent *)theEvent {
-	if (theEvent.trackingArea == trackingArea) {  		/// the cursor entered the label
+	NSTrackingArea *trackingArea = theEvent.trackingArea;
+	if (trackingArea == self->trackingArea) {  		/// the cursor entered the label
 		[super mouseEntered:theEvent];
-	} else { 											/// At his point, the mouse has entered an edge area
+	} else if(trackingArea == leftEdgeArea || trackingArea == rightEdgeArea) {
 		self.hoveredEdge = YES;
 	}
 }
 
 
 - (void)mouseExited:(NSEvent *)theEvent {
-	 if (theEvent.trackingArea == trackingArea) {  		/// the cursor exited the label
+	NSTrackingArea *trackingArea = theEvent.trackingArea;
+	 if (trackingArea == self->trackingArea) {  		/// the cursor exited the label
 		 [super mouseExited:theEvent];
-	 } else { 											/// the cursor exited an edge
+	 } else if(trackingArea == leftEdgeArea || trackingArea == rightEdgeArea) {
 		 self.hoveredEdge = NO;
 	 }
  }

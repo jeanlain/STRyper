@@ -496,6 +496,21 @@ enum ButtonTag : NSUInteger {
 }
 
 
+- (void)swipeWithEvent:(NSEvent *)event {
+	/// We move between markers upon swipe
+	float deltaX = event.deltaX;
+	if(self.markerLabels.count == 0 || deltaX == 0) {
+		[super swipeWithEvent:event];
+	} else {
+		if(deltaX < 0) {
+			[self moveToMarkerLabel:previousMarkerButton];
+		} else {
+			[self moveToMarkerLabel:nextMarkerButton];
+		}
+	}
+}
+
+
 - (void)mouseDragged:(NSEvent *)event {
 	/// when the user drags the mouse, they may be adding or resizing a marker
 	NSPoint point =  [self convertPoint:event.locationInWindow fromView:nil];

@@ -189,7 +189,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Tells the label to perform its dragging behavior.
 ///
 /// The ``view`` should send this message when the label should be dragged (typically, within `-mouseDragged`)
-/// and check if the label is in a appropriate state (``highlighted``, ``enabled``, etc.).
+/// and check if the label is in an appropriate state (``highlighted``, ``enabled``, etc.).
 ///
 /// The default implementation does nothing.
 /// Subclasses must override this method and can use the ``LabelView/mouseLocation`` and ``LabelView/clickedPoint`` properties of  the ``view``.

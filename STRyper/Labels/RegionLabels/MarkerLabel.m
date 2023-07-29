@@ -48,7 +48,31 @@ enum addBinPopoverTag : NSInteger {
 	__weak TraceView *traceView;
 	
 	CALayer *editButtonLayer;	/// the layer symbolizing the button that can be clicked to popup the menu (or lock the marker)
+								/// It is more convenient than using an NSButton because we make it a sublayer of our layer
+	NSTrackingArea *editButtonArea; /// A tracking area to determine if the edit button is hovered
+	NSToolTipTag toolTipTag;		/// a tag for a tooltip indicating the edit button role
+	BOOL hoveredEditButton;			/// Whether the edit button is hovered
+
 }
+
+/// Images for the edit button. CALayer cannot adapt to the app appearance if it uses an NSImage, so we have to specify different images for light and dark mode
+/// We also have difference images for when the button is hovered or not and depending on the marker edit state
+static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *actionCheckHoveredImage,
+*actionRoundDarkImage, *actionRoundHoveredDarkImage, *actionCheckDarkImage, *actionCheckHoveredDarkImage;
+
+# pragma mark - attributes and appearance
+
++ (void)initialize {
+	actionCheckHoveredImage = [NSImage imageNamed:@"action check hovered"];
+	actionRoundHoveredImage = [NSImage imageNamed:@"action round hovered"];
+	actionCheckImage = [NSImage imageNamed:@"action check"];
+	actionRoundImage = [NSImage imageNamed:@"action round"];
+	actionCheckHoveredDarkImage = [NSImage imageNamed:@"action check hovered dark"];
+	actionRoundHoveredDarkImage = [NSImage imageNamed:@"action round hovered dark"];
+	actionCheckDarkImage = [NSImage imageNamed:@"action check dark"];
+	actionRoundDarkImage = [NSImage imageNamed:@"action round dark"];
+}
+
 
 - (BOOL)isMarkerLabel {
 	return YES;
@@ -123,11 +147,14 @@ enum addBinPopoverTag : NSInteger {
 - (void)updateAppearance {
 	[super updateAppearance];
 	if(editButtonLayer) {
+		EditState editState = self.editState;
 		BOOL wasHidden = editButtonLayer.hidden;
-		editButtonLayer.hidden = (self.editState == editStateNil && !self.hovered && !self.highlighted) || !self.enabled || !self.region;
+		editButtonLayer.hidden = (editState == editStateNil && !self.hovered && !self.highlighted) || !self.enabled || !self.region;
+		[self updateEditButton];
+
 		if(wasHidden != editButtonLayer.hidden) {
 			/// we reposition the label internal layers as the button layer's change in visibility changes the name's position
-			[self repositionInternalLayers];
+			[self layoutInternalLayers];
 		}
 	}
 }
@@ -135,14 +162,54 @@ enum addBinPopoverTag : NSInteger {
 
 - (void)updateForTheme {
 	[super updateForTheme];
-	editButtonLayer.contents = self.editState != editStateNil ? [NSImage imageNamed:@"action check"]:[NSImage imageNamed:@"action round"];
+	[self updateEditButton];
+}
 
+
+-(void) updateEditButton {
+	/// This could be done in -drawLayer: (after calling -setNeedsDisplay), but we would also need to implement this delegate method for the stringLayer
+	/// so it wouldn't be more convenient.
+	if(editButtonLayer) {
+		BOOL dark = NSApp.effectiveAppearance == [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+		BOOL inEdit = self.editState != editStateNil;
+		if(hoveredEditButton) {
+			if(dark) {
+				editButtonLayer.contents = inEdit ? actionCheckHoveredDarkImage : actionRoundHoveredDarkImage;
+			} else {
+				editButtonLayer.contents = inEdit ? actionCheckHoveredImage : actionRoundHoveredImage;
+			}
+		} else {
+			if(dark) {
+				editButtonLayer.contents = inEdit ? actionCheckDarkImage : actionRoundDarkImage;
+			} else {
+				editButtonLayer.contents = inEdit ? actionCheckImage : actionRoundImage;
+			}
+		}
+	}
+}
+
+# pragma mark - user events
+
+- (void)mouseEntered:(NSEvent *)theEvent {
+	[super mouseEntered:theEvent];
+	if(theEvent.trackingArea == editButtonArea) {
+		hoveredEditButton = YES;
+		[self updateAppearance];
+	}
+}
+
+
+- (void)mouseExited:(NSEvent *)theEvent {
+	[super mouseExited:theEvent];
+	if(theEvent.trackingArea == editButtonArea) {
+		hoveredEditButton = NO;
+		[self updateAppearance];
+	}
 }
 
 
 - (void)mouseUpInView {
 	[super mouseUpInView];
-	//[popover close]; /// because the addBinsPopover would not close if we are clicked and highlighted (which is unclear to me) disabled for TESTING
 	if(self.highlighted) {
 		/// we detect if the user has clicked the edit button
 		if(editButtonLayer && !editButtonLayer.hidden) {
@@ -159,6 +226,7 @@ enum addBinPopoverTag : NSInteger {
 	}
 }
 
+# pragma mark - geometry and tracking areas
 
 - (void)reposition {
 	TraceView *view = self.view;
@@ -201,7 +269,7 @@ enum addBinPopoverTag : NSInteger {
 	layer.frame = CGRectMake(regionRect.origin.x, -3, regionRect.size.width, self.frame.size.height + 3);
 	bandLayer.frame = CGRectMake(0, 0, regionRect.size.width, regionRect.size.height);
 	
-	[self repositionInternalLayers];
+	[self layoutInternalLayers];
 	
 	/// if we show a popover, we move it in sync with the label (the markerView doesn't scroll).
 	if(attachedPopover) {
@@ -213,7 +281,10 @@ enum addBinPopoverTag : NSInteger {
 	}
 }
 
--(void)repositionInternalLayers {
+-(void)layoutInternalLayers {
+	/// We don't do that in -layoutSublayersOfLayer: because it would be difficult to know if sublayers should be positioned with animation.
+	/// The -animated property of the label may not be appropriate when that method is called
+	
 	/// The name is at the middle of the part of the marker label that is visible (and not behind the navigation buttons)
 	NSRect visibleMarkerRect = NSIntersectionRect(regionRect, NSMakeRect(0, 0, NSMaxX(self.view.bounds)-15, NSMaxY(self.view.bounds)));
 	CGPoint position = CGPointMake(NSMidX(visibleMarkerRect) - regionRect.origin.x - NSMidX(stringLayer.bounds), 3);
@@ -227,7 +298,33 @@ enum addBinPopoverTag : NSInteger {
 	editButtonLayer.position = position;
 
 	stringLayer.position = editButtonLayer.hidden? CGPointMake(position.x, 4) : CGPointMake(NSMaxX(editButtonLayer.frame) + 1, 4);
+	
+	if(!traceView.isMoving && !self.dragged) {
+		[self updateButtonArea];
+	}
 }
+
+
+- (void)updateTrackingArea {
+	[super updateTrackingArea];
+	[self updateButtonArea];
+}
+
+
+-(void) updateButtonArea {
+	TraceView *view = self.view;
+	if (editButtonArea) {
+		[view removeTrackingArea:editButtonArea];
+		[view removeToolTip:toolTipTag];
+		editButtonArea = nil;
+	}
+	if(!editButtonLayer.hidden) {
+		NSRect buttonFrame = [editButtonLayer convertRect:editButtonLayer.bounds toLayer:view.layer];
+		editButtonArea = [self addTrackingAreaForRect:buttonFrame];
+		toolTipTag = [view addToolTipRect:buttonFrame owner:self userData:nil];
+	}
+}
+
 
 
 -(void)setFrame:(NSRect)frame {
@@ -235,7 +332,16 @@ enum addBinPopoverTag : NSInteger {
 }
 
 
+# pragma mark - menu and actions
 
+- (NSString *)description {
+	/// This describes what the edit button does
+	if(self.editState == editStateNil) {
+		return @"Show options";
+	} else {
+		return @"End editing";
+	}
+}
 
 - (NSMenu *)menu {
 	_menu = super.menu;
@@ -384,7 +490,6 @@ enum addBinPopoverTag : NSInteger {
 	if(editState != self.editState) {
 		super.editState = editState;
 		/// the edit state is only reflected in the icon shown by the edit button.
-		editButtonLayer.contents = editState != editStateNil ? [NSImage imageNamed:@"action check"]:[NSImage imageNamed:@"action round"];
 		[self updateAppearance];
 		[self.view labelDidChangeEditState:self];
 	}

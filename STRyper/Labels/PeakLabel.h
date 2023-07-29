@@ -34,9 +34,6 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A peak label has an ``ViewLabel/hovered`` state that is denoted by a vertical line at the peak tip. It this state, the view may show a tooltip listing basic information about the peak, depending on the value returned by ``TraceView/showPeakTooltips``.
 ///
-/// In its ``ViewLabel/highlighted`` state, the label paints the area under the fluorescence curve at the location of the peak.
-/// A peak label does not use a core animation ``ViewLabel/layer`` to draw its various states.
-///
 /// This class overrides the ``ViewLabel/drag`` method  to allow the user to assign an ``Allele`` to the peak that the label represents, if the peak is within the range of a marker and if the marker has bins.
 @interface PeakLabel : ViewLabel
 
