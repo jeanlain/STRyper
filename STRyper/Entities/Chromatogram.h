@@ -223,7 +223,7 @@ typedef struct OffscaleRegion {
 /// The size standard of the molecular ladder used to size the sample.
 ///
 /// The reverse relationship is ``SizeStandard/samples``.
-@property (nonatomic, retain, nullable) SizeStandard *sizeStandard;
+@property (nonatomic, nullable) SizeStandard *sizeStandard;
 
 /// The name of  the size standard applied to the sample, as coded in the ABIF file.
 ///
@@ -359,17 +359,17 @@ extern const float DefaultReadLength;
 /// The panel of markers used for genotyping the sample.
 ///
 /// The reverse relationship is ``Panel/samples``.
-@property (nonatomic, retain, nullable) Panel *panel;
+@property (nonatomic, nullable) Panel *panel;
 
 /// Version of the panel used (int32).
 ///
 /// If this number differs from the "version" attribute return by the -panel, the chromatogram may update its genotypes in the -genotypeSet getter.
-@property (nonatomic, retain, nullable) NSNumber *panelVersion;
+@property (nonatomic, nullable) NSNumber *panelVersion;
 
 /// The genotypes at the markers of the panel that is applied to the sample.
 ///
 /// The reverse relationship is ``Genotype/sample``.
-@property (nonatomic, retain, nullable) NSSet<Genotype *> *genotypes;
+@property (nonatomic, nullable) NSSet<Genotype *> *genotypes;
 
 
 /// Returns the sample genotype at a given marker.

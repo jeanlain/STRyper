@@ -103,9 +103,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	[NSUserDefaults.standardUserDefaults registerDefaults:defaults];
 }
 
-- (void)applicationDidFinishLaunching:(NSNotification *)notification {
-//	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(contextDidChange:) name:NSManagedObjectContextObjectsDidChangeNotification object:self.managedObjectContext];
-	
+- (void)applicationDidFinishLaunching:(NSNotification *)notification {	
 
 	NSManagedObjectContext *MOC = self.managedObjectContext;		/// we load the context early
 	if(!MOC) {

@@ -67,7 +67,7 @@ extern const float vScaleViewWidth;
 	self.hasHorizontalScroller = YES;
 	self.verticalScrollElasticity = NSScrollElasticityNone;
 	self.scrollerStyle = NSScrollerStyleLegacy;
-	self.usesPredominantAxisScrolling = YES;
+	self.usesPredominantAxisScrolling = NO;
 	self.borderType = NSNoBorder;
 	self.rulersVisible = YES;
 	
@@ -193,19 +193,20 @@ extern const float vScaleViewWidth;
 
 
 - (void)scrollWheel:(NSEvent *)theEvent {
-	
+	BOOL vertical = fabs(theEvent.scrollingDeltaX) < fabs(theEvent.scrollingDeltaY);
 	BOOL altKeyDown = (theEvent.modifierFlags & NSEventModifierFlagOption) != 0;
 	if (altKeyDown) {
-		/// if scrolling is mostly vertical and the alt key is pressed, we zoom the trace
-		NSPoint mouseLocation = [self.documentView convertPoint:theEvent.locationInWindow fromView:nil];
-		float zoomPoint = mouseLocation.x; 
-		float zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
-		mouseLocation.x = zoomPoint*zoomFactor;
-		[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:NO];
-
+		if(vertical) {
+			/// if scrolling is mostly vertical and the alt key is pressed, we zoom the trace
+			NSPoint mouseLocation = [self.documentView convertPoint:theEvent.locationInWindow fromView:nil];
+			float zoomPoint = mouseLocation.x;
+			float zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
+			mouseLocation.x = zoomPoint*zoomFactor;
+			[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:NO];
+		}
 	} else {
 		/// if the user started to scrolls vertically, we pass the event up in the hierarchy as we don't scroll vertically
-		if (theEvent.phase <= NSEventPhaseBegan && fabs(theEvent.scrollingDeltaX) < fabs(theEvent.scrollingDeltaY)) {
+		if (theEvent.phase <= NSEventPhaseBegan && vertical) {
 			[self.nextResponder scrollWheel:theEvent];
 		} else {
 			/// we do not scroll if the mouse is down. This prevents unwanted scrolling that may happen with the magic mouse

@@ -78,8 +78,11 @@ typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom t
 
 - (void)windowDidLoad {
 	[super windowDidLoad];
-	[self.window makeMainWindow];
-	self.window.acceptsMouseMovedEvents = NO;
+	NSWindow *window = self.window;
+	[window orderFrontRegardless];  ///makeKeyAndOrderFront would generate a warning
+	[window makeKeyWindow];
+	[window makeMainWindow];
+	window.acceptsMouseMovedEvents = NO;
 	
 	/// We configure the split views with their controllers (see getters).
 	/// It's important to load the vertical split view first, because it is part of the main split view.

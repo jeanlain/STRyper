@@ -684,15 +684,28 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	
 	if(bins.count > 0) {
 		[addBinsPopover close];
-		[marker.managedObjectContext.undoManager setActionName:@"Generate Bins"];
+		NSUndoManager *undoManager = marker.managedObjectContext.undoManager;
+			[undoManager setActionName:@"Generate Bins"];
 		marker.bins = [NSSet setWithSet:bins];
 		
 		/// we allow the user to move the new bin set (which also forces to show bins regardless of the showBins property of the view)
 		marker.editState = editStateBinSet;
+		
+		/// if the user undoes the addition of bins, it makes sense to exit the edit state.
+		[undoManager registerUndoWithTarget:self selector:@selector(exitBinSetEditState) object:nil];
+
 	} else {
 		NSError *error = [NSError errorWithDescription:@"No bin was added because the marker is too narrow." suggestion:@"You may widen the marker."];
 		[[NSAlert alertWithError:error] beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
 		}];
+	}
+}
+
+
+-(void)exitBinSetEditState {
+	Mmarker *marker = self.region;
+	if(marker.editState == editStateBinSet) {
+		[self.region setEditState:editStateNil];
 	}
 }
 
