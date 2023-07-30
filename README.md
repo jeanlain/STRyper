@@ -1,6 +1,10 @@
+![Platforms](https://img.shields.io/badge/platform-macOS-lightgreen)
+[![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](http://www.gnu.org/licenses/gpl.html)
+[![DOI](https://img.shields.io/badge/doi-10.32942/X2X01C-blue)](https://doi.org/10.32942/X2X01C)
+
 # STRyper
 <p align="center">
-<img src="STRyper/Assets.xcassets/AppIcon.appiconset/appIcon128.png">
+<img src="STRyper/Assets.xcassets/AppIcon.appiconset/appIcon256.png">
 </p>
 A macOS application for microsatellite genotyping.
 
