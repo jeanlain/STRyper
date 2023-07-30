@@ -25,4 +25,4 @@ The user guide is accessible via the application Help menu and [here](https://gi
 (Reference pending)
 
 ## Contributing to STRyper development
-Please contact Jean Peccoud (contact information are given in (DOI pending)).
+Please contact Jean Peccoud (contact information are given in https://doi.org/10.32942/X2X01C).
