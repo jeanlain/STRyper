@@ -29,12 +29,13 @@ extern const float markerViewHeight;
 
 /// A view that shows molecular marker above a ``TraceView``.
 ///
-/// A ``MarkerView`` shows molecular marker (``Mmarker`` objects)  using ``RegionLabel`` objects.
+/// A `MarkerView` shows molecular marker (``Mmarker`` objects)  using ``RegionLabel`` objects.
 ///
 /// It implements internal methods that allow the user to interact with marker labels
 /// and to add new markers to the ``LabelView/panel`` show by the view, via click & drag.
 ///
-/// A marker view contains buttons (subviews) used to focus it to the range of a marker and to set a specific mode allowing the creation of a new marker by click & drag.
+/// A `MakerView` can make its ``traceView`` zoom to the range of a marker. It has two navigation buttons to that effect.
+/// It can also set a specific mode allowing the creation of a new marker by click & drag.
 ///
 /// IMPORTANT: a marker view must be the accessory view of a horizontal ruler view of a scrollview that has a ``TraceView`` as documentView.
 ///
@@ -60,6 +61,20 @@ extern const float markerViewHeight;
 ///
 /// If the view has no ``LabelView/panel`` to show, a text box indicating "No marker to show"  is shown instead of marker labels, and the view's buttons are disabled.
 - (void)updateContent;
+
+
+/// Make the ``traceView`` zoom to the marker that is to the left.
+/// - Parameter sender: The object that send this message. It is ignored by the method.
+///
+/// If the receiver only shows one marker, or if the leftmost marker is at the right, the method will zoom on that marker.
+-(IBAction)moveToPreviousMarker:(id)sender;
+
+
+/// Make the ``traceView`` zoom to the marker that is to the right.
+/// - Parameter sender: The object that send this message. It is ignored by the method.
+///
+/// If the receiver only shows one marker, or if the rightmost marker is at the left, the method will zoom on that marker.
+-(IBAction)moveToNextMarker:(id)sender;
 
 @end
 

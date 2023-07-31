@@ -39,8 +39,8 @@
 /// This class does not override methods of `NSRulerView` to display the size labels, hence these methods have no effect on what the view shows.
 /// The position of size labels is derived from properties and methods implement by ``TraceView`` and accounts for the _offset_ of markers (see ``STRyper`` guide and ``Genotype/offset``).
 ///
-/// A ruler view can show a mobile label indicating a particular size, typically the position of the cursor on its client view.
-/// It implements methods that allow the user to zoom the trace view to a given range.
+/// A `RulerView` can show a mobile label indicating a particular size, typically the position of the cursor on its client view.
+/// It implements methods that allow the user to zoom the trace view to a given range, and interprets `-scrollWheel:` events to make the trace view zoom to the next/previous marker.
 @interface RulerView : NSRulerView 
 
 /// A position, in base pairs, to show on the ruler.

@@ -24,7 +24,7 @@
 
 /// A scrollview designed to have a ``TraceView`` object as its document view.
 ///
-/// A `TraceScrollView` overrides `NSResponder` methods to allow the user to zoom the trace view with usual gestures and alt-scroll, and to allow synchronized zooming/scrolling.
+/// A `TraceScrollView` overrides `NSResponder` methods to allow the user to zoom the trace view with usual gestures and alt-scroll, to move between markers shown by the ``MarkerView`` via swipe , and to allow synchronized zooming/scrolling.
 ///
 /// It passes the scrolling event to the next responder when the user scrolls mostly vertically, as it should only scroll horizontally.
 /// For the same reason, a `TraceScrollView` does not have a vertical scroller by default.

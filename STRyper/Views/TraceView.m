@@ -1314,13 +1314,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-- (void)swipeWithEvent:(NSEvent *)event {
-	if(self.markerView) {
-		[self.markerView swipeWithEvent:event];
-	}
-}
-
-
 
 #pragma mark - setting frame, visible range, and other display attributes
 

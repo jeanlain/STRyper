@@ -23,7 +23,7 @@
 #import "TraceScrollView.h"
 #import "TraceView.h"
 #import "VScaleView.h"
-
+#import "MarkerView.h"
 
 @implementation TraceScrollView
 
@@ -234,6 +234,19 @@ extern const float vScaleViewWidth;
 }
 
 
+- (void)swipeWithEvent:(NSEvent *)event {
+	MarkerView *markerView = (MarkerView *)self.horizontalRulerView.accessoryView;
+	if(![markerView respondsToSelector:@selector(markerLabels)] || markerView.markerLabels.count == 0) {
+		return;
+	}
+	/// We move between markers upon swipe
+	float deltaX = event.deltaX;
+	if(deltaX > 0) {
+		[markerView moveToNextMarker:self];
+	} else if(deltaX < 0) {
+		[markerView moveToPreviousMarker:self];
+	}
+}
 
 
 @end

@@ -425,6 +425,16 @@ enum ButtonTag : NSUInteger {
 }
 
 
+-(IBAction)moveToPreviousMarker:(id)sender {
+	[self moveToMarkerLabel:previousMarkerButton];
+}
+
+
+-(IBAction)moveToNextMarker:(id)sender {
+	[self moveToMarkerLabel:nextMarkerButton];
+}
+
+
 /// triggered by the previous/next marker button
 - (IBAction)moveToMarkerLabel:(NSButton *)sender {
 	if(self.markerLabels.count == 0) {
@@ -493,21 +503,6 @@ enum ButtonTag : NSUInteger {
 - (void)setMouseLocation:(NSPoint)location {
 	_mouseLocation = location;
 	
-}
-
-
-- (void)swipeWithEvent:(NSEvent *)event {
-	/// We move between markers upon swipe
-	float deltaX = event.deltaX;
-	if(self.markerLabels.count == 0 || deltaX == 0) {
-		[super swipeWithEvent:event];
-	} else {
-		if(deltaX < 0) {
-			[self moveToMarkerLabel:previousMarkerButton];
-		} else {
-			[self moveToMarkerLabel:nextMarkerButton];
-		}
-	}
 }
 
 
