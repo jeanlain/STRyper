@@ -501,8 +501,7 @@ enum ButtonTag : NSUInteger {
 }
 
 - (void)setMouseLocation:(NSPoint)location {
-	_mouseLocation = location;
-	
+	_mouseLocation = location;	
 }
 
 

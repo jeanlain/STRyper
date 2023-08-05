@@ -697,38 +697,32 @@ enum controlTag : NSInteger {
 		return;
 	}
 	
-	NSSet *targetSamples;
-	Chromatogram *sample = view.trace.chromatogram;
-	if(view.loadedTraces.count == 1) {
-		targetSamples = [NSSet setWithObject: sample];
-	}
+	NSArray *targetSamples;
+	NSArray *shownSamples = [view.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
 	Mmarker *marker = (Mmarker *)self.region;
+	NSArray *folderSamples = ((SampleFolder *)FolderListController.sharedController.selectedFolder).samples.allObjects;
 	
-	if(!sample || !marker) {
+	if(!shownSamples || !marker) {
 		return;
 	}
 	
 	NSData *offsetCoefs = [NSData dataWithBytes:&offset length:sizeof(offset)];
 	
 	if(targets == editStateShownSamples) {
-		if(targetSamples.count == 0) {
-			targetSamples = [view.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
-		}
-	}
-	else if(targets == editStateRun) {
-		NSString *run = sample.runName;
-		NSDate *runStopTime = sample.runStopTime;
-		targetSamples = [sample.folder.samples filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Chromatogram *sample, NSDictionary<NSString *,id> * _Nullable bindings) {
-			return [sample.runName isEqualToString:run] && [sample.runStopTime isEqualToDate:runStopTime];
+		targetSamples = shownSamples;
+	} else if(targets == editStateRun) {
+		NSArray *runs = [shownSamples valueForKeyPath:@"@distinctUnionOfObjects.runName"];
+		NSArray *runTimes = [shownSamples valueForKeyPath:@"@distinctUnionOfObjects.runStopTime"];
+		targetSamples = [folderSamples filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Chromatogram *sample, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return [runs containsObject: sample.runName] && [runTimes containsObject: sample.runStopTime];
 		}]];
 	} else if(targets == editStateFolder) {
-		SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
-		targetSamples = selectedFolder.samples;
+		targetSamples = folderSamples;
 	} else {
 		return;
 	}
 	
-	NSArray *genotypes = [targetSamples.allObjects valueForKeyPath:@"@unionOfSets.genotypes"];
+	NSArray *genotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
 	
 	genotypes = [genotypes filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
 		return genotype.marker == marker;

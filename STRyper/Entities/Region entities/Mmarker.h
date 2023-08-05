@@ -26,7 +26,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// An entity that defines the size range that alleles of the same genetic locus can take.
+/// An entity that defines the size range that alleles of the same genetic locus (molecular marker) can take.
 ///
 ///	The range of a marker is used do determine if a `Peak` detected in a trace indicates the presence of an allele at a given locus.
 ///	A marker also has ``bins`` that define the expected range of each allele of the locus.
@@ -101,11 +101,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Gives an allele the name of a bin that the marker possesses.
 ///
-/// This bin used is the one (among the marker's ``bins``) whose range comprises the allele ``LadderFragment/size``.
+/// The bin used is the one (among the marker's ``bins``) whose range comprises the allele ``LadderFragment/size``.
 ///
 /// If no bin can be used, the method sets the name given to out-of-bin alleles (see ``STRyper`` user guide).
 /// - Parameter allele: The allele that should be binned.
 - (void)binAllele:(Allele*)allele;
+
+
+/// Makes the receiver create new genotypes for the ``Panel/samples`` of its ``panel``.
+/// - Parameter alleleName: The ``LadderFragment/name`` to give to new ``Genotype/alleles``.
+///
+/// This method may be used after a marker is created and expects the absence of genotypes for the receiver.
+/// It would create redundant genotypes if it is not the case.
+-(void)createGenotypesWithAlleleName:(NSString *)alleleName;
 
 @end
 

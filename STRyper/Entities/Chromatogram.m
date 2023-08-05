@@ -1171,11 +1171,18 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 
 
 
--(void)applyPanel {
+-(void)applyPanelWithAlleleName:(NSString *)alleleName {
 	[self managedObjectOriginal_setGenotypes:nil];		/// we remove genotypes we may have from a previous panel (genotypes delete themselves when they lose their sample)
 	if (self.panel) {
 		for (Mmarker *marker in self.panel.markers) {
-			[self addGenotypeForMarker:marker];
+			Genotype *newGenotype = [[Genotype alloc] initWithMarker:marker sample:self];
+			if(!newGenotype) {
+				NSLog(@"%@", [NSString stringWithFormat:@"failed to add genotype for marker %@ and sample %@", marker.name, self.sampleName ]);
+			} else {
+				for(Allele *allele in newGenotype.alleles) {
+					[allele managedObjectOriginal_setName:alleleName];
+				}
+			}
 		}
 	}
 	self.panelVersion = self.panel.version.copy;
@@ -1285,13 +1292,6 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 	return YES;
 }
 
-
-- (void)addGenotypeForMarker:(Mmarker *)marker {
-	Genotype *newGenotype = [[Genotype alloc] initWithMarker:marker sample:self];
-	if(!newGenotype) {
-		NSLog(@"%@", [NSString stringWithFormat:@"failed to add genotype for marker %@ and sample %@", marker.name, self.sampleName ]);
-	}
-}
 
 # pragma mark - archiving and copying
 

@@ -29,7 +29,7 @@
 #import "SampleSearchHelper.h"
 #import "MainWindowController.h"
 #import "HoveredTableRowView.h"
-
+#import "GenotypeTableController.h"
 
 
 @interface FolderListController ()
@@ -562,13 +562,8 @@
 - (void)removeItems:(NSArray *)items {
 	for(SampleFolder *folder in items) {
 		[self _removeFolderFromTable:folder];
-		if(!folder.isSmartFolder) {
-			folder.parent = self.trashFolder;
-			[folder autoName];						/// to avoid duplicate names in the trash, generating validation errors
-		} else {
-			/// We don't put smart folders in the trash, we delete them immediately (since their deletion doesn't remove samples).
-			[folder.managedObjectContext deleteObject:folder];
-		}
+		folder.parent = self.trashFolder;
+		[folder autoName];						/// to avoid duplicate names in the trash, generating validation errors
 	}
 }
 
@@ -584,6 +579,9 @@
 		NSWindow *window = self.view.window;
 		NSOperationQueue *callingQueue = NSOperationQueue.currentQueue;
 		[backgroundContext performBlock:^{
+			/// if some folders are deleted, we remove their entries from the genotype filters.
+			NSMutableDictionary *genotypeFilters = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
+			BOOL modified = NO;
 			NSError *error;
 			/// we don't set an NSProgress as it would be difficult to monitor the progress of deletion
 			[progressWindow showProgressWindowForProgress:nil afterDelay:1.0 modal:YES parentWindow:window];
@@ -593,7 +591,15 @@
 					[backgroundContext deleteObject:sample];
 				}
 				for(Folder *folder in trash.subfolders) {
+					if(!folder.objectID.isTemporaryID) {
+						NSString *key = folder.objectID.URIRepresentation.absoluteString;
+						[genotypeFilters removeObjectForKey:key];
+						modified = YES;
+					}
 					[backgroundContext deleteObject:folder];
+				}
+				if(modified) {
+					[NSUserDefaults.standardUserDefaults setObject:genotypeFilters forKey:GenotypeFiltersKey];
 				}
 				if(backgroundContext.hasChanges) {
 					[backgroundContext save:&error];

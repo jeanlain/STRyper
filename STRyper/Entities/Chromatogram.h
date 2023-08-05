@@ -381,9 +381,10 @@ extern const float DefaultReadLength;
 
 /// Makes the chromatogram (re)generate its  set of ``genotypes`` given its ``panel``.
 ///
-///	If the sample has no panel, its genotypes will be deleted.
+/// If the sample has no panel, its genotypes will be deleted.
 /// Note: alleles are not called by this method, hence their ``LadderFragment/scan`` number remains 0.
--(void)applyPanel;
+/// - Parameter alleleName: The ``LadderFragment/name`` to give to the ``Genotype/alleles`` of each generated genotype.
+-(void)applyPanelWithAlleleName:(NSString *)alleleName;
 																
 
 @end

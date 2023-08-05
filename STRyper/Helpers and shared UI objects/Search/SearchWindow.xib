@@ -60,7 +60,7 @@
                             </predicateEditorRowTemplate>
                         </rowTemplates>
                     </predicateEditor>
-                    <button toolTip="Ignore the case (uppercase, lowercase) when searching for strings" verticalHuggingPriority="750" tag="5" translatesAutoresizingMaskIntoConstraints="NO" id="gIN-PR-wuU">
+                    <button toolTip="Ignore the case (uppercase, lowercase)" verticalHuggingPriority="750" tag="5" translatesAutoresizingMaskIntoConstraints="NO" id="gIN-PR-wuU">
                         <rect key="frame" x="18" y="21" width="97" height="18"/>
                         <buttonCell key="cell" type="check" title="Ignore case" bezelStyle="regularSquare" imagePosition="left" state="on" inset="2" id="FnJ-X2-yuF">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>

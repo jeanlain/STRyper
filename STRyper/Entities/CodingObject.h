@@ -41,7 +41,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The attributes that are encoded are those retrieved via the `-attributesByName` property on the object's `entity`.
 /// The `versionIdentifiers` of the entity's managed object model is also encoded in a key named `versionIdentifiers`.
 ///
-/// Subclasses can override this method an call super to encode other elements than core data attributes, for instance relationships.
+/// Subclasses can override this method an call `super` to encode other elements than core data attributes, for instance relationships.
 /// - Parameter coder: The encoder used to encode the receiver.
 - (void)encodeWithCoder:(NSCoder *)coder;
 
@@ -50,7 +50,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The keys that are decoded are those obtained from `-attributesByName` dictionary of the object's `entity`.
 ///
-/// Subclasses can override this method an call super to decode other keys.
+/// Subclasses can override this method an call `super` to decode other keys.
 ///
 /// NOTE: the attributes are set via primitive setters, to avoid side effects.
 ///

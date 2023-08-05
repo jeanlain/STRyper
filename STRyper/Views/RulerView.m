@@ -418,8 +418,14 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	
 }
 
+const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers";
+
 
 - (void)scrollWheel:(NSEvent *)event {
+	if(!self.allowSwipeBetweenMarkers) {
+		[super scrollWheel:event];
+		return;
+	}
 	/// if the user scrolls rapidly to the left or right, we interpret the event as a swipe, to move between markers
 	MarkerView *markerView = (MarkerView *)self.accessoryView;
 	if(![markerView respondsToSelector:@selector(markerLabels)] || markerView.markerLabels.count == 0) {

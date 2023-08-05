@@ -259,10 +259,7 @@ static NSArray *channelColorImages;
 		return;
 	}
 	
-	Genotype *newGenotype;
-	for(Chromatogram *sample in newMarker.panel.samples) {
-		newGenotype = [[Genotype alloc] initWithMarker:newMarker sample:sample];
-	}
+	[newMarker createGenotypesWithAlleleName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
 	
 	BOOL saved = [MOC save:nil];
 	if(saved) {

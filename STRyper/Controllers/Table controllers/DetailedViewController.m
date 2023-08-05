@@ -28,6 +28,7 @@
 #import "MainWindowController.h"
 #import "SampleTableController.h"
 #import "MarkerView.h"
+#import "RulerView.h"
 #import "TraceScrollView.h"
 #import "STableRowView.h"
 
@@ -370,6 +371,7 @@ static const float minTraceRowHeight = 40.0;
 		[traceView bind:IgnoreCrossTalkPeaksBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:IgnoreCrosstalkPeaks options:nil];
 		[traceView bind:DisplayedChannelsBinding toObject:self withKeyPath:@"displayedChannels" options:nil];
 		[traceView bind:DefaultRangeBinding toObject:self withKeyPath:@"defaultRange" options:nil];
+		[traceView.rulerView bind:AllowSwipeBetweenMarkersBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:SwipeBetweenMarkers options:nil];
 		
 		/// to manage the change in theme (dark/light), we bind the App's appearance to a private property in the view.
 		/// We need to because the view uses CALayer, whose colors must be reset in response to the change.

@@ -25,17 +25,24 @@
 #import "Mmarker.h"
 #import "Panel.h"
 #import "SampleTableController.h"
+#import "FolderListController.h"
 #import "IndexImageView.h"
+#import "NSPredicate+PredicateAdditions.h"
+#import "AggregatePredicateEditorRowTemplate.h"
+#import "Allele.h"
 
 @implementation GenotypeTableController {
 	NSDictionary *columnDescription;
 	BOOL shouldRefreshTable;				/// To know if we need to refresh of the genotype table.
 	NSArray<NSImage *> *statusImages;		/// The images that represent the different genotype statuses.
-
+	__weak IBOutlet NSButton *filterButton;	/// The button to apply a filter to the table
+	NSPopover *filterPopover;				/// The popover allowing to define the filter
+	NSMutableDictionary *filterForFolder;	/// To save filters to the user defaults, for each folder that has a filter
 }
 
-/// a pointer giving context to a KVO notification
+/// pointers giving context to a KVO notification
 static void * const samplesChangedContext = (void*)&samplesChangedContext;
+static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChangedContext;
 
 
 + (instancetype)sharedController {
@@ -74,7 +81,25 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 	
 	if(SampleTableController.sharedController.samples) {
 		/// we get notified when the samples shown changes
-		[SampleTableController.sharedController.samples addObserver:self forKeyPath:@"content" options:NSKeyValueObservingOptionNew context:samplesChangedContext];
+		[SampleTableController.sharedController.samples addObserver:self
+														 forKeyPath:NSStringFromSelector(@selector(content))
+															options:NSKeyValueObservingOptionNew
+															context:samplesChangedContext];
+		/// We don't observe `arrangedObjects` as we don't need to react to changes in the sort order of the samples.
+		
+		[SampleTableController.sharedController.samples addObserver:self
+														 forKeyPath:NSStringFromSelector(@selector(filterPredicate))
+															options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+															context:samplesChangedContext];
+		
+		[FolderListController.sharedController addObserver:self
+														 forKeyPath:NSStringFromSelector(@selector(selectedFolder))
+															options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+															context:samplesChangedContext];
+		[self.genotypes addObserver:self
+						 forKeyPath:NSStringFromSelector(@selector(filterPredicate))
+							options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+							context:genotypeFilterChangedContext];
 	}
 	/// we get notified when a panel has its samples or marker changed
 	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(panelMarkersDidChange:) name:PanelMarkersDidChangeNotification object:nil];
@@ -88,14 +113,15 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 }
 
 
-
 - (NSString *)entityName {
 	return Genotype.entity.name;
 }
 
+
 - (NSArrayController *)genotypes {
 	return self.tableContent;
 }
+
 
 - (NSDictionary *)columnDescription {
 	if(!columnDescription) {
@@ -216,13 +242,21 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
 	if(context == samplesChangedContext) {
-			[self refreshTable];
+		if([keyPath isEqualToString:NSStringFromSelector(@selector(selectedFolder))]) {
+			/// If a folder is selected, we apply its filter
+			[self filterGenotypesOfSelectedFolder];
+		}
+		[self refreshTable];
+		
+	} else if(context == genotypeFilterChangedContext) {
+		/// We change the button image to reflect the presence of a filter
+		filterButton.image = self.genotypes.filterPredicate? [NSImage imageNamed:@"filterButton On"]: [NSImage imageNamed:@"filterButton"];
 	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 }
 
 
 -(void)refreshTable {
-	self.genotypes.content = [SampleTableController.sharedController.samples.content valueForKeyPath:@"@unionOfSets.genotypes"];
+	self.genotypes.content = [SampleTableController.sharedController.samples.arrangedObjects valueForKeyPath:@"@unionOfSets.genotypes"];
 }
 
 
@@ -384,11 +418,246 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 	return exportString;
 }
 
+
+#pragma mark - genotype filtering
+
+NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
+
+
+/// Configures and show the popover allowing to filter the table
+/// - Parameter sender: The object that sent this message.
+- (IBAction)showFilterPopover:(id)sender {
+	
+	if(!filterPopover) {
+		
+		filterPopover = NSPopover.new;
+		NSViewController *controller = [[NSViewController alloc] initWithNibName:@"FilterPopover" bundle:nil];
+		if(controller) {
+			filterPopover.contentViewController = controller;
+		} else {
+			NSLog(@"Failed to load filter popover!");
+			return;
+		}
+		
+		filterPopover.animates = YES;
+		filterPopover.behavior = NSPopoverBehaviorTransient;
+		NSView *contentView = controller.view;
+		NSButton *cancelButton = [contentView viewWithTag:4];
+		cancelButton.action = @selector(close);
+		cancelButton.target = filterPopover;
+		
+		NSButton *clearFilterButton = [contentView viewWithTag:5];
+		clearFilterButton.action = @selector(clearFilter:);
+		clearFilterButton.target = self;
+		
+		NSButton *applyFilterButton = [contentView viewWithTag:6];
+		applyFilterButton.action = @selector(applyFilter:);
+		applyFilterButton.target = self;
+	
+		NSPredicateEditor *predicateEditor = [contentView viewWithTag:2];
+
+		/// we prepare the keyPaths (attributes) that the predicate editor will allow filtering.
+		NSArray *keyPaths = @[@"marker.name", @"marker.panel.name", @"notes"];
+		
+		NSArray *rowTemplates = [NSPredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Genotype.entity];
+		
+		/// We add row templates to filter according to allele properties, which are to-many relationships
+		NSPredicateEditorRowTemplate *markerTemplate = rowTemplates.firstObject;
+		
+		NSPredicateEditorRowTemplate *alleleNameTemplate = [[AggregatePredicateEditorRowTemplate alloc]
+															initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"alleles.name"]]
+															rightExpressionAttributeType:NSStringAttributeType
+															modifier:NSAnyPredicateModifier
+															operators:markerTemplate.operators
+															options:0];
+		
+		
+		NSPredicateEditorRowTemplate *alleleSizeTemplate = [[AggregatePredicateEditorRowTemplate alloc]
+															initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"alleles.size"]]
+															rightExpressionAttributeType:NSFloatAttributeType
+															modifier:NSAnyPredicateModifier
+															operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)]
+															options:0];
+		
+		NSPredicateEditorRowTemplate *interceptTemplate = [[NSPredicateEditorRowTemplate alloc]
+															initWithLeftExpressions:@[[NSExpression expressionForKeyPath:NSStringFromSelector(@selector(offsetIntercept))]]
+															rightExpressionAttributeType:NSFloatAttributeType
+															modifier:NSDirectPredicateModifier
+															operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType), @(NSEqualToPredicateOperatorType), @(NSNotEqualToPredicateOperatorType)]
+															options:0];
+		
+				
+		NSArray *finalTemplates = [@[alleleNameTemplate, alleleSizeTemplate] arrayByAddingObjectsFromArray:rowTemplates];
+		 finalTemplates = [finalTemplates arrayByAddingObject:interceptTemplate];
+		
+		NSArray *compoundTypes = @[@(NSNotPredicateType), @(NSAndPredicateType),  @(NSOrPredicateType)];
+		NSPredicateEditorRowTemplate *compound = [[NSPredicateEditorRowTemplate alloc] initWithCompoundTypes:compoundTypes];
+				
+		/// The predicate editor has a compound predicate row template created in IB, we keep it
+		predicateEditor.rowTemplates = [@[compound] arrayByAddingObjectsFromArray:finalTemplates];
+		predicateEditor.canRemoveAllRows = NO;
+		
+		/// We create a formatting dictionary to translate attribute names into menu item titles. We don't translate other fields (operators)
+		keyPaths = [@[@"alleles.name", @"alleles.size"] arrayByAddingObjectsFromArray:keyPaths];
+		keyPaths = [keyPaths arrayByAddingObject:NSStringFromSelector(@selector(offsetIntercept))];
+
+		/// The titles for the menu items of the editor left popup buttons
+		NSArray *titles = @[@"Allele Name", @"Allele Size", @"Marker Name", @"Panel Name", @"Notes", @"Offset"];
+
+		NSArray *keys = NSArray.new;		/// the future keys of the dictionary
+		for(NSString *keyPath in keyPaths) {
+			NSString *key = [NSString stringWithFormat: @"%@%@%@",  @"%[", keyPath, @"]@ %@ %@"];		/// see https://funwithobjc.tumblr.com/post/1482915398/localizing-nspredicateeditor
+			if([keyPaths indexOfObject:keyPath] < 2) {
+				key = [key stringByAppendingString: @" %@"];
+			}
+			keys = [keys arrayByAddingObject:key];
+		}
+		
+		NSArray *values = NSArray.new;	/// the future values
+		for(NSString *title in titles) {
+			NSString *value = [NSString stringWithFormat: @"%@%@%@",  @"%1$[", title, @"]@ %2$@ %3$@"];
+			if([titles indexOfObject:title] < 2) {
+				value = [value stringByAppendingString: @" %4$@"];
+			}
+			values = [values arrayByAddingObject:value];
+		}
+		
+		predicateEditor.formattingDictionary = [NSDictionary dictionaryWithObjects:values forKeys:keys];
+	}
+	
+	/// We set the predicate to show in the editor
+	NSPredicate *filterPredicate = self.genotypes.filterPredicate;
+	if(!filterPredicate) {
+		/// The default predicate is based on the allele name
+		filterPredicate = [NSPredicate predicateWithFormat: @"ANY alleles.name ==[c] ''"];
+	}
+	
+	if(filterPredicate.class != NSCompoundPredicate.class) {
+		/// we make the search predicate a compound predicate to make sure it shows the "all/any/none" option.
+		filterPredicate = [NSCompoundPredicate andPredicateWithSubpredicates:@[filterPredicate]];
+	}
+	
+	NSView *contentView = filterPopover.contentViewController.view;
+	
+	NSButton *caseSensitiveButton = [contentView viewWithTag:3];
+	caseSensitiveButton.state = filterPredicate.isCaseInsensitive? NSControlStateValueOn : NSControlStateValueOff;
+	
+	NSPredicateEditor *editor = [contentView viewWithTag:2];
+	editor.objectValue = filterPredicate;
+	
+	NSTextField *errorTextField = [contentView viewWithTag:7];
+	errorTextField.hidden = YES;
+	
+	[filterPopover showRelativeToRect:filterButton.bounds ofView:filterButton preferredEdge:NSMinYEdge];
+}
+
+/// Removes the current filter of the table.
+-(void)clearFilter:(id)sender {
+	[filterPopover close];
+	self.genotypes.filterPredicate = nil;
+	[self recordFilterPredicate];
+}
+
+/// Applies the filter predicate defined by the `filterPopover` to the table.
+-(void)applyFilter:(id)sender {
+	NSView *contentView = filterPopover.contentViewController.view;
+	NSPredicateEditor *editor = [contentView viewWithTag:2];
+	NSPredicate *filterPredicate = editor.predicate;
+	
+	if(filterPredicate.hasEmptyTerms) {
+		NSTextField *errorTextField = [contentView viewWithTag:7];
+		errorTextField.hidden = NO;
+		return;
+	}
+	
+	NSButton *caseSensitiveButton = [contentView viewWithTag:3];
+	
+	if(caseSensitiveButton.state == NSControlStateValueOn) {
+		filterPredicate = [filterPredicate caseInsensitivePredicate];
+	}
+	
+	if([filterPredicate isEqualTo:self.genotypes.filterPredicate]) {
+		[self.genotypes rearrangeObjects];
+	} else {
+		self.genotypes.filterPredicate = filterPredicate;
+		[self recordFilterPredicate];
+	}
+	
+	[filterPopover close];
+}
+
+
+/// Associates the filter predicate to the selected folder in the user defaults
+-(void)recordFilterPredicate {
+	Folder *selectedFolder = FolderListController.sharedController.selectedFolder;
+	if(!selectedFolder) {
+		return;
+	}
+	
+	if(selectedFolder.objectID.isTemporaryID) {
+		if(![selectedFolder.managedObjectContext obtainPermanentIDsForObjects:@[selectedFolder] error:nil]) {
+			return;
+		}
+	}
+	
+	NSString *key = selectedFolder.objectID.URIRepresentation.absoluteString;
+	
+	if(!filterForFolder) {
+		filterForFolder = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
+		if(!filterForFolder) {
+			filterForFolder = NSMutableDictionary.new;
+		}
+	}
+	
+	NSData *filterPredicateData;
+	NSPredicate *filterPredicate = self.genotypes.filterPredicate;
+	if(filterPredicate) {
+		filterPredicateData = [NSKeyedArchiver archivedDataWithRootObject:filterPredicate
+								requiringSecureCoding:YES
+												error:nil];
+
+	}
+	
+	if(filterPredicateData) {
+		filterForFolder[key] = filterPredicateData;
+	} else {
+		[filterForFolder removeObjectForKey:key];
+	}
+	
+	[NSUserDefaults.standardUserDefaults setObject:filterForFolder forKey:GenotypeFiltersKey];
+}
+
+/// Applies the filter associated to the selected folder to the table, retrieving it from the user defaults
+-(void) filterGenotypesOfSelectedFolder {
+	if(!filterForFolder) {
+		filterForFolder = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
+		if(!filterForFolder) {
+			self.genotypes.filterPredicate = nil;
+			return;
+		}
+	}
+	
+	NSString *key = FolderListController.sharedController.selectedFolder.objectID.URIRepresentation.absoluteString;
+	if(key) {
+		NSData *predicateData = filterForFolder[key];
+		if([predicateData isKindOfClass:NSData.class]) {
+			NSPredicate *filterPredicate = [NSKeyedUnarchiver unarchivedObjectOfClass:NSPredicate.class fromData:predicateData error:nil];
+			[filterPredicate allowEvaluation];
+			self.genotypes.filterPredicate = filterPredicate;
+			return;
+		}
+	}
+	self.genotypes.filterPredicate = nil;
+}
+
+
 #pragma mark - other
 
 - (void)dealloc {
 	[NSNotificationCenter.defaultCenter removeObserver:self];
-	[SampleTableController.sharedController.samples removeObserver:self forKeyPath:@"content"];
+	[SampleTableController.sharedController.samples removeObserver:self forKeyPath:NSStringFromSelector(@selector(content))];
+	[SampleTableController.sharedController.samples removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
+	[self.genotypes removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
 }
 
 @end

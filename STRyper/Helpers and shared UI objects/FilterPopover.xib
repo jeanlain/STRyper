@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner" customClass="NSViewController">
+            <connections>
+                <outlet property="view" destination="Kvm-1M-tEL" id="Kjb-7z-ftJ"/>
+            </connections>
+        </customObject>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
+        <customView misplaced="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Kvm-1M-tEL">
+            <rect key="frame" x="0.0" y="0.0" width="474" height="159"/>
+            <subviews>
+                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="faV-ce-Irz">
+                    <rect key="frame" x="90" y="133" width="294" height="16"/>
+                    <textFieldCell key="cell" lineBreakMode="clipping" title="Show only genotypes meeting these conditions:" id="zku-Tg-YwD">
+                        <font key="font" usesAppearanceFont="YES"/>
+                        <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                    </textFieldCell>
+                </textField>
+                <predicateEditor verticalHuggingPriority="750" tag="2" nestingMode="compound" rowHeight="32" translatesAutoresizingMaskIntoConstraints="NO" id="eev-6B-uhp">
+                    <rect key="frame" x="20" y="61" width="434" height="64"/>
+                    <rowTemplates>
+                        <predicateEditorRowTemplate rowType="compound" id="3DL-Db-8ns">
+                            <popUpMenus>
+                                <menu id="Fiv-Z9-uxD">
+                                    <items>
+                                        <menuItem title="Any" state="on" id="eAp-Yi-E2I">
+                                            <integer key="representedObject" value="2"/>
+                                        </menuItem>
+                                        <menuItem title="All" id="h8B-wu-07t">
+                                            <integer key="representedObject" value="1"/>
+                                        </menuItem>
+                                    </items>
+                                </menu>
+                                <menu id="Pb4-o4-wz0">
+                                    <items>
+                                        <menuItem title="of the following are true" state="on" id="sxj-lm-7H5"/>
+                                    </items>
+                                </menu>
+                            </popUpMenus>
+                        </predicateEditorRowTemplate>
+                        <predicateEditorRowTemplate rowType="simple" id="hs8-5c-wbT">
+                            <array key="leftExpressionObject">
+                                <expression type="keyPath">
+                                    <string key="keyPath">name</string>
+                                </expression>
+                                <expression type="keyPath">
+                                    <string key="keyPath">address</string>
+                                </expression>
+                                <expression type="keyPath">
+                                    <string key="keyPath">sign</string>
+                                </expression>
+                            </array>
+                            <integer key="rightExpressionObject" value="700"/>
+                            <popUpMenus>
+                                <menu id="jnF-bn-JII">
+                                    <items>
+                                        <menuItem title="name" state="on" id="IMo-od-v1r">
+                                            <expression key="representedObject" type="keyPath">
+                                                <string key="keyPath">name</string>
+                                            </expression>
+                                        </menuItem>
+                                        <menuItem title="address" id="LZj-UO-98k">
+                                            <expression key="representedObject" type="keyPath">
+                                                <string key="keyPath">address</string>
+                                            </expression>
+                                        </menuItem>
+                                        <menuItem title="sign" id="ajC-7E-Qkt">
+                                            <expression key="representedObject" type="keyPath">
+                                                <string key="keyPath">sign</string>
+                                            </expression>
+                                        </menuItem>
+                                    </items>
+                                </menu>
+                                <menu id="10O-YK-UIF">
+                                    <items>
+                                        <menuItem title="contains" state="on" id="Ep8-7g-Qo2">
+                                            <integer key="representedObject" value="99"/>
+                                        </menuItem>
+                                        <menuItem title="begins with" id="5xR-RZ-8aY">
+                                            <integer key="representedObject" value="8"/>
+                                        </menuItem>
+                                        <menuItem title="ends with" id="jtx-PD-BEY">
+                                            <integer key="representedObject" value="9"/>
+                                        </menuItem>
+                                        <menuItem title="is" id="Oyh-hN-G2t">
+                                            <integer key="representedObject" value="4"/>
+                                        </menuItem>
+                                        <menuItem title="is not" id="qjj-SO-6cV">
+                                            <integer key="representedObject" value="5"/>
+                                        </menuItem>
+                                    </items>
+                                </menu>
+                            </popUpMenus>
+                        </predicateEditorRowTemplate>
+                    </rowTemplates>
+                </predicateEditor>
+                <button toolTip="Ignore the case (uppercase, lowercase)" verticalHuggingPriority="750" tag="3" translatesAutoresizingMaskIntoConstraints="NO" id="KEX-Nx-8PB">
+                    <rect key="frame" x="18" y="36" width="97" height="18"/>
+                    <buttonCell key="cell" type="check" title="Ignore case" bezelStyle="regularSquare" imagePosition="left" state="on" inset="2" id="ofs-GY-3Nh">
+                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                </button>
+                <textField hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="750" tag="7" translatesAutoresizingMaskIntoConstraints="NO" id="Pcx-Tp-Ao2">
+                    <rect key="frame" x="153" y="37" width="168" height="16"/>
+                    <textFieldCell key="cell" lineBreakMode="clipping" title="Please, fill all search fields." id="aGy-1R-GXt">
+                        <font key="font" metaFont="system"/>
+                        <color key="textColor" red="0.79177749159999999" green="0.28309270739999998" blue="0.2351639569" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                    </textFieldCell>
+                </textField>
+                <button verticalHuggingPriority="750" tag="4" translatesAutoresizingMaskIntoConstraints="NO" id="5IM-f9-o6x">
+                    <rect key="frame" x="-1" y="-2" width="159" height="32"/>
+                    <constraints>
+                        <constraint firstAttribute="height" constant="30" id="SKl-ci-iA3"/>
+                    </constraints>
+                    <buttonCell key="cell" type="smallSquare" title="Cancel" bezelStyle="smallSquare" alignment="center" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="TPh-yt-gfl">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="system"/>
+                        <string key="keyEquivalent" base64-UTF8="YES">
+Gw
+</string>
+                    </buttonCell>
+                </button>
+                <button verticalHuggingPriority="750" tag="5" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="n8f-HW-m3y">
+                    <rect key="frame" x="157" y="-2" width="160" height="32"/>
+                    <constraints>
+                        <constraint firstAttribute="height" constant="30" id="bAp-67-gfC"/>
+                    </constraints>
+                    <buttonCell key="cell" type="smallSquare" title="Remove Filter" bezelStyle="smallSquare" image="close" imagePosition="trailing" alignment="center" state="on" borderStyle="border" inset="2" id="ovb-dD-cwA">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                </button>
+                <button horizontalHuggingPriority="249" verticalHuggingPriority="750" tag="6" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="U6w-BN-9sw">
+                    <rect key="frame" x="316" y="-2" width="159" height="32"/>
+                    <buttonCell key="cell" type="smallSquare" title="Ok" bezelStyle="smallSquare" image="filter pressed" imagePosition="trailing" alignment="center" state="on" borderStyle="border" inset="2" id="TXg-TX-dn5" userLabel="Add Bins">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="system"/>
+                        <string key="keyEquivalent" base64-UTF8="YES">
+DQ
+</string>
+                    </buttonCell>
+                </button>
+            </subviews>
+            <constraints>
+                <constraint firstAttribute="trailing" secondItem="eev-6B-uhp" secondAttribute="trailing" constant="20" symbolic="YES" id="3j3-Du-1qc"/>
+                <constraint firstItem="U6w-BN-9sw" firstAttribute="leading" secondItem="n8f-HW-m3y" secondAttribute="trailing" constant="-1" id="8cn-FL-zUs"/>
+                <constraint firstItem="Pcx-Tp-Ao2" firstAttribute="centerY" secondItem="KEX-Nx-8PB" secondAttribute="centerY" id="B6v-Gx-tM8"/>
+                <constraint firstItem="5IM-f9-o6x" firstAttribute="top" secondItem="KEX-Nx-8PB" secondAttribute="bottom" constant="8" symbolic="YES" id="Ban-ph-KNb"/>
+                <constraint firstItem="KEX-Nx-8PB" firstAttribute="top" secondItem="eev-6B-uhp" secondAttribute="bottom" constant="8" symbolic="YES" id="Fzj-gM-tTc"/>
+                <constraint firstAttribute="bottom" secondItem="5IM-f9-o6x" secondAttribute="bottom" constant="-1" id="H7H-c5-QYV"/>
+                <constraint firstItem="faV-ce-Irz" firstAttribute="centerX" secondItem="Kvm-1M-tEL" secondAttribute="centerX" id="Itu-Se-w8m"/>
+                <constraint firstItem="KEX-Nx-8PB" firstAttribute="leading" secondItem="Kvm-1M-tEL" secondAttribute="leading" constant="20" symbolic="YES" id="J4u-LS-30v"/>
+                <constraint firstItem="U6w-BN-9sw" firstAttribute="height" secondItem="n8f-HW-m3y" secondAttribute="height" id="N51-KM-1WW"/>
+                <constraint firstItem="eev-6B-uhp" firstAttribute="leading" secondItem="Kvm-1M-tEL" secondAttribute="leading" constant="20" symbolic="YES" id="Nj4-uS-uSl"/>
+                <constraint firstItem="5IM-f9-o6x" firstAttribute="leading" secondItem="Kvm-1M-tEL" secondAttribute="leading" constant="-1" id="PqZ-OJ-sda"/>
+                <constraint firstItem="faV-ce-Irz" firstAttribute="top" secondItem="Kvm-1M-tEL" secondAttribute="top" constant="10" id="TlE-ZG-vlU"/>
+                <constraint firstItem="eev-6B-uhp" firstAttribute="top" secondItem="faV-ce-Irz" secondAttribute="bottom" constant="8" symbolic="YES" id="b6b-BJ-r89"/>
+                <constraint firstItem="U6w-BN-9sw" firstAttribute="width" secondItem="n8f-HW-m3y" secondAttribute="width" id="e2Y-03-fYb"/>
+                <constraint firstAttribute="trailing" secondItem="U6w-BN-9sw" secondAttribute="trailing" constant="-1" id="ezH-Oz-uXg"/>
+                <constraint firstItem="5IM-f9-o6x" firstAttribute="bottom" secondItem="n8f-HW-m3y" secondAttribute="bottom" id="ijO-6n-iX7"/>
+                <constraint firstItem="Pcx-Tp-Ao2" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="KEX-Nx-8PB" secondAttribute="trailing" constant="8" symbolic="YES" id="isD-x8-mEk"/>
+                <constraint firstItem="5IM-f9-o6x" firstAttribute="bottom" secondItem="U6w-BN-9sw" secondAttribute="bottom" id="m3M-LV-ae1"/>
+                <constraint firstItem="Pcx-Tp-Ao2" firstAttribute="centerX" secondItem="Kvm-1M-tEL" secondAttribute="centerX" id="nBs-do-g38"/>
+                <constraint firstItem="n8f-HW-m3y" firstAttribute="width" secondItem="5IM-f9-o6x" secondAttribute="width" id="nX6-Qf-IbD"/>
+                <constraint firstItem="n8f-HW-m3y" firstAttribute="leading" secondItem="5IM-f9-o6x" secondAttribute="trailing" constant="-1" id="v4i-RA-TOm"/>
+            </constraints>
+            <point key="canvasLocation" x="124" y="98"/>
+        </customView>
+    </objects>
+    <resources>
+        <image name="close" width="15" height="15"/>
+        <image name="filter pressed" width="15" height="15"/>
+    </resources>
+</document>

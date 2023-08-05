@@ -64,7 +64,7 @@
 
 
 - (NSPredicate *)searchPredicate {
-	return [NSKeyedUnarchiver unarchivedObjectOfClass: [NSPredicate class] fromData:self.searchPredicateData error:nil];
+	return [NSKeyedUnarchiver unarchivedObjectOfClass: NSPredicate.class fromData:self.searchPredicateData error:nil];
 }
 
 

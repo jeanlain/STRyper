@@ -2,6 +2,7 @@
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -9,6 +10,7 @@
             <connections>
                 <outlet property="_tableContent" destination="t85-dl-98d" id="5YP-w6-yNc"/>
                 <outlet property="_tableView" destination="EP9-jv-hOU" id="a5B-gm-5Ie"/>
+                <outlet property="filterButton" destination="8AM-PB-m6K" id="dlY-sy-X94"/>
                 <outlet property="view" destination="zDR-oD-NhW" id="LUJ-88-jIE"/>
             </connections>
         </customObject>
@@ -88,9 +90,23 @@
                         <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="d1Z-6Y-MRe"/>
                     </connections>
                 </button>
+                <button toolTip="Filter genotypes" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="8AM-PB-m6K" userLabel="call genotypes">
+                    <rect key="frame" x="66" y="3" width="25" height="25"/>
+                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="filterButton" imagePosition="overlaps" alignment="center" alternateImage="filterButton On" refusesFirstResponder="YES" focusRingType="none" inset="2" id="gfI-ca-Wtf">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="smallSystemBold"/>
+                    </buttonCell>
+                    <color key="contentTintColor" name="controlAccentColor" catalog="System" colorSpace="catalog"/>
+                    <connections>
+                        <action selector="showFilterPopover:" target="-2" id="1A9-OU-saC"/>
+                        <binding destination="t85-dl-98d" name="enabled" keyPath="content.@count" id="KHK-ba-Z3J"/>
+                    </connections>
+                </button>
             </subviews>
             <constraints>
+                <constraint firstItem="8AM-PB-m6K" firstAttribute="centerY" secondItem="674-57-fTx" secondAttribute="centerY" id="5Ui-IU-FMv"/>
                 <constraint firstItem="674-57-fTx" firstAttribute="leading" secondItem="HUG-HJ-2n8" secondAttribute="trailing" constant="8" symbolic="YES" id="E4h-GK-OhO"/>
+                <constraint firstItem="8AM-PB-m6K" firstAttribute="leading" secondItem="674-57-fTx" secondAttribute="trailing" constant="8" symbolic="YES" id="Npw-Gu-CbB"/>
                 <constraint firstItem="HUG-HJ-2n8" firstAttribute="leading" secondItem="zDR-oD-NhW" secondAttribute="leading" constant="10" id="VnY-mp-vW3"/>
                 <constraint firstItem="674-57-fTx" firstAttribute="centerY" secondItem="HUG-HJ-2n8" secondAttribute="centerY" id="bgg-ZM-WZh"/>
                 <constraint firstItem="HUG-HJ-2n8" firstAttribute="centerY" secondItem="zDR-oD-NhW" secondAttribute="bottom" constant="-15" id="mrf-B7-N1P"/>
@@ -135,7 +151,7 @@
             <connections>
                 <outlet property="delegate" destination="-2" id="V0Y-Nb-kkr"/>
             </connections>
-            <point key="canvasLocation" x="-288.5" y="576.5"/>
+            <point key="canvasLocation" x="-797" y="-104"/>
         </menu>
     </objects>
     <resources>
@@ -143,6 +159,8 @@
         <image name="callAllelesBadge" width="15" height="15"/>
         <image name="copy" width="15" height="14"/>
         <image name="export" width="15" height="17"/>
+        <image name="filterButton" width="25" height="25"/>
+        <image name="filterButton On" width="25" height="25"/>
         <image name="reset" width="14" height="14"/>
         <image name="stackChannelsButton" width="25" height="20"/>
     </resources>

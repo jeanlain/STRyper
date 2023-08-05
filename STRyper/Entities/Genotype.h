@@ -29,7 +29,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 
-/// An entity that describes the genotype of a sample at a locus.
+/// An entity that describes the genotype of a sample at a molecular marker.
 ///
 /// A genotype regroups the ``alleles`` of a ``sample`` (chromatogram) at a molecular ``marker``.
 ///
@@ -169,6 +169,11 @@ extern NSNotificationName _Nonnull const GenotypeDidChangeOffsetCoefsNotificatio
 ///A string representing the genotype's ``offset`` in the format : '(`intercept`, `slope`)', which can be used in the UI.
 @property (nonatomic, nullable, readonly) NSString *offsetString;
 
+/// The `intercept` of the ``offset``.
+@property (nonatomic, readonly) float offsetIntercept;
+
+/// The `slope` of the ``offset``.
+@property (nonatomic, readonly) float offsetSlope;
 
 #pragma mark - display properties
 

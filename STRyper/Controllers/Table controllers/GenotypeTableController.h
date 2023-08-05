@@ -33,7 +33,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// This allows using a name that is more explicit, since the table shows genotypes.
 @property (nonatomic, readonly) NSArrayController *genotypes;
 
-
+/// A  key to the user default that allows access to the genotype filters applied to folders
+extern NSString* const GenotypeFiltersKey;
 
 @end
 

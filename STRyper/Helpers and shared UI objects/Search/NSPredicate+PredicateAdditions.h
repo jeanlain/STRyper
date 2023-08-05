@@ -35,7 +35,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// Returns a predicate that is equivalent to the receiver, expect that it has case insensitive options.
 - (nullable NSPredicate *)caseInsensitivePredicate;
 
-
 /// Whether the receiver has at least one component corresponding to a case-insensitive search.
 - (BOOL) isCaseInsensitive;
 

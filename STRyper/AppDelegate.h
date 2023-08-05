@@ -111,6 +111,9 @@ IgnoreCrosstalkPeaks,
 /// Whether the horizontal positions and scales of trace views should be synchronized.
 SynchronizeViews,
 
+/// Whether a scroll gesture on the top ruler allows moving between markers
+SwipeBetweenMarkers,
+
 /// Whether trace views plot raw fluorescence data (see ``TraceView/showRawData``.
 ShowRawData,
 

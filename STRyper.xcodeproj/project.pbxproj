@@ -55,6 +55,7 @@
 		0F43C8562A6D41DD005252DE /* SortCriteriaEditor.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F43C8552A6D41DD005252DE /* SortCriteriaEditor.xib */; };
 		0F455EC1289FA02A0053A938 /* FolderListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F455EC0289FA02A0053A938 /* FolderListController.m */; };
 		0F455EC5289FA0390053A938 /* PanelListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F455EC3289FA0390053A938 /* PanelListController.m */; };
+		0F462F9E2A78FD8200D86C06 /* FilterPopover.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F462F9D2A78FD8200D86C06 /* FilterPopover.xib */; };
 		0F4B473528A631F300895434 /* RegionPopover.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F4B473428A631F300895434 /* RegionPopover.xib */; };
 		0F50C3382923A5DA00AF1F67 /* CodingObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F50C3372923A5DA00AF1F67 /* CodingObject.m */; };
 		0F51CD8D292E058B0036D512 /* Badges.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0F51CD8C292E058B0036D512 /* Badges.xcassets */; };
@@ -84,6 +85,7 @@
 		0FC4C2E62A6C68AD00DAF6D5 /* TableSortPopover.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FC4C2E52A6C68AD00DAF6D5 /* TableSortPopover.m */; };
 		0FD10D1628F08FD000FBB0A1 /* FittingView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FD10D1528F08FD000FBB0A1 /* FittingView.m */; };
 		0FDDE85428F6A13B00A734BD /* TableHeaderView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FDDE85228F6A13B00A734BD /* TableHeaderView.m */; };
+		0FE1238C2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FE1238B2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.m */; };
 		0FE33AFF2807539D00B9C5DB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0FE33AFE2807539D00B9C5DB /* Assets.xcassets */; };
 		0FE33B022807539E00B9C5DB /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0FE33B002807539E00B9C5DB /* MainMenu.xib */; };
 		0FE33B042807539E00B9C5DB /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FE33B032807539E00B9C5DB /* main.m */; };
@@ -187,6 +189,7 @@
 		0F455EC0289FA02A0053A938 /* FolderListController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FolderListController.m; sourceTree = "<group>"; };
 		0F455EC2289FA0390053A938 /* PanelListController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PanelListController.h; sourceTree = "<group>"; };
 		0F455EC3289FA0390053A938 /* PanelListController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PanelListController.m; sourceTree = "<group>"; };
+		0F462F9D2A78FD8200D86C06 /* FilterPopover.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = FilterPopover.xib; sourceTree = "<group>"; };
 		0F4B473428A631F300895434 /* RegionPopover.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = RegionPopover.xib; sourceTree = "<group>"; };
 		0F50C3362923A5DA00AF1F67 /* CodingObject.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CodingObject.h; sourceTree = "<group>"; };
 		0F50C3372923A5DA00AF1F67 /* CodingObject.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CodingObject.m; sourceTree = "<group>"; };
@@ -234,6 +237,8 @@
 		0FD10D1528F08FD000FBB0A1 /* FittingView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FittingView.m; sourceTree = "<group>"; };
 		0FDDE85228F6A13B00A734BD /* TableHeaderView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TableHeaderView.m; sourceTree = "<group>"; };
 		0FDDE85328F6A13B00A734BD /* TableHeaderView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TableHeaderView.h; sourceTree = "<group>"; };
+		0FE1238A2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AggregatePredicateEditorRowTemplate.h; sourceTree = SOURCE_ROOT; };
+		0FE1238B2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AggregatePredicateEditorRowTemplate.m; sourceTree = SOURCE_ROOT; };
 		0FE33AF52807539C00B9C5DB /* STRyper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = STRyper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0FE33AFE2807539D00B9C5DB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0FE33B012807539E00B9C5DB /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
@@ -297,6 +302,8 @@
 		0F2CB43629697F6400B5532A /* Search */ = {
 			isa = PBXGroup;
 			children = (
+				0FE1238A2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.h */,
+				0FE1238B2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.m */,
 				0F2CB4332969735000B5532A /* NSPredicate+PredicateAdditions.h */,
 				0F2CB4342969735000B5532A /* NSPredicate+PredicateAdditions.m */,
 				0F12DF9629ABD1BD00931B66 /* SearchWindow.xib */,
@@ -397,6 +404,7 @@
 				0FFF774629F50BBE00695EBF /* NewMarkerPopover.h */,
 				0FFF774729F50BBE00695EBF /* NewMarkerPopover.m */,
 				0F1A761D29BFB909004136D8 /* AutoBinPopover.xib */,
+				0F462F9D2A78FD8200D86C06 /* FilterPopover.xib */,
 				0F4B473428A631F300895434 /* RegionPopover.xib */,
 				0F144D4529B673E4005CBC2F /* ErrorLogWindow.xib */,
 				0FBB567A298C353500110490 /* ProgressWindow.xib */,
@@ -642,6 +650,7 @@
 				0FFF1AF6296C17B6009C32F2 /* TableSort Popover.xib in Resources */,
 				0FB53ED129ED6FFF00EA41E6 /* STRyper help.pdf in Resources */,
 				0F144D4629B673E4005CBC2F /* ErrorLogWindow.xib in Resources */,
+				0F462F9E2A78FD8200D86C06 /* FilterPopover.xib in Resources */,
 				0F4B473528A631F300895434 /* RegionPopover.xib in Resources */,
 				0F77801F289BD85600CD7480 /* GenotypeTab.xib in Resources */,
 				0F96D47029915F1B00D18033 /* MainWindow.xib in Resources */,
@@ -705,6 +714,7 @@
 				0FBB567E298C355A00110490 /* ProgressWindow.m in Sources */,
 				0F1BBF12291F91970094BA09 /* SampleInspectorController.m in Sources */,
 				0F3D2F4128075974006FAAF2 /* Panel.m in Sources */,
+				0FE1238C2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.m in Sources */,
 				0F3D2F4D28075974006FAAF2 /* Allele.m in Sources */,
 				0F3D2F5028075974006FAAF2 /* DetailedViewController.m in Sources */,
 				0FFF774829F50BBE00695EBF /* NewMarkerPopover.m in Sources */,

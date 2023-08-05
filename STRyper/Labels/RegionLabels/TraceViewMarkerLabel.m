@@ -392,7 +392,7 @@
 
 - (void)drag {
 	/// This implementation modifies the label's offset, which it transfers to its bin labels.
-	/// We do this even if the user is moving the binset and not modifying a marker offset, as the visual feedback is the same for both
+	/// We do this even if the user is moving the bin set and not modifying a marker offset, as the visual feedback is the same for both
 	/// But we do different things at the end of the drag depending on the edit state
 	self.dragged = YES;
 	
@@ -465,9 +465,9 @@
 }
 
 
-
--(void)moveBinSet {			/// moves the marker's bins by transferring the position of bin labels (considering their offset) to their bins, an resets their offset
-							/// this is like "fixing" the offset of the labels to the binset.
+/// Moves the marker's bins by transferring the position of bin labels (considering their offset) to their bins, an resets their offset.
+-(void)moveBinSet {
+	/// this is like "fixing" the offset of the labels to the bin set.
 	/// but we first check that all bin labels are within the marker's range.
 	/// We don't check other conditions (bins overlapping and such) as they should not be modified during a drag
 	float start = self.region.start;
@@ -504,7 +504,6 @@
 	if(binUpdated) {
 		[self.region.managedObjectContext.undoManager setActionName:@"Move Bin Set"];
 	}
-
 }
 
 #pragma mark - geometry

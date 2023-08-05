@@ -293,6 +293,12 @@ CA
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.SynchronizeViews" id="xeP-WO-GjH"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="Allow Swipe between Markers " state="on" alternate="YES" id="u2d-e9-cKp">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <binding destination="OHE-m2-ofX" name="value" keyPath="values.SwipeBetweenMarkers" id="0qg-tF-nEP"/>
+                                </connections>
+                            </menuItem>
                             <menuItem title="Vertical Scales" id="b02-Ev-63r">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <menu key="submenu" title="Vertical Scales" id="l2W-4b-P84">

@@ -130,7 +130,7 @@
 	/// we prepare the keyPaths (attributes) that the predicate editor will allow searching. sampleName and folder are not in sampleColumnIDs
 	NSArray *keyPaths = @[ChromatogramSampleNameKey, @"folder.name"];
 	/// We also prepare the titles for the menu items of the editor left popup buttons, as keypath names are not user-friendly
-	NSArray *titles = @[@"Sample Name", @"Folder name"];
+	NSArray *titles = @[@"Sample Name", @"Folder Name"];
 	
 	for(NSDictionary *colDescription in columnDescriptions) {
 		keyPaths = [keyPaths arrayByAddingObject:[colDescription valueForKey:KeyPathToBind]];

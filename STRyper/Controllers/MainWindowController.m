@@ -56,7 +56,9 @@ typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom t
 } bottomTab;
 
 
-@synthesize mainSplitViewController = _mainSplitViewController, verticalSplitViewController = _verticalSplitViewController, errorLogWindow = _errorLogWindow;
+@synthesize mainSplitViewController = _mainSplitViewController,
+verticalSplitViewController = _verticalSplitViewController,
+errorLogWindow = _errorLogWindow;
 
 
 
@@ -84,13 +86,6 @@ typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom t
 	[window makeMainWindow];
 	window.acceptsMouseMovedEvents = NO;
 	
-	/// We configure the split views with their controllers (see getters).
-	/// It's important to load the vertical split view first, because it is part of the main split view.
-
-	if(!self.verticalSplitViewController) {
-		NSLog(@"failed to load the vertical split view.");
-		abort();
-	}
 	
 	if(!self.mainSplitViewController) {
 		NSLog(@"failed to load the main split view.");
@@ -275,7 +270,8 @@ typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom t
 	if(!_verticalSplitViewController) {
 		
 		NSView *bottomPane = tabView.superview;						/// the bottom pane of the controller's split view (which contains the tab view)
-																	/// we record a reference to it, as adding its superview to the controller will clear it to the superview
+		/// we record a reference to it, as adding its superview to the controller will clear it from the superview
+		
 		NSSplitView *midPane = (NSSplitView *)bottomPane.superview;	/// the controller's split view itself
 		if(!bottomPane || ![midPane isKindOfClass:NSSplitView.class]) {
 			return nil;
@@ -318,7 +314,10 @@ typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom t
 
 - (void)setSourceController:(TableViewController *)controller {
 	/// this message in sent by a TableViewController when its table is clicked (and in other circumstances), so that its selected items show in the detailed outline view
-	if(controller.tableView == nil || controller.tableContent == nil) return;
+	if(controller.tableView == nil || controller.tableContent == nil) {
+		return;
+	}
+	
 	if(controller == GenotypeTableController.sharedController) {
 		/// if we 	activate the genotype table, we make sure its tab is visible
 		/// we do it even if it was already the active table, as it could have been masked since then
@@ -348,29 +347,36 @@ typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom t
 		menuItem.hidden = YES;
 		return NO;
 	}
+	
 	if(menuItem.action == @selector(showImportSamplePanel:)) {
 		return FolderListController.sharedController.canImportSamples;
 	}
+	
 	if(menuItem.action == @selector(toggleLeftPane:)) {
 		menuItem.title = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Show Folder List" : @"Hide Folder List";
 		return YES;
 	}
+	
 	if(menuItem.action == @selector(toggleRightPane:)) {
 		menuItem.title = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Show Right Pane" : @"Hide Right Pane";
 		return YES;
 	}
+	
 	if(menuItem.action == @selector(toggleBottomPane:)) {
 		menuItem.title = [self.verticalSplitViewController.splitViewItems.lastObject isCollapsed]? @"Show Bottom Pane" : @"Hide Bottom Pane";
 		return YES;
 	}
+	
 	if(menuItem.action == @selector(moveSelectionByStep:)) {
 		return [self.sourceController validateMenuItem:menuItem];
 	}
+	
 	if(menuItem.action == @selector(activateTab:)) {
 		/// we show the tick-mark if the menu corresponds to the tab that is active. The tag of the menu refers to the index of the tab
 		menuItem.state = menuItem.tag == [tabView.tabViewItems indexOfObject: tabView.selectedTabViewItem]? NSControlStateValueOn : NSControlStateValueOff;
 		return YES;
 	}
+	
 	if(menuItem.action == @selector(showErrorLogWindow:)) {
 		menuItem.state = self.errorLogWindow.isVisible? NSControlStateValueOn : NSControlStateValueOff;
 		return YES;
@@ -385,7 +391,7 @@ typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom t
 	}
 	
 	if(menuItem.action == @selector(stackMode:)) {
-		/// Menu items that call this has a tag corresponding to the TraceStackMode of the use default.
+		/// Menu items that call this have a tag corresponding to the TraceStackMode of the use default.
 		/// We add a check mark to the menu item it it corresponds to the current mode
 		TopFluoMode fluoMode = [NSUserDefaults.standardUserDefaults integerForKey:TraceStackMode];
 		menuItem.state = menuItem.tag == fluoMode? NSControlStateValueOn : NSControlStateValueOff;

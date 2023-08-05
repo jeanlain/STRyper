@@ -80,7 +80,7 @@
             <connections>
                 <outlet property="delegate" destination="-2" id="muP-Ci-UpD"/>
             </connections>
-            <point key="canvasLocation" x="-803" y="816"/>
+            <point key="canvasLocation" x="-688" y="905"/>
         </menu>
         <splitView identifier="tab" autosaveName="MarkerSplitView" dividerStyle="thin" vertical="YES" id="Qq8-Lh-G3s">
             <rect key="frame" x="0.0" y="0.0" width="659" height="318"/>

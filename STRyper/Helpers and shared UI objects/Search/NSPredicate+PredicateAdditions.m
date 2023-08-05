@@ -42,18 +42,18 @@
 	NSPredicate *modifiedPredicate = self;
 	if([self isKindOfClass: NSComparisonPredicate.class]) {
 		NSComparisonPredicate *comparisonPredicate = (NSComparisonPredicate *)self;
-		NSExpression *rightExpr = comparisonPredicate.rightExpression;
-		if([rightExpr.constantValue isKindOfClass: NSDate.class]) {
-			NSDate *date = rightExpr.constantValue;
+		NSExpression *rightExpression = comparisonPredicate.rightExpression;
+		if([rightExpression.constantValue isKindOfClass: NSDate.class]) {
+			NSDate *date = rightExpression.constantValue;
 			
-			/// we set the hour to 00:00:00 (by defaut, it is set to the hour at which the search was done, which may yield unexpected results)
+			/// we set the hour to 00:00:00 (by default, it is set to the hour at which the search was done, which may yield unexpected results)
 			NSDateComponents *components = [[NSCalendar currentCalendar] components:NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay fromDate:date];
 			NSDate *morning = [[NSCalendar currentCalendar] dateFromComponents:components];
 			
 			/// we also need to represent the date 24 hours later
 			NSDate *night = [morning dateByAddingTimeInterval:60*60*24];
 			
-			/// for equality or unequality comparisons to a day, we must modify the predicate operator type so that the whole day (from morning to night) can be matched or excluded
+			/// for equality or inequality comparisons to a day, we must modify the predicate operator type so that the whole day (from morning to night) can be matched or excluded
 			/// for equality, we will generate a compound predicate that searches for dates >= morning AND < night
 			NSInteger firstType = NSGreaterThanOrEqualToPredicateOperatorType;
 			NSInteger secondType = NSLessThanPredicateOperatorType;
@@ -118,8 +118,8 @@
 	NSPredicate *modifiedPredicate = self;
 	if([self isKindOfClass: NSComparisonPredicate.class]) {
 		NSComparisonPredicate *comparisonPredicate = (NSComparisonPredicate *)self;
-		NSExpression *rightExpr = comparisonPredicate.rightExpression;
-		if([rightExpr.constantValue isKindOfClass: NSString.class]) {
+		NSExpression *rightExpression = comparisonPredicate.rightExpression;
+		if([rightExpression.constantValue isKindOfClass: NSString.class]) {
 			modifiedPredicate = [NSComparisonPredicate predicateWithLeftExpression:comparisonPredicate.leftExpression
 																   rightExpression:comparisonPredicate.rightExpression
 																		  modifier:comparisonPredicate.comparisonPredicateModifier

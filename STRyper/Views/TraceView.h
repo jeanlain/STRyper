@@ -131,7 +131,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// If the view has loaded a genotype, it is the genotype's ``Genotype/marker``.
 /// If the view has loaded a marker, it is the marker itself.
-/// Otherwise this property is nil.
+/// Otherwise this property is `nil`.
 @property (nonatomic, readonly, nullable) Mmarker *marker;
 
 /// The ``Trace/channel`` of the trace(s) or marker shown by the view, from 0 to 4.
@@ -213,9 +213,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default value is NO.
 @property (nonatomic) BOOL autoScaleToHighestPeak;
 
-/// Whether peaks resulting from crosstalk should be ignored during ``scaleToHighestPeakWithAnimation:``.
+/// Whether peaks resulting from crosstalk should be ignored by ``topFluoForRange:``.
 ///
-/// The default value is NO.
+/// The default value is `NO`.
 @property (nonatomic) BOOL ignoreCrosstalkPeaks;
 
 /// The vertical coordinate (in quartz points) corresponding to a fluorescence of 0 in the ``trace``.

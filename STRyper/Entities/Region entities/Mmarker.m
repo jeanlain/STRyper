@@ -306,6 +306,16 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 }
 
 
+- (void)createGenotypesWithAlleleName:(NSString *)alleleName {
+	for(Chromatogram *sample in self.panel.samples) {
+		Genotype *newGenotype = [[Genotype alloc] initWithMarker:self sample:sample];
+		for(Allele *allele in newGenotype.alleles) {
+			[allele managedObjectOriginal_setName:alleleName];
+		}
+	}
+}
+
+#pragma mark - copying and archiving
 
 - (BOOL)isEquivalentTo:(__kindof NSManagedObject *)obj {
 	if(![super isEquivalentTo:obj]) {

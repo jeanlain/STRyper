@@ -67,10 +67,6 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	actionRoundHoveredImage = [NSImage imageNamed:@"action round hovered"];
 	actionCheckImage = [NSImage imageNamed:@"action check"];
 	actionRoundImage = [NSImage imageNamed:@"action round"];
-	actionCheckHoveredDarkImage = [NSImage imageNamed:@"action check hovered dark"];
-	actionRoundHoveredDarkImage = [NSImage imageNamed:@"action round hovered dark"];
-	actionCheckDarkImage = [NSImage imageNamed:@"action check dark"];
-	actionRoundDarkImage = [NSImage imageNamed:@"action round dark"];
 }
 
 
@@ -111,7 +107,6 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		editButtonLayer = CALayer.new;
 		editButtonLayer.delegate = self;
 		editButtonLayer.anchorPoint = CGPointMake(0, 0);
-		editButtonLayer.contents = [NSImage imageNamed:@"action round"];
 		
 		editButtonLayer.bounds = CGRectMake(0, 0, 15, 15);
 		[layer addSublayer:editButtonLayer];
@@ -162,28 +157,27 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 - (void)updateForTheme {
 	[super updateForTheme];
-	[self updateEditButton];
+	[self setEditButtonContent];
 }
 
 
 -(void) updateEditButton {
-	/// This could be done in -drawLayer: (after calling -setNeedsDisplay), but we would also need to implement this delegate method for the stringLayer
-	/// so it wouldn't be more convenient.
+	/// Since the edit button uses an image that has a dark appearance, it's content must be set within -updateLayer of the host view
+	self.view.needsUpdateLabelAppearance = YES;
+}
+
+
+-(void)setEditButtonContent {
 	if(editButtonLayer) {
-		BOOL dark = NSApp.effectiveAppearance == [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+		NSImage *buttonImage;
 		BOOL inEdit = self.editState != editStateNil;
 		if(hoveredEditButton) {
-			if(dark) {
-				editButtonLayer.contents = inEdit ? actionCheckHoveredDarkImage : actionRoundHoveredDarkImage;
-			} else {
-				editButtonLayer.contents = inEdit ? actionCheckHoveredImage : actionRoundHoveredImage;
-			}
+			buttonImage = inEdit? actionCheckHoveredImage : actionRoundHoveredImage;
 		} else {
-			if(dark) {
-				editButtonLayer.contents = inEdit ? actionCheckDarkImage : actionRoundDarkImage;
-			} else {
-				editButtonLayer.contents = inEdit ? actionCheckImage : actionRoundImage;
-			}
+			buttonImage = inEdit? actionCheckImage : actionRoundImage;
+		}
+		if(buttonImage) {
+			editButtonLayer.contents = (__bridge id _Nullable)([buttonImage CGImageForProposedRect:nil context:nil hints:nil]);
 		}
 	}
 }
@@ -364,7 +358,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		NSMenu *submenu = NSMenu.new;
 		[submenu addItemWithTitle:@"Apply to:" action:nil keyEquivalent:@""];
 		[submenu addItemWithTitle:@"Sample(s) at this row" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[submenu addItemWithTitle:@"Samples of the same run and folder" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
+		[submenu addItemWithTitle:@"Samples of this run in the selected folder" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
 		[submenu addItemWithTitle:@"All samples of the folder" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
 		EditState j = editStateShownSamples;
 		for(NSMenuItem *anItem in submenu.itemArray) {
@@ -416,22 +410,6 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	if(tag != editStateNil && self.editState != editStateNil) {
 		/// if we are already in an edit state, we disable any item that sets an edit state
 		valid = NO;
-	} else if(tag == editStateRun) {
-		/// we enable this item only if loaded samples belong to the same run
-		TraceView *view = traceView;
-		NSString *referenceRun = view.trace.chromatogram.runName;
-		NSDate *referenceTime = view.trace.chromatogram.runStopTime;
-		for(Trace *trace in view.loadedTraces) {
-			Chromatogram *sample = trace.chromatogram;
-			if(![sample.runName isEqualToString:referenceRun]) {
-				valid = NO;
-				break;
-			}
-			if(![sample.runStopTime isEqualToDate:referenceTime]) {
-				valid = NO;
-				break;
-			}
-		}
 	} else if (tag == editStateBinSet) {
 		/// if the target is the bin set, we check if the marker indeed has bins
 		Mmarker *marker = self.region;

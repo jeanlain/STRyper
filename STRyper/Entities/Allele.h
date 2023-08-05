@@ -27,9 +27,9 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// An entity that represents an allele of a genetic locus.
+/// An entity that represents an allele of a molecular marker.
 ///
-/// An allele defines a genetic variant of a locus, or more specifically, and amplicon of such variant that induces a peak in the fluorescence data of a ``Trace``, at a specific size.
+/// An allele defines a genetic variant of a molecular marker, or more specifically, and amplicon of such variant that induces a peak in the fluorescence data of a ``Trace``, at a specific size.
 ///
 /// The alleles of an individual (``Chromatogram`` object) at a marker constitute a genotype (``Genotype`` object).
 ///
@@ -48,7 +48,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The method returns `nil` if no trace in the ``Genotype/sample`` of the `genotype` is suitable for the allele,
 /// or if the `genotype` already has enough alleles given the ``Mmarker/ploidy`` of its ``Genotype/marker``.
 ///
-/// These conditions denotes the fact that the ``LadderFragment/trace`` and the ``genotype`` relationships of an allele should not be modified after this creation.
+/// These conditions denotes the fact that the ``LadderFragment/trace`` and the ``genotype`` relationships of an allele should not be modified after its creation.
 /// Doing so may lead to validation errors, for instance the ``Trace/channel`` of the ``LadderFragment/trace`` differing from the genotype's ``Genotype/marker``.
 ///
 /// One should generally not call this method directly, since alleles are added by creating a ``Genotype`` object with ``Genotype/initWithMarker:sample:``, which calls this method.

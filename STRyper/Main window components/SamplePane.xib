@@ -457,7 +457,7 @@
             <connections>
                 <outlet property="delegate" destination="-2" id="fXC-k0-hqz"/>
             </connections>
-            <point key="canvasLocation" x="-1537" y="-386"/>
+            <point key="canvasLocation" x="-1274" y="-260"/>
         </menu>
         <userDefaultsController representsSharedInstance="YES" id="2ni-WE-aO9"/>
     </objects>

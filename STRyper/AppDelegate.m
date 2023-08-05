@@ -45,6 +45,7 @@ TraceStackMode = @"StackMode",
 IgnoreCrosstalkPeaks = @"IgnoreCrossTalkPeaks",
 MaintainPeakHeights = @"MaintainPeakHeights",
 SynchronizeViews = @"SynchronizeViews",
+SwipeBetweenMarkers = @"SwipeBetweenMarkers",
 TraceTopFluoMode = @"TraceTopFluoMode",
 ShowRawData = @"ShowRawData",
 ShowBins = @"ShowBins",
@@ -79,6 +80,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   TraceTopFluoMode: @0,
 							   IgnoreCrosstalkPeaks : @NO,
 							   SynchronizeViews: @YES,
+							   SwipeBetweenMarkers: @YES,
 							   ShowRawData: @NO,
 							   MaintainPeakHeights: @YES,
 							   ShowBins: @YES,
@@ -162,7 +164,10 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		SampleFolder *restored = [[SampleFolder alloc] initWithParentFolder: rootFolder];
 		restored.name = @"Recovered items";
 		[restored autoName];		/// to avoid duplicate names
-		restored.subfolders = trashFolder.subfolders;
+		restored.subfolders = [trashFolder.subfolders filteredOrderedSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Folder   * _Nullable subfolder, NSDictionary<NSString *,id> * _Nullable bindings) {
+			/// We don't restore smart folders
+			return !subfolder.isSmartFolder;
+		}]];
 		restored.samples = trashFolder.samples;
 	}
 	[self saveAction:self];

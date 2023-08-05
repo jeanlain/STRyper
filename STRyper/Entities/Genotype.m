@@ -202,7 +202,6 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 		/// we don't call alleles for a samples that is not sized
 		return;
 	}
-	self.notes = @"";
 	
 	Mmarker *marker = self.marker;
 	Trace *trace = [self.sample traceForChannel:marker.channel];
@@ -213,9 +212,7 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 	long totPeaks = trace.peaks.length/sizeof(Peak);
 	if(totPeaks == 0) {
 		for(Allele *allele in self.alleles) {
-			if(allele.scan > 0) {
-				allele.scan = 0;
-			}
+			allele.scan = 0;
 		}
 		self.status = genotypeStatusNoPeak;
 		return;
@@ -262,9 +259,7 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 		free(heights);
 		free(markerPeakIndices);
 		for(Allele *allele in self.alleles) {
-			if(allele.scan > 0) {
-				allele.scan = 0;
-			}
+			allele.scan = 0;
 		}
 		self.status = genotypeStatusNoPeak;
 		return;
@@ -595,6 +590,7 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 	return YES;
 }
 
+#pragma mark - other setters and getters
 
 -(void)setSample:(Chromatogram * )sample {
 	BOOL shouldDelete = self.sample != nil && sample == nil && !self.deleted;		/// a genotype without a sample must be deleted
@@ -613,6 +609,7 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 	}
 }
 
+#pragma mark - offset management
 
 - (void)setOffsetData:(nullable NSData *)offsetData {
 
@@ -648,6 +645,17 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 }
 
 
+- (float)offsetIntercept {
+	MarkerOffset offset = self.offset;
+	return -offset.intercept / offset.slope;
+}
+
+
+- (float)offsetSlope {
+	return self.offset.slope;
+}
+
+
 + (NSSet<NSString *> *)keyPathsForValuesAffectingOffsetString {
 	return [NSSet setWithObject:@"offsetData"];
 }
@@ -666,6 +674,7 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 	return nil;
 }
 
+# pragma mark - copying and archiving
 
 +(BOOL)supportsSecureCoding {
 	return YES;

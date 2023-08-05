@@ -327,6 +327,13 @@
 		if(genotypes.count == 0) {
 			return NO;
 		}
+		NSArray *shownGenotypes = GenotypeTableController.sharedController.genotypes.arrangedObjects;
+		for(Genotype *genotype in genotypes) {
+			if([shownGenotypes indexOfObjectIdenticalTo:genotype] != NSNotFound) {
+				return YES;
+			}
+		}
+		return NO;
 	}
 	
 	if(item.action == @selector(callAlleles:)) {
@@ -533,7 +540,7 @@
 	if(validSamples.count > 0) {
 		[panel addSamples:[NSSet setWithArray:validSamples]];
 		for(Chromatogram *sample in validSamples) {
-			[sample applyPanel];
+			[sample applyPanelWithAlleleName:@""];
 		}
 	}
 	

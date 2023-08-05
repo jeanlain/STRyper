@@ -177,6 +177,9 @@ static NSArray *defaultColorsForChannels;
 
 - (void)mouseExited:(NSEvent *)event {
 	mouseIn = NO;
+	/// We set a location that is outside the view bounds to make clear to labels that the mouse is no longer in the view
+	/// Otherwise, some labels may get hovered when they update their tracking area.
+	self.mouseLocation = NSMakePoint(-100, -100);
 }
 
 # pragma mark - geometry
@@ -370,11 +373,8 @@ static NSArray *defaultColorsForChannels;
 	if(region.managedObjectContext == temporaryContext) {
 						
 		if([region isKindOfClass:Mmarker.class]) {
-			Genotype *newGenotype;
 			Mmarker *marker = (Mmarker *)region;
-			for(Chromatogram *sample in marker.panel.samples) {
-				newGenotype = [[Genotype alloc] initWithMarker:marker sample:sample];
-			}
+			[marker createGenotypesWithAlleleName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
 		}
 		
 		/// as the label is already present and the region will appear in the view context, we tell us to not recreate region labels (which our subclasses do normally)
