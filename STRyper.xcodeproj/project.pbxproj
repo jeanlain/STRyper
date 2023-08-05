@@ -237,8 +237,8 @@
 		0FD10D1528F08FD000FBB0A1 /* FittingView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FittingView.m; sourceTree = "<group>"; };
 		0FDDE85228F6A13B00A734BD /* TableHeaderView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TableHeaderView.m; sourceTree = "<group>"; };
 		0FDDE85328F6A13B00A734BD /* TableHeaderView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TableHeaderView.h; sourceTree = "<group>"; };
-		0FE1238A2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AggregatePredicateEditorRowTemplate.h; sourceTree = SOURCE_ROOT; };
-		0FE1238B2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AggregatePredicateEditorRowTemplate.m; sourceTree = SOURCE_ROOT; };
+		0FE1238A2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = AggregatePredicateEditorRowTemplate.h; path = "STRyper/Helpers and shared UI objects/Search/AggregatePredicateEditorRowTemplate.h"; sourceTree = SOURCE_ROOT; };
+		0FE1238B2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = AggregatePredicateEditorRowTemplate.m; path = "STRyper/Helpers and shared UI objects/Search/AggregatePredicateEditorRowTemplate.m"; sourceTree = SOURCE_ROOT; };
 		0FE33AF52807539C00B9C5DB /* STRyper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = STRyper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0FE33AFE2807539D00B9C5DB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0FE33B012807539E00B9C5DB /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
