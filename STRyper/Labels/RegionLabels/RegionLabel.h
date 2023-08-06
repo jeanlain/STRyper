@@ -203,7 +203,7 @@ typedef enum EditState : NSUInteger {
 /// If the receiver does not represent a marker on a ``TraceView``, the method returns nil.
 /// The method does not check if a bin already has a label or if it belongs to the ``Bin/marker`` that the receiver represents.
 /// - Parameter bin: The bin that should be represented by the label.
--(RegionLabel *)addLabelForBin:(Bin *)bin;
+-(nullable RegionLabel *)addLabelForBin:(Bin *)bin;
 
 /// The label will return new bin labels for ``binLabels`` after this message is sent.
 -(void)resetBinLabels;

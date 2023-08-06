@@ -96,7 +96,6 @@ BaseRange MakeBaseRange(float start, float len) {
 		[self managedObjectOriginal_setChromatogram:sample];
 		[self managedObjectOriginal_setChannel:channel];
 		[self managedObjectOriginal_setRawData:rawData];
-		
 	}
 	return self;
 }

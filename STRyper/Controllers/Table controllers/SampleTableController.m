@@ -845,6 +845,8 @@
 				}
 			} else if([item isKindOfClass:NSString.class]) {
 				URIString = item;
+			} else {
+				continue;
 			}
 			
 			Chromatogram *copiedSample;

@@ -297,7 +297,7 @@ typedef enum elementType: int16_t {
 	
 	/// We read the file's first entry that lists the directory's contents, and is at byte 6
 	DirEntry headerEntry = *(const DirEntry *)(fileBytes + 6);
-	headerEntry = NativeEndianEntry(headerEntry);
+	headerEntry = nativeEndianEntry(headerEntry);
 	/// The header entry indicates the number of directory entries and their location. We check if this is consistent.
 	if(headerEntry.dataSize < headerEntry.numElements * sizeof(DirEntry) ||
 	   (fileData.length < headerEntry.dataOffset + headerEntry.dataSize) || headerEntry.dataOffset < HEADERSIZE) {
@@ -369,7 +369,8 @@ typedef enum elementType: int16_t {
 }
 
 /// Converts an ABIF directory entry from big endian to native endian
-DirEntry NativeEndianEntry(DirEntry entry) {
+/// - Parameter entry: The entry to converts.
+DirEntry nativeEndianEntry(DirEntry entry) {
 	entry.itemNumber = EndianS32_BtoN(entry.itemNumber);
 	entry.elementType = EndianS16_BtoN(entry.elementType);
 	entry.elementSize = EndianS16_BtoN(entry.elementSize);
@@ -382,25 +383,32 @@ DirEntry NativeEndianEntry(DirEntry entry) {
 }
 
 
-/// Returns an object pointed by a directory entry from ABFI file data
+/// Returns an object pointed by a directory entry from ABFI file data.
 ///
-/// "try" tells whether we should find another equivalent entry if the element type is not one we manage
+/// The method returns nil if no object could be retrieved from the data or if the entry is inconsistent.
+/// - Parameters:
+///   - entry: The directory entry that points to the item.
+///   - fileData: The data containing bytes of the ABIF file.
+///   - try: Tells wether the method should try to find an equivalent item at another entry if this entry does not point to decodable data
 + (nullable id)objectForDirEntry:(DirEntry) entry withABIFData:(NSData *)fileData try:(BOOL)try {
 																						  
-	DirEntry nativeEntry = NativeEndianEntry(entry);
+	DirEntry nativeEntry = nativeEndianEntry(entry);
+	int32_t dataSize = nativeEntry.dataSize;
+	int32_t numElements = nativeEntry.numElements;
+	int32_t dataOffset = nativeEntry.dataOffset;
 	
-	if(nativeEntry.dataSize <= 0 || nativeEntry.dataSize < nativeEntry.numElements * nativeEntry.elementSize  ||
-	   (nativeEntry.dataSize > 4 && (fileData.length < nativeEntry.dataOffset + nativeEntry.dataSize || nativeEntry.dataOffset < HEADERSIZE))) {
+	if(dataSize <= 0 || dataSize < numElements * nativeEntry.elementSize  ||
+	   (dataSize > 4 && (fileData.length < dataOffset + dataSize || dataOffset < HEADERSIZE))) {
 		return nil;
 	}
 	const char *itemData; 						/// this will point to the item's data.
 	id returnedObject = nil;
 	
-	if(nativeEntry.dataSize <= 4) {
+	if(dataSize <= 4) {
 		/// if the data size is ≤ 4 bytes, the data is actually the offset of the entry (which, in this case, doesn't represent an offset)
-		itemData = (const char *)&nativeEntry.dataOffset;
+		itemData = (const char *)&dataOffset;
 	} else {
-		itemData = fileData.bytes + nativeEntry.dataOffset;
+		itemData = fileData.bytes + dataOffset;
 	}
 	
 	switch (nativeEntry.elementType) {
@@ -410,14 +418,14 @@ DirEntry NativeEndianEntry(DirEntry entry) {
 		case elementTypeCString:
 			/// we exclude the last char of a cString (and reduce the length of the data for a pString, as we have moved the offset by +1 just above)
 			/// This is supposed to be a null character, but it seems to vary between samples, which would causes issues down the road (when we compare strings).
-			nativeEntry.dataSize--;
+			dataSize--;
 			/// we return an NSString from the data if the type corresponds to a string
-			returnedObject = [[NSString alloc]initWithBytes:itemData length:nativeEntry.dataSize encoding:NSASCIIStringEncoding];
+			returnedObject = [[NSString alloc]initWithBytes:itemData length:dataSize encoding:NSASCIIStringEncoding];
 			break;
 		case elementTypeDate: {
 			/// we return an NSString from the data if the type corresponds to a Date (or Time).
 			/// Date and time will be converted to a single NSDate afterwards
-			if(nativeEntry.dataSize != 4) return nil;
+			if(dataSize != 4) return nil;
 			int16_t year = EndianS16_BtoN(*(const int16_t *)itemData);
 			returnedObject = [NSString stringWithFormat:@"%hd",year];
 			for (int i = 2; i<4; i++) {				/// the other bytes encode the month and day
@@ -426,7 +434,7 @@ DirEntry NativeEndianEntry(DirEntry entry) {
 			break;
 		}
 		case elementTypeTime: {
-			if(nativeEntry.dataSize != 4) {
+			if(dataSize != 4) {
 				return nil;
 			}
 			/// bytes encode the hour, minutes, seconds (we do not record the hundredths of seconds (fourth byte))
@@ -438,29 +446,30 @@ DirEntry NativeEndianEntry(DirEntry entry) {
 		}
 		/// for the following cases (integers), we convert from Big Endian
 		case elementTypeShort:
-		case elementTypeWord: {		/// word is unsigned 16-bit, but we treat is as a short (signed) since no item in the ABIF specs actually uses this type
+		case elementTypeWord: {
+			/// word is unsigned 16-bit, but we treat is as a short (signed) since no item in the ABIF specs actually uses this type
 			if(nativeEntry.elementSize != 2){
 				return nil;
 			}
-			int16_t *converted = malloc(nativeEntry.dataSize);
-			bigEndianToNative16((int16_t *)itemData, converted, nativeEntry.dataSize/2);
-			if(nativeEntry.numElements == 1) {
+			int16_t *converted = bigEndianToNative16((int16_t *)itemData, numElements);
+			if(numElements == 1) {
 				/// if the data consists in just one number, we return an NSNumber, otherwise an NSData object
 				returnedObject = [NSNumber numberWithShort:*converted];
 			} else {
-				returnedObject = [NSData dataWithBytes:converted length:nativeEntry.dataSize];
+				returnedObject = [NSData dataWithBytes:converted length:dataSize];
 			}
 			free(converted);
 			break;
 		}
 		case elementTypeLong: {
-			if(nativeEntry.elementSize != 4) return nil;
-			int32_t *converted = malloc(nativeEntry.dataSize);
-			bigEndianToNative32((int32_t *)itemData, converted, nativeEntry.dataSize/4);
-			if(nativeEntry.numElements == 1) {
+			if(nativeEntry.elementSize != 4) {
+				return nil;
+			}
+			int32_t *converted = bigEndianToNative32((int32_t *)itemData, numElements);
+			if(numElements == 1) {
 				returnedObject = [NSNumber numberWithInt:*converted];
 			} else {
-				returnedObject = [NSData dataWithBytes:converted length:nativeEntry.dataSize];
+				returnedObject = [NSData dataWithBytes:converted length:dataSize];
 			}
 			free(converted);
 			break;
@@ -520,6 +529,13 @@ DirEntry NativeEndianEntry(DirEntry entry) {
 
 
 /// Returns a chromatogram based on objects in a supplied dictionary, or nil of the dictionary lacks consistent fluorescence data.
+///
+/// Returns nil and sets the `error`argument if the fluorescence data is inconsistent (missing channel, trace of different lengths, etc.)
+/// - Parameters:
+///   - sampleContent: The dictionary containing the data to create the chromatogram.
+///   - context: The context in which to materialize the chromatogram.
+///   - path: The file path of the ABIF file. This is only used to add information to the potential error.
+///   - error: On output, any error that prevented creating the file.
 + (nullable instancetype) chromatogramWithDictionary:(NSDictionary *)sampleContent insertInContext:(NSManagedObjectContext *)context path:(NSString *)path error:(NSError **)error  {
 	Chromatogram *sample = nil;
 	/// we check if the dictionary contains valid data for the traces (the rest is optional)
@@ -622,21 +638,30 @@ DirEntry NativeEndianEntry(DirEntry entry) {
 }
 
 
-/// Converts the n first elements of a big endian 16-bit int array to native and puts the converted array in res
-void bigEndianToNative16 (int16_t *source, int16_t *res, long n){
+/// Converts the n first elements of a big endian 16-bit int array to native and returns the result.
+/// - Parameters:
+///   - source: The array to convert.
+///   - n: The number of element to read from the `source`.
+int16_t * bigEndianToNative16 (int16_t *source, long n){
+	int16_t *converted = malloc(n*sizeof(int16_t));
 	for (long i = 0; i < n; i++) {
-		res[i] = EndianS16_BtoN(source[i]);
+		converted[i] = EndianS16_BtoN(source[i]);
 	}
+	return converted;
 }
 
 
-/// Converts the n first elements of a big endian 32-bit int array to native and puts the converted array in res
-void bigEndianToNative32 (int32_t *source, int32_t *res, long n){
+/// Converts the n first elements of a big endian 32-bit int array to native and returns the result.
+/// - Parameters:
+///   - source: The array to convert.
+///   - n: The number of element to read from the `source`.
+int32_t * bigEndianToNative32 (int32_t *source, long n){
+	int32_t *converted = malloc(n*sizeof(int32_t));
 	for (long i = 0; i < n; i++) {
-		res[i] = EndianS32_BtoN(source[i]);
+		converted[i] = EndianS32_BtoN(source[i]);
 	}
+	return converted;
 }
-
 
 
 /// Infers the channels that caused saturation and sets the -offscaleRegions attributes
@@ -932,7 +957,7 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	
 }
 
-/// Computes and sets the -size attribute.
+/// Computes and sets the `size` attribute.
 - (void)computeSizes {
 	
 	if(self.nScans == 0 || self.coefs.length == 0) {
