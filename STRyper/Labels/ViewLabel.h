@@ -93,31 +93,31 @@ NS_ASSUME_NONNULL_BEGIN
 /// Sent by a ``LabelView`` to a label on `-mouseDown:`.
 ///
 /// By default, if the label is ``enabled`` and the ``view``'s ``LabelView/clickedPoint`` lies within its ``frame``,
-/// this sets the label's ``clicked`` state to YES, and highlights it if ``highlightedOnMouseUp`` returns NO.
+/// this sets the label's ``clicked`` state to `YES`, and highlights it if ``highlightedOnMouseUp`` returns `NO`.
 ///
-/// If the clicked occurred outside the frame, this sets the ``highlighted`` property to NO.
+/// If the clicked occurred outside the frame, this sets the ``highlighted`` property to `NO`.
 - (void)mouseDownInView;
 
 /// Sent by a ``LabelView`` to a label on when the user has right/ctrl-clicked the view.
 ///
 /// By default, if the label is ``enabled``  and if  ``view``-s ``LabelView/clickedPoint`` lies within its ``frame``,
-/// this sets the label's ``clicked`` and ``highlighted`` states to YES.
+/// this sets the label's ``clicked`` and ``highlighted`` states to `YES`.
 - (void)rightMouseDownInView;
 
 /// Sent by a ``LabelView`` to a label on `-mouseUp:`.
 ///
-/// By default, if the label is ``clicked``, its ``highlighted`` state is set to YES  if  the ``view``-s ``LabelView/mouseUpPoint`` lies within its ``frame``.
+/// By default, if the label is ``clicked``, its ``highlighted`` state is set to `YES`  if  the ``view``-s ``LabelView/mouseUpPoint`` lies within its ``frame``.
 - (void)mouseUpInView;
 
 /// Called when the mouse enters a tracking area that the label owns.
 ///
-/// By default this sets the label's ``hovered`` property to YES.
+/// By default this sets the label's ``hovered`` property to `YES`.
 /// One should not need to call this method directly, but subclass can override it.
 - (void)mouseEntered:(NSEvent *)theEvent;
 										
 /// Called when the mouse exits a tracking area that the label owns.
 ///
-/// By default, this sets the label's ``hovered`` property to NO.
+/// By default, this sets the label's ``hovered`` property to `NO`.
 /// One should not need to call this method directly, but subclass can override it.
 - (void)mouseExited:(NSEvent *)theEvent;
 
@@ -168,7 +168,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Whether the label reacts to mouse move and mouse click events (when not hidden).
 ///
-/// When this property is set to `NO`, ``hovered``, ``clicked`` and ``highlighted`` properties are set to NO and the label's tracking area is removed from the ``view``.
+/// When this property is set to `NO`, ``hovered``, ``clicked`` and ``highlighted`` properties are set to `NO` and the label's tracking area is removed from the ``view``.
 ///
 /// When this property changes, the label sends ``LabelView/labelDidChangeEnabledState:`` to its ``view``.
 /// The default value is `YES`.
@@ -198,7 +198,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Whether the label is being dragged.
 ///
 /// The default value is `NO`. Subclasses must set this value as appropriate.
-/// When this property returns YES, the repositioning of the label does not use animations (as when ``animated`` returns NO).
+/// When this property returns `YES`, the repositioning of the label does not use animations (as when ``animated`` returns `NO`).
 @property (nonatomic, readonly) BOOL dragged;
 													
 /// The menu that should display when the user right/ctrl-clicks the label.

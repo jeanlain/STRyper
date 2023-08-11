@@ -47,11 +47,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property (readonly) BOOL importOnGoing;
 
 
-/// Convenience method that returns paths of ABIF files from pboard.
+/// Convenience method that returns paths of ABIF files from a paste board.
 ///
 /// This method find the `NSURL` objects from the paste board that conforms to `com.appliedbiosystems.abif.fsa` or `com.appliedbiosystems.abif.hid`.
 ///
-/// This method can be used to determine which files copied or dragged files from the Finder are valid for import.
+/// This method can be used to determine which copied or dragged files from the Finder are valid for import.
 ///
 /// - Parameters:
 /// 	- pboard: The pasteboard in which to look for ABIF file paths.

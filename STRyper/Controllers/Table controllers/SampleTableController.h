@@ -24,7 +24,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// This singleton class controls the tableview listing samples.
+/// This singleton class manages the tableview listing samples.
 ///
 /// This class manages a tableview showing samples  (``Chromatogram`` entities).
 ///

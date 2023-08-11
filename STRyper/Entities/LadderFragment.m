@@ -24,11 +24,12 @@
 #import "Chromatogram.h"
 #import "FragmentLabel.h"
 
-NSString * const LadderFragmentScanKey = @"scan";
-NSString * const LadderFragmentSizeKey = @"size";
-NSString * const LadderFragmentNameKey = @"name";
-NSString * const LadderFragmentOffsetKey = @"offset";
-NSString * const LadderFragmentStringKey = @"string";
+CodingObjectKey LadderFragmentScanKey = @"scan",
+LadderFragmentSizeKey = @"size",
+LadderFragmentNameKey = @"name",
+LadderFragmentStringKey = @"string",
+LadderFragmentOffsetKey = @"offset";
+
 
 @implementation LadderFragment
 

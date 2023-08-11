@@ -29,9 +29,9 @@
 
 @import Accelerate;
 
-NSString * _Nonnull const TraceIsLadderKey = @"isLadder";
-NSString * _Nonnull const TracePeaksKey = @"peaks";
-NSString * _Nonnull const TraceFragmentsKey = @"fragments";
+CodingObjectKey TraceIsLadderKey = @"isLadder",
+TracePeaksKey = @"peaks",
+TraceFragmentsKey = @"fragments";
 
 
 @interface Trace ()

@@ -238,9 +238,9 @@ BaseRange MakeBaseRange(float start, float len);
 
 
 /// Constants  used to avoid typos in key names.
-extern NSString * _Nonnull const TraceIsLadderKey;
-extern NSString * _Nonnull const TracePeaksKey;
-extern NSString * _Nonnull const TraceFragmentsKey;
+extern CodingObjectKey TraceIsLadderKey,
+TracePeaksKey,
+TraceFragmentsKey;
 
 
 @interface Trace (PrimitiveAccessors)

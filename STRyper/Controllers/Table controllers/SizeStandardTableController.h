@@ -26,7 +26,7 @@ extern NSString * _Nonnull const SizeStandardDragType;
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// A singleton class that controls a tableview showing size standards.
+/// A singleton class that manages a tableview showing size standards.
 ///
 /// In ``STRyper``, the singleton object manages the tableview listing all available size standards (``SizeStandard`` objects).
 ///

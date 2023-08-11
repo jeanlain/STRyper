@@ -36,7 +36,7 @@
 /// The name of the size standard.
 @property (nonatomic) NSString *name;
 
-extern NSString * const SizeStandardNameKey;
+extern CodingObjectKey SizeStandardNameKey;
 
 /// Sets an appropriate ``name`` to the size standard such that this name differs from the names of other size standard in the database.
 ///

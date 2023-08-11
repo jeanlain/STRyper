@@ -35,8 +35,8 @@ const float markerViewHeight = 20.0;
 
 /// Whether the view is in a mode that allows if the user can add a region (marker)  by clicking add dragging.
 ///
-/// Setting this to YES changes the cursor to a copyDrag cursor.
-/// This property will not be set to YES is the view returns `nil` for its ``LabelView/panel`` property.
+/// Setting this to `YES` changes the cursor to a copyDrag cursor.
+/// This property will not be set to `YES` is the view returns `nil` for its ``LabelView/panel`` property.
 @property (nonatomic) BOOL inAddMode;
 						
 /// our ruler view.
@@ -340,7 +340,7 @@ enum ButtonTag : NSUInteger {
 		/// it doesn't make sense to add a marker when the view is focused on an existing marker
 		addMarkerButton.enabled = self.trace != nil;
 															
-		NSMutableArray *temp = [NSMutableArray new];
+		NSMutableArray *temp = NSMutableArray.new;
 		for (Mmarker *marker in [self.panel markersForChannel:self.channel]) {
 			RegionLabel *label = [RegionLabel regionLabelWithRegion:marker view:(TraceView *)self];
 			if(!self.traceView.loadedTraces) {

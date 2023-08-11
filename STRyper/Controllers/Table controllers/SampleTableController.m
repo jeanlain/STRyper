@@ -538,9 +538,10 @@
 	/// the reason why we used the validSamples array is to set the panel's samples in one operation
 	/// so that it posts only one PanelSampleDidChange notification.
 	if(validSamples.count > 0) {
+		NSString *alleleName = [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName];
 		[panel addSamples:[NSSet setWithArray:validSamples]];
 		for(Chromatogram *sample in validSamples) {
-			[sample applyPanelWithAlleleName:@""];
+			[sample applyPanelWithAlleleName:alleleName];
 		}
 	}
 	

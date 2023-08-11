@@ -22,9 +22,9 @@
 #import "TableViewController.h"
 NS_ASSUME_NONNULL_BEGIN
 
-/// A singleton class that controls a tableview listing genotypes (``Genotype`` objects).
+/// A singleton class that manages a tableview listing genotypes (``Genotype`` objects).
 ///
-/// In the context of ``STRyper``, the table shows the genotypes of the ``SampleTableController/samples`` shown in the sample table (controlled by the ``SampleTableController`` shared instance).
+/// In the context of ``STRyper``, the table shows the genotypes of the ``SampleTableController/samples`` shown in the sample table (managed by the ``SampleTableController`` shared instance).
 @interface GenotypeTableController : TableViewController 
 
 

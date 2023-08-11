@@ -167,7 +167,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter label: The label that added the region.
 -(void)labelDidUpdateNewRegion:(RegionLabel *)label;
 
-/// Property set to YES after ``visibleOrigin`` or ``hScale`` is modified, then to NO after 0.1 seconds.
+/// Property set to `YES` after ``visibleOrigin`` or ``hScale`` is modified, then to `NO` after 0.1 seconds.
 ///
 /// This property is used internally it to avoid doing certain calculations.
 /// This pertains to internal implementation, but the markerView may query the traceView for this property.
@@ -192,7 +192,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Repositions the  ``repositionableLabels``.
 ///
-/// This method call ``ViewLabel/reposition`` on the ``repositionableLabels`` and disables animation (sets ``ViewLabel/animated`` to NO) if needed.
+/// This method call ``ViewLabel/reposition`` on the ``repositionableLabels`` and disables animation (sets ``ViewLabel/animated`` to `NO`) if needed.
 - (void)repositionLabels:(NSArray *)labels;
 
 
@@ -203,10 +203,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Notifies the view that it needs to reposition its labels.
 ///
-/// Setting this property to YES sets `needsLayout` to YES.
+/// Setting this property to `YES` sets `needsLayout` to `YES`.
 /// Labels are repositioned once in `-layout`.
 ///
-/// This property is set to YES when the frame size of the view changes. 
+/// This property is set to `YES` when the frame size of the view changes. 
 @property (nonatomic) BOOL needsLayoutLabels;
 															
 /// Updates the tracking areas of labels.
@@ -233,7 +233,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Whether the appearance of some of the ``viewLabels`` needs to be updated in response to change in dark/light appearance.
 ///
 /// As some labels use core animation layers, the colors of these layers must be set during `-drawRect` or `-updateLayer` to take effect.
-/// Hence setting this property to YES also sets `-needsDisplay` to YES.
+/// Hence setting this property to `YES` also sets `-needsDisplay` to `YES`.
 ///
 /// Subclasses can use this property to avoid setting `CALayer` colors every time the view must redisplay.
 @property (nonatomic) BOOL needsUpdateLabelAppearance;

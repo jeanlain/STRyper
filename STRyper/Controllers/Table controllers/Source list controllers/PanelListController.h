@@ -23,7 +23,7 @@
 #import "MarkerTableController.h"
 
 NS_ASSUME_NONNULL_BEGIN
-/// A singleton class that controls and source list of ``PanelFolder`` and ``Panel`` objects.
+/// A singleton class that manages and source list of ``PanelFolder`` and ``Panel`` objects.
 ///
 /// This class complements its superclass with internal methods allowing the user to import/export panels, to add new markers (``Mmarker`` objects) and to copy-drop markers into panels.
 @interface PanelListController : SourceListController 

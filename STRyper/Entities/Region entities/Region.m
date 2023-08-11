@@ -113,7 +113,7 @@
 
 - (NSArray *)siblings {
 	/// overridden
-	return [NSArray new];
+	return NSArray.new;
 }
 
 

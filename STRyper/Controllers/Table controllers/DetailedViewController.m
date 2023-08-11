@@ -1053,7 +1053,8 @@ static const float minTraceRowHeight = 40.0;
 
 - (void)traceView:(TraceView *)traceView didStartMovingToRange:(BaseRange)range {
 	if (!self.showGenotypes && !self.showMarkers && self.topFluoMode == topFluoModeHighestPeak && self.synchronizeViews ) {
-		/// if a view starts moving , if sync is on and if traceViews auto scale of their highest peak, we animate the vertical scale so that it changes during the move (and not after)
+		/// if a view starts moving , if sync is on and if traceViews auto scale of their highest peak,
+		/// we animate the vertical scale so that it changes during the move (and not after)
 		for(TraceView *aTraceView in traceViews) {
 			if(aTraceView != traceView) {
 				float targetFluo = [aTraceView topFluoForRange:range];

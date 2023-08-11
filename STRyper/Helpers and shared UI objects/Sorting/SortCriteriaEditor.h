@@ -24,7 +24,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// A view that allows the user to define attributes for sorting objects.
+/// A view that allows the user to define criteria for sorting objects.
 ///
 /// A `SortCriteriaEditor` can be used to display or generate an array of sort descriptors (`NSSortDescriptor` objects).
 /// It represents each sort descriptor as a row, which includes a popup button to selected among attributes (key paths) that are available for sorting objects,
@@ -40,17 +40,19 @@ NS_ASSUME_NONNULL_BEGIN
 /// Configures the receiver with available key paths for sorting, and corresponding user-friendly titles.
 /// - Parameters:
 ///   - titles: The titles that will show in the popup button (from top to bottom) allowing the user to select among sort attributes at a given row. The array must contain at least two elements, each of which must be unique.
-///   - keypaths: The key paths that the user can use for sorting. Each key path corresponds to the element of the `titles` argument at the same index, and must be unique.
+///   - keypaths: The key paths used for sorting. Each key path corresponds to an element of the `titles` argument at the same index, and must be unique.
 -(void)setTitles:(NSArray<NSString *>*)titles forKeyPath:(NSArray<NSString *>*)keypaths;
 
 /// The sort descriptors that the receiver shows.
 ///
-/// The `selector` of each sort descriptor is ignored, but its `key` must belong to the `keypaths` specified in ``setTitles:forKeyPath:``.
+/// The `selector` of each sort descriptor is ignored, but its `key` must belong to the `keypaths` specified in ``setTitles:forKeyPath:``,
+/// otherwise the method throws an exception.
 @property (nonatomic) NSArray <NSSortDescriptor *>* sortDescriptors;
 
 /// The table view that contains the rows representing sort descriptors.
 ///
-/// The table content should not be modified as it is set internally. Only visuals attributes may be changed.
+/// The table content, its `delegate` and its `datasource` should not be changed as they are set internally.
+/// Only visuals attributes may be changed.
 @property (nonatomic, readonly) NSTableView *sortCriteriaTable;
 
 

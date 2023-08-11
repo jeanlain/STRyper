@@ -85,15 +85,15 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 /// Folders that may have to be reloaded to the outlineview, as their subfolder content has changed
 @property (nonatomic) NSMutableSet <__kindof Folder *> *foldersToReload;
 
-/// set to yes after the outlineview is updated with a given change. We use it to avoid redundant changes
+/// set to YES after the outlineview is updated with a given change. We use it to avoid redundant changes
 @property (nonatomic) BOOL tableUpdated;
 
-/// set to yes after some subfolder are modified, which sometimes nullifies folder names upon saving the context. They names disappear from the table.
-/// we use this property to determine if we should restore the names.
+/// set to yes after some subfolder are modified, which sometimes nullifies folder names upon saving the context.
+/// They names disappear from the table. We use this property to determine if we should restore the names.
 /// It would be better to fix the root cause, but I haven't found why folder names (and all other attributes) are sometimes nullified during a save. This appears unpredictable.
 @property (nonatomic) BOOL shouldQueryFolderNames;
 																	
-/// YES if the trash content has changed. We use it to update smart folder so that they don't return samples that are in the trash
+/// YES if the trash content has changed. We use it to update smart folders so that they don't return samples that are in the trash
 @property (nonatomic) BOOL trashContentChanged;
 
 /// to workaround a bug with source list outline views where the indentation level would not be set properly after adding the first subfolder (and a non-group item)
@@ -278,8 +278,10 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	}
 	
 	/// if folders have been modified by methods of this class, both pendingChange and foldersToReload properties can be used to update the table.
-	/// We use the former, as it describes the change explicitly and allows animation. Also, foldersToReload sometimes contain folders that didn't have their subfolders changed and which posted their notification for unclear reasons.
-	/// NOTE however that if folders are modified in an other class and in this class at the same time (same event loop), this may cause a problem as some changes may not be reflected in the table
+	/// We use the former, as it describes the change explicitly and allows animation.
+	/// Also, foldersToReload sometimes contain folders that didn't have their subfolders changed and which posted their notification for unclear reasons.
+	/// NOTE however that if folders are modified in an other class and in this class at the same time (same event loop),
+	/// this may cause a problem as some changes may not be reflected in the table.
 	/// This should not occur however. 
 	/*
 	if(foldersToReload.count > 0) {		// disabling TO TEST. This was implemented to check if foldersToReload was consistent with pendingChange, but as said above, the set may contain folders that don't need to be updated
@@ -417,7 +419,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 
 /// returns the reverse change of a change in folder
-/// It doesn't control if the dictionnary has valid entries
+/// It doesn't control if the dictionary has valid entries
 -(NSDictionary *)reversedFolderChangeForChange:(NSDictionary *)folderChange {
 																					
 	NSDictionary *reversed;

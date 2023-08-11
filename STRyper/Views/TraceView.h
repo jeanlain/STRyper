@@ -146,16 +146,16 @@ NS_ASSUME_NONNULL_BEGIN
 /// The bin labels the view shows.
 ///
 /// These bins shown are those from the ``Panel/markers`` of the view's ``LabelView/panel``.
-@property (nonatomic, readonly) NSArray<RegionLabel *> *binLabels;
+@property (nonatomic, readonly, nullable) NSArray<RegionLabel *> *binLabels;
 
 /// The fragment labels that the view shows.
 ///
 /// These labels represent the ``Trace/fragments`` of the view's ``trace``.
 /// The view only shows fragment labels it it shows a single trace.
-@property (nonatomic, readonly) NSArray<FragmentLabel *> *fragmentLabels;
+@property (nonatomic, readonly, nullable) NSArray<FragmentLabel *> *fragmentLabels;
 
 /// The labels representing peaks when hovered (vertical line and tooltips) or clicked, if the view shows a single trace.
-@property (nonatomic, readonly) NSArray<PeakLabel *> *peakLabels;
+@property (nonatomic, readonly, nullable) NSArray<PeakLabel *> *peakLabels;
 																		 
 /// Makes the view reposition its ``fragmentLabels`` .
 ///
@@ -182,35 +182,35 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 ///	See ``Chromatogram/offscaleRegions``for more information.
 ///
-/// The default value is YES.
+/// The default value is `YES`.
 @property (nonatomic) BOOL showOffscaleRegions;
 
 /// Whether the views shows tooltips indicating information about the ``trace``'s ``Trace/peaks``.
 ///
-/// The default value is NO.
+/// The default value is `NO`.
 @property (nonatomic) BOOL showPeakTooltips;
 
 /// Whether  the view's ``binLabels`` that are not ``ViewLabel/enabled`` should be shown.
 ///
-/// The default value is YES. When it is NO, the bin labels that are not ``ViewLabel/enabled`` have their ``ViewLabel/hidden`` property set to YES.
+/// The default value is `YES`. When it is `NO`, the bin labels that are not ``ViewLabel/enabled`` have their ``ViewLabel/hidden`` property set to `YES`.
 @property (nonatomic) BOOL showDisabledBins;
 
 /// Whether the view plots raw fluorescence data.
 ///
-/// If YES, the view uses the trace's ``Trace/rawData`` property to draw curves.
+/// If `YES`, the view uses the trace's ``Trace/rawData`` property to draw curves.
 /// Otherwise, it uses the fluorescence data with subtracted baseline.
 ///
-/// The default value is NO.
+/// The default value is `NO`.
 @property (nonatomic) BOOL showRawData;
 
 /// If ``showRawData`` is `NO`, whether the view draws curves with subtracted baseline maintaining peak heights.
 ///
-/// The default value is YES.
+/// The default value is `YES`.
 @property (nonatomic) BOOL maintainPeakHeights;
 
 /// Whether the view automatically adjusts its ``vScale`` so that the tip of the highest visible peak is close to its top edge.
 ///
-/// The default value is NO.
+/// The default value is `NO.
 @property (nonatomic) BOOL autoScaleToHighestPeak;
 
 /// Whether peaks resulting from crosstalk should be ignored by ``topFluoForRange:``.
@@ -288,7 +288,7 @@ ShowPeakTooltipsBinding;
 ///   - xPosition: The horizontal position in the view coordinate system that is the focus of the zoom.
 ///   - zoomFactor: The ratio in view widths after / before the zoom.
 ///   The ratio cannot be lower than 0.01 and is constrained such that the view's ``visibleRange`` is not wider that a certain length.
-///   - animate: Whether the change in view geometry should be animated. If YES, this method calls ``setVisibleRange:animate:``.
+///   - animate: Whether the change in view geometry should be animated. If `YES`, this method calls ``setVisibleRange:animate:``.
 - (void)zoomTo:(float)xPosition withFactor:(float)zoomFactor animate:(BOOL)animate;
 									
 /// Zooms the view from a start and end positions defined in base pairs, with animation.
@@ -310,7 +310,7 @@ ShowPeakTooltipsBinding;
 /// This method does nothing ``marker`` returns `nil`.
 - (void)zoomToMarker;
 
-/// Returns YES if the view has just had its size changed.
+/// Returns `YES` if the view has just had its size changed.
 ///
 /// This property is used internally to avoid unwanted scrolling.
 @property (nonatomic, readonly) BOOL isResizing;
@@ -341,7 +341,7 @@ ShowPeakTooltipsBinding;
 ///
 /// The peaks considered are those from the view's ``loadedTraces``.
 /// The fluorescence data to use is determined by ``showRawData``.
-/// Peaks resulting from crosstalk are ignored if ``ignoreCrosstalkPeaks`` returns YES.
+/// Peaks resulting from crosstalk are ignored if ``ignoreCrosstalkPeaks`` returns `YES`.
 /// - Parameter range: The range in which peaks are evaluated.
 - (float)topFluoForRange:(BaseRange)range;
 
@@ -349,7 +349,7 @@ ShowPeakTooltipsBinding;
 ///
 /// - Parameters:
 ///   - fluo: The desired value for ``topFluoLevel``.
-///   - animate: Whether to animation the change. If YES, this method  notifies the ``delegate`` of the change at every step of the animation.
+///   - animate: Whether to animation the change. If `YES`, this method  notifies the ``delegate`` of the change at every step of the animation.
 - (void)setTopFluoLevel:(float)fluo withAnimation:(BOOL) animate;
 
 /// Makes the trace view fit vertically in its superview.

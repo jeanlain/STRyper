@@ -23,7 +23,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// A singleton class that controls a tableview showing markers.
+/// A singleton class that manages a tableview showing markers.
 ///
 /// The singleton object is loaded from in the nib file owned by the ``PanelListController``.
 ///

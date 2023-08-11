@@ -65,11 +65,11 @@
 @end
 
 
-extern NSString * const LadderFragmentScanKey;
-extern NSString * const LadderFragmentSizeKey;
-extern NSString * const LadderFragmentNameKey;
-extern NSString * const LadderFragmentOffsetKey;
-extern NSString * const LadderFragmentStringKey;
+extern CodingObjectKey LadderFragmentScanKey,
+LadderFragmentSizeKey,
+LadderFragmentNameKey,
+LadderFragmentOffsetKey,
+LadderFragmentStringKey;
 
 
 @interface LadderFragment (DynamicAccessors)	

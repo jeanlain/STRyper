@@ -67,7 +67,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// IMPORTANT: this method tests if the destination object of a relationship implements `-copy`, but it does not test if its member do (for a collection).
 /// Therefore, one must ensure that members of a to-many relationship implement `-copy`.
 ///
-/// The method returns `nil` if the receiver has no managed object context.
+/// The copy is materialized in the receiver's managed object context.
+/// The method thus returns `nil` if the receiver has no managed object context.
 - (nullable id)copy;
 
 /// Returns wether an object has the same class and the same values for core data attributes as those of the receiver.
@@ -80,6 +81,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter obj: The object to compare to the receiver.
 - (BOOL)isEquivalentTo:(__kindof NSManagedObject *) obj;
 
+/// Defines a key (e.g., name of the property of an object), used to avoid typos in code.
+typedef NSString *const CodingObjectKey;
 
 @end
 

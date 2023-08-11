@@ -104,7 +104,7 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	if(self.panel) {
 		return self.panel.markers.allObjects;
 	}
-	return [NSArray new];
+	return NSArray.new;
 }
 
 

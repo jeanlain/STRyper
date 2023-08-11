@@ -102,15 +102,11 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	float startPoint; 						/// (for dragging... not used)
 	
 	NSArray<Trace *> *visibleTraces;		/// the traces that are actually visible, depending on the channel to show
-	
-	BOOL showsMarkerOnly;
-	
-	NSArray *observedSamples;	/// The chromatograms we observe for certain keypaths.
+		
+	NSArray *observedSamples;			/// The chromatograms we observe for certain keypaths.
 	NSArray *observedSamplesForPanel;
 
 	__weak RegionLabel *hoveredBinLabel;	/// the bin label being hovered, which we use to determine the cursor
-	
-	Peak newPeak;						/// reference to a new peak being added manually by the user
 }
 
 
@@ -298,6 +294,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	/// We set the hScale to -1 to signify that our geometry is reset and not final. This is to prevent our range from being modified in resizeWithOldSuperViewSize: before prepareForDisplay: (the latter sets our hScale)
 	_hScale = -1.0;
 	_marker = marker;
+	BOOL showedMarkerOnly = _loadedTraces.count == 0; /// We remember if the view was not showing traces before
 	self.loadedTraces = traces;
 	
 	/// we determine the channel that we show
@@ -344,7 +341,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	/// this increases performance when switching between samples while the user scrolls (avoids hitches)
 	/// but if we don't or didn't show a trace (hence only a marker), we always load the panel.
 	/// this because the marker we highlight may be different (even if from the same panel and channel) and the way we show the panel also depends on whether we show traces
-	if(showsMarkerOnly || traces.count == 0 || previousChannel != self.channel || self.panel != refPanel || refPanel == nil) {
+	if(showedMarkerOnly || traces.count == 0 || previousChannel != self.channel || self.panel != refPanel || refPanel == nil) {
 		self.panel = refPanel;
 	} else {
 		/// if we keep the panel (and all the associated labels), we need to update the label offset to the new genotypes shown.
@@ -356,8 +353,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		}
 	}
 	
-	showsMarkerOnly = traces.count == 0;
-
 	[self prepareForDisplay];
 }
 
@@ -1362,10 +1357,8 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		self.hScale = newScale;
 		self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
 	}
-	if(!showsMarkerOnly)  {
-		for(Trace *trace in self.loadedTraces) {
-			trace.visibleRange = _visibleRange;
-		}
+	for(Trace *trace in self.loadedTraces) {
+		trace.visibleRange = _visibleRange;
 	}
 		
 	self.markerView.hidden = (trace && self.channel < 0) || trace.isLadder;
@@ -1792,6 +1785,43 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
+static BOOL pressure = NO; /// to react only upon force click and not after
+
+- (void)pressureChangeWithEvent:(NSEvent *)event {
+	if(!pressure && event.stage >= 2.0) {
+		pressure = YES;
+		NSPoint mouseLocation = [self convertPoint:event.locationInWindow fromView:nil];
+		if(NSPointInRect(mouseLocation, self.enabledMarkerLabel.frame)) {
+			return;
+		}
+		for(FragmentLabel *fragmentLabel in self.fragmentLabels) {
+			if(NSPointInRect(mouseLocation, fragmentLabel.frame)) {
+				return;
+			}
+		}
+		for(RegionLabel *binLabel in self.binLabels) {
+			if(!binLabel.hidden && NSPointInRect(mouseLocation, binLabel.frame)) {
+				Mmarker *marker = ((Bin *)binLabel.region).marker;
+				marker.editState = editStateBins;
+				binLabel.highlighted = YES;
+				return;
+			}
+		}
+		
+		if(self.loadedTraces.count == 1) {
+			int scan = [self scanForX:mouseLocation.x];
+			Peak addedPeak = [self.trace missingPeakForScan:scan useRawData:self.showRawData];
+			if(addedPeak.startScan > 0 && [self.trace insertPeak:addedPeak]) {
+				[self finishAddPeak];
+			}
+		}
+		
+	} else if(event.stage < 2.0) {
+		pressure = NO;
+	}
+}
+
+
 - (NSMenu *)menuForEvent:(NSEvent *)event {
 	NSMenu *menu = [super menuForEvent:event];
 	if(menu) {
@@ -1806,8 +1836,8 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			/// if the clicked point is not below the curve, we do nothing.
 			return nil;
 		}
-		newPeak = [self.trace missingPeakForScan:clickedScan useRawData:self.showRawData];
-		if(newPeak.startScan > 0) {					/// this would be 0 if there there is no peak
+		Peak addedPeak = [self.trace missingPeakForScan:clickedScan useRawData:self.showRawData];
+		if(addedPeak.startScan > 0) {					/// this would be 0 if there there is no peak
 			if(!addPeakMenu) {
 				addPeakMenu = NSMenu.new;
 				NSMenuItem *item = [[NSMenuItem alloc]initWithTitle:@"Add Peak here"
@@ -1815,7 +1845,10 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 													  keyEquivalent:@""];
 				[addPeakMenu addItem:item];
 			}
-			(addPeakMenu.itemArray.lastObject).target = self;
+			/// We add the peak to menu item.
+			NSMenuItem *item = addPeakMenu.itemArray.lastObject;
+			item.representedObject = [NSValue valueWithBytes:&addedPeak objCType:@encode(Peak)];
+			item.target = self;
 			return addPeakMenu;
 		}
 	}
@@ -1824,16 +1857,26 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (void)addPeak:(NSMenuItem *)sender {
-		
-	if([self.trace insertPeak:newPeak]) {
-		/// This has recreated all peak labels in case of success.
-		[self.window.undoManager setActionName:@"Add Peak"];
-		/// we reposition labels immediately as we click the inserted one
-		[self repositionLabels:self.peakLabels];
-		for(PeakLabel *peakLabel in self.peakLabels) {
-			[peakLabel updateTrackingArea];
-			[peakLabel mouseDownInView];
-		}
+	NSValue *peakValue = sender.representedObject;
+	if(![peakValue isKindOfClass:NSValue.class]) {
+		return;
+	}
+	Peak addedPeak;
+	[peakValue getValue:&addedPeak];
+	
+	if([self.trace insertPeak:addedPeak]) {
+		[self finishAddPeak];
+	}
+}
+
+
+-(void)finishAddPeak {
+	[self.window.undoManager setActionName:@"Add Peak"];
+	/// we reposition labels immediately as we click the inserted one
+	[self repositionLabels:self.peakLabels];
+	for(PeakLabel *peakLabel in self.peakLabels) {
+		[peakLabel updateTrackingArea];
+		[peakLabel mouseDownInView];
 	}
 }
 

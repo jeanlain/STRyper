@@ -23,10 +23,10 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// A singleton class that controls the tableview showing size standard sizes from a size standard.
+/// A singleton class that manages the tableview showing size standard sizes from a size standard.
 ///
-/// In ``STRyper``,  the singleton object of this class controls the tableview showing size standard sizes  ( ``SizeStandardSize`` objects).
-/// These sizes are those from the ``SizeStandard`` object that is selected in the tableview controlled by  the ``SizeTableController`` shared instance.
+/// In ``STRyper``,  the singleton object of this class manages the tableview showing size standard sizes  ( ``SizeStandardSize`` objects).
+/// These sizes are those from the ``SizeStandard`` object that is selected in the tableview managed by  the ``SizeTableController`` shared instance.
 ///
 /// The singleton is loaded from a nib own by the ``SizeStandardTableController`` shared instance.
 @interface SizeTableController : TableViewController

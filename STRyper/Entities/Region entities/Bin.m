@@ -54,17 +54,17 @@
 	if(self.marker) {
 		return self.marker.bins.allObjects;
 	}
-	return [NSArray new];
+	return NSArray.new;
 }
 
 
 - (void)autoName {
-	/// the name of bin is derive from the size of its midpoint
+	/// the name of a bin is derived from the size at its midpoint
     float mid = (self.start + self.end) / 2;
     int round = mid;
     round = (mid - round <= 0.5)? round: round+1;
     NSString *name;
-	/// if the name already exists, we add a suffix. Note that we don't forbid duplicate beans name like we do for marker names.
+	/// if the name already exists, we add a suffix. Note that we don't forbid duplicate bin names like we do for marker names.
 	/// The user can set whatever name he wants manually
 	int i = 0;
 	NSString *suffix = @"";

@@ -33,33 +33,33 @@
 @import Accelerate;
 
 
-NSString * _Nonnull const ChromatogramSizesKey = @"sizes";
-NSString * _Nonnull const ChromatogramSizeStandardKey = @"sizeStandard";
-NSString * _Nonnull const ChromatogramSizingQualityKey = @"sizingQuality";
-NSString * _Nonnull const ChromatogramPanelKey = @"panel";
-NSString * _Nonnull const ChromatogramTracesKey = @"traces";
-NSString * _Nonnull const ChromatogramGenotypesKey = @"genotypes";
-NSString * _Nonnull const ChromatogramCoefsKey = @"coefs";
-NSString * _Nonnull const ChromatogramSampleNameKey = @"sampleName";
-NSString * _Nonnull const ChromatogramSampleTypeKey = @"sampleType";
-NSString * _Nonnull const ChromatogramStandardNameKey = @"standardName";
-NSString * _Nonnull const ChromatogramPanelNameKey = @"panelName";
-NSString * _Nonnull const ChromatogramOwnerKey = @"owner";
-NSString * _Nonnull const ChromatogramResultsGroupKey = @"resultsGroup";
-NSString * _Nonnull const ChromatogramInstrumentKey = @"instrument";
-NSString * _Nonnull const ChromatogramProtocolKey = @"protocol";
-NSString * _Nonnull const ChromatogramGelTypeKey = @"gelType";
-NSString * _Nonnull const ChromatogramRunNameKey = @"runName";
-NSString * _Nonnull const ChromatogramRunStopTimeKey = @"runStopTime";
-NSString * _Nonnull const ChromatogramImportDateKey = @"importDate";
-NSString * _Nonnull const ChromatogramSourceFileKey = @"sourceFile";
-NSString * _Nonnull const ChromatogramCommentKey = @"comment";
-NSString * _Nonnull const ChromatogramPlateKey = @"plate";
-NSString * _Nonnull const ChromatogramWellKey = @"well";
-NSString * _Nonnull const ChromatogramLaneKey = @"lane";
-NSString * _Nonnull const ChromatogramNScansKey = @"nScans";
-NSString * _Nonnull const ChromatogramOffscaleScansKey = @"offScaleScans";
-NSString * _Nonnull const ChromatogramOffscaleRegionsKey = @"offscaleRegions";
+CodingObjectKey ChromatogramSizesKey = @"sizes",
+ChromatogramSizeStandardKey = @"sizeStandard",
+ChromatogramSizingQualityKey = @"sizingQuality",
+ChromatogramPanelKey = @"panel",
+ChromatogramTracesKey = @"traces",
+ChromatogramGenotypesKey = @"genotypes",
+ChromatogramCoefsKey = @"coefs",
+ChromatogramSampleNameKey = @"sampleName",
+ChromatogramSampleTypeKey = @"sampleType",
+ChromatogramStandardNameKey = @"standardName",
+ChromatogramPanelNameKey = @"panelName",
+ChromatogramOwnerKey = @"owner",
+ChromatogramResultsGroupKey = @"resultsGroup",
+ChromatogramInstrumentKey = @"instrument",
+ChromatogramProtocolKey = @"protocol",
+ChromatogramGelTypeKey = @"gelType",
+ChromatogramRunNameKey = @"runName",
+ChromatogramRunStopTimeKey = @"runStopTime",
+ChromatogramImportDateKey = @"importDate",
+ChromatogramSourceFileKey = @"sourceFile",
+ChromatogramCommentKey = @"comment",
+ChromatogramPlateKey = @"plate",
+ChromatogramWellKey = @"well",
+ChromatogramLaneKey = @"lane",
+ChromatogramNScansKey = @"nScans",
+ChromatogramOffscaleScansKey = @"offScaleScans",
+ChromatogramOffscaleRegionsKey = @"offscaleRegions";
 
 NSPasteboardType _Nonnull const ChromatogramPasteboardType = @"org.jpeccoud.stryper.chromatogramPasteboardType";
 
@@ -425,7 +425,9 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 		case elementTypeDate: {
 			/// we return an NSString from the data if the type corresponds to a Date (or Time).
 			/// Date and time will be converted to a single NSDate afterwards
-			if(dataSize != 4) return nil;
+			if(dataSize != 4) {
+				return nil;
+			}
 			int16_t year = EndianS16_BtoN(*(const int16_t *)itemData);
 			returnedObject = [NSString stringWithFormat:@"%hd",year];
 			for (int i = 2; i<4; i++) {				/// the other bytes encode the month and day
@@ -545,7 +547,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 	
 	/// We create an array that will contain the data necessary to make the traces (5 traces at most)
 	NSMutableArray *traceData = [NSMutableArray arrayWithCapacity:5];
-	for (int channel = 1; channel <=5; channel++) {
+	for (ChannelNumber channel = 1; channel <=5; channel++) {
 		NSData *fluo = sampleContent[[NSString stringWithFormat:@"rawData%d", channel]];
 		NSString *dyeName = sampleContent[[NSString stringWithFormat:@"dye%d", channel]];
 		
@@ -615,6 +617,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 			[dateElements addObject:value];
 		}
 	}
+	
 	if(dateElements.count == 2) {
 		NSDateFormatter *formatter = NSDateFormatter.new;
 		formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss";

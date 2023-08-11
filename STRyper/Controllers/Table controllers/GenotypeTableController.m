@@ -424,7 +424,7 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
 
 
-/// Configures and show the popover allowing to filter the table
+/// Configures and shows the popover allowing to filter the table
 /// - Parameter sender: The object that sent this message.
 - (IBAction)showFilterPopover:(id)sender {
 	

@@ -38,8 +38,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This class manages outline views in which multiple row selection is not allowed.
 ///
-/// In ``STRyper``, this class has two subclasses, one controlling the source list of sample folders (``SampleFolder`` and ``SmartFolder``  objects)
-/// and the other controlling the source list of panels (``Panel`` and ``PanelFolder``  objects).
+/// In ``STRyper``, this class has two subclasses, one managing the source list of sample folders (``SampleFolder`` and ``SmartFolder``  objects)
+/// and the other managing the source list of panels (``Panel`` and ``PanelFolder``  objects).
 ///
 /// NOTE: while this class implements methods to observe folders for changes in their ``Folder/subfolders`` and to update the source list accordingly,
 /// other classes should avoid changing parents/subfolders of folders that are shown by the source list.
@@ -48,7 +48,7 @@ NS_ASSUME_NONNULL_BEGIN
 	/// back the readonly  ``selectedFolder`` variable so that it is settable by subclasses.
 	__kindof Folder *_selectedFolder;
 	
-	/// A shortcut to the the outline view the object controls, which is also return by the ``TableViewController/tableView`` property.
+	/// A shortcut to the the outline view the object manages, which is also return by the ``TableViewController/tableView`` property.
 	__weak NSOutlineView *outlineView;
 }
 
@@ -57,7 +57,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This property is merely defined for convenience, as this class does not use a tree controller bound to a managed object context to manage a source list.
 @property (nonatomic, readonly) NSManagedObjectContext *managedObjectContext;
 
-/// The selected folder of the source list that the receiver controls.
+/// The selected folder of the source list that the receiver manages.
 @property (nonatomic, readonly, nullable) __kindof Folder *selectedFolder;
 
 /// The folder that is the parent of all other folders of its class (i.e., containing all ``SampleFolder`` objects  except those in the ``trashFolder``, or all ``PanelFolder`` and  ``Panel`` objects).

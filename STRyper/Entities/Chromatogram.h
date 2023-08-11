@@ -216,7 +216,7 @@ typedef struct OffscaleRegion {
 
 /// The trace that contains data from the molecular ladder.
 ///
-/// This method returns `nil` if none of the samples ``traces`` returns YES to ``Trace/isLadder``, which would be an error.
+/// This method returns `nil` if none of the samples ``traces`` returns `YES` to ``Trace/isLadder``, which would be an error.
 @property (nonatomic, readonly, nullable) Trace *ladderTrace;
 
 
@@ -343,7 +343,7 @@ extern const float DefaultReadLength;
 
 /// Returns the size in base pairs corresponding to a given scan number.
 ///
-/// This method uses the ``coefs`` attribute.
+/// This method uses the ``coefs`` attribute. If this attribute is not available, the method returns a size of -1.
 /// - Parameter scan: The scan number for which the size should be derived.
 - (float)sizeForScan:(int)scan;
 
@@ -391,30 +391,30 @@ extern const float DefaultReadLength;
 
 
 /// constants used to avoid typos when using key names in code
-extern NSString * _Nonnull const ChromatogramSizesKey;
-extern NSString * _Nonnull const ChromatogramSizeStandardKey;
-extern NSString * _Nonnull const ChromatogramStandardNameKey;
-extern NSString * _Nonnull const ChromatogramSizingQualityKey;
-extern NSString * _Nonnull const ChromatogramPanelKey;
-extern NSString * _Nonnull const ChromatogramTracesKey;
-extern NSString * _Nonnull const ChromatogramGenotypesKey;
-extern NSString * _Nonnull const ChromatogramCoefsKey;
-extern NSString * _Nonnull const ChromatogramSampleNameKey;
-extern NSString * _Nonnull const ChromatogramSampleTypeKey;
-extern NSString * _Nonnull const ChromatogramOwnerKey;
-extern NSString * _Nonnull const ChromatogramResultsGroupKey;
-extern NSString * _Nonnull const ChromatogramInstrumentKey;
-extern NSString * _Nonnull const ChromatogramProtocolKey;
-extern NSString * _Nonnull const ChromatogramGelTypeKey;
-extern NSString * _Nonnull const ChromatogramRunNameKey;
-extern NSString * _Nonnull const ChromatogramRunStopTimeKey;
-extern NSString * _Nonnull const ChromatogramImportDateKey;
-extern NSString * _Nonnull const ChromatogramSourceFileKey;
-extern NSString * _Nonnull const ChromatogramCommentKey;
-extern NSString * _Nonnull const ChromatogramPlateKey;
-extern NSString * _Nonnull const ChromatogramWellKey;
-extern NSString * _Nonnull const ChromatogramLaneKey;
-extern NSString * _Nonnull const ChromatogramOffscaleRegionsKey;
+extern CodingObjectKey ChromatogramSizesKey,
+ChromatogramSizeStandardKey,
+ChromatogramStandardNameKey,
+ChromatogramSizingQualityKey,
+ChromatogramPanelKey,
+ChromatogramTracesKey,
+ChromatogramGenotypesKey,
+ChromatogramCoefsKey,
+ChromatogramSampleNameKey,
+ChromatogramSampleTypeKey,
+ChromatogramOwnerKey,
+ChromatogramResultsGroupKey,
+ChromatogramInstrumentKey,
+ChromatogramProtocolKey,
+ChromatogramGelTypeKey,
+ChromatogramRunNameKey,
+ChromatogramRunStopTimeKey,
+ChromatogramImportDateKey,
+ChromatogramSourceFileKey,
+ChromatogramCommentKey,
+ChromatogramPlateKey,
+ChromatogramWellKey,
+ChromatogramLaneKey,
+ChromatogramOffscaleRegionsKey;
 
 /// The paste board type for Chromatogram objects.
 ///

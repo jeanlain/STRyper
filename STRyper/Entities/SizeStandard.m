@@ -44,7 +44,7 @@
 
 @end
 
-NSString * const SizeStandardNameKey = @"name";
+CodingObjectKey SizeStandardNameKey = @"name";
 
 @implementation SizeStandard
 

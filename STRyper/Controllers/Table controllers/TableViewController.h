@@ -60,7 +60,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The singleton instance, loaded from a nib file.
 + (instancetype)sharedController;
 
-/// The tableview that the receiver controls.
+/// The tableview that the receiver manages.
 ///
 /// This view may differ from the `-view` property of the receiver, but in this case, it must be a subview of it.
 /// Otherwise, the receiver may not receive messages resulting from user actions on this table.
@@ -110,13 +110,13 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 
 /// Whether the ``tableView`` saves its configuration.
 ///
-/// The default implementation returns YES;
+/// The default implementation returns `YES`.
 @property (readonly, nonatomic) BOOL shouldAutoSaveTable;
 
 
 /// Whether the header of the ``tableView`` has a menu allowing to hide/show columns (and possibly sort).
 ///
-/// The default implementation returns NO;
+/// The default implementation returns `NO`.
 @property (readonly, nonatomic) BOOL shouldMakeTableHeaderMenu;
 
 /// Whether the ``tableView`` can be sorted via sort sheet (see ``showSortCriteria:``).

@@ -31,7 +31,10 @@
 
 @implementation SortCriteriaEditor {
 	__weak IBOutlet NSTableView *sortCriteriaTable;				/// the tableview showing the sort criteria on the sheet (designed in a nib)
-	NSMutableArray<NSMutableDictionary *> *sortDictionaries;	/// the dictionaries represented by the rows of the sortCriteriaTable.
+																
+	/// The dictionaries represented by the rows of the sortCriteriaTable.
+	/// We cannot use NSSortDescriptor objects to bind to the table celles, as these objects are immutable.
+	NSMutableArray<NSMutableDictionary *> *sortDictionaries;
 	NSMutableDictionary *titlesForSortKeys;						/// makes the correspondence between columns titles used for sorting and sort keys in the generated sort descriptors.
 	NSMutableDictionary *sortKeysForTitles;
 	NSInteger draggedRow;										/// the index of the row being dragged

@@ -336,6 +336,7 @@ typedef enum FragmentLabelType : NSUInteger {
 				}
 			}
 		} else {
+			/// The label is no longer dragged, the user must have released the mouse.
 			magnetX = -1;
 			[self moveToDestination];
 		}
@@ -513,60 +514,6 @@ typedef enum FragmentLabelType : NSUInteger {
     self.frame = ourFrame;
 
 }
-
-/*
-- (void)avoidCollisions {   //checks for collision with other ladder labels
-	
-	if (!self.fragment.trace || !self.view.trace || self.hidden) {  				//we may still be present after our ladder peak is removed from a trace
-		return;
-	}
-	self.distanceToMove = 0;
-	NSPoint origin = [self.view pointForScan:self.fragment.scan];
-	NSRect newFrame = NSMakeRect(origin.x - self.frame.size.width/2, origin.y + 4.0, self.frame.size.width, self.frame.size.height);  // so that the label appears centered, 4 pts above the peak
-	float temp =  NSMaxY(self.view.bounds) - 10 - NSMaxY(newFrame); //prevents the label from being clipped by the view
-	if (temp < 0)  newFrame.origin.y += temp;
-	
-	float viewScales = self.view.vScale + self.view.hScale;
-	for (FragmentLabel *aLabel in self.view.fragmentLabels) {
-		NSRect aFrame = aLabel.frame;
-		if (aLabel != self && aLabel.updateCycle == viewScales && NSIntersectsRect(newFrame, aFrame) && !aLabel.hidden) { //we only check labels that had their frame updated
-			/// we move up the label that is at the higher peak
-			FragmentLabel *higherLabel = self, *lowerLabel = aLabel;
-			float diffHeight = origin.y > [self.view pointForScan:aLabel.fragment.scan].y;
-			if(diffHeight < -0.01) {
-				higherLabel = aLabel;
-				lowerLabel = self;
-				diffHeight = -diffHeight;
-			}
-			float distanceToMove = self.frame.size.height - diffHeight;
-			
-			
-			float aLabelAmount = [aLabel distanceToMoveToAvoidOverlapWith:ourFrame];
-			float ourAmount = [self distanceToMoveToAvoidOverlapWith:aFrame];;
-			if (fabsf(ourAmount) < fabsf(aLabelAmount)) { // we move us or our the overlapping label, whichever involves the smaller offset
-				ourFrame.origin.y += ourAmount;
-				if (ourAmount > 0) {    //we move up
-					aLabel.distanceToMove = NSMaxY(ourFrame) - NSMinY(aFrame);
-				} else {                //we move down
-					aLabel.distanceToMove = NSMinY(ourFrame) - NSMaxY(aFrame);
-				}
-			}
-			else {
-				aFrame.origin.y += aLabelAmount;
-				aLabel.frame = aFrame;
-				if (aLabelAmount > 0) {  //the other label has moved up
-					self.distanceToMove = NSMaxY(aFrame) - NSMinY(ourFrame);
-				} else {                //the other label has moved down
-					self.distanceToMove = NSMinY(aFrame) - NSMaxY(ourFrame);
-				}
-			}
-		}
-	}
-	self.frame = ourFrame;
-	self.updateCycle = viewScales;
-
-}
-*/
 
 
 - (float) distanceToMoveToAvoidOverlapWith:(NSRect)bRect {

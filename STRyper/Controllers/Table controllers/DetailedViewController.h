@@ -26,9 +26,9 @@
 #import "TraceViewDelegate.h"
 
 
-/// A singleton class that controls the detailed view showing traces or markers.
+/// A singleton class that manages the detailed view showing traces or markers.
 ///
-/// This class controls the detailed view whose rows contain ``TraceView`` instances.
+/// This class manages the detailed view whose rows contain ``TraceView`` instances.
 /// The ``contentArray`` property determines what the trace views show: ``Chromatogram``,  ``Genotype``  or ``Mmarker`` objects.
 ///
 /// When it shows genotypes or chromatograms, and depending on the ``stackMode`` property, the detailed view also shows "regular" table rows with sample metadata, like the table managed by the ``SampleTableController``.
