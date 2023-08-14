@@ -64,10 +64,10 @@ static NSArray *defaultColorsForChannels;
 	return self;
 }
 
+
 - (BOOL)layer:(CALayer *)layer shouldInheritContentsScale:(CGFloat)newScale fromWindow:(NSWindow *)window {
 	return YES;
 }
-
 
 
 # pragma mark - mouse-related events
@@ -92,9 +92,10 @@ static NSArray *defaultColorsForChannels;
 	draggedLabel = nil;
 	[self.window makeFirstResponder:self];
 	self.clickedPoint = [self convertPoint:event.locationInWindow fromView:nil];
-	for (ViewLabel *label in self.viewLabels) {		/// we notify every label that the view has been clicked.
-		/// We could send this message only to labels that are hovered and highlighted, but this would require maintaining arrays of such labels, for very little benefit. Performance is good enough as it is, the reaction is instant.
-		/// It's not as if there were dozens of clicks per second.
+	for (ViewLabel *label in self.viewLabels) {
+		/// we notify every label that the view has been clicked.
+		/// We could send this message only to labels that are hovered and highlighted, but this would require maintaining arrays of such labels,
+		/// for very little benefit. It's not as if there were dozens of clicks per second.
 		[label mouseDownInView];
 	}
 }
@@ -109,11 +110,9 @@ static NSArray *defaultColorsForChannels;
 
 
 - (void)mouseUp:(NSEvent *)event {
-	
 	draggedLabel = nil;
 	self.mouseUpPoint = [self convertPoint:event.locationInWindow fromView:nil];
 	[self updateTrackingAreas];
-
 
 	/// if the user has double-clicked a label
 	ViewLabel *activeLabel = self.activeLabel;
@@ -208,21 +207,6 @@ static NSArray *defaultColorsForChannels;
 			[self repositionLabels:self.repositionableLabels];
 		} else {
 			self.needsLayoutLabels = YES;
-		}
-	}
-}
-
-
-- (void)setIsBeingResized:(BOOL)resized {
-	if(_isMoving != resized) {
-		_isMoving = resized;
-		if(resized) {
-			/// when resizing, we remove our tracking areas, which may move erratically and interfere with the cursor during zoom
-			for(NSTrackingArea *area in self.trackingAreas) {
-				if(area != trackingArea) {		// we don't remove the "main" tracking areas, as this one is updated automatically
-					[self removeTrackingArea:area];
-				}
-			}
 		}
 	}
 }

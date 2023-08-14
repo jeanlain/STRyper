@@ -101,7 +101,6 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   CaseSensitiveSampleSearch: @NO
 							   
 	};
-	//  [NSUserDefaults resetStandardUserDefaults];
 	[NSUserDefaults.standardUserDefaults registerDefaults:defaults];
 }
 

@@ -329,6 +329,8 @@ ShowPeakTooltipsBinding;
 @property (nonatomic) float topFluoLevel;
 
 /// The vertical scale at which the view plots traces in points per fluorescence unit (RFU).
+///
+/// This property is computed from ``topFluoLevel`` and the height of the view.
 @property (nonatomic, readonly) float vScale;
 
 /// Sets the view's ``topFluoLevel`` without notifying its ``delegate``.

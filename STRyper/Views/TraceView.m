@@ -1441,7 +1441,8 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	if(height != self.frame.size.height) {
 		[self setFrameSize:NSMakeSize(self.frame.size.width, height)];
-		if(dashedLineLayer) {	// we make the dashed line layer as tall as the view
+		if(dashedLineLayer) {
+			/// we make the dashed line layer as tall as the view
 			dashedLineLayer.bounds = CGRectMake(0, 0, 1, height);
 			CGMutablePathRef path = CGPathCreateMutable();
 			CGPathMoveToPoint(path, NULL, 0.5, NSMaxY(dashedLineLayer.bounds));
@@ -1549,9 +1550,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-- (BOOL)_isMoving {
-	return _isMoving;
-}
 
 # pragma mark - changes in display settings
 
@@ -1792,7 +1790,10 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 		pressure = YES;
 		NSPoint mouseLocation = [self convertPoint:event.locationInWindow fromView:nil];
 		if(NSPointInRect(mouseLocation, self.enabledMarkerLabel.frame)) {
-			return;
+			Mmarker *marker = self.enabledMarkerLabel.region;
+			if(marker.editState != editStateBinSet) {
+				return;
+			}
 		}
 		for(FragmentLabel *fragmentLabel in self.fragmentLabels) {
 			if(NSPointInRect(mouseLocation, fragmentLabel.frame)) {

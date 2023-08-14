@@ -52,7 +52,6 @@ typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom t
 	genotypeTab,
 	markerTab,
 	sizeStandardTab
-	
 } bottomTab;
 
 
@@ -141,15 +140,15 @@ errorLogWindow = _errorLogWindow;
 		abort();
 	}
 	
+	/// To remember which tab is shown and to synchronize the NSSegmentedControl button activating tab and the tabView, we use a property set in user defaults.
+	[tabView bind:NSSelectedIndexBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
+	
 	
 	if(!SampleSearchHelper.sharedHelper) {
 		/// we init the search controller as must perform the search in case there are smart folder in the database
 		NSLog(@"failed to load the search helper.");
 		/// but we don't abort if it is absent.
 	}
-	
-	/// To remember which tab is shown and to synchronize the NSSegmentedControl button activating tab and the tabView, we use a property set in user defaults.
-	[tabView bind:NSSelectedIndexBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
 	
 	/// We store the toolbar items containing the undo/redo buttons, to set their tooltips depending an undo/redo action names
 	toolBarItems = NSSet.new;
@@ -158,38 +157,6 @@ errorLogWindow = _errorLogWindow;
 			toolBarItems = [toolBarItems setByAddingObject:item];
 		}
 	}
-	
-	/*
-	 /// We add tooltip rectangles to undo/redo toolbar items, so that they indicate the undo/redo action names when hovered. For this, we need to access their view.
-	 /// These cannot be accessed directly, as the `view` property of a toolbar item returns nil if it is the default view.
-	 /// We find them by enumerating all views in the toolbar. The toolbar is not part of the window's content view, but of a superview
-	 NSMutableArray *views = [NSMutableArray arrayWithArray: self.window.contentView.superview.subviews];
-	 [views removeObject:self.window.contentView];
-	 
-	 for(NSView *view in views) {
-		 [self addToolTipRectsToSubviewsOf:view];
-	 }
-	 
- }
-
- /// Recursively scans the subviews of `view` to add tooltip rectangle to undo/redo buttons of the toolbar items
-
- /// This is because the default `view` of a toolbar item cannot be accessed, so we scan all subviews to locate them
- /// A dedicated method was needed as it is called recursively to traverse all subviews of the view
- -(void) addToolTipRectsToSubviewsOf:(NSView *)view {
-	 for(NSButton *button in view.subviews) {
-		 if([button isKindOfClass:NSButton.class]) {
-			 if(button.action == @selector(undo:)) {
-				 undoToolTipTag = [button addToolTipRect:button.bounds owner:self userData:nil];
-			 } else if(button.action == @selector(redo:)) {
-				 redoToolTipTag = [button addToolTipRect:button.bounds owner:self userData:nil];
-			 }
-			 if(undoToolTipTag != 0 && redoToolTipTag != 0) {
-				 return;
-			 }
-		 } else {
-			 [self addToolTipRectsToSubviewsOf:button];
-*/
 	
 }
 
@@ -342,14 +309,19 @@ errorLogWindow = _errorLogWindow;
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
 
-	if(menuItem.action == @selector(deleteBackward:)) {
-		menuItem.title = @"Delete";
+	if(menuItem.action == @selector(deleteBackward:) || menuItem.action == @selector(rename:)) {
+		/// If such message reaches us, it means that no responder could handle it.
+		/// Because its title depends on the context, it is better to hide the item rather than show a disabled "Delete Sample" item, for instance.
 		menuItem.hidden = YES;
 		return NO;
 	}
 	
 	if(menuItem.action == @selector(showImportSamplePanel:)) {
 		return FolderListController.sharedController.canImportSamples;
+	}
+	
+	if(menuItem.action == @selector(editSmartFolder:)) {
+		return [FolderListController.sharedController validateMenuItem:menuItem];
 	}
 	
 	if(menuItem.action == @selector(toggleLeftPane:)) {
@@ -402,13 +374,13 @@ errorLogWindow = _errorLogWindow;
 }
 
 
--(void)removeItem:(id)sender {
-	
+- (void)deleteBackward:(id)sender {
+	/// We implement this only to be sent the validateMenuItem message to hide the item
 }
 
 
-- (void)deleteBackward:(id)sender {
-	
+- (void)rename:(id)sender {
+	/// We implement this only to be sent the validateMenuItem message to hide the item
 }
 
 

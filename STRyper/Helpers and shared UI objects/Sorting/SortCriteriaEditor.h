@@ -41,11 +41,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameters:
 ///   - titles: The titles that will show in the popup button (from top to bottom) allowing the user to select among sort attributes at a given row. The array must contain at least two elements, each of which must be unique.
 ///   - keypaths: The key paths used for sorting. Each key path corresponds to an element of the `titles` argument at the same index, and must be unique.
--(void)setTitles:(NSArray<NSString *>*)titles forKeyPath:(NSArray<NSString *>*)keypaths;
+-(void)setTitles:(NSArray<NSString *>*)titles forKeyPaths:(NSArray<NSString *>*)keypaths;
 
 /// The sort descriptors that the receiver shows.
 ///
-/// The `selector` of each sort descriptor is ignored, but its `key` must belong to the `keypaths` specified in ``setTitles:forKeyPath:``,
+/// The `selector` of each sort descriptor is ignored, but its `key` must belong to the `keypaths` specified in ``setTitles:forKeyPaths:``,
 /// otherwise the method throws an exception.
 @property (nonatomic) NSArray <NSSortDescriptor *>* sortDescriptors;
 

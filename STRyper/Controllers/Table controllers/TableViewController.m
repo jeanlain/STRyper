@@ -508,8 +508,10 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 		id item = [self targetItemsOfSender:menuItem].firstObject;
 		if([self canRenameItem:item]) {
 			menuItem.title = [@"Rename " stringByAppendingString: [self nameForItem:[self targetItemsOfSender:menuItem].firstObject]];
+			menuItem.hidden = NO;
 			return YES;
 		}
+		menuItem.hidden = YES;
 		return NO;
 	}
 	
@@ -719,7 +721,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 		tableSortPopover.behavior = NSPopoverBehaviorTransient;
 	}
 	
-	[tableSortPopover.sortCriteriaEditor setTitles:columnTitles forKeyPath:keypaths];
+	[tableSortPopover.sortCriteriaEditor setTitles:columnTitles forKeyPaths:keypaths];
 	tableSortPopover.sortCriteriaEditor.sortDescriptors = sortDescriptors;
 	
 	tableSortPopover.sortAction = @selector(applySort:);

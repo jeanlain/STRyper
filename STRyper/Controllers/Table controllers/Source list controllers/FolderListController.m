@@ -276,20 +276,24 @@
 		return NO;
 	}
 	
-	SampleFolder *clickedFolder = [self _targetFolderOfSender:menuItem];
+	SampleFolder *targetFolder = [self _targetFolderOfSender:menuItem];
 	if(menuItem.action == @selector(addFolder:) && [menuItem.keyEquivalent isEqualToString:@""]) {
 		/// one cannot add a subfolder to a smart folder (except for the item from the main menu,
 		/// which adds a folder at the bottom, and has a key equivalent (cmd-N)
-		menuItem.hidden = !clickedFolder || clickedFolder.isSmartFolder || clickedFolder == self.trashFolder;
+		menuItem.hidden = !targetFolder || targetFolder.isSmartFolder || targetFolder == self.trashFolder;
 		return !menuItem.hidden;
 	}
-	if(menuItem.action == @selector(editSmartFolder:) && menuItem.topMenu == outlineView.menu) {
-		/// so the user can edit search criteria of the smart folder
-		menuItem.hidden = !clickedFolder.isSmartFolder;
-		return !menuItem.hidden;
+	
+	if(menuItem.action == @selector(editSmartFolder:)) {
+		BOOL disabled = !targetFolder.isSmartFolder;
+		if(menuItem.topMenu == outlineView.menu) {
+			menuItem.hidden = disabled;
+		}
+		return !disabled;
 	}
+	
 	if(menuItem.action == @selector(emptyTrash:) && menuItem.topMenu == outlineView.menu) {
-		menuItem.hidden = !clickedFolder || clickedFolder != self.trashFolder;
+		menuItem.hidden = !targetFolder || targetFolder != self.trashFolder;
 		return !menuItem.hidden;
 	}
 	
@@ -616,17 +620,9 @@
 #pragma mark - managing sample search
 
 
-- (void)editSmartFolder:(id)sender {
+- (IBAction)editSmartFolder:(id)sender {
 	
-	SmartFolder *targetFolder;
-	if([sender class] == NSMenuItem.class) {
-		if([sender menu]== outlineView.menu && outlineView.clickedRow > 0)
-			targetFolder = [self _targetFolderOfSender:sender];		/// the user is editing a smart folder. This will point to this folder
-	} else {
-		if(![sender respondsToSelector:@selector(tag)] || [sender tag] == 3) {
-			targetFolder = self.selectedFolder;
-		}
-	}
+	SmartFolder *targetFolder = [self _targetFolderOfSender:sender];
 	if(targetFolder && (!targetFolder.isSmartFolder|| !targetFolder.searchPredicate)) {
 		return;
 	}

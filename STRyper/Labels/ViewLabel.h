@@ -34,7 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 {
 	/// The base layer that can be used to display the label.
 	///
-	/// This variable is not set by default. Subclass must provide their own layer. 
+	/// This variable is not set by default. Subclasses must provide their own layer.
 	__kindof CALayer *layer;
 	
 	/// A tracking area that is used by the label to detect when the mouse enters and exits its ``frame``.
@@ -65,7 +65,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The view hosting the label.
 ///
-/// While possible, it may not make sense to assign the label to a different view, as a label generally represents an entity that can be associated with a specific view.
+/// While possible, it may not make sense to assign the label to a different view, as a label generally represents an entity that is associated to a specific view.
 ///
 /// The view class is ``TraceView`` rather than ``LabelView`` because the former has specific properties that some labels use.
 /// Implementing these properties in `LabelView` doesn't seem very relevant, but it would make this property more consistent.

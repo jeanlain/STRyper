@@ -480,8 +480,8 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 			/// if the type is not one we manage, we try to find an equivalent entry (for the same itemName and itemNumber)
 			/// This is because HID files store fluorescence data and dye names in two forms: one that is not readable (not documented) and another that is the same as FSA files.
 			/// The latter is referenced by entries that are listed in a directory that is not pointed by the header.
-			/// In fact, there are many equivalent directories per file (for undocumented reasons).
-			/// Some that point to decodable data, some that point to unreadable data
+			/// In fact, there are many equivalent directories per file (for undocumented reasons),
+			/// some that point to decodable data, some that point to unreadable data
 			/// So we look for other entries for the same item to find one that has a known element type
 			if(try) {
 				returnedObject = [self objectForEntryEquivalentTo:entry inABIFData:fileData];
@@ -492,8 +492,11 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 }
 
 
-/// Finds an returns object based on a directory entry, based on the itemName and itemNumber (and not the offset).
-/// Returns nil if a suitable object could not be constructed.
+/// Finds an returns object based on a directory entry, using its itemName and itemNumber (and not the offset).
+/// Returns nil if no suitable object could be found.
+/// - Parameters:
+///   - entry: The entry describing the object.
+///   - fileData: The data containing the ABIF file.
 + (nullable id) objectForEntryEquivalentTo:(DirEntry)entry inABIFData:(NSData *)fileData {
 																				
 	if(fileData.length < HEADERSIZE + ENTRYSIZE) {
@@ -502,7 +505,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 	
 	id foundObject = nil;
 	
-	/// We search for the entry in a range that excludes the header and allow the entry to fit in the file
+	/// We search for the entry in a range that excludes the header and allows the entry to fit in the file
 	NSRange searchRange = NSMakeRange(HEADERSIZE, fileData.length - HEADERSIZE);
 	
 	/// We search for bytes that constitute the itemName and itemNumber of the entry (8 bytes total), as these two are unique for a given item
@@ -642,6 +645,8 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 
 
 /// Converts the n first elements of a big endian 16-bit int array to native and returns the result.
+///
+/// IMPORTANT: the result array is allocated on the heap and must be freed.
 /// - Parameters:
 ///   - source: The array to convert.
 ///   - n: The number of element to read from the `source`.
@@ -655,6 +660,8 @@ int16_t * bigEndianToNative16 (int16_t *source, long n){
 
 
 /// Converts the n first elements of a big endian 32-bit int array to native and returns the result.
+///
+/// IMPORTANT: the result array is allocated on the heap and must be freed.
 /// - Parameters:
 ///   - source: The array to convert.
 ///   - n: The number of element to read from the `source`.

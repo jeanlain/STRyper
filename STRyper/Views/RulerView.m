@@ -430,7 +430,7 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 	MarkerView *markerView = (MarkerView *)self.accessoryView;
 	if(![markerView respondsToSelector:@selector(markerLabels)] || markerView.markerLabels.count == 0) {
 		/// We do a standard scroll if there is no marker view or if it doesn't show any marker
-		[self.nextResponder scrollWheel:event];
+		[super scrollWheel:event];
 		return;
 	}
 	
@@ -453,7 +453,7 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 			horizontalScrollAmount += delta;
 		} else {
 			/// in this case, the user must have a standard mouse (there was not start phase)
-			[self.nextResponder scrollWheel:event];
+			[super scrollWheel:event];
 		}
 	}
 }

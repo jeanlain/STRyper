@@ -90,7 +90,7 @@
 - (SearchWindow *)searchWindow {
 	if(!_searchWindow) {
 		_searchWindow = SearchWindow.searchWindow;
-		_searchWindow.message = @"Find samples meeting the following criteria:";
+		_searchWindow.message = @"Find samples meeting the following conditions:";
 		[self configurePredicateEditor];
 	}
 	return _searchWindow;

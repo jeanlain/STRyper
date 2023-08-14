@@ -28,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// compares all entries of the destination of the to-many relationship (`NSAllPredicateModifier`) or matches with any entry (`NSAllPredicateModifier`).
 /// This button is not added if the object's `modifier` is not one of the above modifiers.
 /// The predicate to set must be an `NSComparisonPredicate` containing a left expression, a right expression and a comparison modifier.
-@interface AggregatePredicateEditorRowTemplate : NSPredicateEditorRowTemplate <NSControlTextEditingDelegate>
+@interface AggregatePredicateEditorRowTemplate : NSPredicateEditorRowTemplate
 
 
 @end

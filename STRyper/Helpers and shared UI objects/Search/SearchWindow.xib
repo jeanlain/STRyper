@@ -18,8 +18,8 @@
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
                     <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="95s-4H-7JP">
-                        <rect key="frame" x="105" y="100" width="250" height="16"/>
-                        <textFieldCell key="cell" lineBreakMode="clipping" title="Find items meeting the following criteria:" id="DB6-2M-GRT">
+                        <rect key="frame" x="95" y="100" width="271" height="16"/>
+                        <textFieldCell key="cell" lineBreakMode="clipping" title="Find items meeting the following conditions:" id="DB6-2M-GRT">
                             <font key="font" usesAppearanceFont="YES"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>

@@ -27,8 +27,8 @@
 @property (nonatomic) NSSegmentedControl *modifierControl;
 @property (nonatomic) NSNumberFormatter *formatter;
 
-
 @end
+
 
 enum SelectedSegmentIndex : NSUInteger {
 	AnyPredicateModifierIndex = 0,
@@ -40,7 +40,10 @@ enum SelectedSegmentIndex : NSUInteger {
 
 - (NSSegmentedControl *)modifierControl {
 	if(!_modifierControl) {
-		_modifierControl = [NSSegmentedControl segmentedControlWithLabels:@[@"Any", @"All"] trackingMode:NSSegmentSwitchTrackingSelectOne target:nil action:nil];
+		_modifierControl = [NSSegmentedControl segmentedControlWithLabels:@[@"Any", @"All"]
+															 trackingMode:NSSegmentSwitchTrackingSelectOne
+																   target:nil
+																   action:nil];
 		_modifierControl.controlSize = NSControlSizeSmall;
 		_modifierControl.segmentStyle = NSSegmentStyleRounded;
 		_modifierControl.selectedSegment = AnyPredicateModifierIndex;
@@ -85,8 +88,6 @@ enum SelectedSegmentIndex : NSUInteger {
 	
 	return views;
 }
-
-
 
 
 - (void)setPredicate:(NSPredicate *)predicate {

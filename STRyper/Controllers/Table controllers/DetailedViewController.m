@@ -358,7 +358,7 @@ static const float minTraceRowHeight = 40.0;
 		scrollView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;
 		[rowView addSubview:scrollView];
 		
-		TraceView* traceView = [[TraceView alloc] initWithFrame:scrollView.contentView.bounds];
+		TraceView* traceView = [[TraceView alloc] initWithFrame:rowView.bounds];
 		traceView.delegate = self;
 		scrollView.documentView = traceView;
 		

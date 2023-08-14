@@ -164,6 +164,12 @@ CA
                                     <action selector="remove:" target="-1" id="b4h-8R-o2M"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="Edit Smart Folder…" tag="1" id="xFe-ct-4Pq">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="editSmartFolder:" target="-1" id="6Ik-Bi-qsS"/>
+                                </connections>
+                            </menuItem>
                             <menuItem title="Select All" keyEquivalent="a" id="Ruw-6m-B2m">
                                 <connections>
                                     <action selector="selectAll:" target="-1" id="VNm-Mi-diN"/>

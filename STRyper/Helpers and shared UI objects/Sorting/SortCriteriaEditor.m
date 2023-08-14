@@ -89,7 +89,7 @@ static NSString *const ascendingOrder = @"ascending";
 static NSString *const Title = @"title";
 
 
-- (void)setTitles:(NSArray<NSString *> *)titles forKeyPath:(NSArray<NSString *> *)keypaths {
+- (void)setTitles:(NSArray<NSString *> *)titles forKeyPaths:(NSArray<NSString *> *)keypaths {
 	NSUInteger count = titles.count;
 	if(count != keypaths.count) {
 		NSException *exception = [NSException exceptionWithName:@"Editor configuration exception." reason:@"Cannot configure the editor. The titles and keypaths have different counts." userInfo:nil];
