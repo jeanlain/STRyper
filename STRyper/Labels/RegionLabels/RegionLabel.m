@@ -100,8 +100,9 @@ static NSArray *observedKeys;
 	
 	if(!self.enabled && !self.hovered) {
 		coloredLayer.backgroundColor = disabledColor.CGColor;
+	} else {
+		coloredLayer.backgroundColor = (self.hovered || self.highlighted)? hoveredColor.CGColor : defaultColor.CGColor;
 	}
-	coloredLayer.backgroundColor = (self.hovered || self.highlighted)? hoveredColor.CGColor : defaultColor.CGColor;
 	
 	/// when highlighted, we make our border visible to signify that we can be resized
 	layer.borderWidth = (self.highlighted)? 1.0 : 0.0;
@@ -235,7 +236,6 @@ static void * const regionPropertyChangedContext = (void*)&regionPropertyChanged
 	/// This ensure that even if we are very close from the adjacent region,the user should always be able to grab the correct edge (and this may avoid unwanted resizing)
 	/// We therefore need to reposition and get/remove tracking areas for our edges
 	[self reposition];
-//	[self updateTrackingArea]; // TESTING (tracking areas are updated in -reposition)
 }
 
 

@@ -287,7 +287,7 @@ typedef enum FragmentLabelType : NSUInteger {
 		destination = closestPeak;
 		destination.hovered = YES;	/// to show the candidate destination, we make it show its hovered state
 		if(minDist < refDist) {
-			if(magnetX <= 0) {
+			if(magnetX != closestPeakPos) {
 				/// We signify magnetism with haptic feedback
 				[NSHapticFeedbackManager.defaultPerformer performFeedbackPattern:NSHapticFeedbackPatternAlignment
 																 performanceTime:NSHapticFeedbackPerformanceTimeDefault];

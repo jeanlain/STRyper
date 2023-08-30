@@ -232,9 +232,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	float startSize = self.startSize;
 	float endSize = self.endSize;
 	float startX = [self.view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
-	float endX = startX + (endSize - startSize) * hScale;
-	
-	regionRect = NSMakeRect(startX, 0, endX-startX, NSMaxY(self.view.bounds));
+	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(self.view.bounds));
 	
 	if(self.highlighted) {
 		/// when highlighted, our frame (used by the tracking area) gets a bit wider so that the user can more easily click an edge to resize us
@@ -271,7 +269,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	}
 	
 	if(!traceView.isMoving && self.enabled && !self.dragged) {
-		[self updateTrackingArea];  /// TESTING
+		[self updateTrackingArea];  
 	}
 }
 

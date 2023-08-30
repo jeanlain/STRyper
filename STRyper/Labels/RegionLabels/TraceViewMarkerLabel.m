@@ -543,9 +543,8 @@
 	float startSize = start*slope + intercept;
 	float endSize = end*slope + intercept;
 	float startX = [view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
-	float endX = startX + (endSize - startSize) * hScale;
 	
-	regionRect = NSMakeRect(startX, 0, endX-startX, NSMaxY(view.bounds));
+	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(view.bounds));
 
 	/// when highlighted, our frame (used by the tracking area) gets a bit wider so that the user can more easily click an edge to resize us
 	self.frame = self.highlighted? NSInsetRect(regionRect, -2, 0) : regionRect;
@@ -561,7 +560,7 @@
 	}
 	if(outerLayer && !outerLayer.hidden) {
 		startX =  [view xForSize:outerLeftLimit];
-		endX = [view xForSize:outerRightLimit];
+		float endX = [view xForSize:outerRightLimit];
 		outerLayer.frame = NSMakeRect(startX, 0, endX-startX, NSMaxY(view.bounds));
 		if(innerLayer && !innerLayer.hidden) {
 			startX =  [view xForSize:innerLeftLimit]+1;
@@ -571,7 +570,7 @@
 	}
 	
 	if(!view.isMoving && !self.dragged) {
-		[self updateTrackingArea];  /// TESTING
+		[self updateTrackingArea];  
 	}
 }
 

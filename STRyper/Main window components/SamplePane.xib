@@ -16,18 +16,18 @@
         <arrayController mode="entity" entityName="" fetchPredicateFormat="" automaticallyPreparesContent="YES" avoidsEmptySelection="NO" id="0dN-zh-7AK" userLabel="Samples"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <customView misplaced="YES" id="Hkk-O4-Va6" userLabel="Top Pane">
-            <rect key="frame" x="0.0" y="0.0" width="584" height="394"/>
+            <rect key="frame" x="0.0" y="0.0" width="584" height="366"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
                 <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="10" id="l1C-Y4-jv5">
-                    <rect key="frame" x="0.0" y="30" width="584" height="364"/>
+                    <rect key="frame" x="0.0" y="30" width="584" height="336"/>
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     <clipView key="contentView" id="tYv-Hh-kQD">
-                        <rect key="frame" x="0.0" y="0.0" width="584" height="364"/>
+                        <rect key="frame" x="0.0" y="0.0" width="584" height="336"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <tableView identifier="sampleTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" alternatingRowBackgroundColors="YES" autosaveColumns="NO" rowHeight="16" rowSizeStyle="automatic" headerView="yhO-Rg-Mgn" viewBased="YES" floatsGroupRows="NO" id="KUu-Te-JeL" userLabel="sample table">
-                                <rect key="frame" x="0.0" y="0.0" width="584" height="336"/>
+                                <rect key="frame" x="0.0" y="0.0" width="584" height="308"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <size key="intercellSpacing" width="3" height="0.0"/>
                                 <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>

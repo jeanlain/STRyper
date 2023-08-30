@@ -91,19 +91,20 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 	[super viewDidLoad];
 	[self configureTableContent];
 
-	self.tableView.delegate = self;
-	self.tableView.dataSource = self;
+	NSTableView *tableView = self.tableView;
+	tableView.delegate = self;
+	tableView.dataSource = self;
 	[self addColumnsToTable];
 	
-	if([self shouldAutoSaveTable]) {
+	if(self.shouldAutoSaveTable) {
 		/// we set the autosave name our tableview now, as it can only work after the columns are added
-		self.tableView.autosaveName = [self.tableView.identifier stringByAppendingString:@"_tableViewSave"];
-		self.tableView.autosaveTableColumns = YES;
+		tableView.autosaveName = [tableView.identifier stringByAppendingString:@"_tableViewSave"];
+		tableView.autosaveTableColumns = YES;
 	}
 	
-	if([self shouldMakeTableHeaderMenu]) {
+	if(self.shouldMakeTableHeaderMenu) {
 		NSMenu *menu = NSMenu.new;
-		self.tableView.headerView.menu = menu;
+		tableView.headerView.menu = menu;
 		menu.delegate = (id) self;
 	}
 }
@@ -245,46 +246,52 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 
 
 - (void)menuNeedsUpdate:(NSMenu *)menu {
-	if(menu == self.tableView.headerView.menu) {		/// we populate the menu with items representing the columns that the user can show/hide.
+	NSTableView *tableView = self.tableView;
+	NSTableHeaderView *headerView = tableView.headerView;
+	if(menu == headerView.menu) {		/// we populate the menu with items representing the columns that the user can show/hide.
 		[menu removeAllItems];							/// we do it every time the menu appears so that the columns are in the order of the table (the user may have reordered columns)
 		/// we first add the item allowing to sort the table. We don't need to recreate this item each time, but this isn't costly.
 		if([self canSortByMultipleColumns]) {
-			/// There must be at least two visible columns
-			NSArray *visibleColumns = [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"hidden == NO"]];
-			if(visibleColumns.count >= 2) {
-				NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Sort Table…" action:@selector(showSortCriteria:) keyEquivalent:@""];
-				item.target = self;
-				[menu addItem:item];
-			}
-		}
-		
-		/// we add a menu item allowing to hide the clicked column. To identify this column, we use the mouse location
-		NSPoint clickPoint = [self.tableView.headerView convertPoint:NSApp.currentEvent.locationInWindow fromView:nil];
-		NSInteger clickedCol = [self.tableView.headerView columnAtPoint:clickPoint];
-		if(clickedCol >= 0) {
-			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Hide Column" action:@selector(hideColumn:) keyEquivalent:@""];
+			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Sort Table…" action:@selector(showSortCriteria:) keyEquivalent:@""];
 			item.target = self;
-			item.representedObject = self.tableView.tableColumns[clickedCol];
 			[menu addItem:item];
 		}
 		
+		/// we add a menu item allowing to hide the clicked column. To identify this column, we use the mouse location
+		/// But we don't hide if there is only one visible column
+		BOOL canHideColumn = [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSTableColumn *column, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return !column.isHidden;
+		}]].count > 1;
+		
+		if(canHideColumn) {
+			NSPoint clickPoint = [headerView convertPoint:NSApp.currentEvent.locationInWindow fromView:nil];
+			NSInteger clickedCol = [headerView columnAtPoint:clickPoint];
+			if(clickedCol >= 0 && clickedCol < tableView.numberOfColumns) {
+				NSTableColumn *clickedColumn = tableView.tableColumns[clickedCol];
+				NSString *title = [@"Hide " stringByAppendingFormat:@"\"%@\"", clickedColumn.title];
+				NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(hideColumn:) keyEquivalent:@""];
+				item.target = self;
+				item.representedObject = clickedColumn;
+				[menu addItem:item];
+			}
+		}
 		if(menu.itemArray.count > 0) {
 			[menu addItem:NSMenuItem.separatorItem];
 		}
-
-		for(NSTableColumn *col in self.tableView.tableColumns) {
+		
+		for(NSTableColumn *col in tableView.tableColumns) {
 			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:col.title action:@selector(toggleColumnVisibility:) keyEquivalent:@""];
 			item.target = self;
 			item.representedObject = col;
-			item.state = !col.hidden;
 			[menu addItem:item];
 		}
 		return;
 	}
 	
-	if(menu == self.tableView.menu) {		/// if the menu is from our tableview's menu (set in IB), we hide its items if there is no clicked row
+	if(menu == tableView.menu) {
+		/// if the menu is from our tableview's menu (set in IB), we hide its items if there is no clicked row
 		for(NSMenuItem *menuItem in menu.itemArray) {
-			menuItem.hidden = self.tableView.clickedRow < 0;
+			menuItem.hidden = tableView.clickedRow < 0;
 		}
 	}
 }
@@ -307,13 +314,14 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 
 - (CGFloat)tableView:(NSTableView *)tableView sizeToFitWidthOfColumn:(NSInteger)column {
 	NSTableColumn *theColumn = tableView.tableColumns[column];
-	NSSize textSize = theColumn.headerCell.cellSize; 									/// the column should be at least as large as the header text
+	NSSize textSize = theColumn.headerCell.cellSize; 		/// the column should be at least as large as the header text
 	CGFloat maxWidth = textSize.width +5;
 	
 	for (int row = 0; row < tableView.numberOfRows; row++) {
+		/// We don't make views, as it would take too long.
 		NSTableCellView *cellView = [tableView viewAtColumn:column row:row makeIfNecessary:NO];
 		if(cellView.textField) {
-			textSize = cellView.textField.cell.cellSize; 								/// do not use view.fittingSize here. It isn't reliable.
+			textSize = cellView.textField.cell.cellSize; 		/// do not use view.fittingSize here. It isn't reliable.
 			textSize.width = textSize.width + NSMinX(cellView.textField.frame) +2;   	/// not sure why, but if we don't do that it clips the contents
 		} else {
 			NSPopUpButton *button = [cellView viewWithTag:1];
@@ -528,6 +536,19 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 			return self.tableView.clickedRow >= 0;
 		}
 		return self.columnDescription && self.tableContent.selectedObjects.count > 0;
+	}
+	
+	if(menuItem.action == @selector(toggleColumnVisibility:)) {
+		NSTableColumn *column = menuItem.representedObject;
+		menuItem.state = !column.isHidden;
+		BOOL canHideColumn = YES;
+		if(!column.isHidden) {
+			/// We can't hide a column if there is not more than 1 visible column
+			canHideColumn = [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSTableColumn *column, NSDictionary<NSString *,id> * _Nullable bindings) {
+				return !column.isHidden;
+			}]].count > 1;
+		}
+		return canHideColumn || column.isHidden;
 	}
 
 	return YES;

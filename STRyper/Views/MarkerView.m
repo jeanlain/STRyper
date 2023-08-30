@@ -368,14 +368,6 @@ enum ButtonTag : NSUInteger {
 	}
 }
 
-/**  //DISABLED FOR TESTING (remove method if ok)
-- (void)repositionLabels:(NSArray *)labels {
-	[super repositionLabels:labels];
-	if(!self.traceView.isMoving) {
-		[self updateTrackingAreasOf:labels];
-	}
-}
-*/
 
 - (void)labelDidChangeEditState:(RegionLabel *)label {
 	if(label.editState != editStateNil) {
@@ -396,13 +388,15 @@ enum ButtonTag : NSUInteger {
 # pragma mark - reaction to user actions
 
 - (void)updateTrackingAreas {
+	if(self.traceView.isMoving) {
+		return;
+	}
 	[super updateTrackingAreas];
 	[self updateTrackingAreasOf:self.markerLabels];
 }
 
 
 - (void)updateCursor {
-	///if(NSEvent.pressedMouseButtons != 0) return;  REMOVE if ok
 	if(hoveredMarkerLabel.hoveredEdge) {
 		[NSCursor.resizeLeftRightCursor set];
 	} else if(hoveredMarkerLabel) {

@@ -102,11 +102,13 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	float startPoint; 						/// (for dragging... not used)
 	
 	NSArray<Trace *> *visibleTraces;		/// the traces that are actually visible, depending on the channel to show
-		
+	
 	NSArray *observedSamples;			/// The chromatograms we observe for certain keypaths.
 	NSArray *observedSamplesForPanel;
-
+	
 	__weak RegionLabel *hoveredBinLabel;	/// the bin label being hovered, which we use to determine the cursor
+	BOOL showMarkerOnly;
+	
 }
 
 
@@ -191,8 +193,8 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	/// There won't be many markers or panel sending notifications at a given time.
 	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(markerBinsDidChange:) name:MarkerBinsDidChangeNotification object:nil];
 	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(panelMarkersDidChange:) name:PanelMarkersDidChangeNotification object:nil]; /// for the panel's marker, we could have observed our panels.markers keyPath, which may work just a well
-	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(genotypeOffsetDidChange:) name:GenotypeDidChangeOffsetCoefsNotification object:nil]; 
-
+	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(genotypeOffsetDidChange:) name:GenotypeDidChangeOffsetCoefsNotification object:nil];
+	
 }
 
 
@@ -253,7 +255,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	if(!_markerView) {
 		_markerView = MarkerView.new;
 		self.rulerView.accessoryView = _markerView;
-		[_markerView setFrameSize:NSMakeSize(_markerView.frame.size.width, markerViewHeight)];		
+		[_markerView setFrameSize:NSMakeSize(_markerView.frame.size.width, markerViewHeight)];
 	}
 	return(_markerView);
 }
@@ -264,11 +266,13 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 - (void)loadTraces:(NSArray<Trace *> *)traces {
 	[self loadTraces:traces marker:nil];
+	showMarkerOnly = NO;
 }
 
 
 - (void)loadSample:(Chromatogram *)sample {
 	[self loadTraces:sample.traces.allObjects marker:nil];
+	showMarkerOnly = NO;
 }
 
 
@@ -281,11 +285,13 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		_genotype = nil;
 		[self loadTraces:nil marker:nil];
 	}
+	showMarkerOnly = NO;
 }
 
 
 - (void)loadMarker:(Mmarker *)marker {
 	[self loadTraces:nil marker:marker];
+	showMarkerOnly = YES;
 }
 
 /// loads the specified traces and the marker
@@ -294,7 +300,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	/// We set the hScale to -1 to signify that our geometry is reset and not final. This is to prevent our range from being modified in resizeWithOldSuperViewSize: before prepareForDisplay: (the latter sets our hScale)
 	_hScale = -1.0;
 	_marker = marker;
-	BOOL showedMarkerOnly = _loadedTraces.count == 0; /// We remember if the view was not showing traces before
 	self.loadedTraces = traces;
 	
 	/// we determine the channel that we show
@@ -319,7 +324,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	if(traces.count == 0 || marker == nil) {
 		_genotype = nil;
 	}
-		
+	
 	/// we pick our "trace" property among the traces. We take the longest.
 	Trace *aTrace = traces.count > 0? traces.firstObject : nil;
 	float maxReadLength = -1;		/// we don't use the @max operator, as it is much slower than an enumeration.
@@ -332,7 +337,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	
 	self.trace = aTrace;
-
+	
 	/// We set the panel of markers (even in case we show a single marker, we need to load others as marker resizing depends on other markers of the same channel)
 	
 	Panel *refPanel = [self panelToShow];
@@ -341,7 +346,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	/// this increases performance when switching between samples while the user scrolls (avoids hitches)
 	/// but if we don't or didn't show a trace (hence only a marker), we always load the panel.
 	/// this because the marker we highlight may be different (even if from the same panel and channel) and the way we show the panel also depends on whether we show traces
-	if(showedMarkerOnly || traces.count == 0 || previousChannel != self.channel || self.panel != refPanel || refPanel == nil) {
+	if(showMarkerOnly || traces.count == 0 || previousChannel != self.channel || self.panel != refPanel || refPanel == nil) {
 		self.panel = refPanel;
 	} else {
 		/// if we keep the panel (and all the associated labels), we need to update the label offset to the new genotypes shown.
@@ -427,12 +432,12 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	BOOL ladder = firstTrace.isLadder;
 	if(!ladder && !oneSample) {
 		observedSamplesForPanel = observedSamples;
-	} 
+	}
 	
 	for(Chromatogram *sample in observedSamples) {
 		[sample addObserver:self forKeyPath:ChromatogramSizesKey options:NSKeyValueObservingOptionNew context:sampleSizingChangedContext];
 		[sample addObserver:self forKeyPath:ChromatogramSizingQualityKey options:NSKeyValueObservingOptionNew context:sampleSizingChangedContext];
-	
+		
 		if(!ladder && !oneSample) {
 			/// if the trace is not a ladder, we observe the panel, as we show bins and communicate changes to the marker view.
 			[sample addObserver:self forKeyPath:ChromatogramPanelKey options:NSKeyValueObservingOptionNew context:panelChangedContext];
@@ -516,10 +521,10 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 				traceMarkerLabel.offset = genotype.offset;
 			}
 		}
-
+		
 		[temp addObject:traceMarkerLabel];
 	}
-
+	
 	self.markerLabels = [NSArray arrayWithArray:temp];
 	
 }
@@ -581,7 +586,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	
 	Mmarker *marker = genotype.marker;
-	MarkerOffset offset = genotype.offset;	
+	MarkerOffset offset = genotype.offset;
 	
 	for(RegionLabel *markerLabel in self.markerLabels) {
 		if(markerLabel.region == marker) {
@@ -617,7 +622,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		for(FragmentLabel *label in self.fragmentLabels) {
 			label.enabled = NO;
 		}
-
+		
 		for(RegionLabel *binLabel in _enabledMarkerLabel.binLabels) {
 			binLabel.hidden = NO;	/// bin labels of an enabled marker label are always visible
 		}
@@ -1005,7 +1010,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	
 	NSData *fluoData = _showRawData? trace.primitiveRawData : [trace adjustedDataMaintainingPeakHeights: _maintainPeakHeights];
-
+	
 	if(scan >= fluoData.length/sizeof(int16_t)) {
 		return CGPointMake(0, 0);
 	}
@@ -1033,12 +1038,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		float newScale = [self visibleWidth] / _visibleRange.len;
 		self.hScale = newScale;
 		self.visibleOrigin = (range.start - _sampleStartSize) * _hScale;
-		if(resizingTimer.valid) {
-			[resizingTimer invalidate];
-		}
-		resizingTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(doneMoving) userInfo:nil repeats:NO];
-		[[NSRunLoop mainRunLoop] addTimer:resizingTimer forMode:NSRunLoopCommonModes];
-		self.isMoving = YES;
 		[self.delegate traceViewDidChangeRangeVisibleRange:self];
 		
 	}
@@ -1143,7 +1142,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		float previous = _visibleOrigin;
 		_visibleOrigin = newVisibleOrigin;
 		[self scrollToVisibleOrigin];
-
+		
 		if(mouseIn) {
 			/// We could determine the mouse location "de novo" using the NSWindow method,
 			/// but this would use more resources, considering that this is called at every scroll step
@@ -1268,7 +1267,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (void)zoomToMarkerLabel:(RegionLabel *)markerLabel {
-
+	
 	BaseRange markerRange = [self baseRangeForMarkerLabel:markerLabel];
 	[self setVisibleRange:markerRange animate:YES] ;
 }
@@ -1280,7 +1279,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (BaseRange)ourMarkerRange {
-
+	
 	float start = self.marker.start;
 	float end = self.marker.end;
 	if(self.genotype) {
@@ -1333,7 +1332,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	/// the first time the view shows, it doesn't have the proper height (doesn't fill the clipView's visible rectangle)
 	[self fitVertically];
 	float topFluoLevel = 1000;  /// we set an arbitrary default fluo level
-								
+	
 	Trace *trace = self.trace;
 	if(trace) {
 		if(!self.autoScaleToHighestPeak) {
@@ -1360,9 +1359,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	for(Trace *trace in self.loadedTraces) {
 		trace.visibleRange = _visibleRange;
 	}
-		
+	
 	self.markerView.hidden = (trace && self.channel < 0) || trace.isLadder;
-			
+	
 	[self fitToIntrinsicContentSize];			/// these are safety measures
 	self.needsLayoutLabels = YES;
 	self.rulerView.needsUpdateOffsets = YES;
@@ -1487,14 +1486,14 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			if(peak.startScan < minScan || sizes[scan] < startSize) {
 				continue;
 			}
-		
+			
 			if(fluo[scan] > maxLocalFluo) {
 				maxLocalFluo = fluo[scan];
 			}
 		}
 	}
 	
-
+	
 	maxLocalFluo += maxLocalFluo * 20/self.frame.size.height;		/// we leave a 20-point margin above the highest peak
 	return maxLocalFluo;
 }
@@ -1657,7 +1656,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 - (void)setDisplayedChannels:(NSArray<NSNumber *> *)displayedChannels  {
 	NSArray *previousTraces = visibleTraces;
 	_displayedChannels = [NSArray arrayWithArray:displayedChannels];
-	if(self.loadedTraces) {		///TESTING. Was if(self.window) (?)
+	if(self.loadedTraces) {		
 		visibleTraces = [self.loadedTraces filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Trace *trace, NSDictionary<NSString *,id> * _Nullable bindings) {
 			return [self.displayedChannels containsObject: @(trace.channel)];
 		}]];
@@ -1731,13 +1730,12 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (void)updateCursor {
-
 	if(hoveredBinLabel.hoveredEdge || hoveredMarkerLabel.hoveredEdge) {
 		[NSCursor.resizeLeftRightCursor set];
 		dashedLineLayer.hidden = YES;
 	} else if(hoveredBinLabel == nil && hoveredMarkerLabel) {
 		if(!hoveredMarkerLabel.highlighted) {
-			/// if the marker label is enabled and not highlighted, we can add bin manually to it.
+			/// if the marker label is enabled and not highlighted, we can add bins manually to it.
 			[NSCursor.dragCopyCursor set];
 		} else {
 			if(hoveredMarkerLabel.clicked) {
@@ -1986,7 +1984,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 		/// a the bin can be added in the region covered by the unlocked marker label, but it must not overlap an existing bin label
 		if(fabs(self.clickedPoint.x - self.mouseLocation.x) > 3 && hoveredBinLabel == nil) {
 			
-					/// the rest is similar to the addition of new marker (see equivalent method in MarkerView.m)
+			/// the rest is similar to the addition of new marker (see equivalent method in MarkerView.m)
 			Mmarker *marker = (Mmarker*)self.enabledMarkerLabel.region;
 			if(!marker.managedObjectContext) {
 				return;
@@ -2003,7 +2001,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 				}
 			}
 			
-
+			
 			dashedLineLayer.hidden = YES;											/// it is better to hide the dashed line when the bin is created, to reduce visual clutter.
 			MarkerOffset offset = enabledMarkerLabel.offset;
 			position = (position - offset.intercept) / offset.slope;
@@ -2047,7 +2045,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	
 	if (self.spaceDown | isDragging) {       /// if the space key is pressed, dragging the mouse scrolls the view.
 		isDragging = YES;
-	
+		
 		float newOrigin = self.visibleOrigin + startPoint - self.mouseLocation.x;
 		if(newOrigin < 0) newOrigin = 0;
 		else if(newOrigin > self.bounds.size.width - self.visibleRect.size.width)
@@ -2094,22 +2092,29 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 }
 
 
+- (void)updateTrackingAreas {
+	self.isMoving = YES;
+	/// For performance, we avoid updating tracking areas too frequently, in particular during scrolling or zooming.
+	/// In particular since macOS 13, this method is called at every step during scrolling
+	/// But we need a timer to update the tracking areas when scrolling/zooming if finished
+	if(resizingTimer.valid) {
+		[resizingTimer invalidate];
+	}
+	resizingTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(doneMoving) userInfo:nil repeats:NO];
+	[[NSRunLoop mainRunLoop] addTimer:resizingTimer forMode:NSRunLoopCommonModes];
+}
+
 
 - (void)doneMoving {
 	self.isMoving = NO;
 	if(self.autoScaleToHighestPeak) {
 		[self scaleToHighestPeakWithAnimation:YES];
 	}
-	[self updateTrackingAreas];
+	[self _updateTrackingAreas];
 }
 
 
-
-- (void)updateTrackingAreas {
-	
-	if(self.isMoving) {
-		return;			  /// we avoid updating the tracking areas while zooming or scrolling (for performance reasons).
-	}
+- (void)_updateTrackingAreas {
 	[super updateTrackingAreas];  			  /// this updates the view's main tracking area, which occupies the visible rect
 	
 	[self updateLabelAreas];
@@ -2117,10 +2122,9 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	if(self.markerView && !_markerView.hidden) {
 		[_markerView updateTrackingAreas];
 	}
-	
 }
-
-
+	
+	
 -(void)updateLabelAreas {
 	if (self.enabledMarkerLabel) {
 		[self.enabledMarkerLabel updateTrackingArea];

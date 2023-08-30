@@ -97,8 +97,8 @@ static NSString *const Title = @"title";
 		return;
 	}
 		
-	if(count < 2) {
-		NSException *exception = [NSException exceptionWithName:@"Editor configuration exception." reason:@"Cannot configure the editor. There are fewer than 2 titles and keypaths." userInfo:nil];
+	if(count < 1) {
+		NSException *exception = [NSException exceptionWithName:@"Editor configuration exception." reason:@"Cannot configure the editor. There are fewer than 1 title." userInfo:nil];
 		[exception raise];
 		return;
 	}
@@ -210,7 +210,7 @@ static NSString *const Title = @"title";
 }
 
 
-/// Inserts a new row (sort criterion) to the table. Only sent by the "+" button
+/// Inserts a new row (sort criterion) to the table. Only sent by the "+" button.
 - (IBAction)insertRow:(NSButton *)sender {
 	NSInteger clickedRow = [self rowForButton:sender];
 	if(clickedRow == NSNotFound) {

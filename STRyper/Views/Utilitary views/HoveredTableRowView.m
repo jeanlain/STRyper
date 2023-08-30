@@ -116,7 +116,7 @@
 		NSRect intersect = NSIntersectionRect(frame,  NSInsetRect(self.hoveredButton.frame, -5, 0));
 		if(intersect.size.width > 0) {
 			frame.size.width -= intersect.size.width;
-			[cellView setFrame:frame];
+			cellView.frame = frame;
 		}
 	}
 }

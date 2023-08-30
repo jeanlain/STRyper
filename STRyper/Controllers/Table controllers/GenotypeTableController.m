@@ -449,6 +449,7 @@ NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
 		NSButton *clearFilterButton = [contentView viewWithTag:5];
 		clearFilterButton.action = @selector(clearFilter:);
 		clearFilterButton.target = self;
+		[clearFilterButton bind:NSEnabledBinding toObject:self.genotypes withKeyPath:@"filterPredicate" options:@{NSValueTransformerNameBindingOption: NSIsNotNilTransformerName}];
 		
 		NSButton *applyFilterButton = [contentView viewWithTag:6];
 		applyFilterButton.action = @selector(applyFilter:);

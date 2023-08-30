@@ -211,7 +211,7 @@ enum TextFieldTag: NSInteger {
 
 
 - (void)controlTextDidEndEditing:(NSNotification *)obj {
-	/// We check if the values entered in the preference window for the start and end of the default visible range of traces are consistent.
+	/// We check if the values entered in the settings window for the start and end of the default visible range of traces are consistent.
 	/// We change them otherwise.
 	NSTextField *textField = obj.object;
 	NSView *view = textField.superview;

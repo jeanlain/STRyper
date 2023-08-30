@@ -90,7 +90,7 @@
 		NSPredicate *predicate = self.predicateEditor.predicate;
 		/// we won't close if the predicate has empty terms
 		if(predicate.hasEmptyTerms) {
-			NSError *error = [NSError errorWithDescription:@"At least one search field is empty." suggestion:@"Please, fill all search fields."];
+			NSError *error = [NSError errorWithDescription:@"At least one text field is empty." suggestion:@"Please, fill all fields."];
 			[[NSAlert alertWithError:error] beginSheetModalForWindow:self completionHandler:^(NSModalResponse returnCode) {
 			}];
 			return;

@@ -426,6 +426,13 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 		[super scrollWheel:event];
 		return;
 	}
+	
+	float delta = event.scrollingDeltaX;
+	if(fabs(delta) < fabs(event.scrollingDeltaY)) {
+		[super scrollWheel:event];
+		return;
+	}
+	
 	/// if the user scrolls rapidly to the left or right, we interpret the event as a swipe, to move between markers
 	MarkerView *markerView = (MarkerView *)self.accessoryView;
 	if(![markerView respondsToSelector:@selector(markerLabels)] || markerView.markerLabels.count == 0) {
@@ -434,7 +441,6 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 		return;
 	}
 	
-	float delta = event.scrollingDeltaX;
 	if(event.phase == NSEventPhaseBegan) {
 		horizontalScrollAmount = delta;
 		startScrollTime = event.timestamp;

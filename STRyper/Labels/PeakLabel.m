@@ -44,7 +44,6 @@
 	__weak RegionLabel *targetBinLabel;		/// the bin label that is the current target of a drag
 	NSPoint startPoint;						/// to implement dragging behavior. Position of the dragging handle fixed point
 	NSPoint handlePosition;					/// position of the dragging handle that is controlled by the mouse
-	BOOL inBin;								/// Whether the handle is within a target bin
 	NSToolTipTag toolTipTag;				/// The tag of the tooltip showing peak information on our view
 }
 
@@ -268,27 +267,13 @@ static NSBezierPath *peakArea;
 static CALayer *dragLineLayer;
 
 
+/// draws a handle from the peak to the mouse, to assign a peak to a bin (manual genotyping)
 - (void)drag {
-	/// draws a handle from the peak to the mouse, to assign a peak to a bin (manual genotyping)
-	TraceView *view = self.view;
-	if(!self.dragged) {
-		if(self.view.binLabels.count == 0 || !self.view.showDisabledBins) {
-			/// The user would do nothing with the handle if there is no bin.
-			return;
-		}
-		/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
-		/// This avoids assigning the peak to an allele for  what could be a simple click.
-		NSPoint clickedPoint = view.clickedPoint;
-		NSPoint mouseLocation = view.mouseLocation;
-		float dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
-		if(dist < 5) {
-			return;
-		}
-	}
-	
 	self.dragged = YES;
 	
-	if(marker) {	/// setDragged finds the marker that encloses our peak, if any
+	if(self.dragged) {	/// The drag may not be effective (see setDragged:).
+		TraceView *view = self.view;
+		NSPoint mouseLocation = view.mouseLocation;
 		targetBinLabel = nil;
 			
 		/// We highlight the bin label that is under the mouse
@@ -297,7 +282,7 @@ static CALayer *dragLineLayer;
 		for(RegionLabel *markerLabel in view.markerLabels) {
 			if(markerLabel.region == marker) {
 				for(RegionLabel *binLabel in markerLabel.binLabels) {
-					if (NSPointInRect(view.mouseLocation, binLabel.frame)) {
+					if (NSPointInRect(mouseLocation, binLabel.frame)) {
 						targetBinLabel = binLabel;
 						binLabel.hovered = YES;
 						break;
@@ -309,22 +294,23 @@ static CALayer *dragLineLayer;
 			}
 		}
 		
+		handlePosition.y = mouseLocation.y;
+		if(targetBinLabel) {
+			/// if the mouse is within a bin, we set the x position of the handle to the middle of the bin (some sort of magnetism)
+			float midBinX = NSMidX(targetBinLabel.frame);
+			if(handlePosition.x != midBinX) {
+				/// If the handle was not previously in the bin, we signify magnetism with haptic feedback
+				[NSHapticFeedbackManager.defaultPerformer performFeedbackPattern:NSHapticFeedbackPatternAlignment
+																 performanceTime:NSHapticFeedbackPerformanceTimeDefault];
+			}
+			handlePosition.x = midBinX;
+		} else {
+			handlePosition.x = mouseLocation.x;
+		}
+		
 		/// we prepare the layer that draws the connection line.
 		/// This layer goes from the start point of the drag to the end point, and takes the whole view height
 		/// We could make it larger, but performance is better when the layer is not larger than needed
-		handlePosition = view.mouseLocation;
-		if(targetBinLabel) {
-			/// if the mouse is within a bin, we set the x position of the handle to the middle of the bin (some sort of magnetism)
-			handlePosition.x = NSMidX(targetBinLabel.frame);
-			if(!inBin) {
-				/// If the handle was not previously in a bin, we signify magnetism with haptic feedback
-				[NSHapticFeedbackManager.defaultPerformer performFeedbackPattern:NSHapticFeedbackPatternAlignment
-																 performanceTime:NSHapticFeedbackPerformanceTimeDefault];
-				inBin = YES;
-			}
-		} else {
-			inBin = NO;
-		}
 		float distX = ceil(startPoint.x - handlePosition.x);
 		float x = distX < 0? startPoint.x : handlePosition.x;
 		dragLineLayer.frame = CGRectMake(x - 5, 0, fabsf(distX) + 10, view.frame.size.height);
@@ -344,7 +330,22 @@ static CALayer *dragLineLayer;
 
 - (void)setDragged:(BOOL)dragged {
 	if(dragged != self.dragged) {
+		TraceView *view = self.view;
+		NSPoint mouseLocation = view.mouseLocation;
 		if(dragged) {
+			if(!self.dragged) {
+				if(view.binLabels.count == 0 || !view.showDisabledBins) {
+					/// The user would do nothing with the handle if there is no bin.
+					return;
+				}
+				/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
+				/// This avoids assigning the peak to an allele for  what could be a simple click.
+				NSPoint clickedPoint = view.clickedPoint;
+				float dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
+				if(dist < 5) {
+					return;
+				}
+			}
 			marker = self.marker;
 			if(marker.bins.count == 0) {
 				/// we don't do the drag behavior the peak is not within a marker or the marker has no bin
@@ -359,7 +360,7 @@ static CALayer *dragLineLayer;
 		} else {
 			/// here the mouse has been released after we were dragged
 			targetBinLabel.hovered = NO;
-			if(!NSPointInRect(self.view.mouseLocation, self.frame)) {
+			if(!NSPointInRect(mouseLocation, self.frame)) {
 				self.hovered = NO;
 			}
 			[dragLineLayer setNeedsDisplay]; /// this clears the layer

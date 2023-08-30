@@ -51,7 +51,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This method find the `NSURL` objects from the paste board that conforms to `com.appliedbiosystems.abif.fsa` or `com.appliedbiosystems.abif.hid`.
 ///
-/// This method can be used to determine which copied or dragged files from the Finder are valid for import.
+/// This method can be used to determine which copied or dragged files from the Finder are of the right type.
 ///
 /// - Parameters:
 /// 	- pboard: The pasteboard in which to look for ABIF file paths.

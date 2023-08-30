@@ -61,7 +61,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 }
 
 - (BOOL)importOnGoing {
-	return self.importProgress != nil;		/// we use the existence of the import progress (which we nullify after each import) to determine if an import is ongoing
+	return self.importProgress != nil;		
 }
 
 + (void)initialize {

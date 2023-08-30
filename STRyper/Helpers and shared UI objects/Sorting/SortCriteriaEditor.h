@@ -39,7 +39,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Configures the receiver with available key paths for sorting, and corresponding user-friendly titles.
 /// - Parameters:
-///   - titles: The titles that will show in the popup button (from top to bottom) allowing the user to select among sort attributes at a given row. The array must contain at least two elements, each of which must be unique.
+///   - titles: The titles that will show in the popup button (from top to bottom) allowing the user to select among sort attributes at a given row.
+///   The array must contain at least two elements, each of which must be unique.
 ///   - keypaths: The key paths used for sorting. Each key path corresponds to an element of the `titles` argument at the same index, and must be unique.
 -(void)setTitles:(NSArray<NSString *>*)titles forKeyPaths:(NSArray<NSString *>*)keypaths;
 
