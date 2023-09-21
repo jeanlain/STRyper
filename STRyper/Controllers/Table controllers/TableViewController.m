@@ -138,15 +138,16 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 	if(!self.orderedColumnIDs) {
 		return;
 	}
+	NSDictionary *columnDescription = self.columnDescription;
 	for (NSString *ID in self.orderedColumnIDs) {
 		NSTableColumn *col = [[NSTableColumn alloc] initWithIdentifier:ID];
-		col.title = self.columnDescription[ID][ColumnTitle];
-		col.sortDescriptorPrototype = [NSSortDescriptor sortDescriptorWithKey:self.columnDescription[ID][KeyPathToBind] ascending:YES];
+		col.title = columnDescription[ID][ColumnTitle];
+		col.sortDescriptorPrototype = [NSSortDescriptor sortDescriptorWithKey:columnDescription[ID][KeyPathToBind] ascending:YES];
 		[self.tableView addTableColumn:col];
 		
 		col.width = col.headerCell.cellSize.width + 10;
 		col.minWidth = col.headerCell.cellSize.width ;
-		col.hidden = ![self.columnDescription[ID][IsColumnVisibleByDefault] boolValue];
+		col.hidden = ![columnDescription[ID][IsColumnVisibleByDefault] boolValue];
 		
 	}
 }
@@ -245,6 +246,13 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 }
 
 
+- (nullable NSArray<NSTableColumn *> *)visibleColumns {
+	return [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSTableColumn *column, NSDictionary<NSString *,id> * _Nullable bindings) {
+		return !column.isHidden;
+	}]];
+}
+
+
 - (void)menuNeedsUpdate:(NSMenu *)menu {
 	NSTableView *tableView = self.tableView;
 	NSTableHeaderView *headerView = tableView.headerView;
@@ -259,11 +267,7 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 		
 		/// we add a menu item allowing to hide the clicked column. To identify this column, we use the mouse location
 		/// But we don't hide if there is only one visible column
-		BOOL canHideColumn = [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSTableColumn *column, NSDictionary<NSString *,id> * _Nullable bindings) {
-			return !column.isHidden;
-		}]].count > 1;
-		
-		if(canHideColumn) {
+		if(self.visibleColumns.count > 1) {
 			NSPoint clickPoint = [headerView convertPoint:NSApp.currentEvent.locationInWindow fromView:nil];
 			NSInteger clickedCol = [headerView columnAtPoint:clickPoint];
 			if(clickedCol >= 0 && clickedCol < tableView.numberOfColumns) {
@@ -285,6 +289,11 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 			item.representedObject = col;
 			[menu addItem:item];
 		}
+		
+		[menu addItem:NSMenuItem.separatorItem];
+		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Show All" action:@selector(showAllColumns:) keyEquivalent:@""];
+		[menu addItem:item];
+		
 		return;
 	}
 	
@@ -308,6 +317,13 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 	NSTableColumn *column = sender.representedObject;
 	if(column) {
 		column.hidden = !column.hidden;
+	}
+}
+
+
+-(void)showAllColumns:(id)sender {
+	for (NSTableColumn *column in self.tableView.tableColumns) {
+		column.hidden = NO;
 	}
 }
 
@@ -341,19 +357,13 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 
 
 - (NSString *)stringForObject:(id) object {
-	NSString *string = @"";
-	NSArray *tableColumns = [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSTableColumn *column, NSDictionary<NSString *,id> * _Nullable bindings) {
-		return !column.hidden;
-	}]];
-	NSTableColumn *lastColumn = tableColumns.lastObject;
-	for (NSTableColumn *column in tableColumns) {
-		string = [string stringByAppendingString: [self stringCorrespondingToColumn:column forObject:object]];
-		if(column != lastColumn) {
-			string = [string stringByAppendingString: @"\t"];
-		}
+	NSMutableArray *strings = NSMutableArray.new;
+
+	for (NSTableColumn *column in self.visibleColumns) {
+		[strings addObject:[self stringCorrespondingToColumn:column forObject:object]];
 	}
 	
-	return string;
+	return [strings componentsJoinedByString:@"\t"];
 }
 
 
@@ -544,11 +554,13 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 		BOOL canHideColumn = YES;
 		if(!column.isHidden) {
 			/// We can't hide a column if there is not more than 1 visible column
-			canHideColumn = [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSTableColumn *column, NSDictionary<NSString *,id> * _Nullable bindings) {
-				return !column.isHidden;
-			}]].count > 1;
+			canHideColumn = self.visibleColumns.count > 1;
 		}
 		return canHideColumn || column.isHidden;
+	}
+	
+	if(menuItem.action == @selector(showAllColumns:)) {
+		return self.visibleColumns.count < self.tableView.tableColumns.count;
 	}
 
 	return YES;
@@ -688,9 +700,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 	}
 	
 	/// The sort criteria we propose correspond to visible columns
-	NSArray *visibleColumns = [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSTableColumn *column, NSDictionary<NSString *,id> * _Nullable bindings) {
-		return !column.hidden;
-	}]];
+	NSArray *visibleColumns = self.visibleColumns;
 	
 	if(visibleColumns.count < 1) {
 		return;
@@ -718,7 +728,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 		if([dic isKindOfClass:NSDictionary.class]) {
 			NSString *keypath = dic[KeypathKey];
 			if(keypath && [keypaths containsObject: keypath]) {
-				[sortDescriptors addObject:[NSSortDescriptor sortDescriptorWithKey:keypath ascending:dic[AscendingOrderKey]]];
+				[sortDescriptors addObject:[NSSortDescriptor sortDescriptorWithKey:keypath ascending:[dic[AscendingOrderKey] boolValue]]];
 			} else {
 				[sortDescriptors removeAllObjects];
 				break;

@@ -34,11 +34,16 @@
 	/// The layer that draws our background.
 	/// The default background property does not work well with animations (the background rectangle and its color are not animated).
 	CALayer *backgroundLayer;
+	
+	RegionLabel *targetLabel;		/// the label of the marker to which we move to after a swipe gesture
+	float previousDeltaX;			/// The scrollingDeltaX of the last scrollWheel event, used to determine if we should move to the next/previous marker.
 }
 
 
 
 extern const float vScaleViewWidth;
+const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers";
+
 
 # pragma mark - general attribute setting
 
@@ -76,14 +81,9 @@ extern const float vScaleViewWidth;
 	backgroundLayer.opaque = YES;
 	[self.layer addSublayer:backgroundLayer];
 	self.backgroundColor = NSColor.whiteColor;
-			
-		
- //  self.contentView.automaticallyAdjustsContentInsets = NO;
-  // self.contentView.contentInsets =  NSEdgeInsetsZero;
 
    self.automaticallyAdjustsContentInsets = NO;
-	self.contentInsets =  NSEdgeInsetsZero; // NSEdgeInsetsMake(20, 20, 20, 20);
-//	self.scrollerInsets = NSEdgeInsetsMake(0, vScaleViewWidth, 0, 0);
+	self.contentInsets =  NSEdgeInsetsZero;
 }
 
 
@@ -170,15 +170,21 @@ extern const float vScaleViewWidth;
 
 
 - (void)scrollClipView:(NSClipView *)aClipView toPoint:(NSPoint)aPoint {
-	/// we override for our custom scrolling behavior
-	if(traceView.hScale <= 0 || traceView.isResizing) {
-		return;		/// the view being resized tends to trigger this method which messes with the scrolling. So we don't scroll in this situation.
+	NSScrollerPart hitPart = self.horizontalScroller.hitPart;
+	float hScale = traceView.hScale;
+	
+	if(hScale <= 0 || traceView.isResizing || targetLabel || !(previousDeltaX != 0 || hitPart != NSScrollerNoPart)) {
+		/// the view being resized tends to trigger this method which messes with the scrolling. So we don't scroll in this situation.
+		/// We also check the presence of a scroll event, because appkits tends to call this method inappropriately, in particular after a swipe between markers.
+		/// The swipe requires ignoring some scrollWheel messages that occur after the fingers have left the trackpad (inertial scrolling events after the swipe).
+		/// Appkit apparently buffers these events and sees fit to call this method when the mouse exists us,
+		/// to make us scroll the document view where it should have scrolled if we did not ignore the scrollWheel messages
+		/// This causes a jump in scroll position.
+		return;
 	}
 	
 	BaseRange newRange = traceView.visibleRange;
-	newRange.start = aPoint.x / traceView.hScale + traceView.sampleStartSize;
-	/// we determine how the user is scrolling
-	NSScrollerPart hitPart = self.horizontalScroller.hitPart;
+	newRange.start = aPoint.x / hScale + traceView.sampleStartSize;
 	
 	if(hitPart == NSScrollerIncrementPage || hitPart == NSScrollerDecrementPage) {
 		/// if the user is scrolling "by page", we move the view to the newRange with animation
@@ -186,14 +192,16 @@ extern const float vScaleViewWidth;
 		/// and they change their vertical scale during the scroll (not after) if they autoscale to the highest visible peak
 		[traceView setVisibleRange:newRange animate:YES];
 	} else {
-		/// else we just set the visible range
+		/// else we just set the visible range.
 		traceView.visibleRange = newRange;
-	}
+	} 
 }
 
 
 - (void)scrollWheel:(NSEvent *)theEvent {
-	BOOL vertical = fabs(theEvent.scrollingDeltaX) < fabs(theEvent.scrollingDeltaY);
+
+	float deltaX = theEvent.scrollingDeltaX;
+	BOOL vertical = fabs(deltaX) < fabs(theEvent.scrollingDeltaY);
 	BOOL altKeyDown = (theEvent.modifierFlags & NSEventModifierFlagOption) != 0;
 	if (altKeyDown) {
 		if(vertical) {
@@ -205,15 +213,43 @@ extern const float vScaleViewWidth;
 			[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:NO];
 		}
 	} else {
+		if(deltaX == 0) { /// Which happens at the end of a scroll session or when fingers leave the trackpad.
+			targetLabel = nil;
+		} else {
+			if(targetLabel) {
+				/// If we are moving to the target label, we ignore scrollWheel event.
+				return; /// this will not prevent appkit from calling scrollClipView: on us.
+			}
+		}
+		
+		NSEventPhase phase = theEvent.phase;
 		/// if the user started to scrolls vertically, we pass the event up in the hierarchy as we don't scroll vertically
-		if (theEvent.phase <= NSEventPhaseBegan && vertical) {
+		if (phase <= NSEventPhaseBegan && vertical) {
+			/// After doing so, no scrollWheel: message will be sent to us for the current scroll gesture. The next responder will "consume" the scrolling.
 			[self.nextResponder scrollWheel:theEvent];
 		} else {
-			/// we do not scroll if the mouse is down. This prevents unwanted scrolling that may happen with the magic mouse
+			if(phase == NSEventPhaseEnded && fabs(previousDeltaX) >= 5 && self.allowSwipeBetweenMarkers && traceView.markerView.markerLabels.count > 0) {
+				/// Here the fingers have just left the trackpad while moving (not stationary), which corresponds to a swipe gesture.
+				/// We needed the previousDeltaX ivar as the deltaX is always 0 when the phase is NSEventPhaseEnded
+				NSPoint location = [self convertPoint:theEvent.locationInWindow fromView:nil];
+				if(NSPointInRect(location, self.horizontalRulerView.frame)) {
+					if(previousDeltaX < 0) {
+						targetLabel = [traceView.markerView moveToNextMarker:self];
+					} else {
+						targetLabel = [traceView.markerView moveToPreviousMarker:self];
+					}
+					if(targetLabel) {
+						previousDeltaX = 0;  /// which we use to prevent scrolling in -scrollClipView: toPoint:, as the trace view has started moving to the marker independently of the scrollWheel events
+						return;
+					}
+				}
+			}
 			if(NSEvent.pressedMouseButtons <= 0){
+				/// we do not scroll if the mouse is down. This prevents unwanted scrolling that may happen with the magic mouse
 				[super scrollWheel:theEvent];
 			}
 		}
+		previousDeltaX = deltaX;
 	}
 }
 

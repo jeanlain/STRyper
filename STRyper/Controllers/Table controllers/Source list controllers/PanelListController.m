@@ -289,17 +289,7 @@
 	Panel *newPanel = [Panel panelFromTextFile:url.path insertInContext:temporaryContext error:&error];
 	
 	if(error) {
-		NSAlert *alert = [NSAlert alertWithError:error];
-		NSString *log = [MainWindowController.sharedController populateErrorLogWithError:error];
-		if(log.length >0) {
-			[alert addButtonWithTitle:@"Show Error Log"];
-			[alert addButtonWithTitle:@"Close"];
-		}
-		[alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
-			if(returnCode == NSAlertFirstButtonReturn && log.length > 0) {
-				[MainWindowController.sharedController showErrorLogWindow:self];
-			}
-		}];
+		[MainWindowController.sharedController showAlertForError:error];
 		return;
 	}
 	
@@ -308,6 +298,7 @@
 	if(temporaryContext.hasChanges){
 		[temporaryContext save:&error];
 	}
+	
 	if(error) {
 		NSAlert *alert = [NSAlert alertWithError:error];
 		[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {

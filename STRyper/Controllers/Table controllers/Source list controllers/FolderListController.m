@@ -312,7 +312,6 @@
 		([pboard.types containsObject:ChromatogramPasteboardType] || [pboard.types containsObject:ChromatogramCombinedPasteboardType]);
 	}
 	
-	
 	return YES;
 }
 

@@ -35,6 +35,9 @@
 		_offset = MarkerOffsetNone;
 		
 		layer = CALayer.new;
+		layer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
+						  NSStringFromSelector(@selector(borderWidth)):NSNull.null};
+		
 		layer.delegate = self;
 		
 		bandLayer = CALayer.new;

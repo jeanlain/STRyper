@@ -54,7 +54,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// A panel that can be used to show an error log.
 ///
-/// This panel only contains an NSTextView.
+/// This panel only contains an `NSTextView`.
 @property (readonly, nonatomic) NSPanel *errorLogWindow;
 
 /// Sets log as the text of the ``errorLogWindow``.
@@ -67,11 +67,17 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Populates the text content of the ``errorLogWindow`` with the failure reason of error.
 ///
-/// If the error userInfo dictionary contains errors at the NSDetailedErrorsKey, the failure reasons for these errors are logged.
+/// If the error `userInfo dictionary contains errors at the `NSDetailedErrorsKey`, the failure reasons for these errors are logged.
 /// - Parameter error: The error that should be shown in the log window.
 /// - Returns: The string shown in the ``errorLogWindow``.
 -(NSString *)populateErrorLogWithError:(NSError *)error;
 
+
+/// Shows the user an alert based on an error, with a button that allows showing the ``errorLogWindow``.
+///
+/// If the `error` describes several errors in its `userInfo` dictionary, the alert will propose to show the error log window describing these errors.
+/// - Parameter error: The error to show in the alert.
+-(void)showAlertForError:(NSError *)error;
 
 /// Actions sent by controls to the first responder and that have only one possible receiver.
 /// As a window controller, this object may receives them and relay them to their target.

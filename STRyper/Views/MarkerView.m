@@ -155,14 +155,14 @@ enum ButtonTag : NSUInteger {
 			button.autoresizingMask = NSViewMaxXMargin | NSViewHeightSizable;
 			break;
 		case previousMarkerButtonTag:
-			button.action = @selector(moveToMarkerLabel:);
+			button.action = @selector(moveToPreviousMarker:);
 			[button bind:NSEnabledBinding toObject:self withKeyPath:@"markerLabels.@count" options:nil];
 			button.frame = NSMakeRect(0, 0, 15, self.bounds.size.height);
 			button.toolTip = @"Move to previous marker";
 			button.autoresizingMask = NSViewMaxXMargin | NSViewHeightSizable;
 			break;
 		case nextMarkerButtonTag:
-			button.action = @selector(moveToMarkerLabel:);
+			button.action = @selector(moveToNextMarker:);
 			[button bind:NSEnabledBinding toObject:self withKeyPath:@"markerLabels.@count" options:nil];
 			button.frame = NSMakeRect(NSMaxX(self.bounds) - 15, 0, 15, self.bounds.size.height);
 			button.toolTip = @"Move to next marker";
@@ -408,6 +408,10 @@ enum ButtonTag : NSUInteger {
 	}
 }
 
+- (void)mouseEntered:(NSEvent *)event {
+	[super mouseEntered:event];
+	[self updateCursor];
+}
 
 - (void)resetCursorRects {
 	/// we make sure that the buttons we have as subviews show the arrow cursor
@@ -419,43 +423,62 @@ enum ButtonTag : NSUInteger {
 }
 
 
--(IBAction)moveToPreviousMarker:(id)sender {
-	[self moveToMarkerLabel:previousMarkerButton];
-}
-
-
--(IBAction)moveToNextMarker:(id)sender {
-	[self moveToMarkerLabel:nextMarkerButton];
-}
-
-
-/// triggered by the previous/next marker button
-- (IBAction)moveToMarkerLabel:(NSButton *)sender {
+-(RegionLabel *)moveToPreviousMarker:(id)sender {
 	if(self.markerLabels.count == 0) {
-		return;
+		return nil;
 	}
-	BaseRange currentRange = self.traceView.visibleRange;
+	BaseRange visibleRange = self.traceView.visibleRange;
+	float rangeStart = visibleRange.start;
 	NSArray *sortedMarkerLabels = [Panel sortByStart: self.markerLabels];
-	RegionLabel *leftMarkerLabel = sortedMarkerLabels.firstObject;
-	RegionLabel *rightMarkerLabel = sortedMarkerLabels.lastObject;
-	if(sortedMarkerLabels.count > 1) {
-		for(RegionLabel *markerLabel in sortedMarkerLabels) {
-			if(markerLabel.startSize - currentRange.start < 0) {
-				leftMarkerLabel = markerLabel;
-			}
-			if((markerLabel.endSize - currentRange.start - currentRange.len) > 0) {
-				rightMarkerLabel = markerLabel;
-				break;
-			}
+	RegionLabel *targetLabel;
+	for(RegionLabel *markerLabel in sortedMarkerLabels) {
+		if(markerLabel.startSize < rangeStart) {
+			targetLabel = markerLabel;
+		} else if(markerLabel.startSize > rangeStart) {
+			break;
 		}
 	}
-	
-	if(sender.tag == previousMarkerButtonTag) { //
-		[self.traceView zoomToMarkerLabel:leftMarkerLabel];
-	} else {
-		[self.traceView zoomToMarkerLabel:rightMarkerLabel];
+	if(targetLabel == nil) {
+		RegionLabel *firstLabel = sortedMarkerLabels.firstObject;
+		if(sender == previousMarkerButton || firstLabel.endSize <= visibleRange.start + visibleRange.len) {
+			targetLabel = firstLabel;
+		}
 	}
+	if(targetLabel) {
+		[self.traceView zoomToMarkerLabel:targetLabel];
+		return  targetLabel;
+	}
+	return nil;
 }
+
+
+-(RegionLabel *)moveToNextMarker:(id)sender {
+	if(self.markerLabels.count == 0) {
+		return nil;
+	}
+	BaseRange visibleRange = self.traceView.visibleRange;
+	float rangeEnd = visibleRange.start + visibleRange.len;
+	NSArray *sortedMarkerLabels = [Panel sortByStart: self.markerLabels];
+	RegionLabel *targetLabel;
+	for(RegionLabel *markerLabel in sortedMarkerLabels) {
+		if(markerLabel.endSize > rangeEnd) {
+			targetLabel = markerLabel;
+			break;
+		}
+	}
+	if(targetLabel == nil) {
+		RegionLabel *lastLabel = sortedMarkerLabels.lastObject;
+		if(sender == nextMarkerButton || lastLabel.startSize >= visibleRange.start) {
+			targetLabel = lastLabel;
+		}
+	}
+	if(targetLabel) {
+		[self.traceView zoomToMarkerLabel:targetLabel];
+		return targetLabel;
+	}
+	return nil;
+}
+
 
 
 - (void)setInAddMode:(BOOL)inAddMode {

@@ -6,29 +6,7 @@
       "scale" : "1x"
     },
     {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "filename" : "padlock dark.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
       "filename" : "padlock 2.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "filename" : "padlock dark 1.pdf",
       "idiom" : "mac",
       "scale" : "2x"
     }

@@ -24,7 +24,6 @@
 #import "TraceScrollView.h"
 #import "FittingView.h"
 #import "RegionLabel.h"
-#import "MarkerView.h"
 
 const float ruleThickness = 14.0;			/// the thickness of the ruler
 
@@ -414,54 +413,14 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 
 
 - (void)resetCursorRects {
-	[self addCursorRect:self.visibleRect cursor:loupeCursor];
+	NSRect visibleRect = self.visibleRect;
+	/// We show the loupe cursor, but we avoid the top of the view if its covered by the accessory view (which should be the marker view).
+	float height = NSIntersectionRect(visibleRect, self.accessoryView.frame).size.height;
+	visibleRect.size.height -= NSIntersectionRect(visibleRect, self.accessoryView.frame).size.height;
+	visibleRect.origin.y += height;
 	
-}
-
-const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers";
-
-
-- (void)scrollWheel:(NSEvent *)event {
-	if(!self.allowSwipeBetweenMarkers) {
-		[super scrollWheel:event];
-		return;
-	}
+	[self addCursorRect:visibleRect cursor:loupeCursor];
 	
-	float delta = event.scrollingDeltaX;
-	if(fabs(delta) < fabs(event.scrollingDeltaY)) {
-		[super scrollWheel:event];
-		return;
-	}
-	
-	/// if the user scrolls rapidly to the left or right, we interpret the event as a swipe, to move between markers
-	MarkerView *markerView = (MarkerView *)self.accessoryView;
-	if(![markerView respondsToSelector:@selector(markerLabels)] || markerView.markerLabels.count == 0) {
-		/// We do a standard scroll if there is no marker view or if it doesn't show any marker
-		[super scrollWheel:event];
-		return;
-	}
-	
-	if(event.phase == NSEventPhaseBegan) {
-		horizontalScrollAmount = delta;
-		startScrollTime = event.timestamp;
-	} else if(event.phase == NSEventPhaseEnded) {
-		float timeTaken = event.timestamp - startScrollTime;
-		if(timeTaken < 0.5 && fabsf(horizontalScrollAmount) > 40.0) {
-			if(horizontalScrollAmount > 0) {
-				[markerView moveToPreviousMarker:self];
-			} else {
-				[markerView moveToNextMarker:self];
-			}
-		}
-		startScrollTime = 0;
-	} else {
-		if(startScrollTime > 0) {
-			horizontalScrollAmount += delta;
-		} else {
-			/// in this case, the user must have a standard mouse (there was not start phase)
-			[super scrollWheel:event];
-		}
-	}
 }
 
 

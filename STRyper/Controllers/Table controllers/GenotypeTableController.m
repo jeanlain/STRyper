@@ -378,42 +378,43 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 - (NSString *) stringFromGenotypes:(NSArray *)gen withSampleInfo: (BOOL)addSampleInfo {
 	
 	NSMutableString *exportString = NSMutableString.new;
-	
+	NSMutableArray *exportStrings = NSMutableArray.new;
+
 	/// we make a header with column names
-	for(NSTableColumn *column in self.tableView.tableColumns) {
-		[exportString appendString: column.headerCell.stringValue];
-		[exportString appendString: @"\t"];
+	BOOL nameColumnShown = NO;
+	for(NSTableColumn *column in self.visibleColumns) {
+		if([column.title isEqualToString:@"Sample"]) {
+			nameColumnShown = YES;
+		}
+		[exportStrings addObject: column.headerCell.stringValue];
 	}
 	
 	if(addSampleInfo) {
-		for(NSTableColumn *column in SampleTableController.sharedController.tableView.tableColumns) {
-			if(![column.identifier isEqualToString:@"sampleNameColumn"] && !column.hidden) {
-				[exportString appendString: column.headerCell.stringValue];
-				[exportString appendString: @"\t"];
+		for(NSTableColumn *column in SampleTableController.sharedController.visibleColumns) {
+			if(!([column.identifier isEqualToString:@"sampleNameColumn"] && nameColumnShown)) {
+				[exportStrings addObject: column.headerCell.stringValue];
 			}
 		}
 	}
 	
-	[exportString deleteCharactersInRange:NSMakeRange(exportString.length-1, 1)];	/// we remove the last superfluous tab
-	[exportString appendString: @"\n"];
+	NSString *row = [exportStrings componentsJoinedByString:@"\t"];
+	[exportString appendFormat:@"%@\n", row];
 	
 	for (Genotype *genotype in gen) {
+		[exportStrings removeAllObjects];
 		/// we export data as shown in the table, hence based on the displayed columns and their order
-		[exportString appendString: [self stringForObject:genotype]];
-		[exportString appendString: @"\t"];
+		[exportStrings addObject: [self stringForObject:genotype]];
 		if(addSampleInfo) {
 			Chromatogram *sample = genotype.sample;
 			SampleTableController *sampleTableController = SampleTableController.sharedController;
-			for (NSTableColumn *column in  sampleTableController.tableView.tableColumns) {
-				if(![column.identifier isEqualToString:@"sampleNameColumn"] && !column.hidden) { /// the sample name column is already part of the genotype table
-					[exportString appendString: [sampleTableController stringCorrespondingToColumn:column forObject:sample]];
-					[exportString appendString:@"\t"];
+			for (NSTableColumn *column in  sampleTableController.visibleColumns) {
+				if(!([column.identifier isEqualToString:@"sampleNameColumn"] && nameColumnShown)) { /// the sample name column is already part of the genotype table
+					[exportStrings addObject: [sampleTableController stringCorrespondingToColumn:column forObject:sample]];
 				}
 			}
 		}
-		
-		[exportString deleteCharactersInRange:NSMakeRange(exportString.length-1, 1)];	// we remove the last superfluous tab
-		[exportString appendString: @"\n"];
+		row = [exportStrings componentsJoinedByString:@"\t"];
+		[exportString appendFormat:@"%@\n", row];
 	}
 	return exportString;
 }

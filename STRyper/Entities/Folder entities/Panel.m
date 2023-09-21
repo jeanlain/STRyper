@@ -143,7 +143,7 @@ NSString * _Nonnull const PanelVersionKey = @"version";
 
 
 +(NSError *)panelReadErrorWithFileName:(NSString *)fileName Errors:(NSArray <NSError *> *)errors {
-	NSString *errorDescription = [NSString stringWithFormat:@"File %@ could not be imported due to errors.", fileName.lastPathComponent];
+	NSString *errorDescription = [NSString stringWithFormat:@"File '%@' could not be imported due to errors.", fileName.lastPathComponent];
 	NSString *suggestion = @"Please, check the expected file format in the application user guide.";
 
 	NSDictionary *userInfo = @{NSLocalizedDescriptionKey : errorDescription,

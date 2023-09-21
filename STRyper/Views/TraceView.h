@@ -307,7 +307,7 @@ ShowPeakTooltipsBinding;
 
 /// Zooms the view to the range of its ``marker``, with animation.
 ///
-/// This method does nothing ``marker`` returns `nil`.
+/// This method does nothing if ``marker`` returns `nil`.
 - (void)zoomToMarker;
 
 /// Returns `YES` if the view has just had its size changed.

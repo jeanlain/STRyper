@@ -47,15 +47,15 @@ enum addBinPopoverTag : NSInteger {
 	/// As these labels are not drawn in the trace view (their "view" property is the marker view), it is useful to keep a reference to the traceView
 	__weak TraceView *traceView;
 	
-	CALayer *editButtonLayer;	/// the layer symbolizing the button that can be clicked to popup the menu (or lock the marker)
+	CALayer *actionButtonLayer;	/// the layer symbolizing the button that can be clicked to popup the menu (or end editing)
 								/// It is more convenient than using an NSButton because we make it a sublayer of our layer
-	NSTrackingArea *editButtonArea; /// A tracking area to determine if the edit button is hovered
-	NSToolTipTag toolTipTag;		/// a tag for a tooltip indicating the edit button role
-	BOOL hoveredEditButton;			/// Whether the edit button is hovered
+	NSTrackingArea *actionButtonArea; /// A tracking area to determine if the action button is hovered
+	NSToolTipTag toolTipTag;		/// a tag for a tooltip indicating the action button role
+	BOOL hoveredActionButton;			/// Whether the action button is hovered
 
 }
 
-/// Images for the edit button. CALayer cannot adapt to the app appearance if it uses an NSImage, so we have to specify different images for light and dark mode
+/// Images for the action button. CALayer cannot adapt to the app appearance if it uses an NSImage, so we have to specify different images for light and dark mode
 /// We also have difference images for when the button is hovered or not and depending on the marker edit state
 static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *actionCheckHoveredImage,
 *actionRoundDarkImage, *actionRoundHoveredDarkImage, *actionCheckDarkImage, *actionCheckHoveredDarkImage;
@@ -83,8 +83,11 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		
 		layer = CALayer.new;
 		layer.delegate = self;
-		
+		layer.actions = @{NSStringFromSelector(@selector(borderWidth)):NSNull.null};
+	
 		bandLayer = CALayer.new;
+		bandLayer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null};
+	
 		bandLayer.delegate = self;
 		stringLayer = CATextLayer.new;
 		stringLayer.delegate = self;
@@ -104,12 +107,13 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		stringLayer.anchorPoint = CGPointMake(0,0);
 		stringLayer.fontSize = 10.0;
 		[layer addSublayer:bandLayer];
-		editButtonLayer = CALayer.new;
-		editButtonLayer.delegate = self;
-		editButtonLayer.anchorPoint = CGPointMake(0, 0);
+		actionButtonLayer = CALayer.new;
+		actionButtonLayer.actions = @{NSStringFromSelector(@selector(contents)): NSNull.null};
+		actionButtonLayer.delegate = self;
+		actionButtonLayer.anchorPoint = CGPointMake(0, 0);
+		actionButtonLayer.bounds = CGRectMake(0, 0, 15, 15);
+		[layer addSublayer:actionButtonLayer];
 		
-		editButtonLayer.bounds = CGRectMake(0, 0, 15, 15);
-		[layer addSublayer:editButtonLayer];
 		disabledColor = [NSColor colorWithCalibratedWhite:0.8 alpha:1.0];
 		edgeColor = NSColor.grayColor;
 	}
@@ -141,13 +145,13 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 - (void)updateAppearance {
 	[super updateAppearance];
-	if(editButtonLayer) {
+	if(actionButtonLayer) {
 		EditState editState = self.editState;
-		BOOL wasHidden = editButtonLayer.hidden;
-		editButtonLayer.hidden = (editState == editStateNil && !self.hovered && !self.highlighted) || !self.enabled || !self.region;
-		[self updateEditButton];
+		BOOL wasHidden = actionButtonLayer.hidden;
+		actionButtonLayer.hidden = (editState == editStateNil && !self.hovered && !self.highlighted) || !self.enabled || !self.region;
+		[self updateActionButton];
 
-		if(wasHidden != editButtonLayer.hidden) {
+		if(wasHidden != actionButtonLayer.hidden) {
 			/// we reposition the label internal layers as the button layer's change in visibility changes the name's position
 			[self layoutInternalLayers];
 		}
@@ -157,27 +161,27 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 - (void)updateForTheme {
 	[super updateForTheme];
-	[self setEditButtonContent];
+	[self setActionButtonContent];
 }
 
 
--(void) updateEditButton {
-	/// Since the edit button uses an image that has a dark appearance, it's content must be set within -updateLayer of the host view
+-(void) updateActionButton {
+	/// Since the action button uses an image that has a dark appearance, it's content must be set within -updateLayer of the host view
 	self.view.needsUpdateLabelAppearance = YES;
 }
 
 
--(void)setEditButtonContent {
-	if(editButtonLayer) {
+-(void)setActionButtonContent {
+	if(actionButtonLayer) {
 		NSImage *buttonImage;
 		BOOL inEdit = self.editState != editStateNil;
-		if(hoveredEditButton) {
+		if(hoveredActionButton) {
 			buttonImage = inEdit? actionCheckHoveredImage : actionRoundHoveredImage;
 		} else {
 			buttonImage = inEdit? actionCheckImage : actionRoundImage;
 		}
 		if(buttonImage) {
-			editButtonLayer.contents = (__bridge id _Nullable)([buttonImage CGImageForProposedRect:nil context:nil hints:nil]);
+			actionButtonLayer.contents = (__bridge id _Nullable)([buttonImage CGImageForProposedRect:nil context:nil hints:nil]);
 		}
 	}
 }
@@ -186,8 +190,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 - (void)mouseEntered:(NSEvent *)theEvent {
 	[super mouseEntered:theEvent];
-	if(theEvent.trackingArea == editButtonArea) {
-		hoveredEditButton = YES;
+	if(theEvent.trackingArea == actionButtonArea) {
+		hoveredActionButton = YES;
 		[self updateAppearance];
 	}
 }
@@ -195,8 +199,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 - (void)mouseExited:(NSEvent *)theEvent {
 	[super mouseExited:theEvent];
-	if(theEvent.trackingArea == editButtonArea) {
-		hoveredEditButton = NO;
+	if(theEvent.trackingArea == actionButtonArea) {
+		hoveredActionButton = NO;
 		[self updateAppearance];
 	}
 }
@@ -205,15 +209,19 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 - (void)mouseUpInView {
 	[super mouseUpInView];
 	if(self.highlighted) {
-		/// we detect if the user has clicked the edit button
-		if(editButtonLayer && !editButtonLayer.hidden) {
-			NSPoint mouseUpPoint = [layer convertPoint:self.view.mouseUpPoint fromLayer:self.view.layer];
-			if(NSPointInRect(mouseUpPoint, editButtonLayer.frame)) {
+		/// we detect if the user has clicked the action button
+		if(hoveredActionButton) {
+			TraceView *view = self.view;
+			NSPoint mouseUpPoint = [layer convertPoint:view.mouseUpPoint fromLayer:view.layer];
+			if(NSPointInRect(mouseUpPoint, actionButtonLayer.frame)) {
 				Mmarker *marker = (Mmarker*)self.region;
-				if(self.editState != editStateNil) {		/// if true, the edit button looks like a checkbox
+				if(self.editState != editStateNil) {		/// if true, the action button looks like a checkbox
 					marker.editState = editStateNil;		/// in which case, clicking it exits the edit state of the marker (and all its labels)
 				} else {
-					[self.menu popUpMenuPositioningItem:nil atLocation:self.view.mouseUpPoint inView:self.view];
+					if(attachedPopover) {
+						[attachedPopover close];
+					}
+					[self.menu popUpMenuPositioningItem:nil atLocation:view.mouseUpPoint inView:view];
 				}
 			}
 		}
@@ -280,16 +288,16 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	/// The name is at the middle of the part of the marker label that is visible (and not behind the navigation buttons)
 	NSRect visibleMarkerRect = NSIntersectionRect(regionRect, NSMakeRect(0, 0, NSMaxX(self.view.bounds)-15, NSMaxY(self.view.bounds)));
 	CGPoint position = CGPointMake(NSMidX(visibleMarkerRect) - regionRect.origin.x - NSMidX(stringLayer.bounds), 3);
-	if(!editButtonLayer.hidden) {
-		position.x -= editButtonLayer.bounds.size.width/2 - 0.5;
+	if(!actionButtonLayer.hidden) {
+		position.x -= actionButtonLayer.bounds.size.width/2 - 0.5;
 		if(position.x < 1) {
 			position.x = 1;		/// makes sure the button is visible even if the label is very short
 		}
 	}
 	/// we position the button even if hidden. Otherwise, it may arrive from a distance when we get hovered
-	editButtonLayer.position = position;
+	actionButtonLayer.position = position;
 
-	stringLayer.position = editButtonLayer.hidden? CGPointMake(position.x, 4) : CGPointMake(NSMaxX(editButtonLayer.frame) + 1, 4);
+	stringLayer.position = actionButtonLayer.hidden? CGPointMake(position.x, 4) : CGPointMake(NSMaxX(actionButtonLayer.frame) + 1, 4);
 	
 	if(!traceView.isMoving && !self.dragged) {
 		[self updateButtonArea];
@@ -305,14 +313,20 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 -(void) updateButtonArea {
 	TraceView *view = self.view;
-	if (editButtonArea) {
-		[view removeTrackingArea:editButtonArea];
+	if (actionButtonArea) {
+		[view removeTrackingArea:actionButtonArea];
 		[view removeToolTip:toolTipTag];
-		editButtonArea = nil;
+		actionButtonArea = nil;
 	}
-	if(!editButtonLayer.hidden) {
-		NSRect buttonFrame = [editButtonLayer convertRect:editButtonLayer.bounds toLayer:view.layer];
-		editButtonArea = [self addTrackingAreaForRect:buttonFrame];
+	if(!actionButtonLayer.hidden) {
+		NSRect buttonFrame = [actionButtonLayer convertRect:actionButtonLayer.bounds toLayer:view.layer];
+		actionButtonArea = [self addTrackingAreaForRect:buttonFrame];
+		BOOL hovered = hoveredActionButton;
+		hoveredActionButton = (NSPointInRect(view.mouseLocation, buttonFrame));
+		if(hoveredActionButton != hovered) {
+			[self updateActionButton];
+		}
+		
 		toolTipTag = [view addToolTipRect:buttonFrame owner:self userData:nil];
 	}
 }
@@ -327,7 +341,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 # pragma mark - menu and actions
 
 - (NSString *)description {
-	/// This describes what the edit button does
+	/// This describes what the action button does
 	if(self.editState == editStateNil) {
 		return @"Show options";
 	} else {
@@ -465,7 +479,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 - (void)setEditState:(EditState)editState {
 	if(editState != self.editState) {
 		super.editState = editState;
-		/// the edit state is only reflected in the icon shown by the edit button.
+		/// the edit state is only reflected in the icon shown by the action button.
 		[self updateAppearance];
 		[self.view labelDidChangeEditState:self];
 	}
@@ -689,8 +703,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 - (void)doubleClickAction:(id)sender {
 	/// when double-clicked, we show the popover that allows the user to edit our name, start and end positions
 	NSPoint mouseUpPoint = [layer convertPoint:self.view.mouseUpPoint fromLayer:self.view.layer];
-	if(!NSPointInRect(mouseUpPoint, editButtonLayer.frame)) {
-		/// we don't show the popover if the double click happened on the edit button
+	if(!NSPointInRect(mouseUpPoint, actionButtonLayer.frame)) {
+		/// we don't show the popover if the double click happened on the action button
 		[self spawnRegionPopover:sender];
 	}
 }

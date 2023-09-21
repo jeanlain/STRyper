@@ -63,18 +63,18 @@ extern const float markerViewHeight;
 - (void)updateContent;
 
 
-/// Make the ``traceView`` zoom to the marker that is to the left.
-/// - Parameter sender: The object that send this message. It is ignored by the method.
+/// Make the ``traceView`` zoom to the marker that is to the left of the visible range, and returns the corresponding region label
+/// - Parameter sender: The object that sent this message.
 ///
-/// If the receiver only shows one marker, or if the leftmost marker is at the right, the method will zoom on that marker.
--(IBAction)moveToPreviousMarker:(id)sender;
+/// If there is no suitable marker to move to, the method returns `nil`
+-(nullable RegionLabel *)moveToPreviousMarker:(id)sender;
 
 
-/// Make the ``traceView`` zoom to the marker that is to the right.
-/// - Parameter sender: The object that send this message. It is ignored by the method.
+/// Make the ``traceView`` zoom to the marker that is to the right of the visible range, and returns the corresponding region label
+/// - Parameter sender: The object that sent this message.
 ///
-/// If the receiver only shows one marker, or if the rightmost marker is at the left, the method will zoom on that marker.
--(IBAction)moveToNextMarker:(id)sender;
+/// If there is no suitable marker to move to, the method returns `nil`
+-(nullable RegionLabel *)moveToNextMarker:(id)sender;
 
 @end
 

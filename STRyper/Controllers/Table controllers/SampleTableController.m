@@ -558,17 +558,7 @@
 											   NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(@"See the error log for details.", nil)
 											 }];
 		}
-		NSString *log = [MainWindowController.sharedController populateErrorLogWithError:error];
-		NSAlert *alert = [NSAlert alertWithError:error];
-		[alert addButtonWithTitle:@"Ok"];
-		if(log.length > 0) {
-			[alert addButtonWithTitle:@"Show Error Log"];
-		}
-		[alert beginSheetModalForWindow:self.tableView.window completionHandler:^(NSModalResponse returnCode) {
-			if(returnCode != NSAlertFirstButtonReturn) {
-				[MainWindowController.sharedController showErrorLogWindow:self];
-			}
-		}];
+		[MainWindowController.sharedController showAlertForError:error];
 	}
 	[(AppDelegate *)NSApp.delegate saveAction:self];
 	
@@ -715,26 +705,7 @@
 		
 		if(error && error.code != NSUserCancelledError) {
 			/// we did not manage the error first, as the operation above may block the UI (hence the dismissal of any error alert) if many samples are imported
-			NSAlert *alert = [NSAlert alertWithError:error];
-			NSArray *errors = error.userInfo[NSDetailedErrorsKey];
-			NSString *log;
-			if(errors.count > 0) {
-				[alert addButtonWithTitle:@"Show Error Log"];
-				[alert addButtonWithTitle:@"Close"];
-				log = NSString.new;
-				for(NSError *error in errors) {
-					log = [log stringByAppendingFormat:@"%@\t%@\t%@\n",
-						   error.userInfo[NSLocalizedDescriptionKey],
-						   error.userInfo[NSLocalizedFailureReasonErrorKey],
-						   error.userInfo[NSLocalizedRecoverySuggestionErrorKey]];
-				}
-				[MainWindowController.sharedController setLogWindowText:log];
-			}
-			[alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
-				if(returnCode == NSAlertFirstButtonReturn && log.length > 0) {
-					[MainWindowController.sharedController showErrorLogWindow:self];
-				}
-			}];
+			[MainWindowController.sharedController showAlertForError:error];
 		}
 	}];
 }
@@ -778,26 +749,7 @@
 		
 		if(error && error.code != NSUserCancelledError) {
 			/// we did not manage the error first, as the operation above may block the UI (hence the dismissal of any error alert) if many samples are imported
-			NSAlert *alert = [NSAlert alertWithError:error];
-			NSArray *errors = error.userInfo[NSDetailedErrorsKey];
-			NSString *log;
-			if(errors.count > 0) {
-				[alert addButtonWithTitle:@"Show Error Log"];
-				[alert addButtonWithTitle:@"Close"];
-				log = NSString.new;
-				for(NSError *error in errors) {
-					log = [log stringByAppendingFormat:@"%@\t%@\t%@\n",
-						   error.userInfo[NSLocalizedDescriptionKey],
-						   error.userInfo[NSLocalizedFailureReasonErrorKey],
-						   error.userInfo[NSLocalizedRecoverySuggestionErrorKey]];
-				}
-				[MainWindowController.sharedController setLogWindowText:log];
-			}
-			[alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
-				if(returnCode == NSAlertFirstButtonReturn && log.length > 0) {
-					[MainWindowController.sharedController showErrorLogWindow:self];
-				}
-			}];
+			[MainWindowController.sharedController showAlertForError:error];
 		}
 	}];
 	

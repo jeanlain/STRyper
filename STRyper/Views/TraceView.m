@@ -393,7 +393,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	_trace = aTrace;
 	Chromatogram *sample = aTrace.chromatogram;
 	_sampleStartSize = sample != nil? sample.startSize : 0.0;
-	[self setViewLength];
+	[self updateViewLength];
 }
 
 
@@ -798,7 +798,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			/// we only react if the sizing properties haven't become nil (which may happen)
 			if(sample == self.trace.chromatogram) {
 				if([keyPath isEqualToString:ChromatogramSizesKey]) {
-					[self setViewLength];
+					[self updateViewLength];
 					[self fitToIntrinsicContentSize];
 					self.needsLayoutLabels = YES;
 				} else if([keyPath isEqualToString:ChromatogramSizingQualityKey]){
@@ -893,7 +893,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	/// we draw the fluorescence curve(s) as paths of connected line segments.
 	/// Curves are drawn from left to right.
 	/// optimisations: we skip points of height less than 1 pt and just draw a straight line at y = vOffset,
-	/// except when neighbouring points that are at y > 1pt (or else the line would not be parallel to the edge).
+	/// except when neighboring points that are at y > 1pt (or else the line would not be parallel to the edge).
 	/// Since most of the trace has low fluorescence (especially with baseline level subtracted), this saves a lot of time
 	/// we skip points that are less than x = 1 pt away from a previous point, except for local maxima/minima (or else peaks gets borked).
 	/// This improves performance at low zoom scale, when paths are long and this is hardly noticeable
@@ -1035,7 +1035,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	if (range.start != _visibleRange.start | range.len != _visibleRange.len) {
 		_visibleRange = range;
-		float newScale = [self visibleWidth] / _visibleRange.len;
+		float newScale = self.visibleWidth / _visibleRange.len;
 		self.hScale = newScale;
 		self.visibleOrigin = (range.start - _sampleStartSize) * _hScale;
 		[self.delegate traceViewDidChangeRangeVisibleRange:self];
@@ -1141,11 +1141,17 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		/// to compute it, we need to record the previous visible origin (the new mouse location must set it after the scroll)
 		float previous = _visibleOrigin;
 		_visibleOrigin = newVisibleOrigin;
-		[self scrollToVisibleOrigin];
+		
+		NSClipView *clipView = (NSClipView *)self.superview;
+		if (clipView.bounds.origin.x != newVisibleOrigin) {
+			[clipView scrollToPoint:NSMakePoint(newVisibleOrigin, 0)];
+			[self.enclosingScrollView reflectScrolledClipView:clipView];
+		}
 		
 		if(mouseIn) {
 			/// We could determine the mouse location "de novo" using the NSWindow method,
-			/// but this would use more resources, considering that this is called at every scroll step
+			/// but this would use more resources, considering that this is called at every scroll step.
+			/// It's important to update the mouse location after the scrolling, otherwise it is not reported correctly in the ruler view during a zoom.
 			NSPoint location = _mouseLocation;
 			location.x += newVisibleOrigin - previous;
 			self.mouseLocation = location;
@@ -1178,16 +1184,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-/// scrolls to our visible origin
-- (void)scrollToVisibleOrigin {
-	NSClipView *clipView = (NSClipView *)self.superview;
-	NSPoint scrollPoint = clipView.bounds.origin;
-	if (scrollPoint.x != _visibleOrigin) {
-		
-		[clipView scrollToPoint:NSMakePoint(_visibleOrigin, 0)];
-		[self.enclosingScrollView reflectScrolledClipView:clipView];
-	}
-}
 
 
 #pragma mark - zooming
@@ -1234,17 +1230,18 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	float newStart = zoomPosition - (zoomPosition - self.visibleRange.start) / zoomFactor;
 	float newRangeLength = self.visibleRange.len/zoomFactor;
 	
-	if(newStart < _sampleStartSize) {
-		newStart = _sampleStartSize;
-	}
-	
+
 	/// we prevent showing what is past the end of the view during zoom out
 	if(newStart + newRangeLength > _sampleStartSize + viewLength) {
 		newStart = viewLength + _sampleStartSize - newRangeLength;
 	}
 	
+	if(newStart < _sampleStartSize) {
+		newStart = _sampleStartSize;
+	}
+	
 	if (newRangeLength > viewLength) {
-		newRangeLength = viewLength;  ///the range cannot be wider than the whole trace
+		newRangeLength = viewLength;  ///the range cannot be wider than the whole view
 	}
 	float maxRange = self.visibleWidth / maxHScale; /// we constrain zooming to a max level
 	if (newRangeLength < maxRange) {
@@ -1252,10 +1249,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	
 	if(self.visibleRange.len == newRangeLength && newRangeLength == maxRange) {
-		/// this is required to stop zooming when the max zoom factor is reached (this command would induce some unwanted scrolling)
+		/// this is required to stop zooming when the max zoom factor is reached (this method would induce some unwanted scrolling otherwise)
 		return;
 	}
-	
 	[self setVisibleRange:MakeBaseRange(newStart, newRangeLength) animate:animate];
 }
 
@@ -1274,7 +1270,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (void)zoomToMarker {
-	[self setVisibleRange:[self ourMarkerRange] animate:YES];
+	[self setVisibleRange:self.ourMarkerRange animate:YES];
 }
 
 
@@ -1362,7 +1358,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	
 	self.markerView.hidden = (trace && self.channel < 0) || trace.isLadder;
 	
-	[self fitToIntrinsicContentSize];			/// these are safety measures
 	self.needsLayoutLabels = YES;
 	self.rulerView.needsUpdateOffsets = YES;
 }
@@ -1520,7 +1515,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-- (void)setViewLength {
+- (void)updateViewLength {
 	float maxEndSize = self.defaultRange.start + self.defaultRange.len;
 	Trace *trace = self.trace;
 	float length = trace == nil? 600.0 : trace.chromatogram.readLength;
@@ -1701,7 +1696,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		defaultRange.len = MAX_TRACE_LENGTH - defaultRange.start;
 	}
 	_defaultRange = defaultRange;
-	[self setViewLength];
+	[self updateViewLength];
 	[self fitToIntrinsicContentSize];
 }
 
@@ -1784,16 +1779,21 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 static BOOL pressure = NO; /// to react only upon force click and not after
 
 - (void)pressureChangeWithEvent:(NSEvent *)event {
+	/// upon force click, we either select a bin (to edit it) or create a peak that could be missing at the location
 	if(!pressure && event.stage >= 2.0) {
 		pressure = YES;
 		NSPoint mouseLocation = [self convertPoint:event.locationInWindow fromView:nil];
 		if(NSPointInRect(mouseLocation, self.enabledMarkerLabel.frame)) {
 			Mmarker *marker = self.enabledMarkerLabel.region;
 			if(marker.editState != editStateBinSet) {
+				/// If the click is within the enabled marker label, the user may already be editing individual bins
+				/// in which case a force click isn't need. Or they may be editing the marker offset, in which case no bin should not be selectable
+				/// We only allow to proceed if the user is moving the bin set, which pertains to bin editing. 
 				return;
 			}
 		}
 		for(FragmentLabel *fragmentLabel in self.fragmentLabels) {
+			/// If the click happens to be in a fragment label, we do nothing. Selecting a bin behind it would look strange.
 			if(NSPointInRect(mouseLocation, fragmentLabel.frame)) {
 				return;
 			}
@@ -1928,7 +1928,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 		NSString *title = self.activeLabel.deleteActionTitle;
 		if(title) {
 			menuItem.title = title;
-			menuItem.hidden = NO;				/// because it the delete menu is hidden by default
+			menuItem.hidden = NO;				/// because the delete menu is hidden by default
 			return YES;
 		}
 		return NO;

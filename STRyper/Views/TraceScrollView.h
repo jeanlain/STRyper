@@ -38,6 +38,10 @@
 /// Calling these method might not always produce expected results.
 @interface TraceScrollView : NSScrollView 
 
+/// Whether the user can move between markers using a horizontal scroll gesture.
+@property (nonatomic) BOOL allowSwipeBetweenMarkers;
+
+extern const NSBindingName AllowSwipeBetweenMarkersBinding;
 
 
 

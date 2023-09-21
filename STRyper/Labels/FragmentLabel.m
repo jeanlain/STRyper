@@ -74,6 +74,7 @@ typedef enum FragmentLabelType : NSUInteger {
 		magnetX = -1;
 		if(!layer) {
 			layer = CALayer.new;
+			layer.actions = @{NSStringFromSelector(@selector(borderWidth)):NSNull.null};
 			layer.cornerRadius = 2;
 			layer.borderWidth = 2.0;
 			layer.borderColor = [NSColor colorWithCalibratedRed:0.4 green:0.6 blue:0.9 alpha:1].CGColor;

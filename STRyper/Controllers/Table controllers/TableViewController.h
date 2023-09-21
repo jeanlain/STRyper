@@ -62,8 +62,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The tableview that the receiver manages.
 ///
-/// This view may differ from the `-view` property of the receiver, but in this case, it must be a subview of it.
-/// Otherwise, the receiver may not receive messages resulting from user actions on this table.
+/// This view may differ from the `-view` property of the receiver, but in this case, it must be a subview of it,
+/// otherwise, the receiver may not receive messages resulting from user actions on this table.
 @property (weak, readonly, nonatomic) NSTableView *tableView;
 
 ///The controller objet providing content to the ``tableView``.
@@ -163,6 +163,8 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 /// The default value is 0.
 - (NSInteger) itemNameColumn;
 
+/// The visible columns of the ``tableView``.
+@property (readonly, nullable, nonatomic) NSArray<NSTableColumn *>* visibleColumns;
 
 /// A generic method that removes target items from the ``tableView``, sent from menus and buttons.
 /// - Parameter sender: The object that sent the message.

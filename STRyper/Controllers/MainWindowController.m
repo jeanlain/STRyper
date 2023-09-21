@@ -344,8 +344,9 @@ errorLogWindow = _errorLogWindow;
 	}
 	
 	if(menuItem.action == @selector(activateTab:)) {
-		/// we show the tick-mark if the menu corresponds to the tab that is active. The tag of the menu refers to the index of the tab
-		menuItem.state = menuItem.tag == [tabView.tabViewItems indexOfObject: tabView.selectedTabViewItem]? NSControlStateValueOn : NSControlStateValueOff;
+		/// we show the tick-mark if the menu corresponds to the tab that is active and if the bottom pane is not collapsed. The tag of the menu refers to the index of the tab
+		BOOL collapsed = self.verticalSplitViewController.splitViewItems.lastObject.isCollapsed;
+		menuItem.state = menuItem.tag == [tabView.tabViewItems indexOfObject: tabView.selectedTabViewItem] && !collapsed? NSControlStateValueOn : NSControlStateValueOff;
 		return YES;
 	}
 	
@@ -592,15 +593,27 @@ errorLogWindow = _errorLogWindow;
 		}
 	}
 	
-	NSString *log = NSString.new;
-	for(NSString *string in strings) {
-		log = [log stringByAppendingFormat:@"%@\n", string];
-	}
-	
+	NSString *log = [strings componentsJoinedByString:@"\n"];
 	[self setLogWindowText:log];
 	return log;
 }
 
+
+- (void)showAlertForError:(NSError *)error {
+	NSAlert *alert = [NSAlert alertWithError:error];
+	NSArray *errors = error.userInfo[NSDetailedErrorsKey];
+	NSString *log;
+	if(errors.count > 0) {
+		[alert addButtonWithTitle:@"Show Error Log"];
+		[alert addButtonWithTitle:@"Close"];
+		log = [self populateErrorLogWithError:error];
+	}
+	[alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
+		if(returnCode == NSAlertFirstButtonReturn && log.length > 0) {
+			[self showErrorLogWindow:self];
+		}
+	}];
+}
 
 
 - (BOOL)windowShouldClose:(NSWindow *)sender {

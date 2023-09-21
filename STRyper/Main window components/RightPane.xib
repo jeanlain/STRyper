@@ -117,13 +117,6 @@
                         <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
                         <font key="font" metaFont="system"/>
                     </buttonCell>
-                    <connections>
-                        <binding destination="-2" name="enabled" keyPath="showGenotypes" id="Dx7-qB-78U">
-                            <dictionary key="options">
-                                <string key="NSValueTransformerName">NSNegateBoolean</string>
-                            </dictionary>
-                        </binding>
-                    </connections>
                 </button>
                 <button toolTip="Show saturation (^O)" horizontalCompressionResistancePriority="752" tag="-3" translatesAutoresizingMaskIntoConstraints="NO" id="reI-m3-TlB" userLabel="show offscale">
                     <rect key="frame" x="231" y="5" width="21" height="20"/>

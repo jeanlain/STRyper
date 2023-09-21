@@ -339,7 +339,7 @@ static CALayer *dragLineLayer;
 					return;
 				}
 				/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
-				/// This avoids assigning the peak to an allele for  what could be a simple click.
+				/// This avoids assigning the peak to an allele for what could be a simple click.
 				NSPoint clickedPoint = view.clickedPoint;
 				float dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
 				if(dist < 5) {
@@ -440,18 +440,18 @@ static CALayer *dragLineLayer;
 	if(point2.y > maxY) {
 		point2.y = maxY;
 	} else if(point2.y < 2) {
-		point2.y =2;
+		point2.y = 2;
 	}
-	point2.y +=2;
+	point2.y += 2;
 	
 	point2 = [layer convertPoint:point2 fromLayer:self.view.layer];
 
-	NSRect current = NSMakeRect(point2.x-3,point2.y -3, 6, 6);
+	NSRect current = NSMakeRect(point2.x-3, point2.y-3, 6, 6);
 	
-	NSBezierPath *thePath=[NSBezierPath bezierPathWithOvalInRect:origin];
+	NSBezierPath *thePath = [NSBezierPath bezierPathWithOvalInRect:origin];
 	[thePath fill];
 	
-	thePath=[NSBezierPath bezierPathWithOvalInRect:current];
+	thePath = [NSBezierPath bezierPathWithOvalInRect:current];
 	[thePath fill];
 	
 	[NSBezierPath strokeLineFromPoint:start toPoint:point2];

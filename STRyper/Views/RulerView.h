@@ -60,11 +60,6 @@
 ///	This property is set as appropriate and avoids setting the colors of `CALayer` objects at each redisplay.
 @property (nonatomic) BOOL needsChangeAppearance;
 
-/// Whether the user can move between markers using a horizontal scroll gesture.
-@property (nonatomic) BOOL allowSwipeBetweenMarkers;
-
-extern const NSBindingName AllowSwipeBetweenMarkersBinding;
-
 /// Tells that view that it needs to the update the offsets of size labels to show within marker ranges.
 ///
 /// Offset are updated at the beginning of `-drawRect`.

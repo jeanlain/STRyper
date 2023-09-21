@@ -28,7 +28,6 @@
 #import "MainWindowController.h"
 #import "SampleTableController.h"
 #import "MarkerView.h"
-#import "RulerView.h"
 #import "TraceScrollView.h"
 #import "STableRowView.h"
 
@@ -163,10 +162,10 @@ static const float minTraceRowHeight = 40.0;
 	for (NSControl *control in self.view.subviews) {
 		if([control isKindOfClass: NSButton.class] || [control isKindOfClass: NSSegmentedControl.class]) {
 			/// all buttons must be hidden when the outline view shows markers, except the slider that controls row height
-			[control bind:NSHiddenBinding toObject:self withKeyPath:@"showMarkers" options:nil];
+			[control bind:NSHiddenBinding toObject:self withKeyPath:NSStringFromSelector(@selector(showMarkers)) options:nil];
 			if(control.tag >= 0 || control.tag == -5) {
-				/// some buttons must be also hidden when it shows genotypes. We use their tag to determine which
-				[control bind:@"hidden2" toObject:self withKeyPath:@"showGenotypes" options:nil];
+				/// some buttons must be also hidden when it shows genotypes. We use their tag to determine which.
+				[control bind:@"hidden2" toObject:self withKeyPath:NSStringFromSelector(@selector(showGenotypes)) options:nil];
 				if(control.tag < 5 && control.tag >=0) {
 					/// these are buttons controlling the channel to show. Their tags represent the channels from 0 to 4.
 					[channelButtonArray addObject:control];
@@ -176,6 +175,12 @@ static const float minTraceRowHeight = 40.0;
 			if(control.tag < 0) {
 				if([control isKindOfClass: NSButton.class]) {
 					[control bind:NSValueBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:prefKeys[-control.tag -1] options:nil];
+					if(control.tag == -2) {
+						/// The button that controls the horizontal synchronization is disabled when genotypes are shown.
+						[control bind:NSEnabledBinding toObject:self
+						  withKeyPath:NSStringFromSelector(@selector(showGenotypes))
+							  options:@{NSValueTransformerNameBindingOption:NSNegateBooleanTransformerName}];
+					}
 				} else if([control isKindOfClass: NSSegmentedControl.class]) {
 					[control bind:NSSelectedIndexBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:prefKeys[-control.tag -1] options:nil];
 				}
@@ -278,10 +283,13 @@ static const float minTraceRowHeight = 40.0;
 
 - (id) outlineView:(id)outlineView child:(NSInteger)index ofItem:(id)item {
 	if (item == nil) {  /// the top-level rows
-		if (self.stackMode == stackModeSamples && !self.showGenotypes && !self.showMarkers) { /// here, samples are stacked
+		if (self.stackMode == stackModeSamples && !self.showGenotypes && !self.showMarkers) {
+			/// here, samples are stacked
 			/// if the child index, which should correspond to the channel to show, exceeds the displayedChannels array, we return a null object
 			/// (but this would mean there is a bug somewhere)
-			if(self.displayedChannels.count <= index) return NSNull.null;
+			if(self.displayedChannels.count <= index) {
+				return NSNull.null;
+			}
 			return [self tracesForChannel:self.displayedChannels[index].intValue]; 	/// if a row should show all traces of a given channel in an array, we return these traces
 		}
 		/// here, we don't stake samples, so we simply return the item at the corresponding index from the content array
@@ -371,7 +379,7 @@ static const float minTraceRowHeight = 40.0;
 		[traceView bind:IgnoreCrossTalkPeaksBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:IgnoreCrosstalkPeaks options:nil];
 		[traceView bind:DisplayedChannelsBinding toObject:self withKeyPath:@"displayedChannels" options:nil];
 		[traceView bind:DefaultRangeBinding toObject:self withKeyPath:@"defaultRange" options:nil];
-		[traceView.rulerView bind:AllowSwipeBetweenMarkersBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:SwipeBetweenMarkers options:nil];
+		[scrollView bind:AllowSwipeBetweenMarkersBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:SwipeBetweenMarkers options:nil];
 		
 		/// to manage the change in theme (dark/light), we bind the App's appearance to a private property in the view.
 		/// We need to because the view uses CALayer, whose colors must be reset in response to the change.
@@ -508,6 +516,30 @@ static const float minTraceRowHeight = 40.0;
 	[self loadContentArray:content];
 	
 }
+
+
+- (void)setShowGenotypes:(BOOL)showGenotypes {
+	_showGenotypes = showGenotypes;
+	if(showGenotypes) {
+		/// if genotypes are shown, the detailed view columns cannot be used for sorting as they do not correspond to those of the genotype table
+		/// to avoid confusing the user, we disable sorting.
+		[traceOutlineView unbind:NSSortDescriptorsBinding];
+		for (NSTableColumn *column in traceOutlineView.tableColumns) {
+			/// We must remove the sort descriptor prototype of each column, otherwise the chevron still appears on the header
+			column.sortDescriptorPrototype = nil;
+		}
+	} else {
+		/// We re-enable sorting when the table no longer show genotypes
+		/// (when it shows marker, the header is hidden anyway)
+		NSDictionary *columnDescription = self.columnDescription;
+		for (NSTableColumn *column in traceOutlineView.tableColumns) {
+			column.sortDescriptorPrototype = [NSSortDescriptor sortDescriptorWithKey:columnDescription[column.identifier][KeyPathToBind] ascending:YES];
+		}
+		[traceOutlineView bind:NSSortDescriptorsBinding toObject:SampleTableController.sharedController.samples withKeyPath:NSStringFromSelector(@selector(sortDescriptors)) options:nil];
+
+	}
+}
+
 
 -(void)loadContentArray:(NSArray *)content {
 	if(!content ) {
