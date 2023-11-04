@@ -354,7 +354,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		}
 	}
 	
-	/// if a folder was deleted from a source at a given index, the souce must contain at least as many subfolders as the given index
+	/// if a folder was deleted from a source at a given index, the source must contain at least as many subfolders as the given index
 	if((folderWasDeleted || folderWasMoved) && sourceIndex >= source.subfolders.count+1) {
 		return NO;
 	}
@@ -377,7 +377,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	}
 	
 	/// if we are here, the change will be applied to the table.
-	/// For this change to be undoable, we record its reverse
+	/// For this change to be undoable with animation, we record its reverse
 	NSDictionary *reversedChange = [self reversedFolderChangeForChange:folderChange];
 	[self.undoManager registerUndoWithTarget:self selector:@selector(setPendingChange:) object:reversedChange];
 	
@@ -401,9 +401,11 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	} else if(folderWasDeleted) {
 		[outlineView removeItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideUp];
 	}
-	if(folderWasAdded && !hasSubfolders && self.hasSubfolders && source.parent) {		/// if this is the first subfolder of a non-group parent (i.e. its parent is not the root folder), we reload its grandparent (which should be the root) and parents. Otherwise, the identation level may not be set properly
-																						/// this is because the source list outline view style does not indent the children of group items if they don't themselve have children.
-																						/// This leaves no space for the the outline button (triangle). Adding an item via insertItemsAtIndexes does not correct for the absence of space. We must reload.
+	if(folderWasAdded && !hasSubfolders && self.hasSubfolders && source.parent) {		
+		/// if this is the first subfolder of a non-group parent (i.e. its parent is not the root folder), we reload its grandparent (which should be the root) and parents. 
+		/// Otherwise, the indentation level may not be set properly
+		/// this is because the source list outline view style does not indent the children of group items if they don't themselves have children.
+		/// This leaves no space for the the outline button (triangle). Adding an item via insertItemsAtIndexes does not correct for the absence of space. We must reload.
 		[outlineView reloadItem:source.parent reloadChildren:YES];
 	} else {
 		[outlineView reloadItem:source];
@@ -777,12 +779,51 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 }
 
 
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+	
+	if(menu == outlineView.menu) {
+		Folder *targetFolder = [self _targetFolderOfSender:menu];
+		BOOL hide = targetFolder.parent == nil;
+		for(NSMenuItem *menuItem in menu.itemArray) {
+			menuItem.hidden = hide;
+		}
+	} else {
+		[super menuNeedsUpdate:menu];
+	}
+	
+}
+
+
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	BOOL response = [super validateMenuItem:menuItem];
+	if(!response) {
+		return NO;
+	}
+	Folder *targetFolder = [self _targetFolderOfSender:menuItem];
+	BOOL hide = targetFolder.parent == nil;
+	menuItem.hidden = hide;
+	return !hide;
+}
+
+
+- (NSString *)removeActionTitleForItems:(NSArray *)items {
+	Folder *folder = items.firstObject;
+	
+	if(!folder.parent) {
+		/// we cannot remove a folder that has no parent (root folder, trash folder, etc.)
+		return nil;
+	}
+	
+	return [super removeActionTitleForItems:items];
+}
+
+
 - (nullable NSArray *) targetItemsOfSender:(id)sender  {
 	/// overridden because the outline view doesn't use an NSArrayController.
 	/// We also use the fact that only one item can be a target (the view doesn't allow multiple selection)
 	Folder *folder = nil;
 	NSInteger row = -1;
-	if([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == outlineView.menu) {
+	if(sender == outlineView.menu || ([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == outlineView.menu)) {
 		row = outlineView.clickedRow;
 	} else {
 		row = outlineView.selectedRow;

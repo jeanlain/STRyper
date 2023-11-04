@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -50,7 +50,7 @@
                                                 <rect key="frame" x="1" y="0.0" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="p3Q-Tm-2TA" userLabel="Text">
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="p3Q-Tm-2TA" userLabel="Text">
                                                         <rect key="frame" x="0.0" y="1" width="119" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="Text field" id="Sdu-GK-t4S" userLabel="tex cell">
                                                             <font key="font" metaFont="smallSystem"/>
@@ -79,7 +79,7 @@
                                                 <rect key="frame" x="1" y="16" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="VT1-Ib-DhN" userLabel="date">
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="VT1-Ib-DhN" userLabel="date">
                                                         <rect key="frame" x="0.0" y="1" width="119" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="date" id="fhA-nf-Zde" userLabel="tex cell">
                                                             <dateFormatter key="formatter" dateStyle="short" timeStyle="short" id="Gm8-2B-3zA"/>
@@ -130,7 +130,7 @@
                                                 <rect key="frame" x="1" y="48" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES" flexibleMaxY="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="YQD-2P-jKR">
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="YQD-2P-jKR">
                                                         <rect key="frame" x="0.0" y="1" width="119" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="size" id="uX0-cH-I0w">
                                                             <numberFormatter key="formatter" formatterBehavior="custom10_4" usesGroupingSeparator="NO" formatWidth="-1" groupingSize="0" minimumIntegerDigits="1" maximumIntegerDigits="42" maximumFractionDigits="1" id="xA0-zB-J7s"/>
@@ -161,7 +161,7 @@
                                                         </constraints>
                                                         <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="NSActionTemplate" id="M1J-Nu-XNT"/>
                                                     </imageView>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="251" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="tf2-gt-EcX">
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="251" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="tf2-gt-EcX">
                                                         <rect key="frame" x="24" y="1" width="84" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Table View Cell" id="qyV-DW-6Ve">
                                                             <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="percent" formatWidth="-1" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="1" id="JPg-OB-B3h">
@@ -197,7 +197,7 @@
                                                         </constraints>
                                                         <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="NSActionTemplate" id="Ctc-DY-LCJ"/>
                                                     </imageView>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="251" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="0xc-EW-0SW">
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="251" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="0xc-EW-0SW">
                                                         <rect key="frame" x="24" y="1" width="84" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Table View Cell" id="UwL-K3-YaA">
                                                             <font key="font" metaFont="smallSystem"/>
@@ -243,7 +243,7 @@
                                                 <rect key="frame" x="1" y="112" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="DUg-s1-E1W" userLabel="Text">
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="DUg-s1-E1W" userLabel="Text">
                                                         <rect key="frame" x="0.0" y="1" width="119" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="gauge value" id="gJo-B1-Zof" userLabel="tex cell">
                                                             <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="percent" formatWidth="-1" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" id="Q4k-9M-dr6">
@@ -290,28 +290,28 @@
                         <autoresizingMask key="autoresizingMask"/>
                     </tableHeaderView>
                 </scrollView>
-                <button toolTip="Import Samples" verticalHuggingPriority="750" tag="2" translatesAutoresizingMaskIntoConstraints="NO" id="PVl-d1-Z8F" userLabel="import samples">
+                <button toolTip="Import Samples" tag="2" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="PVl-d1-Z8F" userLabel="import samples">
                     <rect key="frame" x="5" y="-1" width="32" height="32"/>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="import samples" imagePosition="only" alignment="center" inset="2" id="ReC-SJ-ltQ">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="import samples" imagePosition="only" alignment="center" inset="2" id="ReC-SJ-ltQ">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <connections>
                         <action selector="showImportSamplePanel:" target="-1" id="28M-yU-e7N"/>
                     </connections>
                 </button>
-                <button toolTip="Delete Selected Samples" horizontalHuggingPriority="252" verticalHuggingPriority="750" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="h40-cR-AV4" userLabel="delete samples">
+                <button toolTip="Delete Selected Samples" tag="-1" horizontalHuggingPriority="252" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="h40-cR-AV4" userLabel="delete samples">
                     <rect key="frame" x="42" y="8" width="15" height="15"/>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="trash" imagePosition="only" alignment="center" controlSize="small" inset="2" id="lsh-qs-mwf">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="trash" imagePosition="only" alignment="center" controlSize="small" inset="2" id="lsh-qs-mwf">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <connections>
                         <action selector="remove:" target="-2" id="vYg-Xv-U7r"/>
                         <binding destination="0dN-zh-7AK" name="enabled" keyPath="selectedObjects.@count" id="r3s-ma-TWN"/>
                     </connections>
                 </button>
-                <searchField toolTip="Filter table by sample name" placeholderIntrinsicWidth="162" placeholderIntrinsicHeight="22" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="la1-8g-v9o">
+                <searchField toolTip="Filter table by sample name" focusRingType="none" placeholderIntrinsicWidth="162" placeholderIntrinsicHeight="22" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="la1-8g-v9o">
                     <rect key="frame" x="65" y="4" width="162" height="22"/>
                     <constraints>
                         <constraint firstAttribute="width" constant="162" id="Hjl-yS-gt0"/>
@@ -331,25 +331,25 @@
                         </binding>
                     </connections>
                 </searchField>
-                <button toolTip="Modify search criteria" horizontalHuggingPriority="252" verticalHuggingPriority="750" tag="3" translatesAutoresizingMaskIntoConstraints="NO" id="uYZ-Kd-un7" userLabel="edit search">
+                <button toolTip="Modify search criteria" tag="3" horizontalHuggingPriority="252" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="uYZ-Kd-un7" userLabel="edit search">
                     <rect key="frame" x="235" y="3" width="24" height="24"/>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="edit search" imagePosition="only" alignment="center" controlSize="small" inset="2" id="dzf-ta-44y">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="edit search" imagePosition="only" alignment="center" controlSize="small" inset="2" id="dzf-ta-44y">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <connections>
                         <action selector="editSmartFolder:" target="-1" id="Jha-Qz-Pal"/>
                     </connections>
                 </button>
-                <button toolTip="Collapse/Expand Bottom Pane" horizontalHuggingPriority="251" verticalHuggingPriority="750" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="Gao-VS-sjM" userLabel="toggle bottom tab">
+                <button toolTip="Collapse/Expand Bottom Pane" tag="1" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Gao-VS-sjM" userLabel="toggle bottom tab">
                     <rect key="frame" x="559" y="5" width="20" height="20"/>
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="bottomBar" imagePosition="only" alignment="center" inset="2" id="CXF-ag-QAE">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
+                    </buttonCell>
                     <constraints>
                         <constraint firstAttribute="width" constant="20" id="d6f-LB-BVc"/>
                     </constraints>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="bottomBar" imagePosition="only" alignment="center" inset="2" id="CXF-ag-QAE">
-                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
-                    </buttonCell>
                     <connections>
                         <action selector="toggleBottomPane:" target="-1" id="jBg-ce-M56"/>
                     </connections>
@@ -414,7 +414,7 @@
                     </menu>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="COr-XA-1YT"/>
-                <menuItem title="Apply Marker Panel" offStateImage="panelBadge" tag="2" identifier="Panels" id="Wto-RE-pCe">
+                <menuItem title="Apply Marker Panel" offStateImage="panelBadgeMenu" tag="2" identifier="Panels" id="Wto-RE-pCe">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Apply Size Sandard" identifier="PanelList" id="Mqq-7Z-djr" userLabel="Panel list">
                         <connections>
@@ -428,7 +428,7 @@
                         <action selector="callAlleles:" target="-2" id="oDd-p2-GTa"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Select Gentoype(s)" offStateImage="genotypes" tag="1" id="egq-Pn-ySE">
+                <menuItem title="Select Gentoype(s)" offStateImage="circle arrow down" tag="1" id="egq-Pn-ySE">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="showGenotypes:" target="-2" id="VVI-mp-5gl"/>
@@ -465,13 +465,13 @@
         <image name="NSActionTemplate" width="20" height="20"/>
         <image name="bottomBar" width="20" height="20"/>
         <image name="callAllelesBadge" width="15" height="15"/>
+        <image name="circle arrow down" width="14" height="14"/>
         <image name="copy" width="15" height="14"/>
         <image name="edit search" width="24" height="24"/>
         <image name="fittingMethod" width="15" height="15"/>
         <image name="folderBadge" width="20" height="15"/>
-        <image name="genotypes" width="25" height="14"/>
         <image name="import samples" width="32" height="32"/>
-        <image name="panelBadge" width="20" height="15"/>
+        <image name="panelBadgeMenu" width="15" height="12"/>
         <image name="sizeStandard" width="15" height="15"/>
         <image name="trash" width="15" height="15"/>
     </resources>

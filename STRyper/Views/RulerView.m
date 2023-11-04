@@ -119,9 +119,10 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	/// the base layer only shows a vertical line at the position
 	currentPositionMarkerLayer = CALayer.new;
 	currentPositionMarkerLayer.backgroundColor = tickmarckColor.CGColor;
+	currentPositionLayer.opaque = YES;
 	currentPositionMarkerLayer.anchorPoint = CGPointMake(1, 1);
 	currentPositionMarkerLayer.opaque = YES;
-	currentPositionMarkerLayer.actions = @{@"position": NSNull.null};
+	currentPositionMarkerLayer.actions = @{@"position": NSNull.null, @"contents": NSNull.null};
 	currentPositionMarkerLayer.bounds = CGRectMake(0, 0, 1, ruleThickness);
 
 	currentPositionLayer = CATextLayer.new;
@@ -306,6 +307,12 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 }
 
 
+- (BOOL)clipsToBounds {
+	/// overrides the new default in macOS 14
+	return YES;
+}
+
+
 - (void)drawRect:(NSRect)dirtyRect {
 	if(_needsUpdateOffsets) {
 		[self updateOffsets];
@@ -313,7 +320,7 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	}
 	
 	[NSColor.windowBackgroundColor setFill];
-	NSRectFill(dirtyRect);
+	NSRectFill(self.bounds);
 	/* // to possibly show offscale regions on the ruler (test)
 	Chromatogram *sample = traceView.trace.chromatogram;
 	const float *sizes = sample.sizes.bytes;
@@ -413,13 +420,19 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 
 
 - (void)resetCursorRects {
-	NSRect visibleRect = self.visibleRect;
+	NSRect rect = self.bounds;
 	/// We show the loupe cursor, but we avoid the top of the view if its covered by the accessory view (which should be the marker view).
-	float height = NSIntersectionRect(visibleRect, self.accessoryView.frame).size.height;
-	visibleRect.size.height -= NSIntersectionRect(visibleRect, self.accessoryView.frame).size.height;
-	visibleRect.origin.y += height;
-	
-	[self addCursorRect:visibleRect cursor:loupeCursor];
+	float height = self.reservedThicknessForAccessoryView;
+	if(height > 0) {
+		height += 0.5;
+		/// This creates a separation with cursor rects of the marker view, which avoids issues where the wrong cursor may be set.
+	}
+	rect.size.height -= height;
+	rect.origin.y += height;
+	rect.origin.x = 0; /// the bound origin may be negative if there to leave room for the vScaleView.
+					   /// The ruler doesn't cover the area of negative x coordinate.
+
+	[self addCursorRect:NSIntersectionRect(rect, self.visibleRect) cursor:loupeCursor];
 	
 }
 

@@ -35,6 +35,7 @@
 
 @end
 
+
 NSNotificationName const PanelMarkersDidChangeNotification = @"PanelMarkersDidChangeNotification";
 NSNotificationName const PanelSamplesDidChangeNotification = @"PanelSamplesDidChangeNotification";
 
@@ -58,10 +59,6 @@ NSString * _Nonnull const PanelVersionKey = @"version";
 @dynamic markers, samples, version;
 
 + (void)initialize {
-	/// we set global variable used accross all panels and even other classes
-	NSSortDescriptor *sortByStart = [NSSortDescriptor sortDescriptorWithKey:@"start" ascending:YES];
-	sortedByStart = @[sortByStart];
-	
 	fileErrorSuggestion = @"Check the file. Encoding must be ASCII or UTF-8 and fields separated by tabs";
 	
 	/// This dictionary describes a line in the text file describing elements of a panel.
@@ -453,10 +450,6 @@ NSString * _Nonnull const PanelVersionKey = @"version";
 	}]];
 }
 
-
-+ (NSArray *)sortByStart:(NSArray*) regions {
-	return [regions sortedArrayUsingDescriptors:sortedByStart];
-}
 
 
 +(BOOL)supportsSecureCoding {

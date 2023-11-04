@@ -35,7 +35,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// A view that shows traces and associated labels (``ViewLabel`` objects) for peaks, fragments, markers and bins.
 ///
 ///	A trace view shows the fluorescence data of ``Trace`` objects as curves whose colors reflect the trace ``Trace/channel``.
-/// The view draws a plot in which the x axis represent the size in base pairs, and the x axis the trace fluorescence level.
+/// The view draws a plot in which the x axis represent the size in base pairs, and the y axis the trace fluorescence level, using the view coordinates system.
+/// By default, the trace view has its bound y origin set to -0.5, such that the 1-point-thick curve at a fluorescence level of 0 sits just above the bottom edge.
 ///
 ///	This view also shows ``Chromatogram/offscaleRegions`` as colored rectangles behind the curves.
 ///
@@ -57,22 +58,22 @@ NS_ASSUME_NONNULL_BEGIN
 /// It is normally positioned on the left of the trace view, which it overlaps.
 ///
 /// This view is hidden if the trace view does not show traces.
-@property (weak) VScaleView *vScaleView;
+@property (weak, nonatomic) VScaleView *vScaleView;
 
 /// The horizontal ruler view of the enclosing ``TraceScrollView``.
 ///
 /// This view shows the horizontal scale of the trace view, in base pairs.
 /// It is created only if is the trace view is in a scroll view.
-@property (nonatomic, readonly) RulerView *rulerView;
+@property (nonatomic, readonly, nullable) RulerView *rulerView;
 
 /// The view showing the range of markers
 ///
 /// This is the accessory view of the ``rulerView``, which shows on top of the trace view.
 /// The markerView is created only if is the trace view is in a scroll view.
-@property (readonly) MarkerView *markerView;
+@property (readonly, nonatomic, nullable) MarkerView *markerView;
 
 ///The trace view's delegate.
-@property (nullable, weak) IBOutlet id <TraceViewDelegate> delegate;
+@property (nullable, weak, nonatomic) IBOutlet id <TraceViewDelegate> delegate;
 																	
 
 # pragma mark - loading and displaying content
@@ -81,7 +82,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// IMPORTANT: these traces are assumed to be from the same ``Trace/channel``.
 ///
-/// The traces array can be of any size, but no more than 400 traces will be loaded, for performance reasons.
+/// The traces array can be of any size, but only the first 400 traces at most will be loaded, for performance reasons.
 /// - Parameter traces: The traces that the view should show.
 -(void)loadTraces:(NSArray<Trace *> *)traces;
 
@@ -108,17 +109,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter marker: The marker to show in the view.
 -(void)loadMarker:(Mmarker*)marker;
 
-/// Sets the ``trace``, ``loadedTraces``, ``genotype`` and ``marker`` properties to `nil`.
-///
-/// This method can be called when the view no longer has to show any content, but it does not redisplay the view.
--(void)clearContents;
-
 /// The trace(s) that the view shows.
 ///
 /// This array will contain no more than 400 traces (see ``loadTraces:``).
 @property (nonatomic, readonly, nullable) NSArray<Trace *> *loadedTraces;
 
-/// A trace among the ``loadedTraces``  if there is one.
+/// The longest trace (in base pairs) among the ``loadedTraces``, or `nil`  if there is none.
 ///
 /// In most cases, the view shows a single trace, so having a direct pointer it is useful.
 /// This property helps the implementation even if the view shows several traces.
@@ -170,9 +166,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// This layer is a sublayer of the clipview's backing layer, so as to show behind the curves of the traces.
 @property (readonly, nonatomic) CALayer *backgroundLayer;
 
-/// Not used. This was to allow moving the view by dragging with the mouse while holding the space bar.
-@property (nonatomic, readonly) BOOL spaceDown;
-
 
 # pragma mark - display settings
 
@@ -217,18 +210,6 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The default value is `NO`.
 @property (nonatomic) BOOL ignoreCrosstalkPeaks;
-
-/// The vertical coordinate (in quartz points) corresponding to a fluorescence of 0 in the ``trace``.
-///
-/// This property can be used to draw fluorescence curves above the bottom of the view.
-///
-/// The value  is constrained between 0.0 and 100.0 included.
-/// One should avoid using a value that is too close to the view height.
-///
-/// Note, this does not modify the view's bounds y origin, as it was found than doing so reduces drawing performance.
-///
-///  The default value is 1.0.
-@property (nonatomic) float verticalOffset;
 
 /// The ``visibleRange`` that the view takes by default.
 ///

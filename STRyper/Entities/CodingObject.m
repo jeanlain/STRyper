@@ -140,7 +140,7 @@
 	NSDictionary *relationships = self.entity.relationshipsByName;
 	for (NSString * relationshipName in self.entity.toManyRelationshipKeys) {
 		NSRelationshipDescription *desc = relationships[relationshipName];
-		/// relationships that should not be copied may have a special key in their dictionary (set manually in the managed object model in xcode)
+		/// relationships that should not be copied may have a special key in their dictionary (set manually in the managed object model in Xcode)
 		if(desc.deleteRule != NSCascadeDeleteRule || [desc.userInfo.allKeys containsObject:@"doNotCopy"]) {
 			continue;
 		}

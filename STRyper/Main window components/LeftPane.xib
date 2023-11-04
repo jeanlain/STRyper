@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -47,7 +47,7 @@
                                                 <rect key="frame" x="11" y="0.0" width="299" height="24"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="eeL-8V-gaW">
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="eeL-8V-gaW">
                                                         <rect key="frame" x="0.0" y="4" width="299" height="16"/>
                                                         <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Folders" id="XJm-P9-hNS">
                                                             <font key="font" usesAppearanceFont="YES"/>
@@ -69,7 +69,7 @@
                                                 <rect key="frame" x="11" y="24" width="299" height="24"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="WN6-gp-lpY">
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="WN6-gp-lpY">
                                                         <rect key="frame" x="0.0" y="4" width="299" height="16"/>
                                                         <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Smart Folders" id="I2O-SX-A8i">
                                                             <font key="font" usesAppearanceFont="YES"/>
@@ -99,7 +99,7 @@
                                                         </constraints>
                                                         <imageCell key="cell" controlSize="small" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="Smart folder" id="dIQ-qz-ngn"/>
                                                     </imageView>
-                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="mHu-ul-Uvi">
+                                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="mHu-ul-Uvi">
                                                         <rect key="frame" x="26" y="5" width="275" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" editable="YES" alignment="left" title="Unnamed folder" id="7g2-XR-GIq">
                                                             <font key="font" metaFont="smallSystem"/>
@@ -139,7 +139,7 @@
                                                         </constraints>
                                                         <imageCell key="cell" controlSize="small" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" image="trash" id="H2d-jX-els"/>
                                                     </imageView>
-                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="non-JV-5xr">
+                                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="non-JV-5xr">
                                                         <rect key="frame" x="26" y="4" width="275" height="16"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" alignment="left" title="Trash" id="s3E-Sf-sqi">
                                                             <font key="font" metaFont="systemSemibold" size="13"/>
@@ -183,9 +183,9 @@
                 </scrollView>
                 <button toolTip="Import folder from archive" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="751" translatesAutoresizingMaskIntoConstraints="NO" id="WzN-eb-kBb" userLabel="Import">
                     <rect key="frame" x="10" y="7" width="15" height="16"/>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="import" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="2Qa-8d-QrT">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="import" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="2Qa-8d-QrT">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <connections>
                         <action selector="importFolder:" target="-1" id="gOn-BN-VPn"/>
@@ -193,9 +193,9 @@
                 </button>
                 <button toolTip="Export selected folder to an archive" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="8Z7-9B-R9A" userLabel="Export">
                     <rect key="frame" x="33" y="7" width="15" height="17"/>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="foc-YP-eLN">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="foc-YP-eLN">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <connections>
                         <action selector="exportSelection:" target="-2" id="N4e-09-Rgx"/>

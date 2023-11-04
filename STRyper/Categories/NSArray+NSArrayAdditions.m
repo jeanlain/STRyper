@@ -9,4 +9,12 @@
 
 @implementation NSArray (NSArrayAdditions)
 
+
+
+- (NSArray *)sortedArrayUsingKey:(NSString *)key ascending:(BOOL)ascending {
+	NSSortDescriptor *desc = [NSSortDescriptor sortDescriptorWithKey:key ascending:ascending];
+	return [self sortedArrayUsingDescriptors:@[desc]];
+	
+}
+
 @end

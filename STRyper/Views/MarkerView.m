@@ -87,6 +87,7 @@ enum ButtonTag : NSUInteger {
 
 -(void)setAttributes {
 	self.layer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
+	self.layer.opaque = YES;
 	self.layer.needsDisplayOnBoundsChange = YES;			/// our layer may show a text layer indicating the absence of panel. This text must remain centered if the view resizes.
 	self.layer.opaque = YES;
 	previousMarkerButton = [self defaultButtonWithImageName:@"goLeft" tag:previousMarkerButtonTag];
@@ -97,6 +98,11 @@ enum ButtonTag : NSUInteger {
 
 
 - (BOOL)isOpaque {
+	return YES;
+}
+
+
+- (BOOL)clipsToBounds {
 	return YES;
 }
 
@@ -136,8 +142,9 @@ enum ButtonTag : NSUInteger {
 /// Used to return a button we use to add a marker or to navigate between markers
 -(NSButton *)defaultButtonWithImageName:(NSString *)imageName tag:(int) tag {
 	NSButton *button = [NSButton buttonWithImage:[NSImage imageNamed:imageName] target:self action:nil];
-	button.bezelStyle = NSBezelStyleInline;
+	button.bezelStyle = NSBezelStyleRecessed;
 	button.bordered = NO;
+	button.showsBorderOnlyWhileMouseInside = YES;
 	button.imagePosition = NSImageOnly;
 	button.imageScaling = NSImageScaleNone;
 	[button.cell setBackgroundColor: NSColor.windowBackgroundColor];
@@ -193,6 +200,11 @@ enum ButtonTag : NSUInteger {
 			noPanelStringLayer.foregroundColor = NSColor.secondaryLabelColor.CGColor;
 		}
 		for(RegionLabel *label in self.markerLabels) {
+			[label updateForTheme];
+		}
+		for(RegionLabel *label in self.traceView.binLabels) {
+			/// we also update the appearance of bin labels here, because, for unclear reasons, -updateLayer is not called on the traceView
+			/// despite setting needsDisplay to YES.
 			[label updateForTheme];
 		}
 		self.needsUpdateLabelAppearance = NO;
@@ -408,10 +420,12 @@ enum ButtonTag : NSUInteger {
 	}
 }
 
+
 - (void)mouseEntered:(NSEvent *)event {
 	[super mouseEntered:event];
 	[self updateCursor];
 }
+
 
 - (void)resetCursorRects {
 	/// we make sure that the buttons we have as subviews show the arrow cursor
@@ -429,7 +443,7 @@ enum ButtonTag : NSUInteger {
 	}
 	BaseRange visibleRange = self.traceView.visibleRange;
 	float rangeStart = visibleRange.start;
-	NSArray *sortedMarkerLabels = [Panel sortByStart: self.markerLabels];
+	NSArray *sortedMarkerLabels = [self.markerLabels sortedArrayUsingKey:@"start" ascending:YES];
 	RegionLabel *targetLabel;
 	for(RegionLabel *markerLabel in sortedMarkerLabels) {
 		if(markerLabel.startSize < rangeStart) {
@@ -458,7 +472,7 @@ enum ButtonTag : NSUInteger {
 	}
 	BaseRange visibleRange = self.traceView.visibleRange;
 	float rangeEnd = visibleRange.start + visibleRange.len;
-	NSArray *sortedMarkerLabels = [Panel sortByStart: self.markerLabels];
+	NSArray *sortedMarkerLabels = [self.markerLabels sortedArrayUsingKey:@"start" ascending:YES];
 	RegionLabel *targetLabel;
 	for(RegionLabel *markerLabel in sortedMarkerLabels) {
 		if(markerLabel.endSize > rangeEnd) {
@@ -648,7 +662,11 @@ enum ButtonTag : NSUInteger {
 		/// (which we don't want if there is no panel)
 		self.inAddMode = NO;  /// when we are no longer the first responder, the user will no longer be able to add a marker. They will have to click the button again
 	}
-	self.activeLabel.highlighted = NO;
+	
+	RegionLabel *activeLabel = self.activeLabel;
+	if(!activeLabel.attachedPopover) {
+		self.activeLabel.highlighted = NO;
+	}
 	return YES;
 }
 

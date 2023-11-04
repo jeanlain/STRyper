@@ -34,11 +34,6 @@
 
 @end
 
-@interface Mmarker (DynamicAccessors)
-
--(void)managedObjectOriginal_setGenotypes:(NSSet *)genotypes;
-
-@end
 
 @implementation Mmarker
 

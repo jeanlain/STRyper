@@ -113,6 +113,7 @@ static NSArray<NSString *> *channelPreferenceKeys;				/// a convenience array we
 
 static const float defaultRowHeight = 20.0;
 static const float minTraceRowHeight = 40.0;
+static const float maxTraceRowHeight = 1000.0;
 
 
 + (instancetype)sharedController {
@@ -433,7 +434,7 @@ static const float minTraceRowHeight = 40.0;
 	if ([rowView.identifier isEqualToString:@"TraceRowViewKey"]) {
 		TraceView* traceView = [rowView viewWithTag:1];
 		if(traceView) {
-			[traceView clearContents];
+			[traceView prepareForReuse];
 			[traceViews removeObject:traceView];
 		}
 	}
@@ -654,7 +655,7 @@ static const float minTraceRowHeight = 40.0;
 
 
 - (float)traceRowHeight {
-	if(_traceRowHeight < minTraceRowHeight) {
+	if(_traceRowHeight < minTraceRowHeight || _traceRowHeight > maxTraceRowHeight) {
 		[self updateTraceRowHeight];
 	}
 	return _traceRowHeight;
@@ -688,6 +689,8 @@ static const float minTraceRowHeight = 40.0;
 	proposedHeight = round(proposedHeight);
 	if (proposedHeight < minTraceRowHeight) {
 		proposedHeight = minTraceRowHeight;
+	} else if(proposedHeight > maxTraceRowHeight) {
+		proposedHeight = maxTraceRowHeight;
 	}
 	self.traceRowHeight = proposedHeight;
 }
@@ -807,7 +810,7 @@ static const float minTraceRowHeight = 40.0;
 			return;				/// if no sample is shown, we return as the colors can't be associated with rows
 		}
 	} else {
-		int nVisible = 0;							/// to count the number of visible rows (traces) per sample, we must consider collapsed items (note: we don't currently allow collapsing anyway)
+		int nVisible = 0;		/// to count the number of visible rows (traces) per sample, we must consider collapsed items (note: we don't currently allow collapsing anyway)
 		for(id parent in parents) {
 			if ([traceOutlineView isItemExpanded:parent]) {
 				nVisible++;
@@ -937,8 +940,10 @@ static const float minTraceRowHeight = 40.0;
 
 - (void)updateViewGivenOldDisplayedDies:(NSArray *)oldDisplayedDies {
 	if (self.stackMode != stackModeChannels && self.contentArray.count > 0) {
-		if(self.contentArray.count < 100) {	/// if the number of item is not to high, we may hide/reveal channels with animation
-			if(oldDisplayedDies.count == self.displayedChannels.count) {		/// if the number of visible channels did not change we just reload the outline view
+		if(self.contentArray.count < 100 || (self.stackMode == stackModeSamples && !self.showGenotypes)) {
+			/// if the number of item is not to high, we may hide/reveal channels with animation
+			if(oldDisplayedDies.count == self.displayedChannels.count) {		
+				/// if the number of visible channels did not change we just reload the outline view
 				[traceOutlineView reloadData];
 				return;
 			}

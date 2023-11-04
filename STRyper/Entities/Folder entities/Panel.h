@@ -103,9 +103,6 @@ extern NSNotificationName _Nonnull const PanelSamplesDidChangeNotification;
 
 
 
-+ (NSArray *)sortByStart:(NSArray*) regions;
-
-
 /// some constant that avoid using strings in code, as these are often used in this application.
 extern NSString * _Nonnull const PanelMarkersKey;
 extern NSString * _Nonnull const PanelSamplesKey;
@@ -116,5 +113,11 @@ extern NSArray const * _Nonnull channelColorNames;
 
 
 
+@interface Panel (CoreDataGeneratedAccessors)
+
+-(void)addSamples:(NSSet *)samples;
+-(void)removeSamples:(NSSet *)samples;
+
+@end
 
 NS_ASSUME_NONNULL_END

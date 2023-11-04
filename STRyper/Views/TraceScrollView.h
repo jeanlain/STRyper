@@ -34,8 +34,6 @@
 ///
 /// A `TraceScrollView` creates a ``VScaleView``  when it sets its document view, if this document view is a ``TraceView``.
 ///
-/// IMPORTANT: this classes overrides `backgroundColor` and `setBackgroundColor` in order to make the view's background respond better to resizing with animation.
-/// Calling these method might not always produce expected results.
 @interface TraceScrollView : NSScrollView 
 
 /// Whether the user can move between markers using a horizontal scroll gesture.

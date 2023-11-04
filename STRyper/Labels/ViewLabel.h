@@ -38,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 	__kindof CALayer *layer;
 	
 	/// A tracking area that is used by the label to detect when the mouse enters and exits its ``frame``.
-	NSTrackingArea *trackingArea;
+	__weak NSTrackingArea *trackingArea;
 	
 	/// Backs the readonly ``menu`` property and allows subclasses to set it.
 	NSMenu *_menu;
@@ -236,7 +236,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Makes label to reposition itself.
 ///
-/// This method is called by the ``LabelView`` in ``LabelView/repositionLabels:``.
+/// This method is called by the ``LabelView`` in ``LabelView/repositionLabels:allowAnimation:``.
 ///
 /// The default implementation does nothing. Subclass must override this method.
 - (void)reposition;

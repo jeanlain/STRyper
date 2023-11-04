@@ -46,7 +46,7 @@ extern NSNotificationName const SampleFolderSubfoldersDidChangeNotification;
 @end
 
 
-@interface Folder (CoreDataGeneratedAccessors)
+@interface SampleFolder (CoreDataGeneratedAccessors)
 
 -(void)addSamples:(NSSet *)samples;
 -(void)removeSamples:(NSSet *)samples;

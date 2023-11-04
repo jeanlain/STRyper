@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -14,7 +14,7 @@
         </customObject>
         <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
-        <view wantsLayer="YES" id="auq-JY-VmC" userLabel="popover view">
+        <view clipsToBounds="YES" wantsLayer="YES" id="auq-JY-VmC" userLabel="popover view">
             <rect key="frame" x="0.0" y="0.0" width="315" height="192"/>
             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
             <subviews>
@@ -26,9 +26,6 @@
                 </customView>
                 <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="zFA-1D-CMK">
                     <rect key="frame" x="157" y="-2" width="159" height="27"/>
-                    <constraints>
-                        <constraint firstAttribute="height" constant="25" id="jiY-uX-8GC"/>
-                    </constraints>
                     <buttonCell key="cell" type="smallSquare" title="Sort Table" bezelStyle="smallSquare" alignment="center" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="p2z-l5-Mbf">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                         <font key="font" metaFont="system"/>
@@ -36,6 +33,9 @@
 DQ
 </string>
                     </buttonCell>
+                    <constraints>
+                        <constraint firstAttribute="height" constant="25" id="jiY-uX-8GC"/>
+                    </constraints>
                 </button>
                 <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="nkI-tP-V8c" userLabel="Cancel">
                     <rect key="frame" x="-1" y="-2" width="159" height="27"/>

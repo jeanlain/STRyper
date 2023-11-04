@@ -457,7 +457,15 @@ NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
 		applyFilterButton.target = self;
 	
 		NSPredicateEditor *predicateEditor = [contentView viewWithTag:2];
-
+		
+		/// we remove the background of the editor, which is defined by a visual effect view in macOS 14.
+		NSView *view = predicateEditor.subviews.firstObject;
+		view = view.subviews.firstObject;
+		view = view.subviews.firstObject;
+		if([view isKindOfClass:NSVisualEffectView.class]) {
+			view.hidden = YES;
+		}
+		
 		/// we prepare the keyPaths (attributes) that the predicate editor will allow filtering.
 		NSArray *keyPaths = @[@"marker.name", @"marker.panel.name", @"notes"];
 		

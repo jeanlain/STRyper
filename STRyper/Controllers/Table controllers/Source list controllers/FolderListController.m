@@ -280,7 +280,7 @@
 	if(menuItem.action == @selector(addFolder:) && [menuItem.keyEquivalent isEqualToString:@""]) {
 		/// one cannot add a subfolder to a smart folder (except for the item from the main menu,
 		/// which adds a folder at the bottom, and has a key equivalent (cmd-N)
-		menuItem.hidden = !targetFolder || targetFolder.isSmartFolder || targetFolder == self.trashFolder;
+		menuItem.hidden = !targetFolder.parent || targetFolder.isSmartFolder || targetFolder == self.trashFolder;
 		return !menuItem.hidden;
 	}
 	

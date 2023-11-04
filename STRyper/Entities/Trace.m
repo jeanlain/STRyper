@@ -778,7 +778,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	}
 	
 	/// we retrieve the sizes of fragments in the size standard in ascending order to create an array of LadderSize struct
-	NSArray *sortedFragments = [sizeStandard.sizes.allObjects sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"size" ascending:YES]]];
+	NSArray *sortedFragments = [sizeStandard.sizes.allObjects sortedArrayUsingKey:@"size" ascending:YES];
 	
 	LadderSize ladderSizes[nSizes];									/// we use a variable-length array for this, as nSizes will never be very large
 	int i = 0;

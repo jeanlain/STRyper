@@ -51,8 +51,8 @@ static NSDictionary *labels;
 		}
 		dict[@(fluo)] = @[rulerLabel, @(rulerLabel.size.width)];
 		if (fluo == 200) i = 50;		/// for higher fluo levels, we don't generate all possible values (to save memory)
-		if (fluo == 2000) i = 100;
-		if (fluo == 10000) i = 500;
+		if (fluo == 2500) i = 100;
+		if (fluo == 15000) i = 500;
 		fluo += i;
 		
 	}
@@ -80,16 +80,21 @@ static NSDictionary *labels;
 }
 
 
+- (BOOL)clipsToBounds {
+	return YES;
+}
+
 
 - (void)drawRect:(NSRect)dirtyRect {
 	[NSColor.windowBackgroundColor setFill];
-	NSRectFill(dirtyRect);
-	float vScale = self.traceView.vScale;
+	NSRectFill(self.bounds);
+	TraceView *traceView = self.traceView;
+	float vScale = traceView.vScale;
 	if(vScale <=0) {
 		return;
 	}
-	int labelIncrement = [self rulerLabelIncrement];
-	float topFluoLevel = NSMaxY(self.traceView.bounds)/ vScale;
+	int labelIncrement = [self rulerLabelIncrementForVScale:vScale];
+	float topFluoLevel = NSMaxY(traceView.bounds)/ vScale;
 	for (int fluo = labelIncrement; fluo <= topFluoLevel; fluo += labelIncrement ) {
 		NSAttributedString *label = labels[@(fluo)][0];
 		float width = [labels[@(fluo)][1] floatValue];
@@ -105,9 +110,9 @@ static NSDictionary *labels;
 }
 
 /// returns the increment in size labels that is appropriate given the zoom scale.
-- (int)rulerLabelIncrement {
+- (int)rulerLabelIncrementForVScale:(float)vScale; {
 	/// This was established via trial & error. There's certainly a more flexible way to do it
-	float scale = 1/self.traceView.vScale * 20;
+	float scale = 1/vScale * 20;
 	if (scale < 10) return 10;
 	if (scale < 50) return 50;
 	if (scale < 75) return 100;
@@ -129,7 +134,8 @@ static NSDictionary *labels;
 
 - (void)resetCursorRects {
 	/// to signify that the user can adjust the vertical scale by dragging, we show the appropriate cursor
-	[self addCursorRect:self.visibleRect cursor:NSCursor.openHandCursor];
+	NSRect rect = NSIntersectionRect(self.bounds, self.visibleRect);
+	[self addCursorRect:rect cursor:NSCursor.openHandCursor];
 	
 }
 
@@ -171,20 +177,20 @@ static NSDictionary *labels;
 - (void)setHidden:(BOOL)hidden {
 	super.hidden = hidden;
 	/// we adjust the bounds of the other subviews to accommodate us. We do it by placing their bounds' 0 x coordinate just at our right side
-	NSPoint traceViewOrigin = self.traceView.bounds.origin;
 	
+	TraceView *traceView = self.traceView;
+	NSPoint traceViewOrigin = traceView.bounds.origin;
 	if(hidden) {
 		if(traceViewOrigin.x != 0) {
-			traceViewOrigin.x = 0;
-			[self.traceView setBoundsOrigin:NSMakePoint(0, 0)];
+			[traceView setBoundsOrigin:NSMakePoint(0, traceViewOrigin.y)];
 		}
 	} else {
-		float overlap = NSIntersectionRect(self.frame, self.traceView.superview.frame).size.width;
-		[self.traceView setBoundsOrigin:NSMakePoint(-overlap, 0)];
+		float overlap = NSIntersectionRect(self.frame, traceView.superview.frame).size.width;
+		[traceView setBoundsOrigin:NSMakePoint(-overlap, traceViewOrigin.y)];
 	}
 	
 	/// we make sure, the ruler view is tiled properly after the bounds are changed
-	[self.traceView.enclosingScrollView tile];
+	[traceView.enclosingScrollView tile];
 }
 
 

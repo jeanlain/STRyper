@@ -51,10 +51,10 @@ NS_ASSUME_NONNULL_BEGIN
     float leftLimit, rightLimit;
 		
 	/// The tacking area corresponding to the left edge of the label.
-	NSTrackingArea *leftEdgeArea;
+	__weak NSTrackingArea *leftEdgeArea;
 	
 	/// The tacking area corresponding to the right edge of the label.
-	NSTrackingArea *rightEdgeArea;				
+	__weak NSTrackingArea *rightEdgeArea;				
 	
 	/// The rectangle used by the tracking area covering the label edge.
 	NSRect leftEdgeRect, rightEdgeRect;
@@ -83,8 +83,6 @@ NS_ASSUME_NONNULL_BEGIN
 	/// Backs the readonly ``start`` property, and allows it to be set by subclasses.
 	NSArray *_binLabels;
 	
-	/// The popover that is attached to the label and is shown.
-	__weak NSPopover *attachedPopover;
 }
 
 /// Returns a label representing a region.
@@ -186,6 +184,10 @@ typedef enum EditState : NSUInteger {
 /// ``TraceViewMarkerLabel`` does not implement this method.
 /// - Parameter sender: The object that sent this message. This argument is ignored by the method.
 - (void)spawnRegionPopover:(id)sender;
+
+
+/// The popover that is attached to the label and is shown.
+@property (weak, readonly) NSPopover *attachedPopover;
 
 
 /// Makes the label set the colors used by its core animation layers.

@@ -155,7 +155,7 @@ extern const MarkerOffset MarkerOffsetNone;
 
 /// The marker offset of the genotype.
 ///
-/// The `MarkerOffset` struct is placed in an NSData object for compatibility with core core data.
+/// The `MarkerOffset` struct is placed in an NSData object for compatibility with core data.
 @property (nonatomic, nullable) NSData *offsetData;
 
 /// When the `offsetData` attribute of the genotype changes, the genotype posts a notification with this name to the default notification center.
@@ -197,6 +197,14 @@ extern NSNotificationName _Nonnull const GenotypeDidChangeOffsetCoefsNotificatio
 
 /// Alleles should in principle not be changed after a genotype is created, but in the case of a Chromatogram copy, we have to
 -(void)managedObjectOriginal_setAlleles:(nullable NSSet *)alleles;
+
+-(void)managedObjectOriginal_setStatus:(int32_t)status;
+-(void)managedObjectOriginal_setNotes:(nullable NSString *)status;
+-(void)managedObjectOriginal_setOffsetData:(nullable NSData *)offsetData;
+
+/// The sample of a genotype should not be changed by other objects after its creation, except during copy or import.
+-(void)managedObjectOriginal_setSample:(nullable Chromatogram *)sample;
+
 
 @end
 

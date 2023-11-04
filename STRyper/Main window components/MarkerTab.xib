@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -90,10 +90,10 @@
                     <rect key="frame" x="0.0" y="0.0" width="257" height="318"/>
                     <subviews>
                         <popUpButton horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="T6b-gG-WBE" userLabel="+">
-                            <rect key="frame" x="1" y="8" width="34" height="14"/>
-                            <popUpButtonCell key="cell" type="bevel" bezelStyle="regularSquare" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="FVo-Kf-QHh" id="xEx-lV-DlA">
-                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="menu"/>
+                            <rect key="frame" x="1" y="8" width="38" height="14"/>
+                            <popUpButtonCell key="cell" type="recessed" bezelStyle="recessed" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="FVo-Kf-QHh" id="xEx-lV-DlA">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
                                 <menu key="menu" autoenablesItems="NO" id="PYj-qF-yhZ">
                                     <items>
                                         <menuItem image="add" hidden="YES" id="FVo-Kf-QHh">
@@ -117,20 +117,20 @@
                             <color key="contentTintColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
                         </popUpButton>
                         <button toolTip="Import panel from text file" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="viV-H4-jv5" userLabel="Import">
-                            <rect key="frame" x="43" y="7" width="15" height="16"/>
-                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="import" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="ZaB-EL-ydc">
+                            <rect key="frame" x="47" y="7" width="15" height="16"/>
+                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="import" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="ZaB-EL-ydc">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="smallSystemBold"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
                             </buttonCell>
                             <connections>
                                 <action selector="importPanel:" target="-2" id="ck7-I3-tJj"/>
                             </connections>
                         </button>
                         <button toolTip="Export selected panel" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="751" translatesAutoresizingMaskIntoConstraints="NO" id="ZyM-Z3-m9b" userLabel="Export">
-                            <rect key="frame" x="66" y="7" width="15" height="17"/>
-                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5vj-B1-RUT">
+                            <rect key="frame" x="70" y="7" width="15" height="17"/>
+                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5vj-B1-RUT">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="smallSystemBold"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
                             </buttonCell>
                             <connections>
                                 <action selector="exportSelection:" target="-2" id="wIY-td-FqQ"/>
@@ -167,7 +167,7 @@
                                                         <rect key="frame" x="18" y="0.0" width="220" height="24"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
-                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
+                                                            <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
                                                                 <rect key="frame" x="0.0" y="4" width="220" height="16"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Marker panels" id="7FA-Ui-YsX">
                                                                     <font key="font" usesAppearanceFont="YES"/>
@@ -193,7 +193,7 @@
                                                                 <rect key="frame" x="3" y="3" width="25" height="20"/>
                                                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="Panel" id="7bN-jX-rDv"/>
                                                             </imageView>
-                                                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
+                                                            <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
                                                                 <rect key="frame" x="29" y="6" width="191" height="14"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" title="Name" id="sPR-x9-rNz">
                                                                     <font key="font" metaFont="smallSystem"/>
@@ -256,20 +256,20 @@
                     <subviews>
                         <button toolTip="New Marker" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="S4B-gN-1PE" userLabel="+">
                             <rect key="frame" x="6" y="8" width="14" height="14"/>
-                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="add" imagePosition="only" alignment="center" state="on" imageScaling="proportionallyDown" inset="2" id="l7E-R5-IzX">
+                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="add" imagePosition="only" alignment="center" state="on" imageScaling="proportionallyDown" inset="2" id="l7E-R5-IzX">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="smallSystemBold"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
                             </buttonCell>
                             <connections>
                                 <action selector="newMarkerPrompt:" target="QKk-0z-dMc" id="EUj-Oo-tIx"/>
                                 <binding destination="-2" name="enabled" keyPath="selectedFolder.isPanel" id="0mW-Sm-Waa"/>
                             </connections>
                         </button>
-                        <button toolTip="Remove Selected Marker(s)" verticalHuggingPriority="750" tag="4" translatesAutoresizingMaskIntoConstraints="NO" id="aNO-oA-uzk" userLabel="—">
+                        <button toolTip="Remove Selected Marker(s)" tag="4" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aNO-oA-uzk" userLabel="—">
                             <rect key="frame" x="28" y="8" width="14" height="14"/>
-                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="remove" imagePosition="only" alignment="center" state="on" inset="2" id="kwx-Sg-0pu">
+                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="remove" imagePosition="only" alignment="center" state="on" inset="2" id="kwx-Sg-0pu">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="smallSystemBold"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
                             </buttonCell>
                             <connections>
                                 <action selector="remove:" target="QKk-0z-dMc" id="iTz-HO-2es"/>

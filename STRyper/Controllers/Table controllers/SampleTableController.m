@@ -443,7 +443,7 @@
 			continue;
 		}
 		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:panelFolder.name action:@selector(applyPanel:) keyEquivalent:@""];
-		item.offStateImage = isPanel? [NSImage imageNamed:@"panelBadge"] : [NSImage imageNamed:@"folderBadge"];
+		item.offStateImage = isPanel? [NSImage imageNamed:@"panelBadgeMenu"] : [NSImage imageNamed:@"folderBadge"];
 		[menu addItem:item];
 		if(isPanel) {
 			item.target = self;
@@ -742,6 +742,8 @@
 			}
 			NSString *action = copiedSamples.count > 1? @"Paste Samples" : @"Paste Sample";
 			[self.samples addObjects:copiedSamples.allObjects];	/// which automatically selects the copied samples
+			[self.tableView scrollRowToVisible:self.tableView.selectedRow];
+			
 			[(AppDelegate *)NSApp.delegate saveAction:nil];
 			[self.undoManager setActionName:action];
 		}

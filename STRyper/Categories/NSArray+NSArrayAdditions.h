@@ -11,6 +11,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface NSArray (NSArrayAdditions)
 
+
+-(NSArray *)sortedArrayUsingKey:(NSString *)key ascending:(BOOL)ascending;
+
 @end
 
 NS_ASSUME_NONNULL_END

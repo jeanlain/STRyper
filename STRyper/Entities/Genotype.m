@@ -32,20 +32,6 @@ NSNotificationName _Nonnull const GenotypeDidChangeOffsetCoefsNotification = @"G
 static void * const offsetChangedContext = (void*)&offsetChangedContext;
 
 
-@interface Genotype (DynamicAccessors)
--(void)managedObjectOriginal_setStatus:(int32_t)status;
--(void)managedObjectOriginal_setNotes:(nullable NSString *)status;
--(void)managedObjectOriginal_setOffsetData:(nullable NSData *)offsetData;
--(void)managedObjectOriginal_setSample:(nullable Chromatogram *)sample;
-
-@end
-
-
-@interface Genotype ()
-													
-
-
-@end
 
 @implementation Genotype
 

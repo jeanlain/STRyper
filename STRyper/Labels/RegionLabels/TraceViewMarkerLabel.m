@@ -67,6 +67,7 @@
 		
 		layer = CALayer.new;
 		layer.delegate = self;
+		layer.opaque = YES;
 		
 		/// Our layer represents the range of our region and is a light pink rectangle with black borders
 		layer.zPosition = -1;  				/// this makes sure we show behind bin labels
@@ -121,6 +122,7 @@
 			if(!outerLayer) {
 				outerLayer = CALayer.new;
 				outerLayer.backgroundColor = [NSColor colorWithCalibratedRed:0.8 green:1 blue:0.8 alpha:1].CGColor;
+				layer.opaque = YES;
 				outerLayer.zPosition = -1;
 				outerLayer.actions = @{@"frame": NSNull.null, @"bounds": NSNull.null, @"position": NSNull.null};
 				[self.view.backgroundLayer insertSublayer:outerLayer below:layer];
@@ -412,7 +414,8 @@
 		slope = (mousePos - anchorViewPos) / (draggedEdgePos - anchorPos);
 		intercept = anchorViewPos - slope * anchorPos;
 		
-	} else {		/// the user is moving the label. To reflect the change, only the intercept need to be changed
+	} else {		
+		/// the user is moving the label. To reflect the change, only the intercept need to be changed
 		float minIntercept = leftLimit - self.start * slope;
 		float maxIntercept = rightLimit - self.end * slope;
 		intercept = mousePos - slope * clickedPosition;

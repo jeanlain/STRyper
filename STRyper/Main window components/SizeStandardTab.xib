@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -22,7 +22,7 @@
                     <rect key="frame" x="0.0" y="0.0" width="383" height="638"/>
                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                     <subviews>
-                        <button toolTip="Duplicate Selected Size Standard" verticalHuggingPriority="750" tag="4" translatesAutoresizingMaskIntoConstraints="NO" id="mTV-4Q-35K">
+                        <button toolTip="Duplicate Selected Size Standard" tag="4" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="mTV-4Q-35K">
                             <rect key="frame" x="6" y="6" width="62" height="18"/>
                             <buttonCell key="cell" type="inline" title="Duplicate" bezelStyle="inline" image="remove" alignment="center" state="on" borderStyle="border" inset="2" id="cHA-uy-f39">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
@@ -39,9 +39,9 @@
                         </button>
                         <button toolTip="Delete Size Standard" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="DIm-MT-tb4" userLabel="Delete">
                             <rect key="frame" x="76" y="8" width="15" height="15"/>
-                            <buttonCell key="cell" type="inline" title="Duplicate" bezelStyle="inline" image="trash" imagePosition="only" alignment="center" state="on" imageScaling="proportionallyDown" inset="2" id="PcX-7M-Jxi">
+                            <buttonCell key="cell" type="recessed" title="Duplicate" bezelStyle="recessed" image="trash" imagePosition="only" alignment="center" state="on" imageScaling="proportionallyDown" inset="2" id="PcX-7M-Jxi">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="smallSystemBold"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
                             </buttonCell>
                             <connections>
                                 <action selector="remove:" target="-2" id="Gd5-Bq-ncS"/>
@@ -227,20 +227,20 @@
                         </scrollView>
                         <button toolTip="Add New Size" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="UyL-7K-phw" userLabel="+">
                             <rect key="frame" x="6" y="8" width="14" height="14"/>
-                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="add" imagePosition="only" alignment="center" state="on" inset="2" id="1Lo-RP-XRS">
-                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="smallSystemBold"/>
+                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="add" imagePosition="only" alignment="center" state="on" inset="2" id="1Lo-RP-XRS">
+                                <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
                             </buttonCell>
                             <connections>
                                 <action selector="newSize:" target="yu6-mr-3Yv" id="6Hj-se-frQ"/>
                                 <binding destination="4TZ-Sm-dWa" name="enabled" keyPath="selection.editable" id="w6X-Es-1vF"/>
                             </connections>
                         </button>
-                        <button toolTip="Remove Selected Size" verticalHuggingPriority="750" tag="4" translatesAutoresizingMaskIntoConstraints="NO" id="6qz-XH-bEA" userLabel="-">
+                        <button toolTip="Remove Selected Size" tag="4" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="6qz-XH-bEA" userLabel="-">
                             <rect key="frame" x="28" y="8" width="14" height="14"/>
-                            <buttonCell key="cell" type="inline" bezelStyle="inline" image="remove" imagePosition="only" alignment="center" state="on" inset="2" id="W3F-ho-xng">
+                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="remove" imagePosition="only" alignment="center" state="on" inset="2" id="W3F-ho-xng">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="smallSystemBold"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
                             </buttonCell>
                             <connections>
                                 <action selector="remove:" target="yu6-mr-3Yv" id="aFZ-xt-KSb"/>

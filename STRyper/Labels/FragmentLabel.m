@@ -51,9 +51,15 @@ typedef enum FragmentLabelType : NSUInteger {
 	int minAllowedScan;					 	/// the minimum scan number allowed for the destination (to ensure that ladder sizes remain in ascending order from left to right on the trace, or than an allele remains in a marker's range)
 	int maxAllowedScan;						/// the max scan number of the destination (see above)
 	NSColor *backgroundColor;		  	  	/// background color of the CA layer. For allele labels, the background color reflects the marker's channel
-	CATextLayer *stringLayer;			  	/// shows the label name or size. It has to be separate from the base layer because the string is vertically centered, which isn't possible in a CATextLayer without subclassing
+	CATextLayer *stringLayer;			  	/// shows the label name or size. It has to be separate from the base layer because the string is vertically centered, 
+											/// which isn't possible in a CATextLayer without subclassing
+	
+	NSTimer *clickedTimer;					/// A timer used to set the dragged state of the label has been clicked for a long time
+	
 	float magnetX;						  	/// when dragging, magnetism will constrain a label to a position (in x the view coordinate system) that corresponds to the tip of a peak.
 											/// This is this position. It is negative if the position is not constrained.
+											
+	BOOL canTriggerSelfMagnetism;			/// Whether magnetism can be triggered on the peak that represents our fragment
 }
 
 # pragma mark - init and attributes
@@ -205,8 +211,8 @@ typedef enum FragmentLabelType : NSUInteger {
 	}
 	super.view = aView;
 	
-	if(layer && self.view.layer) {
-		[self.view.layer addSublayer:layer];
+	if(layer && aView.backgroundLayer) {
+		[aView.backgroundLayer addSublayer:layer];
 		if(type == alleleLabel && self.fragment) {
 			backgroundColor = [self.view.colorsForChannels[self.fragment.trace.channel] colorWithAlphaComponent:0.7];
 			layer.backgroundColor = backgroundColor.CGColor;
@@ -215,6 +221,13 @@ typedef enum FragmentLabelType : NSUInteger {
 	[self updateAppearance];
 }
 
+
+- (void)removeFromView {
+	if(clickedTimer.isValid) {
+		[clickedTimer invalidate];
+	}
+	[super removeFromView];
+}
 
 
 - (void)setEnabled:(BOOL)enabled {
@@ -242,17 +255,19 @@ typedef enum FragmentLabelType : NSUInteger {
 
 
 -(void)drag {
-	/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
-	/// This avoids assigning the peak to an allele for what could be a simple click
 	TraceView *view = self.view;
 	NSPoint clickedPoint = view.clickedPoint;
 	NSPoint mouseLocation = view.mouseLocation;
-	float dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
-	if(dist < 5) {
-		return;
+	
+	if(!self.dragged) {
+		/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
+		/// This avoids assigning the peak to an allele for what could be a simple click
+		float dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
+		if(dist < 5) {
+			return;
+		}
+		self.dragged = YES;
 	}
-
-	self.dragged = YES;
 	[self reposition];
 	
 	destination = nil;
@@ -287,7 +302,9 @@ typedef enum FragmentLabelType : NSUInteger {
 	if((minDist < refDist || NSPointInRect(mouseLocation, destination.frame)) && closestPeak.scan <= maxAllowedScan) {
 		destination = closestPeak;
 		destination.hovered = YES;	/// to show the candidate destination, we make it show its hovered state
-		if(minDist < refDist) {
+		if(minDist < refDist && !(!canTriggerSelfMagnetism && closestPeak.scan == self.fragment.scan)) {
+			/// We trigger magnetism if the label is dragged close to peak. The peak must not be our fragment if magnetism isn't allowed in this situation.
+			/// This avoid triggering magnetism when the user has just started dragging.
 			if(magnetX != closestPeakPos) {
 				/// We signify magnetism with haptic feedback
 				[NSHapticFeedbackManager.defaultPerformer performFeedbackPattern:NSHapticFeedbackPatternAlignment
@@ -298,17 +315,45 @@ typedef enum FragmentLabelType : NSUInteger {
 			magnetX = -1;
 		}
 	} else {
+		/// when the label has moved sufficiently far from our original peak, we allow magnetism on our peak
+		canTriggerSelfMagnetism = YES;
 		magnetX = -1;
 	}
+}
+
+
+
+- (void)setClicked:(BOOL)clicked {
+	/// If the label is clicked for 1 sec, we consider it dragged (which changes its appearance).
+	if(clicked != self.clicked) {
+		[super setClicked:clicked];
+		if(clicked) {
+			clickedTimer = [NSTimer scheduledTimerWithTimeInterval:0.7 target:self
+														  selector:@selector(clickedLong) userInfo:nil repeats:NO];
+		} else {
+			if([clickedTimer isValid]) {
+				[clickedTimer invalidate];
+			}
+		}
+	}
+}
+
+
+-(void)clickedLong {
+	self.dragged = YES;
 }
 
 
 - (void)setDragged:(BOOL)dragged {
 	if(dragged != self.dragged) {
 		_dragged = dragged;
-		layer.zPosition = dragged? 2.0: 0.0;	/// a label being dragged must not be masked by another
-		
 		if(dragged) {
+			layer.zPosition = 2.0;	/// a label being dragged must not be masked by another
+			layer.shadowOpacity = 0.5;
+			layer.shadowRadius = 5.0;
+			layer.shadowOffset = CGSizeMake(0, -3);
+			layer.transform = CATransform3DMakeScale(1.2, 1.2, 1);
+			
 			/// A label cannot be dragged to any peak. We determine the min and max scans of the destination peak
 			NSArray	*ladderFragments = [self.view.trace.fragments sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"size" ascending:YES]]];
 			minAllowedScan = 0; maxAllowedScan = 50000;
@@ -337,12 +382,16 @@ typedef enum FragmentLabelType : NSUInteger {
 				}
 			}
 		} else {
+			layer.zPosition = 0.0;
+			layer.shadowOpacity = 0;
+			layer.shadowRadius = 0;
+			layer.transform = CATransform3DIdentity;
+
+			canTriggerSelfMagnetism = NO;
 			/// The label is no longer dragged, the user must have released the mouse.
 			magnetX = -1;
 			[self moveToDestination];
 		}
-		
-		[self reposition];
 	}
 }
 
@@ -354,22 +403,23 @@ typedef enum FragmentLabelType : NSUInteger {
 	TraceView *view = self.view;
 	LadderFragment *fragment = self.fragment;
 	view.needsLayoutFragmentLabels = YES;
-	
+	[self reposition];
+
 	if(!destination || destination.scan == fragment.scan) {
-		/// if the destination is the same as the peak we already have, we can return
+		/// if the destination is the same as the peak we already have, we can return.
 		return;
 	}
 	
 	LadderFragment *destinationFragment = destination.fragment;
 	
 	if(destinationFragment && type == ladderFragmentLabel) {
-		/// if the destination already has a ladder fragment, we de-assign it
+		/// if the destination already has a ladder fragment, we de-assign it.
 		destinationFragment.scan = 0;
 		destinationFragment.offset = 0.0;
 		destinationFragment = nil;				///  we  also remove the fragment from the peak label
 	}
 	
-	/// we give our fragment the scan of the destination
+	/// we give our fragment the scan of the destination.
 	fragment.scan = destination.scan;
 	
 	if(type == ladderFragmentLabel) {
@@ -406,7 +456,6 @@ typedef enum FragmentLabelType : NSUInteger {
 	NSRect viewFrame = view.frame;
 	NSRect frame = self.frame;
 	
-	self._distanceToMove = 0;
 	NSPoint location;
 	if(!self.dragged) {
 		if(fragment.scan > 0) {
@@ -416,7 +465,7 @@ typedef enum FragmentLabelType : NSUInteger {
 		} else {
 			/// In this case, our fragment is "deleted"
 			if(type == ladderFragmentLabel) {
-				/// for a ladder fragment, we position ourselves at the top of the view and and exactly at our size in base pairs
+				/// for a ladder fragment, we position ourselves at the top of the view and exactly at our size in base pairs
 				location = NSMakePoint([view xForSize: fragment.size], NSMaxY(viewFrame) - frame.size.height);
 			} else {
 				/// For an deleted allele, we position above our view (higher than its frame), at the midpoint of the marker range
@@ -426,7 +475,7 @@ typedef enum FragmentLabelType : NSUInteger {
 			}
 		}
 	} else {
-		location = self.view.mouseLocation;
+		location = view.mouseLocation;
 		if(magnetX >= 0) {
 			location.x = magnetX;
 		}
@@ -443,12 +492,13 @@ typedef enum FragmentLabelType : NSUInteger {
 	NSRect newFrame = NSMakeRect(location.x - frame.size.width/2, location.y, frame.size.width, frame.size.height);
 	
 	if(fragment.scan > 0) {
-		float temp =  NSMaxY(view.bounds) - 10 - NSMaxY(newFrame); /// prevents the label from being clipped by the view
-		if (temp < 0) {
-			newFrame.origin.y += temp;
+		float delta =  NSMaxY(view.bounds) - 10 - NSMaxY(newFrame); /// prevents the label from being clipped by the view
+		if (delta < 0) {
+			newFrame.origin.y += delta;
 		}
 	}
 	
+	self._distanceToMove = 0;
 	if(!self.dragged) {
 		_frame = newFrame;		/// we set a tentative frame (hence why we don't use the setter), as we now check for collisions
 		[self avoidCollisions];

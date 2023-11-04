@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -48,7 +48,7 @@
                                                 <rect key="frame" x="1" y="1" width="181" height="96"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
-                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="AuF-mM-PES">
+                                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="AuF-mM-PES">
                                                         <rect key="frame" x="5" y="40" width="172" height="17"/>
                                                         <textFieldCell key="cell" alignment="center" title="No data for this channel" id="3Zi-IZ-n5W">
                                                             <font key="font" metaFont="systemBold" size="14"/>
@@ -98,7 +98,7 @@
                     <constraints>
                         <constraint firstAttribute="width" constant="77" id="xcX-Iu-AzF"/>
                     </constraints>
-                    <sliderCell key="cell" controlSize="small" state="on" alignment="left" minValue="1" maxValue="5" doubleValue="1" tickMarkPosition="above" numberOfTickMarks="5" allowsTickMarkValuesOnly="YES" sliderType="linear" id="mYF-Jh-Whi"/>
+                    <sliderCell key="cell" controlSize="small" continuous="YES" state="on" alignment="left" minValue="1" maxValue="5" doubleValue="1" tickMarkPosition="above" numberOfTickMarks="5" allowsTickMarkValuesOnly="YES" sliderType="linear" id="mYF-Jh-Whi"/>
                 </slider>
                 <segmentedControl focusRingType="none" verticalHuggingPriority="750" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="0e3-85-8Um" userLabel="vScaleMode">
                     <rect key="frame" x="95" y="3" width="108" height="24"/>
@@ -111,21 +111,21 @@
                         </segments>
                     </segmentedCell>
                 </segmentedControl>
-                <button toolTip="Syncrhonize  Positions (^H)" horizontalCompressionResistancePriority="752" tag="-2" translatesAutoresizingMaskIntoConstraints="NO" id="XLb-W5-J7u" userLabel="sync horizontally">
+                <button toolTip="Syncrhonize  Positions (^H)" tag="-2" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="XLb-W5-J7u" userLabel="sync horizontally">
                     <rect key="frame" x="206" y="5" width="20" height="20"/>
                     <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="sync views magnet off" imagePosition="only" alignment="center" alternateImage="sync views magnet pressed" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="Dzt-JX-Nuj">
                         <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                 </button>
-                <button toolTip="Show saturation (^O)" horizontalCompressionResistancePriority="752" tag="-3" translatesAutoresizingMaskIntoConstraints="NO" id="reI-m3-TlB" userLabel="show offscale">
+                <button toolTip="Show saturation (^S)" tag="-3" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="reI-m3-TlB" userLabel="show offscale">
                     <rect key="frame" x="231" y="5" width="21" height="20"/>
                     <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="show offscale off" imagePosition="only" alignment="center" alternateImage="show offscale pressed" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="0q8-dl-ag7">
                         <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                 </button>
-                <button toolTip="Show Bins (^B)" horizontalHuggingPriority="249" horizontalCompressionResistancePriority="752" tag="-4" translatesAutoresizingMaskIntoConstraints="NO" id="gqP-TL-Pv8" userLabel="show bins">
+                <button toolTip="Show Bins (^B)" tag="-4" horizontalHuggingPriority="249" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="gqP-TL-Pv8" userLabel="show bins">
                     <rect key="frame" x="257" y="5" width="22" height="20"/>
                     <buttonCell key="cell" type="bevel" bezelStyle="regularSquare" image="show bins" imagePosition="only" alignment="center" alternateImage="show bins pressed" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="J0D-aX-orp">
                         <behavior key="behavior" pushIn="YES" changeContents="YES" lightByContents="YES"/>

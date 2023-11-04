@@ -204,7 +204,7 @@ static NSArray *defaultColorsForChannels;
 		/// we determine if the view is resized via animation. If so, we reposition labels immediately.
 		/// If we do during -layout, their movements don't follow the animation nicely.
 		if(NSAnimationContext.currentContext.allowsImplicitAnimation) {
-			[self repositionLabels:self.repositionableLabels];
+			[self repositionLabels:self.repositionableLabels allowAnimation:YES];
 		} else {
 			self.needsLayoutLabels = YES;
 		}
@@ -215,20 +215,17 @@ static NSArray *defaultColorsForChannels;
 - (void)layout {
 	[super layout];
 	if(self.needsLayoutLabels) {
-		[self repositionLabels:self.repositionableLabels];
+		[self repositionLabels:self.repositionableLabels allowAnimation:NO];
 	}
 }
 
 
 # pragma mark - labels
 
-- (void)repositionLabels:(NSArray *)labels {
+- (void)repositionLabels:(NSArray *)labels allowAnimation:(BOOL)allowAnimate {
 	if(self.hScale > 0.0 && !self.hidden) {
-		/// we disable layer actions on labels unless the current animation context allows animation (if this view is resized with animation)
-		/// we don't want labels to animated during zooming or scrolling (which in essence are animated actions)
-		BOOL animated = NSAnimationContext.currentContext.allowsImplicitAnimation;
 		for (ViewLabel *label in labels) {
-			label.animated = animated;
+			label.animated = allowAnimate;
 			[label reposition];
 			label.animated = YES;
 		}

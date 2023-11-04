@@ -25,7 +25,7 @@
 #import "Bin.h"
 #import "Panel.h"
 #import "Chromatogram.h"
-
+#import "NSArray+NSArrayAdditions.h"
 
 
 @implementation Region
@@ -63,13 +63,13 @@
 		max = MAX_TRACE_LENGTH;
 		margin = 1;
 		Mmarker *marker = (Mmarker *)self;
-		siblings = [Panel sortByStart: [marker.panel markersForChannel:marker.channel]];
+		siblings = [[marker.panel markersForChannel:marker.channel] sortedArrayUsingKey:@"start" ascending:YES];
 	} else {
 		Mmarker *marker = ((Bin *)self).marker;
 		min = marker.start;           						/// if we are a bin, the min and max position are defined by the range of our marker
 		max = marker.end;
 		margin = 0.05;
-		siblings = [Panel sortByStart:self.siblings];
+		siblings = [self.siblings sortedArrayUsingKey:@"start" ascending:YES];
 	}
 	
 	for(Region *region in siblings) {
@@ -96,7 +96,7 @@
 	if(self.class == Mmarker.class) {       			/// if we are a marker, our range must also consider all our bins
 		NSSet *bins = ((Mmarker *)self).bins;
 		if(bins.count > 0)  {
-			NSArray *sortedBins = [Panel sortByStart:bins.allObjects];
+			NSArray *sortedBins = [bins.allObjects sortedArrayUsingKey:@"start" ascending:YES];
 			if(edge == leftEdge) {
 				rightLimit = ((Region *)sortedBins.firstObject).start;
 			} else {

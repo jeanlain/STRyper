@@ -31,9 +31,6 @@
 	VScaleView *vScaleView;   		/// the vertical scale view is created by us and added as a subview
 	__weak TraceView *traceView;	/// A shortcut to the document view (if a traceView)
 	
-	/// The layer that draws our background.
-	/// The default background property does not work well with animations (the background rectangle and its color are not animated).
-	CALayer *backgroundLayer;
 	
 	RegionLabel *targetLabel;		/// the label of the marker to which we move to after a swipe gesture
 	float previousDeltaX;			/// The scrollingDeltaX of the last scrollWheel event, used to determine if we should move to the next/previous marker.
@@ -76,11 +73,6 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 	self.borderType = NSNoBorder;
 	self.rulersVisible = YES;
 	
-	self.wantsLayer = YES;
-	backgroundLayer = CALayer.new;
-	backgroundLayer.opaque = YES;
-	[self.layer addSublayer:backgroundLayer];
-	self.backgroundColor = NSColor.whiteColor;
 
    self.automaticallyAdjustsContentInsets = NO;
 	self.contentInsets =  NSEdgeInsetsZero;
@@ -91,10 +83,17 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 	[super setDocumentView:documentView];
 	if([self.documentView isKindOfClass:TraceView.class]) {
 		traceView = self.documentView;
-		vScaleView = [[VScaleView alloc] initWithFrame:NSMakeRect(0, 0, vScaleViewWidth, NSMaxY(self.bounds)-20) ]; /// the frame isn't very important as it is set during -tile
+		if(!vScaleView) {
+			vScaleView = [[VScaleView alloc] initWithFrame:NSMakeRect(0, 0, vScaleViewWidth, NSMaxY(self.bounds)-20) ]; /// the frame isn't very important as it is set during -tile
+			vScaleView.wantsLayer = YES;
+		}
 		traceView.vScaleView = vScaleView;
-		vScaleView.wantsLayer = YES;
 		[self addSubview:vScaleView];
+	//	[self.layer addSublayer:leftLayer];
+	} else {
+		if([self.subviews containsObject:vScaleView]) {
+			[vScaleView removeFromSuperview];
+		}
 	}
 }
 
@@ -107,21 +106,8 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 }
 
 
-- (void)setBackgroundColor:(NSColor *)backgroundColor {
-	backgroundLayer.backgroundColor = backgroundColor.CGColor;
-}
-
-
-- (NSColor *)backgroundColor {
-	if(backgroundLayer.backgroundColor) {
-		return [[NSColor colorWithCGColor: backgroundLayer.backgroundColor] copy];
-	}
-	else return NSColor.clearColor;
-}
-
-
 - (BOOL)isOpaque {
-	return YES;		/// we assume that the background layer will not be hidden or given some non-opaque color.
+	return YES;
 }
  
 
@@ -137,16 +123,6 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 
 - (void)tile {
 	[super tile];
-	/// we adjust the background layer to the contentView's frame
-	/// We didn't use layout constrains, because they don't  adapt well to animation
-	if(!NSEqualRects(self.contentView.frame, backgroundLayer.frame)) {
-		[CATransaction begin];
-		CATransaction.disableActions = !NSAnimationContext.currentContext.allowsImplicitAnimation;
-		CGRect frame = self.contentView.frame;
-		backgroundLayer.frame = frame;
-		[CATransaction commit];
-	}
-	
 	/// we adjust the position of the vScaleView
 	if(!vScaleView) {
 		return;
@@ -173,7 +149,8 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 	NSScrollerPart hitPart = self.horizontalScroller.hitPart;
 	float hScale = traceView.hScale;
 	
-	if(hScale <= 0 || traceView.isResizing || targetLabel || !(previousDeltaX != 0 || hitPart != NSScrollerNoPart)) {
+	if(hScale <= 0 || traceView.isResizing || targetLabel ||
+	   (previousDeltaX == 0 && (hitPart == NSScrollerNoPart || hitPart == NSScrollerKnobSlot))) {
 		/// the view being resized tends to trigger this method which messes with the scrolling. So we don't scroll in this situation.
 		/// We also check the presence of a scroll event, because appkits tends to call this method inappropriately, in particular after a swipe between markers.
 		/// The swipe requires ignoring some scrollWheel messages that occur after the fingers have left the trackpad (inertial scrolling events after the swipe).

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -17,7 +17,7 @@
                 <rect key="frame" x="0.0" y="0.0" width="460" height="136"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="95s-4H-7JP">
+                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="95s-4H-7JP">
                         <rect key="frame" x="95" y="100" width="271" height="16"/>
                         <textFieldCell key="cell" lineBreakMode="clipping" title="Find items meeting the following conditions:" id="DB6-2M-GRT">
                             <font key="font" usesAppearanceFont="YES"/>
@@ -60,7 +60,7 @@
                             </predicateEditorRowTemplate>
                         </rowTemplates>
                     </predicateEditor>
-                    <button toolTip="Ignore the case (uppercase, lowercase)" verticalHuggingPriority="750" tag="5" translatesAutoresizingMaskIntoConstraints="NO" id="gIN-PR-wuU">
+                    <button toolTip="Ignore the case (uppercase, lowercase)" tag="5" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="gIN-PR-wuU">
                         <rect key="frame" x="18" y="21" width="97" height="18"/>
                         <buttonCell key="cell" type="check" title="Ignore case" bezelStyle="regularSquare" imagePosition="left" state="on" inset="2" id="FnJ-X2-yuF">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>

@@ -31,6 +31,12 @@
 #import "NewMarkerPopover.h"
 
 
+@interface RegionLabel ()
+
+@property (weak) NSPopover *attachedPopover;
+
+@end
+
 
 @implementation RegionLabel
 
@@ -81,7 +87,7 @@ static NSArray *observedKeys;
 -(void) removeFromView {
 	NSView *view = self.view;
 	if (view) {
-		[attachedPopover close];
+		[self.attachedPopover close];
 	}
 	if(bandLayer.superlayer) {
 		[bandLayer removeFromSuperlayer];		/// the band layer may not be in the same view as the "layer", so we remove it from its parent separately
@@ -193,8 +199,8 @@ static void * const regionPropertyChangedContext = (void*)&regionPropertyChanged
 			}
 			else {
 				/// we close any popover we show if it is not the one changing the attributes of the region.
-				if(attachedPopover && attachedPopover != regionPopover) {
-					[attachedPopover performClose:self];
+				if(self.attachedPopover && self.attachedPopover != regionPopover) {
+					[self.attachedPopover performClose:self];
 				}
 				/// If we show the region popover, we update the start and end values to reflect those of our region
 				if(regionPopover.delegate == self) {
@@ -467,8 +473,6 @@ enum controlTag : NSInteger {
 	}
 	
 	[regionPopover showRelativeToRect:self.frame ofView:self.view preferredEdge:NSMaxYEdge];
-
-	self.highlighted = YES;			/// the popover showing makes our view resign from first responder, which de-highlight us. But it makes sense to stay highlighted
 }
 
 
@@ -502,11 +506,11 @@ enum controlTag : NSInteger {
 
 - (void)popoverWillShow:(NSNotification *)notification {
 	NSPopover *pop = notification.object;
-	if(attachedPopover != pop) {
+	if(self.attachedPopover != pop) {
 		/// if we already have a popover showing, we close it
-		[attachedPopover close];
+		[self.attachedPopover close];
 	}
-	attachedPopover = pop;
+	self.attachedPopover = pop;
 	
 }
 
@@ -520,11 +524,6 @@ enum controlTag : NSInteger {
 }
 
 
-- (void)popoverWillClose:(NSNotification *)notification {
-	if(notification.object == attachedPopover && self.view.window.firstResponder != self.view) {
-		self.highlighted = NO;
-	}
-}
 
 
 - (BOOL)popoverShouldClose:(NSPopover *)popover {
@@ -571,10 +570,14 @@ enum controlTag : NSInteger {
 
 
 - (void)popoverDidClose:(NSNotification *)notification {
-	if(attachedPopover == notification.object) {
-		attachedPopover = nil;
+	if(self.attachedPopover == notification.object) {
+		self.attachedPopover = nil;
+		if(self.view.window.firstResponder != self.view) {
+			self.highlighted = NO;
+		}
 	}
 }
+
 
 
 - (void)drag {

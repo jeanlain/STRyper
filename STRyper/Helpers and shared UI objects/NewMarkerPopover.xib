@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -19,11 +19,11 @@
         </customObject>
         <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
-        <customView id="hr7-ep-93e" userLabel="New marker Popover View">
+        <customView clipsToBounds="YES" id="hr7-ep-93e" userLabel="New marker Popover View">
             <rect key="frame" x="0.0" y="0.0" width="283" height="146"/>
             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
             <subviews>
-                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="6Mz-zY-f6J">
+                <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="6Mz-zY-f6J">
                     <rect key="frame" x="18" y="110" width="81" height="16"/>
                     <textFieldCell key="cell" lineBreakMode="clipping" title="New Marker:" id="ufi-My-50y">
                         <font key="font" usesAppearanceFont="YES"/>
@@ -31,7 +31,7 @@
                         <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                     </textFieldCell>
                 </textField>
-                <textField verticalHuggingPriority="750" tag="4" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="6GH-KF-3SF" userLabel="marker name">
+                <textField focusRingType="none" verticalHuggingPriority="750" tag="4" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="6GH-KF-3SF" userLabel="marker name">
                     <rect key="frame" x="105" y="107" width="158" height="22"/>
                     <textFieldCell key="cell" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" alignment="center" bezelStyle="round" id="xJd-hI-Smr">
                         <font key="font" usesAppearanceFont="YES"/>
@@ -39,7 +39,7 @@
                         <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                     </textFieldCell>
                 </textField>
-                <popUpButton verticalHuggingPriority="750" tag="5" translatesAutoresizingMaskIntoConstraints="NO" id="U2t-zE-aTh">
+                <popUpButton tag="5" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="U2t-zE-aTh">
                     <rect key="frame" x="20" y="83" width="243" height="19"/>
                     <popUpButtonCell key="cell" type="recessed" title="Blue (FAM)" bezelStyle="recessed" alignment="left" lineBreakMode="truncatingTail" state="on" borderStyle="border" imageScaling="proportionallyUpOrDown" inset="2" selectedItem="jeu-3e-Wi9" id="iyc-pu-u6f">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
@@ -62,7 +62,7 @@
                         </menu>
                     </popUpButtonCell>
                 </popUpButton>
-                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="2AF-In-JTJ">
+                <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="2AF-In-JTJ">
                     <rect key="frame" x="18" y="60" width="60" height="16"/>
                     <textFieldCell key="cell" lineBreakMode="clipping" title="Starts at:" id="3i5-rD-alN">
                         <font key="font" metaFont="system"/>
@@ -70,7 +70,7 @@
                         <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                     </textFieldCell>
                 </textField>
-                <textField verticalHuggingPriority="749" tag="1" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="L78-PR-r2j" userLabel="start field">
+                <textField focusRingType="none" verticalHuggingPriority="749" tag="1" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="L78-PR-r2j" userLabel="start field">
                     <rect key="frame" x="81" y="57" width="60" height="22"/>
                     <constraints>
                         <constraint firstAttribute="width" constant="60" id="HzZ-2S-ypb"/>
@@ -82,7 +82,7 @@
                         <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                     </textFieldCell>
                 </textField>
-                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="f2m-kf-YPl">
+                <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="f2m-kf-YPl">
                     <rect key="frame" x="147" y="60" width="53" height="16"/>
                     <textFieldCell key="cell" lineBreakMode="clipping" title="Ends at:" id="DdK-hw-5OI">
                         <font key="font" metaFont="system"/>
@@ -90,7 +90,7 @@
                         <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                     </textFieldCell>
                 </textField>
-                <textField verticalHuggingPriority="750" tag="2" translatesAutoresizingMaskIntoConstraints="NO" id="iDb-7a-p8y" userLabel="end field">
+                <textField focusRingType="none" verticalHuggingPriority="750" tag="2" translatesAutoresizingMaskIntoConstraints="NO" id="iDb-7a-p8y" userLabel="end field">
                     <rect key="frame" x="203" y="57" width="60" height="22"/>
                     <textFieldCell key="cell" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" alignment="left" bezelStyle="round" id="zHw-SP-mb4">
                         <numberFormatter key="formatter" formatterBehavior="default10_4" usesGroupingSeparator="NO" formatWidth="-1" groupingSize="0" minimumIntegerDigits="1" maximumIntegerDigits="42" id="ebO-nZ-7vo"/>
@@ -100,7 +100,7 @@
                     </textFieldCell>
                 </textField>
                 <segmentedControl verticalHuggingPriority="750" tag="6" translatesAutoresizingMaskIntoConstraints="NO" id="TO8-qf-h9B">
-                    <rect key="frame" x="89" y="35" width="106" height="18"/>
+                    <rect key="frame" x="89" y="35" width="105" height="18"/>
                     <segmentedCell key="cell" controlSize="small" borderStyle="border" alignment="left" segmentDistribution="fillEqually" style="roundRect" trackingMode="selectOne" id="hMZ-XP-rbK">
                         <font key="font" metaFont="smallSystem"/>
                         <segments>
@@ -109,11 +109,8 @@
                         </segments>
                     </segmentedCell>
                 </segmentedControl>
-                <button verticalHuggingPriority="750" tag="3" translatesAutoresizingMaskIntoConstraints="NO" id="LqR-1R-eRx">
+                <button tag="3" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="LqR-1R-eRx">
                     <rect key="frame" x="-2" y="-3" width="144" height="32"/>
-                    <constraints>
-                        <constraint firstAttribute="height" constant="30" id="9pz-F2-i6y"/>
-                    </constraints>
                     <buttonCell key="cell" type="smallSquare" title="Cancel" bezelStyle="smallSquare" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="ohO-pN-abU">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                         <font key="font" metaFont="system"/>
@@ -121,6 +118,9 @@
 Gw
 </string>
                     </buttonCell>
+                    <constraints>
+                        <constraint firstAttribute="height" constant="30" id="9pz-F2-i6y"/>
+                    </constraints>
                 </button>
                 <button horizontalHuggingPriority="249" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="o8Y-yk-Ylf">
                     <rect key="frame" x="141" y="-3" width="144" height="32"/>

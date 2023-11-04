@@ -39,6 +39,7 @@
 						  NSStringFromSelector(@selector(borderWidth)):NSNull.null};
 		
 		layer.delegate = self;
+		layer.zPosition = -0.5;
 		
 		bandLayer = CALayer.new;
 		bandLayer.delegate = self;
@@ -51,11 +52,13 @@
 		stringLayer.contentsScale = 2.0;
 		
 		layer.borderColor = NSColor.blackColor.CGColor;
+		layer.opaque = YES;
 		
 		/// our bandLayer is a thin rectangle behind the bin name, which appears at its center.
 		/// We use two layers instead of just a CATextLayer with kCAAlignmentCenter to center the text. Changing the bounds of a CATextLayer kills performance
 		/// Instead, we never modify the bounds of the stringLayer, only those of the bandLayer
 		bandLayer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
+		bandLayer.opaque = YES;
 		
 		bandLayer.anchorPoint = CGPointMake(0.5, 1);		/// this helps to position that layer within its parent (same for the following instruction)
 		bandLayer.zPosition = 1.0;							/// because for some unclear reasons, this layer may sometimes show behind trace

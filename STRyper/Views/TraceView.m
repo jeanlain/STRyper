@@ -56,6 +56,15 @@
 /// Property that can be bound to the NSApp effective appearance. There is no ivar backing it it, the setter just tells the view to conform to the app's appearance.
 @property (nonatomic) NSAppearance *viewAppearance;
 
+@property (nonatomic) BOOL needsDisplayTraces;
+
+/// The width of the visible rectangle that is clipped by our superview, subtracting the region masked by the vscale view.
+@property (readonly, nonatomic) NSRect clipRect;
+
+/// The rectangle in which traces show through our superview, considering its width (not height).
+/// This ignore other superviews that could clip our frame.
+@property (readonly, nonatomic) float visibleWidth;
+
 @end
 
 /// pointers giving context to KVO notifications
@@ -91,7 +100,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 @implementation TraceView {
 	
 	float height;					/// a shortcut to the view's height (not used often. Could be removed)
-	BOOL isDragging;               	/// the views must know whether the some mouse buttons are being pressed, which we use to drag or resize the view (not currently used)
 	float maxReadLength;			/// the length (in base pairs) of the longest trace the view shows
 	float viewLength;				/// It is either the maxReadLength or the max end size the user as set in the preferences, whichever is longer
 	__weak MarkerView *_markerView;	/// the view showing the markers, which is the accessory view of the ruler view
@@ -107,21 +115,30 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	NSArray *observedSamplesForPanel;
 	
 	__weak RegionLabel *hoveredBinLabel;	/// the bin label being hovered, which we use to determine the cursor
+	__weak PeakLabel *hoveredPeakLabel;		/// the peak label being hovered, which we may need to reposition
+											
 	BOOL showMarkerOnly;
 	
+	/**** ivars used for drawing traces **/
+	/// Traces are drawn in a dedicated layer. We don't use the backing layer as we need to show bin and marker labels (which use layers) behind traces
+	/// This helps performance a bit, and we avoid redrawing traces during scrolling ("responsible scrolling" seems disabled in macOS 14)
+	/// However, a single layer cannot always hold the whole traces. If it's too large, drawing is simple not possible, and it uses a lot of memory.
+	/// A CATiledLayer can be very large, but doesn't appear suited to this task.
+	
+	CALayer *traceLayer; 	/// the layer used to display traces
+	NSRect dirtyRect;  		/// marks the region of the layer that needs to be redrawn
+	BOOL needsDisplayInVisibleRect;		/// used in case we only need to redraw in the visible rectangle (for performance reasons, during zooming or change in vertical scale)
+	BOOL displayedInVisibleRectOnly;	/// tells if traces were redrawn in the visible rectangle only, which we need to know during scrolling (to determine if wee need to redraw)
+	
+	NSTimer *displayAllTimer;	/// a timer used to trigger a redrawing of the whole traceLayer, which we use at the end of zooms or other animations, to anticipate scrolling.
+	float traceLayerStart;		/// The position of the left edge of the traceLayer,  during scrolling
+	float traceLayerEnd;		/// same as above, for the right edge
+	BOOL traceLayerCoversEnd;   /// whether the trace layer covers the right end of traces, to avoid computations during scrolling
+	BOOL traceLayerCanAnimateBoundChange;
 }
 
 
-/// Notes on drawing:
-/// Traces are drawn in drawRect: on the backing layer. This allows drawing only what's visible (important for smoothness during zoom) and discarding what's hidden to save memory.
-/// Appkit does this automatically, taking advantage of core animation during scrolling to avoid redrawing at every step.
-///
-/// Reproducing appkit's implementation on a custom layer would be quite complex. The view can be very wide (tens of thousands of points), and appkit complains if we create a CALayer this large (while it has no issue with a very wide backing layer).
-/// It has no issue with a large CATiledLayer, but tiles drawn in separate threads produces artefacts as the current hScale and  vScale may not correspond to the value used for a tile being displayed. CATiledLayer is designed for large fixed images and not for what we do.
-///
-/// Because the traces draw on the backing layer, this layer is not opaque since labels that show behind traces (namely, binLabels should be visible.
-/// These labels use CALayers that are hosted by the superview (the clipview).
-/// This works very well as these layers automatically move in sync with the document view
+
 
 @synthesize markerLabels = _markerLabels, backgroundLayer = _backgroundLayer;
 
@@ -136,6 +153,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 					   NSStringFromSelector(@selector(vScale))];
 	
 }
+
 
 - (instancetype)initWithCoder:(NSCoder *)coder {
 	self = [super initWithCoder:coder];
@@ -158,8 +176,22 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 -(void)setAttributes {
 	[NSUserDefaults.standardUserDefaults addObserver:self forKeyPath:OutlinePeaks options:NSKeyValueObservingOptionNew context:displaySettingsChangedContext]; /// TO REMOVE when shipping
 	
-	self.layer.drawsAsynchronously = YES;  			/// this seems to improve performance in general, and offloads the drawing to the GPU on Apple Silicon
-	self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawOnSetNeedsDisplay;
+	traceLayer = CALayer.new;
+	traceLayer.zPosition = -0.4;  /// To ensure traces show behind fragment labels, which cannot have a positive zPosition.
+	[self.layer addSublayer:traceLayer];
+	traceLayer.delegate = self;
+	traceLayer.anchorPoint = CGPointMake(0, 0);
+	traceLayer.drawsAsynchronously = YES;  /// enables GPU acceleration on Apple Silicon
+	
+	/// The views' background is white
+	self.layer.backgroundColor = NSColor.whiteColor.CGColor;
+	self.layer.opaque = YES;
+	
+	/// Since -updateLayer or -drawRect are not called on needsDisplay (which is problematic to update the view appearance)
+	/// we simply never redraw the view's layer
+	self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawNever;
+	
+	[self setBoundsOrigin:NSMakePoint(0, -0.5)];
 	
 	/************************attributes related to visuals*******/
 	/// we initialize the layer showing the dashed line that show at the mouse location over the enabled marker label
@@ -179,7 +211,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	_showDisabledBins = YES;
 	_showRawData = NO;
 	_showOffscaleRegions = YES;
-	_verticalOffset = 1.0;
 	_defaultRange = MakeBaseRange(0, 500);
 	_hScale = -1.0;  /// we avoid 0 as some methods divide numbers by this ivar
 	
@@ -200,20 +231,12 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 - (CALayer *)backgroundLayer {
 	if(!_backgroundLayer) {
-		self.superview.wantsLayer = YES;
-		if(!self.superview.layer) {
-			return nil;
+		if(traceLayer) {
+			_backgroundLayer = self.layer;
 		}
-		/// since our bounds origin may change, can cannot just return the clipview's backing layer.
-		/// The clipview's backing layer geometry should not be changed.
-		_backgroundLayer = CALayer.new;
-		_backgroundLayer.anchorPoint = CGPointMake(0, 0);
-		_backgroundLayer.position = CGPointMake(0, 0);
-		_backgroundLayer.zPosition = -1;    /// this makes sure this layer shows behind our own layer
 		_backgroundLayer.actions = @{kCAOnOrderIn: NSNull.null, kCAOnOrderOut: NSNull.null,
 									 NSStringFromSelector(@selector(sublayers)): NSNull.null,
 									 NSStringFromSelector(@selector(position)): NSNull.null};
-		[self.superview.layer addSublayer:_backgroundLayer];
 	}
 	return _backgroundLayer;
 }
@@ -237,24 +260,29 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 - (RulerView *)rulerView {
 	if(!_rulerView) {
 		NSScrollView *scrollView = self.enclosingScrollView;
-		scrollView.rulersVisible = YES;
-		RulerView *rulerView = RulerView.new;
-		scrollView.horizontalRulerView = rulerView;
-		rulerView.ruleThickness = ruleThickness;
-		rulerView.reservedThicknessForMarkers = 0.0;
-		rulerView.reservedThicknessForAccessoryView = markerViewHeight;
-		rulerView.clientView = self;
-		_rulerView = rulerView;
-		
+		if(scrollView && scrollView.documentView == self) {
+			scrollView.rulersVisible = YES;
+			RulerView *rulerView = RulerView.new;
+			scrollView.horizontalRulerView = rulerView;
+			rulerView.ruleThickness = ruleThickness;
+			rulerView.reservedThicknessForMarkers = 0.0;
+			rulerView.reservedThicknessForAccessoryView = markerViewHeight;
+			rulerView.clientView = self;
+			NSPoint boundsOrigin = self.bounds.origin;
+			[_rulerView setBoundsOrigin:NSMakePoint(boundsOrigin.x, 0)];
+			_rulerView = rulerView;
+		}
 	}
 	return _rulerView;
 }
 
 
 - (MarkerView *)markerView {
-	if(!_markerView) {
+	if(!_markerView && self.rulerView) {
 		_markerView = MarkerView.new;
 		self.rulerView.accessoryView = _markerView;
+		NSPoint boundsOrigin = self.bounds.origin;
+		[_markerView setBoundsOrigin:NSMakePoint(boundsOrigin.x, 0)];
 		[_markerView setFrameSize:NSMakeSize(_markerView.frame.size.width, markerViewHeight)];
 	}
 	return(_markerView);
@@ -299,6 +327,14 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	
 	/// We set the hScale to -1 to signify that our geometry is reset and not final. This is to prevent our range from being modified in resizeWithOldSuperViewSize: before prepareForDisplay: (the latter sets our hScale)
 	_hScale = -1.0;
+	if(displayAllTimer.valid) {
+		[displayAllTimer invalidate];
+	}
+	
+	if(resizingTimer.valid) {
+		[resizingTimer invalidate];
+	}
+	
 	_marker = marker;
 	self.loadedTraces = traces;
 	
@@ -446,7 +482,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-
 -(void)stopObservingSamples {
 	for(Chromatogram *sample in observedSamples) {
 		[sample removeObserver:self forKeyPath:ChromatogramSizesKey];
@@ -461,7 +496,8 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-- (void)clearContents {
+- (void)prepareForReuse {
+	[super prepareForReuse];
 	_trace = nil;
 	self.loadedTraces = nil;
 	_marker = nil;
@@ -634,9 +670,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			label.enabled = YES;
 		}
 	}
-	if(self.showOffscaleRegions) {
+	if(self.showOffscaleRegions && (visibleTraces.count == 1 || self.channel == -1)) {
 		/// We redraw as we don't show off-scale regions when a marker label is enabled (to avoid interference with its rectangle and its bins).
-		self.needsDisplay = YES;
+		self.needsDisplayTraces = YES;
 	}
 }
 
@@ -698,7 +734,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		self.needsLayoutLabels = YES;
 	}
 	/// labels call a needsDisplayInRect when they are positioned, but in case a previous label is deleted and was hovered/active, the view may not be redrawn in the rectangle, so:
-	self.needsDisplay = YES;
+	self.needsDisplayTraces = YES;
 }
 
 
@@ -734,6 +770,12 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			}
 		}
 		[self updateCursor];
+	} else if([label isKindOfClass:PeakLabel.class]) {
+		if(label.hovered) {
+			hoveredPeakLabel = (PeakLabel *)label;
+		} else if(hoveredPeakLabel == label) {
+			hoveredPeakLabel = nil;
+		}
 	}
 }
 
@@ -762,7 +804,11 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (NSArray<ViewLabel *> *)repositionableLabels {
-	return [self.panelLabels arrayByAddingObjectsFromArray:self.fragmentLabels];
+	NSArray *labels = [self.panelLabels arrayByAddingObjectsFromArray:self.fragmentLabels];
+	if(hoveredPeakLabel) {
+		labels = [labels arrayByAddingObject:hoveredPeakLabel];
+	}
+	return labels;
 }
 
 
@@ -774,12 +820,17 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
+
 -(void)layout {
+	if(traceLayer && self.needsLayoutLabels) {
+		[self repositionTraceLayer];
+	}
+	
 	if(self.needsLayoutFragmentLabels && !self.needsLayoutLabels && self.hScale >=0) {
 		/// we don't need to reposition fragment labels here if all labels will be repositioned anyway (in super)
-		BOOL animated = NSAnimationContext.currentContext.allowsImplicitAnimation;
+		/// This should be the case when the vertical scale is changed by the view geometry has not
 		for(FragmentLabel *label in self.fragmentLabels) {
-			label.animated = animated;
+			label.animated = NO;
 			[label reposition];
 			label.animated = YES;
 		}
@@ -790,9 +841,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-	if(context == displaySettingsChangedContext) {
-		self.needsDisplay = YES;
-	} else if(context == sampleSizingChangedContext) {
+	if(context == sampleSizingChangedContext) {
 		Chromatogram *sample = object;
 		if(sample.coefs != nil) {
 			/// we only react if the sizing properties haven't become nil (which may happen)
@@ -810,7 +859,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 					}
 				}
 			}
-			self.needsDisplay = YES;
+			self.needsDisplayTraces = YES;
 			self.rulerView.needsDisplay = YES;
 		}
 	} else if(context == panelChangedContext) {
@@ -831,30 +880,145 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 # pragma mark - drawing commands
 
+- (BOOL)wantsUpdateLayer {
+	return YES;  /// Since we don't update the view's layer, this may not change anything.
+}
 
-- (void)drawRect:(NSRect)dirtyRect {
-	
-	
-	if(self.needsUpdateLabelAppearance) {
-		/// if this method is called because the app theme has changed, we must change the bin labels, whose appearance depends on the theme.
-		for(RegionLabel *label in self.binLabels) {
-			[label updateForTheme];
+
+- (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
+	if(layer == traceLayer) {
+		if(traceLayerCanAnimateBoundChange) {
+			return nil;
 		}
-		self.needsUpdateLabelAppearance = NO;
+		return NSNull.null;
 	}
-	
-	/// we draw traces
-	if(visibleTraces.count > 0) {
-		[self drawTracesInRect:dirtyRect];
+	return nil;
+}
+
+
+- (BOOL)layer:(CALayer *)layer shouldInheritContentsScale:(CGFloat)newScale fromWindow:(NSWindow *)window {
+	if(layer == traceLayer) {
+		return YES;
+	}
+	return NO;
+}
+
+
+- (BOOL)isOpaque {
+	return YES;
+}
+
+
+- (void)setNeedsDisplayTraces:(BOOL)display {
+	_needsDisplayTraces = display;
+	if(display) {
+		needsDisplayInVisibleRect = NO;
+		[traceLayer setNeedsDisplay];
 	}
 }
 
-/// Draws trace-related elements in the view. Called during drawRect:
+
+- (void)setNeedsDisplayInVisibleRect {
+	needsDisplayInVisibleRect = YES; 	/// This will cause a display in the visible rect only, even if needsDisplayTraces is YES.
+										/// This avoid displaying the whole layer during scrolling if it determined afterward that only the visible part
+										/// needs to be redrawn.
+	/// we mark the whole layer for redrawing, even if only the visible part will be redrawn.
+	/// This is because the visible part of the layer may change between now and the time of redrawing.
+	/// Doing so has no visible impact on performance.
+	[traceLayer setNeedsDisplay];
+}
+
+
+-(void)repositionTraceLayer {
+	/// We position the layer so it covers all the region occupied by traces, if possible
+	float traceWidth = (self.trace.chromatogram.readLength - _sampleStartSize) * self.hScale;
+	NSRect bounds = self.bounds;
+	float height = NSMaxY(bounds) + 0.5; /// 0.5 allows to show the curve, which is 1-point tick, for a fluorescence scale of 0
+										 /// while clipping everything that is below (some joints between segment).
+	NSRect layerFrame = NSMakeRect(0, -0.5, traceWidth, height);
+	float maxWidth = 2e6 / height;
+	if(traceWidth > maxWidth) {
+		/// if the traces occupies an area that is too wide, we cover what is not clipped + some margin
+		float visibleWidth = self.visibleWidth; /// We don't use -visibleRect as we want the width of our clipView, even if we are clipped by another clipView in the hierarchy.
+		float targetWidth = visibleWidth * 1.5;
+		if(targetWidth < traceWidth) {
+			if(targetWidth < maxWidth) {
+				targetWidth = maxWidth;
+			}
+			layerFrame = NSMakeRect(self.visibleOrigin - (targetWidth-visibleWidth)/2, -0.5, targetWidth, height);
+			if(layerFrame.origin.x < 0) {
+				layerFrame.origin.x = 0;
+			}
+			float diff = NSMaxX(layerFrame) - traceWidth;
+			if(diff > 0) {
+				layerFrame.origin.x -= diff;
+			}
+		}
+	}
+	
+	BOOL coveredAll = traceLayerStart <= 0 && traceLayerCoversEnd;
+	
+	traceLayerStart = layerFrame.origin.x;
+	traceLayerEnd = NSMaxX(layerFrame);
+	traceLayerCoversEnd = traceLayerEnd >= traceWidth;
+	traceLayerCanAnimateBoundChange = traceLayerCanAnimateBoundChange && coveredAll && traceLayerStart <= 0 && traceLayerCoversEnd;
+	
+	traceLayer.frame = layerFrame;
+	traceLayer.bounds = layerFrame;		/// such that the coordinates in the layer are the same as in the view
+	traceLayerCanAnimateBoundChange = NO;
+}
+
+
+- (void)setNeedsDisplayInRect:(NSRect)invalidRect {
+	[traceLayer setNeedsDisplayInRect:invalidRect];
+	dirtyRect = NSUnionRect(dirtyRect, invalidRect);
+}
+
+
+-(void)drawAll {
+	self.needsDisplayTraces = YES;
+}
+
+
+- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
+	if(layer == traceLayer) {
+		if(_needsDisplayTraces || needsDisplayInVisibleRect) {
+			if(displayAllTimer.valid) {
+				[displayAllTimer invalidate];
+			}
+			if(needsDisplayInVisibleRect) {
+				displayedInVisibleRectOnly = YES;
+				dirtyRect = self.clipRect;
+				displayAllTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self
+																 selector:@selector(drawAll) userInfo:nil repeats:NO];
+			} else {
+				dirtyRect = layer.bounds;
+				displayedInVisibleRectOnly = NO;
+				}
+		}
+		[NSGraphicsContext saveGraphicsState];
+		NSGraphicsContext.currentContext = [NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO];
+		[self drawTracesInRect:dirtyRect];
+		[NSGraphicsContext restoreGraphicsState];
+		
+		dirtyRect = NSZeroRect;
+		self.needsDisplayTraces = NO;
+		needsDisplayInVisibleRect = NO;
+	}
+}
+
+
+
+/// Draws trace-related elements in the view. 
 - (void)drawTracesInRect:(NSRect) dirtyRect {
+	
+	if(visibleTraces.count == 0) {
+		return;
+	}
+	
 	float hScale = self.hScale;
 	float vScale = self.vScale;
 	float sampleStartSize = self.sampleStartSize;
-	float vOffset = self.verticalOffset;
 	float startSize = dirtyRect.origin.x/hScale + sampleStartSize;	/// the size (in base pairs) at the start of the dirty rect
 	float endSize = NSMaxX(dirtyRect)/hScale + sampleStartSize;
 	Chromatogram *sample = self.trace.chromatogram;
@@ -906,8 +1070,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	float lastX = 0;
 	int maxPointsInCurve = 40;					/// we stoke the curve if it has enough points. Numbers between 10-100 seem to yield the best performance
 	NSPoint pointArray[maxPointsInCurve];          /// points to add to the curve
-	int totPoints = 0, totDrawn = 0, skipped = 0;	/// variables used for performance reports. We skip some scans for performance without much impact on fidelity
-	int startScan = 0, maxScan = 0, lastScan = 0;	/// we will draw traces for scan between these scans.
+	int startScan = 0, maxScan = 0;	/// we will draw traces for scan between these scans.
 	sample = nil;
 	
 	for (Trace *traceToDraw in visibleTraces) {
@@ -940,38 +1103,39 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		
 		[self.colorsForChannels[traceToDraw.channel] setStroke];
 		short pointsInPath = 0;		/// current number of points being added to the path
-		bool outside = false;		/// whether a scan is to the right (outside) the dirty rect. Used to determine when to stop drawing.
+		BOOL outside = NO;			/// whether a scan is to the right (outside) the dirty rect. Used to determine when to stop drawing.
 		int scan = startScan;
 		while(scan <= maxScan && !outside) {
-			totPoints++;
 			if(sizes[scan] > endSize) {
-				outside = true;
-				lastScan = scan;
+				outside = YES;
 			}
 			float x = (sizes[scan] - sampleStartSize) * hScale;
 			xFromLastPoint = x - lastX;
 			
 			int16_t scanFluo = fluo[scan];
-			if (scan != startScan && !outside && scan < maxScan-1) {
-				/// to skip a scan, it must not be the first nor last. We have to draw the first point outside the dirty rect as well.
-				if(!(scanFluo <= lowerFluo && (fluo[scan-1] > lowerFluo || fluo[scan+1] > lowerFluo))) { 			// the point must not be the first/last of a series of scans under the lower threshold
-					if(scanFluo < lowerFluo ||
-					   /// we can skip any remaining scan below the fluo threshold
-					   (xFromLastPoint < 1 && !(fluo[scan-1] >= scanFluo && fluo[scan+1] > scanFluo) && !(fluo[scan-1] <= scanFluo && fluo[scan+1] < scanFluo))) {
-						/// or any that is too close from previously drawn scans and not a local minimum / maximum
-						scan++;
-						skipped++;
-						continue;
+			if (scan < maxScan-1) {
+				/// we may skip a point that is too close from previously drawn scans and not a local minimum / maximum
+				/// or that is lower than the fluo threshold
+				if((xFromLastPoint < 1 && !(fluo[scan-1] >= scanFluo && fluo[scan+1] > scanFluo) &&
+					!(fluo[scan-1] <= scanFluo && fluo[scan+1] < scanFluo)) || scanFluo < lowerFluo) {
+					/// and that is not the first/last of a series of scans under the lower threshold
+					if(!(scanFluo <= lowerFluo && (fluo[scan-1] > lowerFluo || fluo[scan+1] > lowerFluo))) {
+						/// We must draw the first point and the last point outside the dirty rect
+						if(scan != startScan && !outside) {
+							scan++;
+							continue;
+						}
 					}
 				}
 			}
 			lastX = x;
 			float y = scanFluo * vScale;
-			if (y < lowerPoint) y = lowerPoint -1;
-			pointArray[pointsInPath++] = CGPointMake(x, y + vOffset);
-			
+			if (y < lowerPoint) {
+				y = lowerPoint -1;
+			}
+			pointArray[pointsInPath++] = CGPointMake(x, y);
+			 
 			if (pointsInPath == maxPointsInCurve || outside || scan == maxScan-1) {
-				totDrawn += pointsInPath;
 				[curve appendBezierPathWithPoints:pointArray count:pointsInPath];
 				[curve stroke];
 				[curve removeAllPoints];
@@ -980,17 +1144,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 				pointsInPath = 1;
 			}
 			scan++;
-		}
-		
-	}
-	
-	///we draw peak labels, which don't use CALayers
-	for (PeakLabel *label in self.peakLabels) {
-		if (label.endScan >= startScan) {
-			if(label.startScan > lastScan || label.endScan > maxScan) {
-				break;
-			}
-			[label draw];
 		}
 	}
 }
@@ -1016,7 +1169,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	
 	const int16_t *fluo = fluoData.bytes;
-	return CGPointMake([self xForScan:scan], fluo[scan] * _vScale + _verticalOffset);
+	return CGPointMake([self xForScan:scan], fluo[scan] * _vScale);
 }
 
 
@@ -1039,7 +1192,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		self.hScale = newScale;
 		self.visibleOrigin = (range.start - _sampleStartSize) * _hScale;
 		[self.delegate traceViewDidChangeRangeVisibleRange:self];
-		
+		self.isMoving = YES;
 	}
 	if(!self.marker)  {
 		for(Trace *trace in self.loadedTraces) {
@@ -1061,11 +1214,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		float newScale = self.visibleWidth / _visibleRange.len;
 		self.hScale = newScale;
 		self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
-		if(resizingTimer.valid) {
-			[resizingTimer invalidate];
-		}
-		resizingTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(doneMoving) userInfo:nil repeats:NO];
-		[[NSRunLoop mainRunLoop] addTimer:resizingTimer forMode:NSRunLoopCommonModes];
 		self.isMoving = YES;
 	}
 	if(!self.marker)  {
@@ -1092,7 +1240,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			}
 		}
 		if(self.frame.size.height > 0) {
-			self.vScale = self.frame.size.height/_topFluoLevel;
+			self.vScale = NSMaxY(self.bounds)/_topFluoLevel;
 		}
 		[self.delegate traceViewDidChangeTopFluoLevel:self];
 	}
@@ -1115,7 +1263,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			}
 		}
 		if(self.frame.size.height > 0) {
-			self.vScale = self.frame.size.height/_topFluoLevel;
+			self.vScale = NSMaxY(self.bounds)/_topFluoLevel;
 		}
 	}
 }
@@ -1124,7 +1272,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 - (void)setVScale:(float)scale {
 	if (scale != _vScale) {
 		_vScale = scale;
-		self.needsDisplay = YES;
+		[self setNeedsDisplayInVisibleRect];
 		self.vScaleView.needsDisplay = YES;
 		self.needsLayoutFragmentLabels = YES;
 	}
@@ -1141,6 +1289,25 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		/// to compute it, we need to record the previous visible origin (the new mouse location must set it after the scroll)
 		float previous = _visibleOrigin;
 		_visibleOrigin = newVisibleOrigin;
+				
+		if(!needsDisplayInVisibleRect && !_needsDisplayTraces) {
+			/// if no redisplay is scheduled, we check if we need to render traces for parts that will becomes visible
+			if((traceLayerStart > 0 && newVisibleOrigin - traceLayerStart < 10) ||
+			   (!traceLayerCoversEnd && traceLayerEnd - NSMaxX(self.clipRect) < 10)) {
+				/// If we get close to the edge of the layer, we reposition it and redraw the traces
+				/// This is not as efficient as "responsive scrolling", as the redrawing may cause a hiccup if there are many traces
+				/// In particular, parts that are visible get redrawn. I don't have the knowledge to reuse what is already drawn in a single layer.
+				NSLog(@"overdraw");
+				[self repositionTraceLayer];				
+				self.needsDisplayTraces = YES;
+			}
+			
+			if(displayedInVisibleRectOnly) {
+				/// In case the traceLayer was not drawn fully we make sure it is drawn
+				/// This may happens if scrolling starts before drawAll is called
+				self.needsDisplayTraces = YES;
+			}
+		}
 		
 		NSClipView *clipView = (NSClipView *)self.superview;
 		if (clipView.bounds.origin.x != newVisibleOrigin) {
@@ -1180,7 +1347,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		[self setFrameSize:newSize];
 		self.isResizing = NO;
 	}
-	self.needsDisplay = YES;
+	[self setNeedsDisplayInVisibleRect];
 }
 
 
@@ -1309,7 +1476,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 /// This sets the visible range and vertical scale after the content is loaded
 - (void)prepareForDisplay {
-	/// we change ivars related to geometry to signify the the view is not in its final state. We don't use the setters as we don't want the view to actually change the geometry of the view to match these dummy values
+	
+	/// we change ivars related to geometry to signify the the view is not in its final state. 
+	/// We don't use the setters as we don't want the view to actually change the geometry of the view to match these dummy values
 	_hScale = -1.0; height = 0; _visibleRange = MakeBaseRange(0, 2.0);
 	_topFluoLevel = -1;
 	self.isMoving = NO;
@@ -1345,6 +1514,8 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	
 	[self setTopFluoLevelAndDontNotify:topFluoLevel];
 	
+	self.needsDisplayTraces = YES;
+	
 	/// we directly set the visible range of the view. We don't use the setVisibleRange: method as we don't want to fire the resizingTimer
 	if (refRange.start != _visibleRange.start | refRange.len != _visibleRange.len) {
 		_visibleRange = refRange;
@@ -1363,14 +1534,19 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
+- (BOOL)clipsToBounds {
+	return YES;
+}
+
+
 - (void)setBoundsOrigin:(NSPoint)newOrigin {
 	/// we set our bounds origin to adapt to the presence of vScaleView, which overlaps us.
 	/// our bounds x origin must be reflected by the top ruler view and the marker view, or else graduation and markers will not show at the correct position relative to the traces
 	[super setBoundsOrigin:newOrigin];
-	[self.markerView setBoundsOrigin:NSMakePoint(newOrigin.x, 0)];
+	[self.markerView setBoundsOrigin:NSMakePoint(newOrigin.x,0)];
+	[self.vScaleView setBoundsOrigin:NSMakePoint(0, newOrigin.y)];
 	[self.rulerView setBoundsOrigin:NSMakePoint(newOrigin.x, 0)];
-	self.backgroundLayer.position = CGPointMake(-newOrigin.x, 0);
-	self.needsDisplay = YES;		/// this should not be required in principle, but when the view is zoomed out (and only then) changing the bounds somehow doesn't update the layer
+	
 	self.needsLayoutLabels = YES;
 	
 }
@@ -1389,9 +1565,14 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-/// The width of the visible rectangle (in points), subtracting the region masked by the vscale view.
 - (float) visibleWidth {
-	return self.superview.frame.size.width + self.bounds.origin.x;
+	return self.superview.bounds.size.width + self.bounds.origin.x;
+}
+
+
+-(NSRect)clipRect {
+	NSRect bounds = self.bounds;
+	return NSMakeRect(self.visibleOrigin, bounds.origin.y, self.superview.bounds.size.width + bounds.origin.x, bounds.size.height);
 }
 
 
@@ -1401,10 +1582,16 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		return;  				/// we do not react when our visible range is not yet set
 	}
 	
-	[self fitVertically];		/// we adjust to our clipview height
+	NSSize newSize = self.superview.bounds.size;
 	
-	self.hScale = self.visibleWidth / _visibleRange.len;;
-	self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
+	if(newSize.height != oldSize.height) {
+		[self fitVertically];
+	}
+	
+	if(newSize.width != oldSize.width) {
+		self.hScale = self.visibleWidth / _visibleRange.len;;
+		self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
+	}
 }
 
 
@@ -1435,6 +1622,10 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	if(height != self.frame.size.height) {
 		[self setFrameSize:NSMakeSize(self.frame.size.width, height)];
+		if(!self.needsLayoutLabels) {
+			/// all labels may have already been repositioned before -layout (if the view was resized with animation)
+			self.needsLayoutFragmentLabels = NO;
+		}
 		if(dashedLineLayer) {
 			/// we make the dashed line layer as tall as the view
 			dashedLineLayer.bounds = CGRectMake(0, 0, 1, height);
@@ -1448,8 +1639,19 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
--(float)topFluoForRange:(BaseRange)range {		
-	int16_t maxLocalFluo = 0;
+- (void)setFrameSize:(NSSize)newSize {
+	[super setFrameSize:newSize];
+	if(!self.needsLayoutLabels) {
+		/// in this case, the labels have been repositioned immediately, which means the view is resized with animation
+		/// we also reposition the trace layer now
+		traceLayerCanAnimateBoundChange = YES;
+		[self repositionTraceLayer];
+	}
+}
+
+
+-(float)topFluoForRange:(BaseRange)range {
+	float maxLocalFluo = 0;
 	float startSize = range.start, endSize = range.start + range.len;
 	BOOL useRawData = self.showRawData || self.maintainPeakHeights;
 	BOOL ignoreCrosstalk = self.ignoreCrosstalkPeaks;
@@ -1489,7 +1691,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	}
 	
 	
-	maxLocalFluo += maxLocalFluo * 20/self.frame.size.height;		/// we leave a 20-point margin above the highest peak
+	maxLocalFluo += maxLocalFluo * 20/NSMaxY(self.bounds);		/// we leave a 20-point margin above the highest peak
 	return maxLocalFluo;
 }
 
@@ -1523,8 +1725,12 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-- (NSSize)intrinsicContentSize {		
-	return NSMakeSize(viewLength * self.hScale - self.bounds.origin.x, height);
+- (NSSize)intrinsicContentSize {	
+	float hScale = self.hScale;
+	if(hScale < 0) {
+		hScale = 0;
+	}
+	return NSMakeSize(viewLength * hScale - self.bounds.origin.x, height);
 }
 
 
@@ -1538,6 +1744,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 				if(area != trackingArea) {
 					[self removeTrackingArea:area];
 				}
+			}
+			if(self.showPeakTooltips) {
+				[self removeAllToolTips];
 			}
 		}
 	}
@@ -1576,8 +1785,8 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 - (void)setShowOffscaleRegions:(BOOL)showOffscaleRegions {
 	_showOffscaleRegions = showOffscaleRegions;
 	if(_hScale > 0) {
-		/// offScale regions are drawn in -drawRect, so:
-		self.needsDisplay = YES;
+		/// offScale regions are drawn together with traces, so:
+		self.needsDisplayTraces = YES;
 	}
 }
 
@@ -1600,7 +1809,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		[self scaleToHighestPeakWithAnimation:YES];
 	}
 	self.needsLayoutFragmentLabels = YES; /// because peak heights may change
-	self.needsDisplay = YES;
+	self.needsDisplayTraces = YES;
 }
 
 
@@ -1610,7 +1819,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		[self scaleToHighestPeakWithAnimation:YES];
 	}
 	self.needsLayoutFragmentLabels = YES; /// because peak heights may change
-	self.needsDisplay = YES;
+	self.needsDisplayTraces = YES;
 }
 
 
@@ -1633,7 +1842,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 - (void)setColorsForChannels:(NSArray<NSColor *> *)colorForChannels {
 	[super setColorsForChannels:colorForChannels];
 	_colorForOffScaleScans = nil;
-	self.needsDisplay = YES;
+	self.needsDisplayTraces = YES;
 }
 
 
@@ -1655,7 +1864,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 		visibleTraces = [self.loadedTraces filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Trace *trace, NSDictionary<NSString *,id> * _Nullable bindings) {
 			return [self.displayedChannels containsObject: @(trace.channel)];
 		}]];
-		self.needsDisplay = YES;
+		self.needsDisplayTraces = YES;
 		if(self.autoScaleToHighestPeak) {
 			/// when displayed traces change, we may have to rescale to the highest peak
 			/// we animate only if at least one trace was displayed before
@@ -1672,15 +1881,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-- (void)setVerticalOffset:(float)verticalOffset {
-	if(verticalOffset < 0.0) {
-		verticalOffset = 0.0;
-	} else if(verticalOffset > 100.0) {
-		verticalOffset = 100.0;
-	}
-	_verticalOffset = verticalOffset;
-	self.needsDisplay = YES;
-	self.needsLayoutLabels = YES;
+- (void)setVScaleView:(VScaleView *)vScaleView {
+	_vScaleView = vScaleView;
+	[self.vScaleView setBoundsOrigin:NSMakePoint(0, self.bounds.origin.y)];
 }
 
 
@@ -1712,9 +1915,16 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 - (BOOL)resignFirstResponder {
 	self.rulerView.currentPosition = -10000;
 	for (ViewLabel *label in self.viewLabels){
-		label.highlighted = NO;
+		if([label respondsToSelector:@selector(attachedPopover)]) {
+			if([(RegionLabel *)label attachedPopover] == nil) {
+				/// if the label has a popover, this method is likely call because the popover is spawn
+				/// in this case we don't dehighlight the label. We only do it if it has no popover attached.
+				label.highlighted = NO;
+			}
+		} else {
+			label.highlighted = NO;
+		}
 	}
-	self.spaceDown = NO;
 	return YES;
 }
 
@@ -1787,7 +1997,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 			Mmarker *marker = self.enabledMarkerLabel.region;
 			if(marker.editState != editStateBinSet) {
 				/// If the click is within the enabled marker label, the user may already be editing individual bins
-				/// in which case a force click isn't need. Or they may be editing the marker offset, in which case no bin should not be selectable
+				/// in which case a force click isn't need. Or they may be editing the marker offset, in which case no bin should be selectable
 				/// We only allow to proceed if the user is moving the bin set, which pertains to bin editing. 
 				return;
 			}
@@ -1844,7 +2054,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 													  keyEquivalent:@""];
 				[addPeakMenu addItem:item];
 			}
-			/// We add the peak to menu item.
+			/// We add the peak to the menu item.
 			NSMenuItem *item = addPeakMenu.itemArray.lastObject;
 			item.representedObject = [NSValue valueWithBytes:&addedPeak objCType:@encode(Peak)];
 			item.target = self;
@@ -1872,7 +2082,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 -(void)finishAddPeak {
 	[self.window.undoManager setActionName:@"Add Peak"];
 	/// we reposition labels immediately as we click the inserted one
-	[self repositionLabels:self.peakLabels];
+	[self repositionLabels:self.peakLabels allowAnimation:NO];
 	for(PeakLabel *peakLabel in self.peakLabels) {
 		[peakLabel updateTrackingArea];
 		[peakLabel mouseDownInView];
@@ -1880,18 +2090,6 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 }
 
 
-- (void)setSpaceDown:(BOOL)down {
-	if(_spaceDown != down) {
-		_spaceDown = down;
-		if(down) {
-			for (NSTrackingArea *area  in self.trackingAreas) {
-				if(area != trackingArea) [self removeTrackingArea:area];
-			}
-		} else {
-			[self updateTrackingAreas];
-		}
-	}
-}
 
 /*
  - (void)keyDown:(NSEvent *)event {  // the view can be scrolled by dragging the mouse with the space key down.
@@ -1940,12 +2138,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 - (void)mouseDown:(NSEvent *)theEvent   {
 	[self.window makeFirstResponder:self];
 	self.mouseLocation= [self convertPoint:theEvent.locationInWindow fromView:nil];
-	if (!self.spaceDown) {
-		[super mouseDown:theEvent];
-	} else {
-		[NSCursor.closedHandCursor push];
-	}
-	
+	[super mouseDown:theEvent];
 }  
 
 
@@ -2042,58 +2235,46 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 			return;
 		}
 	}
-	
-	if (self.spaceDown | isDragging) {       /// if the space key is pressed, dragging the mouse scrolls the view.
-		isDragging = YES;
-		
-		float newOrigin = self.visibleOrigin + startPoint - self.mouseLocation.x;
-		if(newOrigin < 0) newOrigin = 0;
-		else if(newOrigin > self.bounds.size.width - self.visibleRect.size.width)
-			newOrigin = self.bounds.size.width - self.visibleRect.size.width;
-		
-		[self.enclosingScrollView scrollClipView:(NSClipView*)self.superview toPoint:NSMakePoint(newOrigin, 0)];
-		
-		
-		return;
-	}
 }
 
 
 - (void)autoscrollWithDraggedLabel:(ViewLabel *)draggedLabel {
 	/// we autoscroll if the mouse is dragged over the rightmost button on the left (the "+"' button), or the button on the right
-	if(!NSPointInRect(self.mouseLocation, draggedLabel.frame)) {
+	
+	NSRect frame = draggedLabel.frame;
+	if(!NSPointInRect(self.mouseLocation, frame)) {
 		return;
 	}
 	
-	float location = self.mouseLocation.x;
 	NSRect rect = self.visibleRect;
 	float leftLimit = rect.origin.x;
 	float rightLimit = NSMaxX(rect);
 	
 	/// if the mouse goes beyond the left limit, we scroll to the right, hence reveal the left
-	float delta = location - leftLimit;
-	if(delta < 0) {
-		if(self.visibleOrigin + delta >= 0) {
-			NSPoint scrollPoint = NSMakePoint(self.visibleOrigin+delta, 0);
-			[self.enclosingScrollView scrollClipView:(NSClipView *)self.superview toPoint:scrollPoint];
-		}
-		return;
-	}
+	float delta = NSMinX(frame) - leftLimit;
 	
-	/// if the mouse goes beyond the right limit, we scroll to the opposite direction
-	delta = location - rightLimit;
-	if(delta > 0) {
-		float newOrigin = self.visibleOrigin + delta;
-		if(newOrigin + self.visibleRect.size.width <= NSMaxX(self.bounds)) {
-			NSPoint scrollPoint = NSMakePoint(newOrigin, 0);
-			[self.enclosingScrollView scrollClipView:(NSClipView *)self.superview toPoint:scrollPoint];
+	float visibleOrigin = self.visibleOrigin;
+	float newOrigin = -1000;
+	
+	if(delta < 0 & visibleOrigin + delta >= 0) {
+		newOrigin = visibleOrigin + delta;
+	} else {
+		/// if the mouse goes beyond the right limit, we scroll to the opposite direction
+		delta = NSMaxX(frame) - rightLimit;
+		if(delta > 0) {
+			newOrigin = visibleOrigin + delta;
 		}
 	}
+	if(newOrigin > -1000) {
+		BaseRange newRange = self.visibleRange;
+		newRange.start = newOrigin / self.hScale + self.sampleStartSize;
+		self.visibleRange = newRange;
+	}
+
 }
 
 
 - (void)updateTrackingAreas {
-	self.isMoving = YES;
 	/// For performance, we avoid updating tracking areas too frequently, in particular during scrolling or zooming.
 	/// In particular since macOS 13, this method is called at every step during scrolling
 	/// But we need a timer to update the tracking areas when scrolling/zooming if finished
@@ -2101,15 +2282,14 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 		[resizingTimer invalidate];
 	}
 	resizingTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(doneMoving) userInfo:nil repeats:NO];
-	[[NSRunLoop mainRunLoop] addTimer:resizingTimer forMode:NSRunLoopCommonModes];
 }
 
 
 - (void)doneMoving {
-	self.isMoving = NO;
-	if(self.autoScaleToHighestPeak) {
+	if(self.isMoving && self.autoScaleToHighestPeak) {
 		[self scaleToHighestPeakWithAnimation:YES];
 	}
+	self.isMoving = NO;
 	[self _updateTrackingAreas];
 }
 

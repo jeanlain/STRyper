@@ -21,6 +21,7 @@
 
 
 #import "RegionLabel.h"
+#import "NSArray+NSArrayAdditions.h"
 
 @class RulerView, Panel;
 
@@ -184,16 +185,19 @@ NS_ASSUME_NONNULL_BEGIN
 /// All the view labels that the view shows.
 @property (nonatomic, readonly) NSArray<ViewLabel *> *viewLabels;
 
-/// All view labels that may need to be repositioned in ``repositionLabels:``.
+/// All view labels that may need to be repositioned in ``repositionLabels:allowAnimation:``.
 ///
 /// ``MarkerView`` and ``TraceView`` return labels that use core animation layers.
 @property (nonatomic, readonly) NSArray<ViewLabel *> *repositionableLabels;
 
 
-/// Repositions the  ``repositionableLabels``.
+/// Repositions labels according to the view geometry.
 ///
-/// This method call ``ViewLabel/reposition`` on the ``repositionableLabels`` and disables animation (sets ``ViewLabel/animated`` to `NO`) if needed.
-- (void)repositionLabels:(NSArray *)labels;
+/// This method call ``ViewLabel/reposition`` on each of the `labels`.
+/// - Parameters:
+///   - labels: The labels to be repositioned.
+///   - allowAnimate: Whether the repositioning should be animated.
+- (void)repositionLabels:(NSArray *)labels allowAnimation:(BOOL) allowAnimate;
 
 
 /// The label that is the target of actions in the view.

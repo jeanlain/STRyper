@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -70,10 +71,11 @@
                 </scrollView>
                 <button toolTip="Call/re-call alleles" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="HUG-HJ-2n8" userLabel="call genotypes">
                     <rect key="frame" x="10" y="5" width="25" height="20"/>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="call genotypes" imagePosition="overlaps" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5wo-h7-G60">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="call genotypes" imagePosition="overlaps" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5wo-h7-G60">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
+                    <color key="contentTintColor" name="AccentColor"/>
                     <connections>
                         <action selector="callAlleles:" target="-2" id="fkX-me-bKk"/>
                         <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="GIu-hi-que"/>
@@ -81,9 +83,9 @@
                 </button>
                 <button toolTip="Export genotypes" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="674-57-fTx" userLabel="Export">
                     <rect key="frame" x="43" y="7" width="15" height="17"/>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="6e9-gU-clX">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="6e9-gU-clX">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <connections>
                         <action selector="exportGenotypes:" target="-2" id="TNc-6N-HNi"/>
@@ -92,9 +94,9 @@
                 </button>
                 <button toolTip="Filter genotypes" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="8AM-PB-m6K" userLabel="call genotypes">
                     <rect key="frame" x="66" y="3" width="25" height="25"/>
-                    <buttonCell key="cell" type="inline" bezelStyle="inline" image="filterButton" imagePosition="overlaps" alignment="center" alternateImage="filterButton On" refusesFirstResponder="YES" focusRingType="none" inset="2" id="gfI-ca-Wtf">
-                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="smallSystemBold"/>
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="filterButton" imagePosition="overlaps" alignment="center" alternateImage="filterButton On" refusesFirstResponder="YES" focusRingType="none" inset="2" id="gfI-ca-Wtf">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <color key="contentTintColor" name="controlAccentColor" catalog="System" colorSpace="catalog"/>
                     <connections>
@@ -163,5 +165,8 @@
         <image name="filterButton On" width="25" height="25"/>
         <image name="reset" width="14" height="14"/>
         <image name="stackChannelsButton" width="25" height="20"/>
+        <namedColor name="AccentColor">
+            <color red="0.0" green="0.46000000000000002" blue="0.89000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
     </resources>
 </document>

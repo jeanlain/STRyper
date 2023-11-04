@@ -504,7 +504,8 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	/// The implementation assumes menuItem belongs either to the tableview's menu (if there is one) or the main application's menu.
+	NSInteger clickedRow = self.tableView.clickedRow;
+	
 
 	if(menuItem.action == @selector(remove:)) {
 		/// we give a contextual title to the menu that removes an item.
@@ -543,7 +544,7 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 	
 	if(menuItem.action == @selector(copy:)) {
 		if(menuItem.topMenu == self.tableView.menu) {
-			return self.tableView.clickedRow >= 0;
+			return clickedRow >= 0;
 		}
 		return self.columnDescription && self.tableContent.selectedObjects.count > 0;
 	}

@@ -202,8 +202,8 @@
 
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	/// by default, we disable animation for a layer when the label is dragged
-	if(_dragged || !_animated) {
+	/// by default, we don't animate basic geometry for a layer when the label is dragged
+	if(!_animated || (_dragged && ([event isEqualToString:@"bounds"] || [event isEqualToString:@"position"]))) {
 		return NSNull.null;
 	}
 	return nil;

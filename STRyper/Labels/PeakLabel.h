@@ -80,11 +80,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// for the appropriate ``Trace/channel``.
 @property (readonly, nonatomic, nullable) Mmarker *marker;
 
-/// Makes the label draw itself.
-///
-/// This method is expected to be called by the hosting view during `-drawRect:`.
-- (void)draw;
-
 @end
 
 NS_ASSUME_NONNULL_END

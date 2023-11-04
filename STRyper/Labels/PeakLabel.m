@@ -49,17 +49,23 @@
 
 #pragma mark - initialization and base attributes setting
 
+static CALayer *lineLayer;  /// The vertical line that shows that the label is hovered, at the peak tip
+							/// We use a single instance for the class as no more than one label can be hovered at a time
 
 + (void)initialize {
-	lineColor = NSColor.grayColor;
-	peakArea = [NSBezierPath bezierPath];
+	//peakArea = [NSBezierPath bezierPath];
+	
+	lineLayer = CALayer.new;
+	lineLayer.backgroundColor = NSColor.blackColor.CGColor;
+	lineLayer.opaque = YES;
+	lineLayer.zPosition = -0.3; /// so that it doesn't show above fragment labels
+	
 	dragLineLayer = CALayer.new;
 	dragLineLayer.anchorPoint = CGPointMake(0, 0);
 	dragLineLayer.contentsScale = 2.0;
 	dragLineLayer.shadowOpacity = 1.0;
 	dragLineLayer.shadowRadius = 1.0;
 	dragLineLayer.shadowOffset = CGSizeMake(0, -1);
-	dragLineLayer.actions = @{@"bounds": NSNull.null, @"frame": NSNull.null, @"position": NSNull.null};
 	
 }
 
@@ -154,9 +160,11 @@
 	if(view.hScale <= 0) {
 		return;
 	}
-	float startX = [view xForScan:self.startScan];
+	float startX = round([view xForScan:self.startScan] - 0.5);
 	self.frame = NSMakeRect(startX, 0, [view xForScan:self.endScan] - startX, NSMaxY(view.bounds));
-
+	if(self.hovered) {
+		[self updateAppearance];
+	}
 }
 
 
@@ -184,17 +192,44 @@
 }
 
 
-- (void)updateAppearance {
-	/// we don't have layers to represent ourself. So when our appearance needs to be updated, the view must draw us
-	[self.view setNeedsDisplayInRect: NSInsetRect(self.frame, -1, -1)];
+- (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
+	if(layer == lineLayer || layer == dragLineLayer) {
+		return NSNull.null;
+	}
+	return [super actionForLayer:layer forKey:event];
 }
 
 
-static NSColor *lineColor;			/// the color of the vertical line showing when the label is hovered (so we don't create it at each draw)
+- (void)updateAppearance {
+	if(self.hovered) {
+		lineLayer.delegate = self;	/// useful to determine if we show the vertical line
+		lineLayer.hidden = NO;
+		TraceView *view = self.view;
+		float tipPos = [view xForScan:self.scan];
+		
+		lineLayer.frame = CGRectMake(tipPos, 0, 1, self.frame.size.height);
+		CALayer *viewLayer = view.layer;
+		if(lineLayer.superlayer != viewLayer) {
+			[viewLayer addSublayer:lineLayer];
+		}
+	} else {
+		if(lineLayer.delegate == self) {
+			lineLayer.hidden = YES;
+			lineLayer.delegate = nil;
+		}
+	}
+	
+	/// we don't have layers to represent ourself. So when our appearance needs to be updated, the view must draw us
+	//[self.view setNeedsDisplayInRect: NSInsetRect(self.frame, -1, -1)];
+}
 
+
+
+/*
 /// the paths that draws the peak area (filled) when the label is highlighted.
 /// Since only one label can draw at a time, we use a shared instance. Maybe we should not.
 static NSBezierPath *peakArea;
+
 
 
 - (void)draw {
@@ -258,7 +293,7 @@ static NSBezierPath *peakArea;
 		[size drawAtPoint:NSMakePoint(apex.x, apex.y) withAttributes:@{NSFontAttributeName: [NSFont labelFontOfSize:9]}];
 	}
 }
-
+*/
 
 # pragma mark - dragging behavior
 
@@ -313,7 +348,9 @@ static CALayer *dragLineLayer;
 		/// We could make it larger, but performance is better when the layer is not larger than needed
 		float distX = ceil(startPoint.x - handlePosition.x);
 		float x = distX < 0? startPoint.x : handlePosition.x;
-		dragLineLayer.frame = CGRectMake(x - 5, 0, fabsf(distX) + 10, view.frame.size.height);
+		CGRect frame = CGRectMake(x - 5, 0, fabsf(distX) + 10, view.frame.size.height);
+		dragLineLayer.frame = frame;
+		dragLineLayer.bounds = frame; /// so the layer coordinates match those of its super layer (hence the trace view).
 		[dragLineLayer setNeedsDisplay];
 
 	}
@@ -421,42 +458,42 @@ static CALayer *dragLineLayer;
 
 /// draws the handle during drag
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-	if(!self.dragged) {
-		/// This removes the handle after being dragged
-		return;
+	if(layer == dragLineLayer) {
+		if(!self.dragged) {
+			/// This removes the handle after being dragged
+			return;
+		}
+		NSGraphicsContext *nsGraphicsContext;
+		nsGraphicsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx
+																	flipped:NO];
+		[NSGraphicsContext saveGraphicsState];
+		NSGraphicsContext.currentContext = nsGraphicsContext;
+		
+		[NSColor.grayColor set];
+		NSPoint start = startPoint;
+		NSRect origin = NSMakeRect(start.x-3,start.y -3, 6, 6);
+		
+		NSPoint point2 = handlePosition;
+		float maxY = NSMaxY(self.view.frame) -3;
+		if(point2.y > maxY) {
+			point2.y = maxY;
+		} else if(point2.y < 2) {
+			point2.y = 2;
+		}
+		point2.y += 2;
+				
+		NSRect current = NSMakeRect(point2.x-3, point2.y-3, 6, 6);
+		
+		NSBezierPath *thePath = [NSBezierPath bezierPathWithOvalInRect:origin];
+		[thePath fill];
+		
+		thePath = [NSBezierPath bezierPathWithOvalInRect:current];
+		[thePath fill];
+		
+		[NSBezierPath strokeLineFromPoint:start toPoint:point2];
+		
+		[NSGraphicsContext restoreGraphicsState];
 	}
-	NSGraphicsContext *nsGraphicsContext;
-	nsGraphicsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx
-																flipped:NO];
-	[NSGraphicsContext saveGraphicsState];
-	NSGraphicsContext.currentContext = nsGraphicsContext;
-	
-	[NSColor.grayColor set];
-	NSPoint start = [layer convertPoint:startPoint fromLayer:self.view.layer];
-	NSRect origin = NSMakeRect(start.x-3,start.y -3, 6, 6);
-	
-	NSPoint point2 = handlePosition;
-	float maxY = NSMaxY(self.view.frame) -3;
-	if(point2.y > maxY) {
-		point2.y = maxY;
-	} else if(point2.y < 2) {
-		point2.y = 2;
-	}
-	point2.y += 2;
-	
-	point2 = [layer convertPoint:point2 fromLayer:self.view.layer];
-
-	NSRect current = NSMakeRect(point2.x-3, point2.y-3, 6, 6);
-	
-	NSBezierPath *thePath = [NSBezierPath bezierPathWithOvalInRect:origin];
-	[thePath fill];
-	
-	thePath = [NSBezierPath bezierPathWithOvalInRect:current];
-	[thePath fill];
-	
-	[NSBezierPath strokeLineFromPoint:start toPoint:point2];
-	
-	[NSGraphicsContext restoreGraphicsState];
 }
 
 

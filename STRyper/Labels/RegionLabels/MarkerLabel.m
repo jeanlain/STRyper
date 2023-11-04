@@ -49,7 +49,7 @@ enum addBinPopoverTag : NSInteger {
 	
 	CALayer *actionButtonLayer;	/// the layer symbolizing the button that can be clicked to popup the menu (or end editing)
 								/// It is more convenient than using an NSButton because we make it a sublayer of our layer
-	NSTrackingArea *actionButtonArea; /// A tracking area to determine if the action button is hovered
+	__weak NSTrackingArea *actionButtonArea; /// A tracking area to determine if the action button is hovered
 	NSToolTipTag toolTipTag;		/// a tag for a tooltip indicating the action button role
 	BOOL hoveredActionButton;			/// Whether the action button is hovered
 
@@ -84,7 +84,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		layer = CALayer.new;
 		layer.delegate = self;
 		layer.actions = @{NSStringFromSelector(@selector(borderWidth)):NSNull.null};
-	
+		layer.opaque = YES;
+		
 		bandLayer = CALayer.new;
 		bandLayer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null};
 	
@@ -218,8 +219,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 				if(self.editState != editStateNil) {		/// if true, the action button looks like a checkbox
 					marker.editState = editStateNil;		/// in which case, clicking it exits the edit state of the marker (and all its labels)
 				} else {
-					if(attachedPopover) {
-						[attachedPopover close];
+					if(self.attachedPopover) {
+						[self.attachedPopover close];
 					}
 					[self.menu popUpMenuPositioningItem:nil atLocation:view.mouseUpPoint inView:view];
 				}
@@ -272,8 +273,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	[self layoutInternalLayers];
 	
 	/// if we show a popover, we move it in sync with the label (the markerView doesn't scroll).
-	if(attachedPopover) {
-		attachedPopover.positioningRect = self.frame;
+	if(self.attachedPopover) {
+		self.attachedPopover.positioningRect = self.frame;
 	}
 	
 	if(!traceView.isMoving && self.enabled && !self.dragged) {

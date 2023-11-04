@@ -67,7 +67,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Populates the text content of the ``errorLogWindow`` with the failure reason of error.
 ///
-/// If the error `userInfo dictionary contains errors at the `NSDetailedErrorsKey`, the failure reasons for these errors are logged.
+/// If the error `userInfo` dictionary contains errors at the `NSDetailedErrorsKey`, the failure reasons for these errors are logged.
 /// - Parameter error: The error that should be shown in the log window.
 /// - Returns: The string shown in the ``errorLogWindow``.
 -(NSString *)populateErrorLogWithError:(NSError *)error;
