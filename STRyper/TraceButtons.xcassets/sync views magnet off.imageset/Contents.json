@@ -2,13 +2,13 @@
   "images" : [
     {
       "filename" : "sync views magnet.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
+      "idiom" : "mac"
     },
     {
       "filename" : "sync views magnet-1.pdf",
       "idiom" : "mac",
-      "scale" : "2x"
+      "scale" : "2x",
+      "unassigned" : true
     }
   ],
   "info" : {

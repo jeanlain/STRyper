@@ -2,13 +2,7 @@
   "images" : [
     {
       "filename" : "loupeBadge.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "loupeBadge-1.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {

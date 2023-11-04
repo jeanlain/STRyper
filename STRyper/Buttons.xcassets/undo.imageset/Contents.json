@@ -2,13 +2,7 @@
   "images" : [
     {
       "filename" : "undo 2.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "undo 3.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {

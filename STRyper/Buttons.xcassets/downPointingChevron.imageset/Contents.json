@@ -2,13 +2,7 @@
   "images" : [
     {
       "filename" : "downPointingChevron.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "downPointingChevron 1.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {

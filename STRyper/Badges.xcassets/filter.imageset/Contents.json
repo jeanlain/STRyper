@@ -2,13 +2,7 @@
   "images" : [
     {
       "filename" : "filter.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "filter-1.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {

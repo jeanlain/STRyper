@@ -2,13 +2,7 @@
   "images" : [
     {
       "filename" : "close 1.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "close 2.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {

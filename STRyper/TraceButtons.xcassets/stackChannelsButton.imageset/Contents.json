@@ -2,13 +2,7 @@
   "images" : [
     {
       "filename" : "stack dyes.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "stack dyes 1.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {

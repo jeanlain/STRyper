@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "action filled 15.pdf",
+      "filename" : "circle arrow down.pdf",
       "idiom" : "mac"
     },
     {
@@ -11,7 +11,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "action filled 15 dark.pdf",
+      "filename" : "circle arrow down dark.pdf",
       "idiom" : "mac"
     }
   ],
@@ -20,6 +20,6 @@
     "version" : 1
   },
   "properties" : {
-    "template-rendering-intent" : "template"
+    "template-rendering-intent" : "original"
   }
 }

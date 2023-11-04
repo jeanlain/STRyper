@@ -2,8 +2,7 @@
   "images" : [
     {
       "filename" : "show offscale light.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
+      "idiom" : "mac"
     },
     {
       "appearances" : [
@@ -13,24 +12,7 @@
         }
       ],
       "filename" : "show offscale dark.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "show offscale pressed 1.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "filename" : "show offscale dark 1.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {

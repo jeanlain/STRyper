@@ -2,13 +2,7 @@
   "images" : [
     {
       "filename" : "showBlackTicked.pdf",
-      "idiom" : "mac",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "showBlackTicked 1.pdf",
-      "idiom" : "mac",
-      "scale" : "2x"
+      "idiom" : "mac"
     }
   ],
   "info" : {
