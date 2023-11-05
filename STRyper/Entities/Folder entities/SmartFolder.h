@@ -65,7 +65,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Returns samples found using the search predicate.
 ///
 ///	This getter triggers a core data fetch if the managed object context of the receiver differs from that of the ``SampleSearchHelper``.
-///	
+///
 ///	If the contexts are the same, a new fetch may not be executed if it has been executed before.
 ///	Communicating with the ``SampleSearchHelper`` instance reduces the separation between the model and the UI.
 @property (nullable, nonatomic, readonly) NSSet *samples;

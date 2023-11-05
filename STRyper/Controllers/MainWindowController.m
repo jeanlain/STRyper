@@ -80,7 +80,7 @@ errorLogWindow = _errorLogWindow;
 - (void)windowDidLoad {
 	[super windowDidLoad];
 	NSWindow *window = self.window;
-	[window orderFrontRegardless];  ///makeKeyAndOrderFront would generate a warning
+	[window makeKeyAndOrderFront:self];
 	[window makeKeyWindow];
 	[window makeMainWindow];
 	window.acceptsMouseMovedEvents = NO;

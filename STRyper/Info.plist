@@ -16,6 +16,31 @@
 				<string>public.data</string>
 			</array>
 			<key>UTTypeDescription</key>
+			<string>AB1 Chromatogram File</string>
+			<key>UTTypeIcons</key>
+			<dict>
+				<key>UTTypeIconBadgeName</key>
+				<string>FileImage</string>
+				<key>UTTypeIconText</key>
+				<string>AB1</string>
+			</dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.appliedbiosystems.abif.ab1</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ab1</string>
+					<string>AB1</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
 			<string>STRyper Archived Folder</string>
 			<key>UTTypeIcons</key>
 			<dict>

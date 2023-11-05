@@ -17,6 +17,7 @@
 		0F1A761E29BFB909004136D8 /* AutoBinPopover.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F1A761D29BFB909004136D8 /* AutoBinPopover.xib */; };
 		0F1B5133297C655B00727963 /* NSError+NSErrorAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F1B5132297C655B00727963 /* NSError+NSErrorAdditions.m */; };
 		0F1BBF12291F91970094BA09 /* SampleInspectorController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F1BBF10291F91970094BA09 /* SampleInspectorController.m */; };
+		0F279C082AF785AA00F78836 /* QLScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F279C072AF785AA00F78836 /* QLScrollView.m */; };
 		0F2A951129EEF32E0034833E /* STableRowView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F2A951029EEF32E0034833E /* STableRowView.m */; };
 		0F2C9AEC29CF4F02001A0787 /* BinLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F2C9AEB29CF4F02001A0787 /* BinLabel.m */; };
 		0F2C9AEF29CF4F13001A0787 /* TraceViewMarkerLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F2C9AEE29CF4F13001A0787 /* TraceViewMarkerLabel.m */; };
@@ -70,6 +71,12 @@
 		0F96D47029915F1B00D18033 /* MainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F96D46F29915F1B00D18033 /* MainWindow.xib */; };
 		0F9858BD28A50F9000F42119 /* SamplePane.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F9858BC28A50F9000F42119 /* SamplePane.xib */; };
 		0F9883EA289A52B70095FE08 /* Settings.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F9883E9289A52B70095FE08 /* Settings.xib */; };
+		0F9955FE2AF6B9CB00B282BB /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F9955FD2AF6B9CB00B282BB /* Quartz.framework */; };
+		0F9956022AF6B9CB00B282BB /* PreviewViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956012AF6B9CB00B282BB /* PreviewViewController.m */; };
+		0F9956082AF6B9CB00B282BB /* PreviewViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F9956062AF6B9CB00B282BB /* PreviewViewController.xib */; };
+		0F99560D2AF6B9CB00B282BB /* QLPreviewABIF.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0F9955FC2AF6B9CB00B282BB /* QLPreviewABIF.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		0F9956142AF6BD3400B282BB /* TracePreviewView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956132AF6BD3400B282BB /* TracePreviewView.m */; };
+		0F9956172AF6C18700B282BB /* ABIFparser.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956162AF6C18700B282BB /* ABIFparser.m */; };
 		0FA623C7289E5540006A23FE /* SampleTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623C6289E5540006A23FE /* SampleTableController.m */; };
 		0FA623CA289E5580006A23FE /* MarkerTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623C9289E5580006A23FE /* MarkerTableController.m */; };
 		0FA623CD289E559D006A23FE /* SizeStandardTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623CC289E559D006A23FE /* SizeStandardTableController.m */; };
@@ -92,12 +99,38 @@
 		0FE33B022807539E00B9C5DB /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0FE33B002807539E00B9C5DB /* MainMenu.xib */; };
 		0FE33B042807539E00B9C5DB /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FE33B032807539E00B9C5DB /* main.m */; };
 		0FE3433F28A2A70400809BF9 /* LabelView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FE3433E28A2A70400809BF9 /* LabelView.m */; };
+		0FEE41942AF6CABC005AF950 /* ABIFparser.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956162AF6C18700B282BB /* ABIFparser.m */; };
+		0FEE41952AF6CC41005AF950 /* NSError+NSErrorAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F1B5132297C655B00727963 /* NSError+NSErrorAdditions.m */; };
 		0FF5C83429D993880095D95A /* IndexImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FF5C83329D993880095D95A /* IndexImageView.m */; };
 		0FF7E0A82A6AE8B600E25863 /* NSMenuItem+NSMenuItemAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FF7E0A72A6AE8B600E25863 /* NSMenuItem+NSMenuItemAdditions.m */; };
 		0FFF1AF6296C17B6009C32F2 /* TableSort Popover.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0FFF1AF4296C17B6009C32F2 /* TableSort Popover.xib */; };
 		0FFF774529F50ABF00695EBF /* NewMarkerPopover.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0FFF774429F50ABF00695EBF /* NewMarkerPopover.xib */; };
 		0FFF774829F50BBE00695EBF /* NewMarkerPopover.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FFF774729F50BBE00695EBF /* NewMarkerPopover.m */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0F99560B2AF6B9CB00B282BB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0FE33AED2807539C00B9C5DB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0F9955FB2AF6B9CB00B282BB;
+			remoteInfo = QLPreviewABIF;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0F99560E2AF6B9CB00B282BB /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0F99560D2AF6B9CB00B282BB /* QLPreviewABIF.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0F0443772941F1ED00EAE988 /* LeftPane.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = LeftPane.xib; sourceTree = "<group>"; };
@@ -115,6 +148,8 @@
 		0F1B5132297C655B00727963 /* NSError+NSErrorAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSError+NSErrorAdditions.m"; sourceTree = "<group>"; };
 		0F1BBF0F291F91970094BA09 /* SampleInspectorController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SampleInspectorController.h; sourceTree = "<group>"; };
 		0F1BBF10291F91970094BA09 /* SampleInspectorController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SampleInspectorController.m; sourceTree = "<group>"; };
+		0F279C062AF785AA00F78836 /* QLScrollView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = QLScrollView.h; sourceTree = "<group>"; };
+		0F279C072AF785AA00F78836 /* QLScrollView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = QLScrollView.m; sourceTree = "<group>"; };
 		0F2A950F29EEF32E0034833E /* STableRowView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = STableRowView.h; sourceTree = "<group>"; };
 		0F2A951029EEF32E0034833E /* STableRowView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = STableRowView.m; sourceTree = "<group>"; };
 		0F2C9AEA29CF4F02001A0787 /* BinLabel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BinLabel.h; sourceTree = "<group>"; };
@@ -209,6 +244,17 @@
 		0F96D46F29915F1B00D18033 /* MainWindow.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = MainWindow.xib; sourceTree = "<group>"; };
 		0F9858BC28A50F9000F42119 /* SamplePane.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = SamplePane.xib; sourceTree = "<group>"; };
 		0F9883E9289A52B70095FE08 /* Settings.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Settings.xib; sourceTree = "<group>"; };
+		0F9955FC2AF6B9CB00B282BB /* QLPreviewABIF.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QLPreviewABIF.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F9955FD2AF6B9CB00B282BB /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
+		0F9956002AF6B9CB00B282BB /* PreviewViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PreviewViewController.h; sourceTree = "<group>"; };
+		0F9956012AF6B9CB00B282BB /* PreviewViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PreviewViewController.m; sourceTree = "<group>"; };
+		0F9956072AF6B9CB00B282BB /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/PreviewViewController.xib; sourceTree = "<group>"; };
+		0F9956092AF6B9CB00B282BB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		0F99560A2AF6B9CB00B282BB /* QLPreviewABIF.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QLPreviewABIF.entitlements; sourceTree = "<group>"; };
+		0F9956122AF6BD3400B282BB /* TracePreviewView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TracePreviewView.h; sourceTree = "<group>"; };
+		0F9956132AF6BD3400B282BB /* TracePreviewView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TracePreviewView.m; sourceTree = "<group>"; };
+		0F9956152AF6C18700B282BB /* ABIFparser.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ABIFparser.h; sourceTree = "<group>"; };
+		0F9956162AF6C18700B282BB /* ABIFparser.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ABIFparser.m; sourceTree = "<group>"; };
 		0FA623C5289E5540006A23FE /* SampleTableController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SampleTableController.h; sourceTree = "<group>"; };
 		0FA623C6289E5540006A23FE /* SampleTableController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SampleTableController.m; sourceTree = "<group>"; };
 		0FA623C8289E5580006A23FE /* MarkerTableController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MarkerTableController.h; sourceTree = "<group>"; };
@@ -262,6 +308,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		0F9955F92AF6B9CB00B282BB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0F9955FE2AF6B9CB00B282BB /* Quartz.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0FE33AF22807539C00B9C5DB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -327,6 +381,7 @@
 				0FC9E3392AF4280600E1215D /* Metal.framework */,
 				0F3D2F5E28075CC9006FAAF2 /* AppKit.framework */,
 				0F3D2F5B28075C43006FAAF2 /* Cocoa.framework */,
+				0F9955FD2AF6B9CB00B282BB /* Quartz.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -387,6 +442,8 @@
 				0FAD5F3C292FE7DB00438776 /* Folder entities */,
 				0F3D2F1828075972006FAAF2 /* Chromatogram.h */,
 				0F3D2F1928075972006FAAF2 /* Chromatogram.m */,
+				0F9956152AF6C18700B282BB /* ABIFparser.h */,
+				0F9956162AF6C18700B282BB /* ABIFparser.m */,
 				0F3D2F0C28075971006FAAF2 /* Trace.h */,
 				0F3D2F1528075972006FAAF2 /* Trace.m */,
 				0F3D2F1228075972006FAAF2 /* SizeStandard.h */,
@@ -484,6 +541,22 @@
 			path = Sorting;
 			sourceTree = "<group>";
 		};
+		0F9955FF2AF6B9CB00B282BB /* QLPreviewABIF */ = {
+			isa = PBXGroup;
+			children = (
+				0F9956002AF6B9CB00B282BB /* PreviewViewController.h */,
+				0F9956012AF6B9CB00B282BB /* PreviewViewController.m */,
+				0F279C062AF785AA00F78836 /* QLScrollView.h */,
+				0F279C072AF785AA00F78836 /* QLScrollView.m */,
+				0F9956122AF6BD3400B282BB /* TracePreviewView.h */,
+				0F9956132AF6BD3400B282BB /* TracePreviewView.m */,
+				0F9956062AF6B9CB00B282BB /* PreviewViewController.xib */,
+				0F9956092AF6B9CB00B282BB /* Info.plist */,
+				0F99560A2AF6B9CB00B282BB /* QLPreviewABIF.entitlements */,
+			);
+			path = QLPreviewABIF;
+			sourceTree = "<group>";
+		};
 		0FA623D4289F13DC006A23FE /* Table controllers */ = {
 			isa = PBXGroup;
 			children = (
@@ -541,6 +614,7 @@
 			isa = PBXGroup;
 			children = (
 				0FE33AF72807539C00B9C5DB /* STRyper */,
+				0F9955FF2AF6B9CB00B282BB /* QLPreviewABIF */,
 				0FE33AF62807539C00B9C5DB /* Products */,
 				0F3D2F5A28075C43006FAAF2 /* Frameworks */,
 			);
@@ -550,6 +624,7 @@
 			isa = PBXGroup;
 			children = (
 				0FE33AF52807539C00B9C5DB /* STRyper.app */,
+				0F9955FC2AF6B9CB00B282BB /* QLPreviewABIF.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -585,6 +660,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0F9955FB2AF6B9CB00B282BB /* QLPreviewABIF */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0F9956112AF6B9CB00B282BB /* Build configuration list for PBXNativeTarget "QLPreviewABIF" */;
+			buildPhases = (
+				0F9955F82AF6B9CB00B282BB /* Sources */,
+				0F9955F92AF6B9CB00B282BB /* Frameworks */,
+				0F9955FA2AF6B9CB00B282BB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = QLPreviewABIF;
+			productName = QLPreviewABIF;
+			productReference = 0F9955FC2AF6B9CB00B282BB /* QLPreviewABIF.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		0FE33AF42807539C00B9C5DB /* STRyper */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 0FE33B082807539E00B9C5DB /* Build configuration list for PBXNativeTarget "STRyper" */;
@@ -592,10 +684,12 @@
 				0FE33AF12807539C00B9C5DB /* Sources */,
 				0FE33AF22807539C00B9C5DB /* Frameworks */,
 				0FE33AF32807539C00B9C5DB /* Resources */,
+				0F99560E2AF6B9CB00B282BB /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0F99560C2AF6B9CB00B282BB /* PBXTargetDependency */,
 			);
 			name = STRyper;
 			productName = FSAGenotyper;
@@ -611,6 +705,9 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					0F9955FB2AF6B9CB00B282BB = {
+						CreatedOnToolsVersion = 15.0.1;
+					};
 					0FE33AF42807539C00B9C5DB = {
 						CreatedOnToolsVersion = 13.3.1;
 					};
@@ -630,11 +727,20 @@
 			projectRoot = "";
 			targets = (
 				0FE33AF42807539C00B9C5DB /* STRyper */,
+				0F9955FB2AF6B9CB00B282BB /* QLPreviewABIF */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0F9955FA2AF6B9CB00B282BB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0F9956082AF6B9CB00B282BB /* PreviewViewController.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0FE33AF32807539C00B9C5DB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -670,6 +776,18 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0F9955F82AF6B9CB00B282BB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0F9956022AF6B9CB00B282BB /* PreviewViewController.m in Sources */,
+				0F279C082AF785AA00F78836 /* QLScrollView.m in Sources */,
+				0FEE41952AF6CC41005AF950 /* NSError+NSErrorAdditions.m in Sources */,
+				0F9956142AF6BD3400B282BB /* TracePreviewView.m in Sources */,
+				0FEE41942AF6CABC005AF950 /* ABIFparser.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0FE33AF12807539C00B9C5DB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -687,6 +805,7 @@
 				0FB4EC4729A7D072007BCB56 /* HoveredTableRowView.m in Sources */,
 				0F3D2F3B28075974006FAAF2 /* RulerView.m in Sources */,
 				0F2C9AEF29CF4F13001A0787 /* TraceViewMarkerLabel.m in Sources */,
+				0F9956172AF6C18700B282BB /* ABIFparser.m in Sources */,
 				0F455EC5289FA0390053A938 /* PanelListController.m in Sources */,
 				0F3D2F4728075974006FAAF2 /* TableViewController.m in Sources */,
 				0FBF1BDD29353156005F4429 /* FileImporter.m in Sources */,
@@ -743,7 +862,23 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		0F99560C2AF6B9CB00B282BB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0F9955FB2AF6B9CB00B282BB /* QLPreviewABIF */;
+			targetProxy = 0F99560B2AF6B9CB00B282BB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin PBXVariantGroup section */
+		0F9956062AF6B9CB00B282BB /* PreviewViewController.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				0F9956072AF6B9CB00B282BB /* Base */,
+			);
+			name = PreviewViewController.xib;
+			sourceTree = "<group>";
+		};
 		0FE33B002807539E00B9C5DB /* MainMenu.xib */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -755,6 +890,72 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		0F99560F2AF6B9CB00B282BB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = QLPreviewABIF/QLPreviewABIF.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QLPreviewABIF/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QLPreviewABIF;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
+				MARKETING_VERSION = 0.3;
+				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper.QLPreviewABIF;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		0F9956102AF6B9CB00B282BB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = QLPreviewABIF/QLPreviewABIF.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QLPreviewABIF/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = QLPreviewABIF;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
+				MARKETING_VERSION = 0.3;
+				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper.QLPreviewABIF;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
 		0FE33B062807539E00B9C5DB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -874,7 +1075,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = STRyper/STRyper.entitlements;
 				CODE_SIGN_IDENTITY = "-";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 5;
@@ -893,7 +1094,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.2.3;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper;
 				PRODUCT_NAME = STRyper;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -908,7 +1109,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = STRyper/STRyper.entitlements;
 				CODE_SIGN_IDENTITY = "-";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 5;
@@ -927,7 +1128,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.2.3;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper;
 				PRODUCT_NAME = STRyper;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -937,6 +1138,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0F9956112AF6B9CB00B282BB /* Build configuration list for PBXNativeTarget "QLPreviewABIF" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0F99560F2AF6B9CB00B282BB /* Debug */,
+				0F9956102AF6B9CB00B282BB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		0FE33AF02807539C00B9C5DB /* Build configuration list for PBXProject "STRyper" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

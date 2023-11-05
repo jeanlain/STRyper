@@ -4,6 +4,11 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
+		<key>QLPreviewABIF.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
 		<key>STRyper.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
@@ -12,6 +17,11 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
+		<key>0F9955FB2AF6B9CB00B282BB</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
 		<key>0FE33AF42807539C00B9C5DB</key>
 		<dict>
 			<key>primary</key>
