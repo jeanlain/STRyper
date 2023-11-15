@@ -18,7 +18,7 @@
             <rect key="frame" x="0.0" y="0.0" width="652" height="412"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
-                <scrollView borderType="none" horizontalLineScroll="100" horizontalPageScroll="10" verticalLineScroll="100" verticalPageScroll="0.0" translatesAutoresizingMaskIntoConstraints="NO" id="MzI-yj-wFf">
+                <scrollView borderType="none" horizontalLineScroll="100" horizontalPageScroll="10" verticalLineScroll="100" verticalPageScroll="0.0" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="MzI-yj-wFf">
                     <rect key="frame" x="0.0" y="30" width="652" height="382"/>
                     <clipView key="contentView" id="odp-jd-7as">
                         <rect key="frame" x="0.0" y="0.0" width="652" height="382"/>

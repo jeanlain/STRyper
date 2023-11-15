@@ -33,6 +33,7 @@
 #import "RulerView.h"
 #import "Genotype.h"
 #import "LadderFragment.h"
+#include <sys/sysctl.h>
 
 @interface TraceView ()
 
@@ -96,6 +97,8 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't been automatically detected (mostly because it's too faint)
 
+static BOOL appleSilicon;			/// whether the Mac running the application has an Apple SoC.
+									/// We use it for drawing optimisations.
 
 @implementation TraceView {
 	
@@ -105,7 +108,6 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	__weak MarkerView *_markerView;	/// the view showing the markers, which is the accessory view of the ruler view
 	NSTimer *resizingTimer;
 	CAShapeLayer *dashedLineLayer;	/// a layer showing a vertical dashed line at the mouse location that helps the user insert bins (note: we could use a single instance in a global variable for this layer, since only one dashed line should show at a time)
-	NSBezierPath *curve;			/// the bezier path we use to draw the traces
 	
 	float startPoint; 						/// (for dragging... not used)
 	
@@ -151,6 +153,13 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	animatableKeys = @[NSStringFromSelector(@selector(topFluoLevel)),
 					   NSStringFromSelector(@selector(animatableRange)),
 					   NSStringFromSelector(@selector(vScale))];
+
+	/// We determine if the SoC is from Apple by reading the CPU brand.
+	/// There may be a better way by reading the architecture.
+	size_t size = 100;		/// To make sure that we can read the whole CPU name.
+	char string[size];
+	sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
+	appleSilicon = strncmp(string, "Apple", 5) == 0;
 	
 }
 
@@ -204,10 +213,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	dashedLineLayer.actions = @{NSStringFromSelector(@selector(position)): NSNull.null,
 								NSStringFromSelector(@selector(bounds)): NSNull.null};
 	[self.layer addSublayer:dashedLineLayer];
-	
-	curve = NSBezierPath.new;
-	curve.lineWidth = 1.0;
-	
+		
 	_showDisabledBins = YES;
 	_showRawData = NO;
 	_showOffscaleRegions = YES;
@@ -996,10 +1002,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 				displayedInVisibleRectOnly = NO;
 				}
 		}
-		[NSGraphicsContext saveGraphicsState];
-		NSGraphicsContext.currentContext = [NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO];
-		[self drawTracesInRect:dirtyRect];
-		[NSGraphicsContext restoreGraphicsState];
+		[self drawTracesInRect:dirtyRect context:ctx];
 		
 		dirtyRect = NSZeroRect;
 		self.needsDisplayTraces = NO;
@@ -1009,8 +1012,8 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 
 
 
-/// Draws trace-related elements in the view. 
-- (void)drawTracesInRect:(NSRect) dirtyRect {
+/// Draws trace-related elements in the view.
+- (void)drawTracesInRect:(NSRect) dirtyRect context:(CGContextRef) ctx {
 	
 	if(visibleTraces.count == 0) {
 		return;
@@ -1043,12 +1046,12 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			float regionEnd = sizes[region.startScan + region.regionWidth];
 			if (regionEnd >= startSize && regionStart <= endSize) {
 				NSColor *color = self.colorForOffScaleScans[region.channel];
-				[color setFill];
+				CGContextSetFillColorWithColor(ctx, color.CGColor);
 				float x1 = (regionStart - sampleStartSize) * hScale;
 				float x2 = (regionEnd - sampleStartSize) * hScale;
 				float scanWidth = (x2-x1)/region.regionWidth;
 				/// we place the rectangle at half a scan to the left, so that it is centered around the saturated scans
-				NSRectFill(NSMakeRect(x1 - scanWidth/2, 0, x2-x1, NSMaxY(self.bounds)));
+				CGContextFillRect(ctx, CGRectMake(x1 - scanWidth/2, 0, x2-x1, NSMaxY(self.bounds)));
 			}
 		}
 	}
@@ -1068,7 +1071,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 	
 	float xFromLastPoint = 0;  				/// the number of quartz points from the last added point, which we use to determine if a scan can be skipped
 	float lastX = 0;
-	int maxPointsInCurve = 40;					/// we stoke the curve if it has enough points. Numbers between 10-100 seem to yield the best performance
+	int maxPointsInCurve = appleSilicon ? 40 : 400;	  /// we stoke the curve if it reaches this number of points.
 	NSPoint pointArray[maxPointsInCurve];          /// points to add to the curve
 	int startScan = 0, maxScan = 0;	/// we will draw traces for scan between these scans.
 	sample = nil;
@@ -1101,8 +1104,9 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			}
 		}
 		
-		[self.colorsForChannels[traceToDraw.channel] setStroke];
-		short pointsInPath = 0;		/// current number of points being added to the path
+		NSColor *strokeColor = self.colorsForChannels[traceToDraw.channel];
+		CGContextSetStrokeColorWithColor(ctx, strokeColor.CGColor);
+		int pointsInPath = 0;		/// current number of points being added to the path
 		BOOL outside = NO;			/// whether a scan is to the right (outside) the dirty rect. Used to determine when to stop drawing.
 		int scan = startScan;
 		while(scan <= maxScan && !outside) {
@@ -1133,16 +1137,26 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 			if (y < lowerPoint) {
 				y = lowerPoint -1;
 			}
-			pointArray[pointsInPath++] = CGPointMake(x, y);
-			 
-			if (pointsInPath == maxPointsInCurve || outside || scan == maxScan-1) {
-				[curve appendBezierPathWithPoints:pointArray count:pointsInPath];
-				[curve stroke];
-				[curve removeAllPoints];
-				pointArray[0] = pointArray[pointsInPath-1];
-				/// the first point in the next path is the last of the previous path. If we don't do that, there is a gap between paths.
-				pointsInPath = 1;
+			
+			CGPoint point = CGPointMake(x, y);
+			pointArray[pointsInPath++] = point;
+			if(pointsInPath > 1 && (pointsInPath == maxPointsInCurve || outside || scan == maxScan -1)) {
+				if(appleSilicon) {
+					/// On Apple Silicon Macs, stroking a path is faster (the GPU is used)
+					CGContextBeginPath(ctx);
+					CGContextAddLines(ctx, pointArray, pointsInPath);
+					CGContextStrokePath(ctx);
+				} else {
+					/// On intel Macs (which cannot use the GPU for drawing), stroking line segments is faster.
+					CGContextStrokeLineSegments(ctx, pointArray, pointsInPath);
+				}
+				pointsInPath = 0;
+				pointArray[pointsInPath++] = point;
+			} else if(pointsInPath > 1 && !appleSilicon) {
+				/// On intel, we draw unconnected depend line segments, so the end of each segment is the start of the next one
+				pointArray[pointsInPath++] = point;
 			}
+			
 			scan++;
 		}
 	}
@@ -1298,7 +1312,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 				/// This is not as efficient as "responsive scrolling", as the redrawing may cause a hiccup if there are many traces
 				/// In particular, parts that are visible get redrawn. I don't have the knowledge to reuse what is already drawn in a single layer.
 				NSLog(@"overdraw");
-				[self repositionTraceLayer];				
+				[self repositionTraceLayer];
 				self.needsDisplayTraces = YES;
 			}
 			
@@ -1477,7 +1491,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 /// This sets the visible range and vertical scale after the content is loaded
 - (void)prepareForDisplay {
 	
-	/// we change ivars related to geometry to signify the the view is not in its final state. 
+	/// we change ivars related to geometry to signify the the view is not in its final state.
 	/// We don't use the setters as we don't want the view to actually change the geometry of the view to match these dummy values
 	_hScale = -1.0; height = 0; _visibleRange = MakeBaseRange(0, 2.0);
 	_topFluoLevel = -1;
@@ -1725,7 +1739,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 }
 
 
-- (NSSize)intrinsicContentSize {	
+- (NSSize)intrinsicContentSize {
 	float hScale = self.hScale;
 	if(hScale < 0) {
 		hScale = 0;
@@ -1860,7 +1874,7 @@ static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't b
 - (void)setDisplayedChannels:(NSArray<NSNumber *> *)displayedChannels  {
 	NSArray *previousTraces = visibleTraces;
 	_displayedChannels = [NSArray arrayWithArray:displayedChannels];
-	if(self.loadedTraces) {		
+	if(self.loadedTraces) {
 		visibleTraces = [self.loadedTraces filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Trace *trace, NSDictionary<NSString *,id> * _Nullable bindings) {
 			return [self.displayedChannels containsObject: @(trace.channel)];
 		}]];
@@ -1998,7 +2012,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 			if(marker.editState != editStateBinSet) {
 				/// If the click is within the enabled marker label, the user may already be editing individual bins
 				/// in which case a force click isn't need. Or they may be editing the marker offset, in which case no bin should be selectable
-				/// We only allow to proceed if the user is moving the bin set, which pertains to bin editing. 
+				/// We only allow to proceed if the user is moving the bin set, which pertains to bin editing.
 				return;
 			}
 		}
@@ -2139,7 +2153,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	[self.window makeFirstResponder:self];
 	self.mouseLocation= [self convertPoint:theEvent.locationInWindow fromView:nil];
 	[super mouseDown:theEvent];
-}  
+}
 
 
 - (void)cancelOperation:(id)sender {

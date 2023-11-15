@@ -27,7 +27,7 @@
                         <binding destination="-2" name="value" keyPath="self.sampleInformation" id="hJt-0w-PUn"/>
                     </connections>
                 </textField>
-                <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" hasVerticalScroller="NO" verticalScrollElasticity="none" translatesAutoresizingMaskIntoConstraints="NO" id="dSd-eF-dun" customClass="QLScrollView">
+                <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="10" horizontalPageScroll="10" verticalLineScroll="10" verticalPageScroll="10" hasVerticalScroller="NO" verticalScrollElasticity="none" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="dSd-eF-dun" customClass="QLScrollView">
                     <rect key="frame" x="0.0" y="0.0" width="480" height="237"/>
                     <clipView key="contentView" id="Bib-fd-h1y">
                         <rect key="frame" x="0.0" y="0.0" width="480" height="237"/>

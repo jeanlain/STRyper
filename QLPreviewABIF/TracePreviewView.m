@@ -6,6 +6,7 @@
 //
 
 #import "TracePreviewView.h"
+#include <sys/sysctl.h>
 
 @interface TracePreviewView ()
 
@@ -25,13 +26,18 @@
 
 
 static NSArray *colorsForChannels;
-static NSBezierPath *curve;
+static BOOL appleSilicon;
 
 + (void)initialize {
 	colorsForChannels = @[[NSColor colorWithCalibratedRed:0.1 green:0.1 blue:1 alpha:1],
 									 [NSColor colorWithCalibratedRed:0 green:0.7 blue:0 alpha:1],
 				   NSColor.darkGrayColor, NSColor.redColor, NSColor.orangeColor];
-	curve = NSBezierPath.new;
+	
+	size_t size = 100;		/// To make sure that we can read the whole CPU name.
+	char string[size];
+	sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
+	appleSilicon = strncmp(string, "Apple", 5) == 0;
+
 }
 
 
@@ -90,11 +96,18 @@ static NSBezierPath *curve;
 		return;
 	}
 	
+	NSGraphicsContext *currentContext = NSGraphicsContext.currentContext;
+	if(!currentContext) {
+		return;
+	}
+	
+	CGContextRef ctx = currentContext.CGContext;
+	
 	short lowerFluo = 1 / vScale; 	/// to quickly evaluate if some scans should be drawn
 
 	float xFromLastPoint = 0;  				/// the number of quartz points from the last added point, which we use to determine if a scan can be skipped
 	float lastX = 0;
-	int maxPointsInCurve = 40;					/// we stoke the curve if it has enough points. Numbers between 10-100 seem to yield the best performance
+	int maxPointsInCurve = 400;					/// we stoke the curve if it has enough points. Numbers between 10-100 seem to yield the best performance
 	NSPoint pointArray[maxPointsInCurve];          /// points to add to the curve
 	int startScan = dirtyRect.origin.x / hScale -1;
 	if(startScan < 0) {
@@ -110,13 +123,13 @@ static NSBezierPath *curve;
 		if(color > 4) {
 			return;
 		}
-		int scanDrawn = 0;
 
 		const int16_t *fluo = fluoData.bytes;
 		long nRecordedScans = fluoData.length/sizeof(int16_t);
 		int maxScan = nRecordedScans < endScan ? (int)nRecordedScans : endScan;
 		
-		[colorsForChannels[color] setStroke];
+		NSColor *curveColor = colorsForChannels[color];
+		CGContextSetStrokeColorWithColor(ctx, curveColor.CGColor);
 		short pointsInPath = 0;		/// current number of points being added to the path
 		for(int scan = startScan; scan <= maxScan; scan++) {
 			
@@ -143,15 +156,24 @@ static NSBezierPath *curve;
 			if (y < 1) {
 				y = 0;
 			}
-			pointArray[pointsInPath++] = CGPointMake(x, y);
-			scanDrawn++;
-			if (pointsInPath == maxPointsInCurve || scan == maxScan-1) {
-				[curve appendBezierPathWithPoints:pointArray count:pointsInPath];
-				[curve stroke];
-				[curve removeAllPoints];
-				pointArray[0] = pointArray[pointsInPath-1];
-				/// the first point in the next path is the last of the previous path. If we don't do that, there is a gap between paths.
-				pointsInPath = 1;
+			
+			CGPoint point = CGPointMake(x, y);
+			pointArray[pointsInPath++] = point;
+			if(pointsInPath > 1 && (pointsInPath == maxPointsInCurve || scan == maxScan -1)) {
+				if(appleSilicon) {
+					/// On Apple Silicon Macs, stroking a path is faster (the GPU is used)
+					CGContextBeginPath(ctx);
+					CGContextAddLines(ctx, pointArray, pointsInPath);
+					CGContextStrokePath(ctx);
+				} else {
+					/// On intel Macs (which cannot use the GPU for drawing), stroking line segments is faster.
+					CGContextStrokeLineSegments(ctx, pointArray, pointsInPath);
+				}
+				pointsInPath = 0;
+				pointArray[pointsInPath++] = point;
+			} else if(pointsInPath > 1 && !appleSilicon) {
+				/// On intel, we draw unconnected depend line segments, so the end of each segment is the start of the next one
+				pointArray[pointsInPath++] = point;
 			}
 		}
 	}

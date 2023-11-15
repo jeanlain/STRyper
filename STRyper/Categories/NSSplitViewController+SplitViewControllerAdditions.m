@@ -35,20 +35,21 @@ static float holdingPriority;  /// to store the holding priority of a split view
 
 
 -(void)togglePaneNumber:(NSInteger)number {
-	if(self.splitViewItems.count > number && number >= 0) {
-		NSSplitViewItem *item = self.splitViewItems[number];
+	NSArray *splitViewItems = self.splitViewItems;
+	if(splitViewItems.count > number && number >= 0) {
+		NSSplitViewItem *item = splitViewItems[number];
 		if(!item.canCollapse && !item.isCollapsed) {
 			return;
 		}
 		/// when a pane with low holding priority is revealed, it doesn't regain its original width, only its minimum thickness (and the animation fails)
-		/// this may be expected behavior, as this item shouldn't induce the resizing of other items. Apple's Mail doesn't allow to collapse the pane with lowest holding priority via a button, for instance.
-		/// So we temporarily increase the item's holding priority before it reveals.
-		if(item.collapsed && ((number == self.splitViewItems.count-1 && number > 0) || (number == 0 && self.splitViewItems.count > 1))) {
+		/// This may be expected behavior, as this item shouldn't induce the resizing of other items.
+		/// To avoid that, we temporarily increase the item's holding priority before it reveals.
+		if(item.collapsed && ((number == splitViewItems.count-1 && number > 0) || (number == 0 && splitViewItems.count > 1))) {
 			NSInteger neighborIndex = number == 0? 1 : number-1;
-			float neighborHoldingPriority = [self.splitViewItems[neighborIndex] holdingPriority];
+			float neighborHoldingPriority = [splitViewItems[neighborIndex] holdingPriority];
 			if(item.holdingPriority < neighborHoldingPriority) {
 				holdingPriority = item.holdingPriority;				/// we record the holding priority before we change it
-				item.holdingPriority = neighborHoldingPriority + 1.0;				/// we put the holding priority just above the previous item.
+				item.holdingPriority = neighborHoldingPriority + 1.0;
 																					
 				/// we restore the holding priority, but only after the animation is finished. Otherwise, the pane doesn't regain the original width
 				/// This isn't elegant, but I'm not sure how to get a notification when the item has finished uncollapsing.
@@ -58,6 +59,7 @@ static float holdingPriority;  /// to store the holding priority of a split view
 		item.animator.collapsed = !item.animator.collapsed;
 	}
 }
+
 
 - (void)restorePriorityOnItem:(NSSplitViewItem *)item {
 	item.holdingPriority = holdingPriority;
