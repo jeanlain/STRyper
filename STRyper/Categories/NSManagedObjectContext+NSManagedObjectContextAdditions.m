@@ -33,7 +33,7 @@
 		if(ID) {
 			NSError *error;
 			NSManagedObject *object = [self existingObjectWithID:ID error:&error];
-			if(!error || [object isKindOfClass:class]) {
+			if(!error && [object isKindOfClass:class]) {
 				return object;
 			}
 		}

@@ -90,7 +90,7 @@
                     <rect key="frame" x="0.0" y="0.0" width="257" height="318"/>
                     <subviews>
                         <popUpButton horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="T6b-gG-WBE" userLabel="+">
-                            <rect key="frame" x="1" y="8" width="38" height="14"/>
+                            <rect key="frame" x="1" y="8" width="34" height="14"/>
                             <popUpButtonCell key="cell" type="recessed" bezelStyle="recessed" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="FVo-Kf-QHh" id="xEx-lV-DlA">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>
@@ -117,7 +117,7 @@
                             <color key="contentTintColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
                         </popUpButton>
                         <button toolTip="Import panel from text file" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="viV-H4-jv5" userLabel="Import">
-                            <rect key="frame" x="47" y="7" width="15" height="16"/>
+                            <rect key="frame" x="43" y="7" width="15" height="16"/>
                             <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="import" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="ZaB-EL-ydc">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>
@@ -127,7 +127,7 @@
                             </connections>
                         </button>
                         <button toolTip="Export selected panel" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="751" translatesAutoresizingMaskIntoConstraints="NO" id="ZyM-Z3-m9b" userLabel="Export">
-                            <rect key="frame" x="70" y="7" width="15" height="17"/>
+                            <rect key="frame" x="66" y="7" width="15" height="17"/>
                             <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5vj-B1-RUT">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>
