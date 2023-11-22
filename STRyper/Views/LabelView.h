@@ -56,10 +56,7 @@ NS_ASSUME_NONNULL_BEGIN
 	
 	/// Backs the ``hScale`` readonly property and allows subclasses to set it.
 	float _hScale;
-	
-	/// Backs the ``visibleOrigin`` readonly property and allows subclasses to set it.
-	float _visibleOrigin;
-	
+		
 	/// Backs the ``sampleStartSize`` readonly property and allows subclasses to set it.
 	float _sampleStartSize;
 	
@@ -104,9 +101,6 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The coordinates of this point should be up-to-date even during scrolling, for a view that scrolls.
 @property (nonatomic, readonly) NSPoint mouseLocation;
-
-/// The size in base pairs corresponding to the origin of the visible rectangle of the view.
-@property (nonatomic, readonly) float visibleOrigin;
 
 /// The horizontal scale of the view, in points per base pair.
 ///
@@ -168,8 +162,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter label: The label that added the region.
 -(void)labelDidUpdateNewRegion:(RegionLabel *)label;
 
-/// Property set to `YES` after ``visibleOrigin`` or ``hScale`` is modified, then to `NO` after 0.1 seconds.
-///
 /// This property is used internally it to avoid doing certain calculations.
 /// This pertains to internal implementation, but the markerView may query the traceView for this property.
 @property (nonatomic, readonly) BOOL isMoving;

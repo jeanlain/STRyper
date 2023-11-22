@@ -35,14 +35,15 @@ NS_ASSUME_NONNULL_BEGIN
 ///	To be properly positioned, the `VSCaleView` must be a subview of a ``TraceScrollView``. In fact, this scroll view creates a `VScaleView` when a ``TraceView`` is set as its `documentView`.
 @interface VScaleView : NSView
 
-/// Note: we don't use a subclass of `NSRulerView` as a an `NSRulerView` is redrawn during scroll, which we want to avoid.
+/// Note: we don't use a subclass of `NSRulerView` as this view is not a ruler.
 
 /// The ``TraceView`` that is associated with the receiver.
+@property (weak, nonatomic, readonly) TraceView *traceView;
+
+/// The desired width of the view.
 ///
-/// This property is set by the ``TraceScrollView`` when it gets its document view.
-@property (weak, nonatomic) TraceView *traceView;
-
-
+/// The default is 30.0. The effective value is constrained to the range [0, 100];
+@property (nonatomic) float width;
 
 @end
 

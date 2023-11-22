@@ -29,7 +29,7 @@
 	NSPoint mouseLocation;
 }
 
-const float vScaleViewWidth = 30.0;
+@synthesize traceView = _traceView;
 
 /// we prepare an dictionary of labels used for the ruler (expressed in base fluorescence points)
 /// it makes the correspondence between an integer (fluo level) and an attributed string to draw
@@ -60,24 +60,50 @@ static NSDictionary *labels;
 }
 
 
-
-
-- (void)viewDidMoveToWindow {
-	if(!self.traceView) {
-		self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawBeforeViewResize;
-				
-		self.traceView = [self.superview viewWithTag:1];
-	
-		[self bind:NSHiddenBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:ShowRuler options:@{NSValueTransformerNameBindingOption : NSNegateBooleanTransformerName}];
-			/// when the view doesn't show a trace, we are hidden
-		[self bind:@"hidden2" toObject:self.traceView withKeyPath:@"trace" options:@{NSValueTransformerNameBindingOption : NSIsNilTransformerName}];
-		
+- (instancetype)initWithFrame:(NSRect)frame {
+	self = [super initWithFrame:frame];
+	if (self) {
+		[self setAttributes];
 	}
-	NSPoint origin = [self convertPoint:NSMakePoint(0, 1) fromView:self.traceView];
-	[self setBoundsOrigin:NSMakePoint(0, -origin.y)];
-	self.hidden = self.hidden; 	/// not very elegant, but it sets the bound origins of the traceView so that the trace does not show behind us
-	
+	return self;
 }
+
+
+-(void)setAttributes {
+	self.wantsLayer = YES;
+	_width = 30.0;
+	self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawBeforeViewResize;
+}
+
+
+- (TraceView *)traceView {
+	if(!_traceView && [self.superview isKindOfClass:NSScrollView.class]) {
+		TraceView *traceView = ((NSScrollView *)self.superview).documentView;
+		if([traceView isKindOfClass:TraceView.class]) {
+			_traceView = traceView;
+			[self bind:NSHiddenBinding toObject:traceView withKeyPath:@"trace" options:@{NSValueTransformerNameBindingOption : NSIsNilTransformerName}];
+		}
+	}
+	return _traceView;
+}
+
+
+- (void)setWidth:(float)width {
+	if(width < 0) {
+		width = 0;
+	} else if(width > 100) {
+		width = 100;
+	}
+	_width = width;
+	self.traceView.leftInset = self.hidden? 0: width;
+}
+
+
+- (void)setHidden:(BOOL)hidden {
+	super.hidden = hidden;
+	self.traceView.leftInset = hidden? 0: self.width;
+}
+
 
 
 - (BOOL)clipsToBounds {
@@ -87,30 +113,41 @@ static NSDictionary *labels;
 
 - (void)drawRect:(NSRect)dirtyRect {
 	[NSColor.windowBackgroundColor setFill];
-	NSRectFill(self.bounds);
+	NSRect bounds = self.bounds;
+	NSRectFill(bounds);
 	TraceView *traceView = self.traceView;
 	float vScale = traceView.vScale;
 	if(vScale <=0) {
 		return;
 	}
-	int labelIncrement = [self rulerLabelIncrementForVScale:vScale];
-	float topFluoLevel = NSMaxY(traceView.bounds)/ vScale;
-	for (int fluo = labelIncrement; fluo <= topFluoLevel; fluo += labelIncrement ) {
-		NSAttributedString *label = labels[@(fluo)][0];
-		float width = [labels[@(fluo)][1] floatValue];
-		[label drawAtPoint:NSMakePoint(vScaleViewWidth - width - 7, fluo * vScale -4 )];
-		[NSBezierPath strokeLineFromPoint:NSMakePoint(vScaleViewWidth - 5, fluo * vScale) toPoint:NSMakePoint(NSMaxX(self.bounds), fluo * vScale)]; /// main tick-mark
-		[NSBezierPath strokeLineFromPoint:NSMakePoint(vScaleViewWidth - 3, (fluo - labelIncrement/2) * vScale) toPoint:NSMakePoint(NSMaxX(self.bounds), (fluo - labelIncrement/2) * vScale)]; /// secondary tick-mark
-		
-		
-	}
-	/// a tick-mark at 0
-	[NSBezierPath strokeLineFromPoint:NSMakePoint(25, 0) toPoint:NSMakePoint(NSMaxX(self.bounds), 0)];
 	
+	float maxX = NSMaxX(bounds);
+	[NSColor.grayColor set];
+	NSRectFill(NSMakeRect(maxX-1, 0, 1, NSMaxY(bounds)-3));
+
+	int labelIncrement = rulerLabelIncrementForVScale(vScale);
+	for (int fluo = 0; fluo <= traceView.topFluoLevel; fluo += labelIncrement ) {
+		if(fluo > 0) {
+			NSArray *labelDescription = labels[@(fluo)];
+			NSAttributedString *label = labelDescription.firstObject;
+			float width = [labelDescription.lastObject floatValue];
+			[label drawAtPoint:NSMakePoint(maxX - width - 7, fluo * vScale -4)];
+		}
+				
+		[NSBezierPath strokeLineFromPoint:NSMakePoint(maxX - 5, fluo * vScale)
+								  toPoint:NSMakePoint(maxX, fluo * vScale)]; /// main tick-mark
+																			 ///
+		if(fluo + labelIncrement/2 < traceView.topFluoLevel) {
+			float y = (fluo + labelIncrement/2) *vScale;
+			[NSBezierPath strokeLineFromPoint:NSMakePoint(maxX - 3, y)
+									  toPoint:NSMakePoint(maxX, y)]; /// secondary tick-mark
+		}
+	}
 }
 
+
 /// returns the increment in size labels that is appropriate given the zoom scale.
-- (int)rulerLabelIncrementForVScale:(float)vScale; {
+int rulerLabelIncrementForVScale(float vScale) {
 	/// This was established via trial & error. There's certainly a more flexible way to do it
 	float scale = 1/vScale * 20;
 	if (scale < 10) return 10;
@@ -134,16 +171,21 @@ static NSDictionary *labels;
 
 - (void)resetCursorRects {
 	/// to signify that the user can adjust the vertical scale by dragging, we show the appropriate cursor
-	NSRect rect = NSIntersectionRect(self.bounds, self.visibleRect);
+	NSRect bounds = self.bounds;
+	float y = bounds.origin.y;
+	bounds.origin.y = 0;
+	bounds.size.height += y;
+	NSRect rect = NSIntersectionRect(bounds, self.visibleRect);
 	[self addCursorRect:rect cursor:NSCursor.openHandCursor];
 	
 }
 
 
 - (void)mouseDown:(NSEvent *)theEvent {
-	[NSCursor.closedHandCursor set];
 	mouseLocation = [self convertPoint:theEvent.locationInWindow fromView:nil];
-	
+	if(mouseLocation.y >= 0) {
+		[NSCursor.closedHandCursor set];
+	}
 }
 
 - (void)mouseDragged:(NSEvent *)event {
@@ -172,27 +214,6 @@ static NSDictionary *labels;
 		[self.traceView scaleToHighestPeakWithAnimation:YES];
 	}
 }
-
-
-- (void)setHidden:(BOOL)hidden {
-	super.hidden = hidden;
-	/// we adjust the bounds of the other subviews to accommodate us. We do it by placing their bounds' 0 x coordinate just at our right side
-	
-	TraceView *traceView = self.traceView;
-	NSPoint traceViewOrigin = traceView.bounds.origin;
-	if(hidden) {
-		if(traceViewOrigin.x != 0) {
-			[traceView setBoundsOrigin:NSMakePoint(0, traceViewOrigin.y)];
-		}
-	} else {
-		float overlap = NSIntersectionRect(self.frame, traceView.superview.frame).size.width;
-		[traceView setBoundsOrigin:NSMakePoint(-overlap, traceViewOrigin.y)];
-	}
-	
-	/// we make sure, the ruler view is tiled properly after the bounds are changed
-	[traceView.enclosingScrollView tile];
-}
-
 
 
 - (BOOL)isOpaque {

@@ -213,7 +213,7 @@ static NSArray *defaultColorsForChannels;
 
 
 - (void)layout {
-	[super layout];
+	[super layout];  /// Apple say it is required, but it doesn't appear to be the case here, possibly because the view doesn't have subviews
 	if(self.needsLayoutLabels) {
 		[self repositionLabels:self.repositionableLabels allowAnimation:NO];
 	}

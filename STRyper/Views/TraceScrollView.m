@@ -38,7 +38,6 @@
 
 
 
-extern const float vScaleViewWidth;
 const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers";
 
 
@@ -64,18 +63,14 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 
 
 -(void)setAttributes {
-	self.drawsBackground = NO;	/// must be set so, otherwise the view doesn't react to the changes in the backgroundLayer's color
-								/// also, this improves the tiling of the subviews during animation
+	self.backgroundColor = NSColor.whiteColor;
 	self.hasHorizontalScroller = YES;
 	self.verticalScrollElasticity = NSScrollElasticityNone;
 	self.scrollerStyle = NSScrollerStyleLegacy;
 	self.usesPredominantAxisScrolling = NO;
 	self.borderType = NSNoBorder;
 	self.rulersVisible = YES;
-	
-
-   self.automaticallyAdjustsContentInsets = NO;
-	self.contentInsets =  NSEdgeInsetsZero;
+	self.automaticallyAdjustsContentInsets = NO;
 }
 
 
@@ -84,12 +79,10 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 	if([self.documentView isKindOfClass:TraceView.class]) {
 		traceView = self.documentView;
 		if(!vScaleView) {
-			vScaleView = [[VScaleView alloc] initWithFrame:NSMakeRect(0, 0, vScaleViewWidth, NSMaxY(self.bounds)-20) ]; /// the frame isn't very important as it is set during -tile
-			vScaleView.wantsLayer = YES;
+			vScaleView = [[VScaleView alloc] initWithFrame:NSMakeRect(0, 0, vScaleView.width, NSMaxY(self.bounds)-20) ]; /// the frame isn't  important as it is set during -tile
 		}
 		traceView.vScaleView = vScaleView;
 		[self addSubview:vScaleView];
-	//	[self.layer addSublayer:leftLayer];
 	} else {
 		if([self.subviews containsObject:vScaleView]) {
 			[vScaleView removeFromSuperview];
@@ -99,7 +92,8 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 
 
 - (void)setScrollerStyle:(NSScrollerStyle)scrollerStyle {
-	/// We enforce the legacy scroller style (if we didn't and if the user connects a magic mouse or trackpad after the app launch, the legacy scroller style could change)
+	/// We enforce the legacy scroller style
+	///  (if we didn't and if the user connects a magic mouse or trackpad after the app launch, the legacy scroller style could change)
 	if(scrollerStyle == NSScrollerStyleLegacy) {
 		[super setScrollerStyle:scrollerStyle];
 	}
@@ -124,19 +118,21 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 - (void)tile {
 	[super tile];
 	/// we adjust the position of the vScaleView
-	if(!vScaleView) {
+	if(!vScaleView || vScaleView.isHidden) {
 		return;
 	}
-	float scrollerHeight = self.horizontalScroller.frame.size.height;
 
 	float topInset = 0;
-	if(self.hasHorizontalRuler && !self.horizontalRulerView.hidden) {
-		topInset = self.horizontalRulerView.frame.size.height -3 ;		/// the vscaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level displayed.
+	NSRulerView *rulerView = self.horizontalRulerView;
+	if(rulerView && !rulerView.hidden) {
+		topInset = rulerView.frame.size.height -4 ;		/// the vscaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level displayed.
 	}
-	NSRect newFrame = NSMakeRect(0, topInset, vScaleViewWidth, self.frame.size.height - scrollerHeight - topInset);
-	
+	NSRect newFrame = NSMakeRect(0, topInset, vScaleView.width, self.frame.size.height - topInset);
 	if(!NSEqualRects(vScaleView.frame, newFrame)) {
 		vScaleView.frame = newFrame;
+		if(traceView.leftInset != vScaleView.width) {
+			traceView.leftInset = vScaleView.width;
+		}
 	}
 }
 
@@ -148,7 +144,8 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 - (void)scrollClipView:(NSClipView *)aClipView toPoint:(NSPoint)aPoint {
 	NSScrollerPart hitPart = self.horizontalScroller.hitPart;
 	float hScale = traceView.hScale;
-	
+	aPoint.x += traceView.leftInset;
+
 	if(hScale <= 0 || traceView.isResizing || targetLabel ||
 	   (previousDeltaX == 0 && (hitPart == NSScrollerNoPart || hitPart == NSScrollerKnobSlot))) {
 		/// the view being resized tends to trigger this method which messes with the scrolling. So we don't scroll in this situation.
@@ -157,7 +154,9 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 		/// Appkit apparently buffers these events and sees fit to call this method when the mouse exists us,
 		/// to make us scroll the document view where it should have scrolled if we did not ignore the scrollWheel messages
 		/// This causes a jump in scroll position.
-		return;
+		if(aPoint.x >= 0) {
+			return;
+		}
 	}
 	
 	BaseRange newRange = traceView.visibleRange;

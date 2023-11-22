@@ -302,7 +302,6 @@
 
 - (void)drawRect:(NSRect)dirtyRect {
 	
-	
 	if(noSizing) {
 		return;
 	}
@@ -320,23 +319,26 @@
 	}
 	
 	const float *sizes = sample.sizes.bytes;
-	
+	NSRect bounds = self.bounds;
+	float width = bounds.size.width;
+	float height = bounds.size.height;
+
 	/// we won't add a point to the curve for every scan. We add approximately one point every two quartz points
 	/// The increment is the number of scans from one point to the next
-	int increment = (int)((lastScan-firstScan)/self.bounds.size.width *2);
+	int increment = (int)((lastScan-firstScan)/width *2);
 	if (increment < 1) {
 		increment = 1;
 	}
-	
+		
 	/// the vertical scale is our height divided by the size at the last scan
-	vScale = self.bounds.size.height / (lastScan*sample.sizingSlope + sample.intercept);
-	hScale = self.bounds.size.width / (lastScan - firstScan);
+	vScale = height / (lastScan*sample.sizingSlope + sample.intercept);
+	hScale = width / (lastScan - firstScan);
 	
 	/// if the fitting method is not the linear regression, we draw a line corresponding to the linear regression, for comparison
 	if(sample.polynomialOrder > 0) {
 		/// as we draw the curve in a different color, we draw a legend indicating which curve is which
 		[NSColor.secondaryLabelColor setStroke];
-		[NSBezierPath strokeLineFromPoint:NSMakePoint(0, 0) toPoint:NSMakePoint(self.bounds.size.width, self.bounds.size.height)];
+		[NSBezierPath strokeLineFromPoint:NSMakePoint(0, 0) toPoint:NSMakePoint(width, height)];
 	}
 	/// We now draw the curve corresponding to the current fitting method
 	int maxPointsInCurve = 40;

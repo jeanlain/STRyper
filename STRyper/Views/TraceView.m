@@ -43,7 +43,7 @@
 @property (nonatomic, nullable) NSArray *peakLabels;
 @property (nonatomic, nullable) NSArray *fragmentLabels;
 @property (nonatomic) BOOL isResizing;
-@property (nonatomic) RulerView *rulerView;
+
 
 /// the label of marker whose bins are being edited. This can be set by the marker itself, but it should not be set arbitrarily
 @property (nonatomic, weak) RegionLabel *enabledMarkerLabel;
@@ -57,13 +57,16 @@
 /// Property that can be bound to the NSApp effective appearance. There is no ivar backing it it, the setter just tells the view to conform to the app's appearance.
 @property (nonatomic) NSAppearance *viewAppearance;
 
+/// Whether the traces should be redrawn (upon geometry change of change of other attributes).
 @property (nonatomic) BOOL needsDisplayTraces;
 
-/// The width of the visible rectangle that is clipped by our superview, subtracting the region masked by the vscale view.
+/// Whether the layer(s) showing traces need to be laid out.
+@property (nonatomic) BOOL needsLayoutTraceLayer;
+
+/// The rectangle that is clipped by our superview (in our coordinates), subtracting the region masked by the vscale view.
 @property (readonly, nonatomic) NSRect clipRect;
 
-/// The rectangle in which traces show through our superview, considering its width (not height).
-/// This ignore other superviews that could clip our frame.
+/// The width of the `clipRect` (faster to generate)
 @property (readonly, nonatomic) float visibleWidth;
 
 @end
@@ -105,44 +108,45 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	float height;					/// a shortcut to the view's height (not used often. Could be removed)
 	float maxReadLength;			/// the length (in base pairs) of the longest trace the view shows
 	float viewLength;				/// It is either the maxReadLength or the max end size the user as set in the preferences, whichever is longer
-	__weak MarkerView *_markerView;	/// the view showing the markers, which is the accessory view of the ruler view
-	NSTimer *resizingTimer;
+	
+	NSTimer *resizingTimer;			/// A timer that triggers to update tracking areas, and avoid updating them when the view is moving or resized
+	
 	CAShapeLayer *dashedLineLayer;	/// a layer showing a vertical dashed line at the mouse location that helps the user insert bins (note: we could use a single instance in a global variable for this layer, since only one dashed line should show at a time)
 	
 	float startPoint; 						/// (for dragging... not used)
 	
 	NSArray<Trace *> *visibleTraces;		/// the traces that are actually visible, depending on the channel to show
 	
-	NSArray *observedSamples;			/// The chromatograms we observe for certain keypaths.
+	NSArray *observedSamples;				/// The chromatograms we observe for certain keypaths.
 	NSArray *observedSamplesForPanel;
 	
 	__weak RegionLabel *hoveredBinLabel;	/// the bin label being hovered, which we use to determine the cursor
 	__weak PeakLabel *hoveredPeakLabel;		/// the peak label being hovered, which we may need to reposition
-											
+	
 	BOOL showMarkerOnly;
 	
 	/**** ivars used for drawing traces **/
-	/// Traces are drawn in a dedicated layer. We don't use the backing layer as we need to show bin and marker labels (which use layers) behind traces
-	/// This helps performance a bit, and we avoid redrawing traces during scrolling ("responsible scrolling" seems disabled in macOS 14)
-	/// However, a single layer cannot always hold the whole traces. If it's too large, drawing is simple not possible, and it uses a lot of memory.
+	/// We don't draw traces in the backing layer as we need to show bin and marker labels (which use layers) behind traces
+	/// A single layer cannot hold the whole traces. If it's too large, drawing doesn't work (even if constrained to a small rectangle of the layer).
 	/// A CATiledLayer can be very large, but doesn't appear suited to this task.
+	/// We position and draw contiguous layers during scrolling (similar to "responsive scrolling, which appears disabled in macOS 14).
 	
-	CALayer *traceLayer; 	/// the layer used to display traces
-	NSRect dirtyRect;  		/// marks the region of the layer that needs to be redrawn
-	BOOL needsDisplayInVisibleRect;		/// used in case we only need to redraw in the visible rectangle (for performance reasons, during zooming or change in vertical scale)
-	BOOL displayedInVisibleRectOnly;	/// tells if traces were redrawn in the visible rectangle only, which we need to know during scrolling (to determine if wee need to redraw)
+	CALayer *traceLayerParent; 		/// The parent layer of the trace layers, sorted from left to right along the X axis in its sublayers array
+	__weak CALayer *traceLayerFillingClipRect;		/// The trace layer that fits in the `clipRect`, if any.
+													/// We use this information to avoid repositioning this layer when not required
 	
-	NSTimer *displayAllTimer;	/// a timer used to trigger a redrawing of the whole traceLayer, which we use at the end of zooms or other animations, to anticipate scrolling.
-	float traceLayerStart;		/// The position of the left edge of the traceLayer,  during scrolling
-	float traceLayerEnd;		/// same as above, for the right edge
-	BOOL traceLayerCoversEnd;   /// whether the trace layer covers the right end of traces, to avoid computations during scrolling
+	NSMutableSet<CALayer *> *traceLayers; /// The currently unused layers that are not in the layer tree.
+	
+	NSTimer *overdrawTimer;		/// Used to trigger the drawing of traces outside the visible rectangle, to anticipate scrolling.
+	float drawnRangeStart;		/// The position of the leading edge of the leftmost trace layer (in view coordinates), which we store to avoid computations
+	float drawnRangeEnd;		/// The position of the trailing edge of the rightmost trace layer
 	BOOL traceLayerCanAnimateBoundChange;
+	
 }
 
+static float defaultTraceLayerWidth = 512; /// Default width of a trace layer in points
 
-
-
-@synthesize markerLabels = _markerLabels, backgroundLayer = _backgroundLayer;
+@synthesize markerLabels = _markerLabels, backgroundLayer = _backgroundLayer, rulerView = _rulerView, markerView = _markerView;
 
 #pragma mark - initialization methods
 
@@ -185,12 +189,12 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 -(void)setAttributes {
 	[NSUserDefaults.standardUserDefaults addObserver:self forKeyPath:OutlinePeaks options:NSKeyValueObservingOptionNew context:displaySettingsChangedContext]; /// TO REMOVE when shipping
 	
-	traceLayer = CALayer.new;
-	traceLayer.zPosition = -0.4;  /// To ensure traces show behind fragment labels, which cannot have a positive zPosition.
-	[self.layer addSublayer:traceLayer];
-	traceLayer.delegate = self;
-	traceLayer.anchorPoint = CGPointMake(0, 0);
-	traceLayer.drawsAsynchronously = YES;  /// enables GPU acceleration on Apple Silicon
+	traceLayers = NSMutableSet.new;
+	traceLayerParent = CALayer.new;
+	traceLayerParent.delegate = self;
+	traceLayerParent.zPosition = -0.4;  /// To ensure traces show behind fragment labels, which cannot have a positive zPosition.
+	traceLayerParent.anchorPoint = CGPointMake(0, 0);
+	[self.layer addSublayer:traceLayerParent];
 	
 	/// The views' background is white
 	self.layer.backgroundColor = NSColor.whiteColor.CGColor;
@@ -202,7 +206,6 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	
 	[self setBoundsOrigin:NSMakePoint(0, -0.5)];
 	
-	/************************attributes related to visuals*******/
 	/// we initialize the layer showing the dashed line that show at the mouse location over the enabled marker label
 	dashedLineLayer = CAShapeLayer.new;
 	dashedLineLayer.anchorPoint = CGPointMake(1, 0); /// this will position the layer at the left of the mouse location, which place it more in line with the cursor
@@ -235,11 +238,27 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 }
 
 
+-(CALayer *)newTraceLayer {
+	CALayer *traceLayer = CALayer.new;
+	traceLayer.delegate = self;
+	traceLayer.needsDisplayOnBoundsChange = YES;
+	traceLayer.contentsScale = self.layer.contentsScale;
+	traceLayer.anchorPoint = CGPointMake(0, 0);
+	traceLayer.drawsAsynchronously = YES;  /// enables GPU acceleration on Apple Silicon
+	return traceLayer;
+}
+
+
+-(void)removeTraceLayer:(CALayer *)layer {
+	layer.contents = nil;
+	[layer removeFromSuperlayer];
+	[traceLayers addObject:layer];
+}
+
+
 - (CALayer *)backgroundLayer {
 	if(!_backgroundLayer) {
-		if(traceLayer) {
-			_backgroundLayer = self.layer;
-		}
+		_backgroundLayer = self.layer;
 		_backgroundLayer.actions = @{kCAOnOrderIn: NSNull.null, kCAOnOrderOut: NSNull.null,
 									 NSStringFromSelector(@selector(sublayers)): NSNull.null,
 									 NSStringFromSelector(@selector(position)): NSNull.null};
@@ -300,13 +319,11 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 
 - (void)loadTraces:(NSArray<Trace *> *)traces {
 	[self loadTraces:traces marker:nil];
-	showMarkerOnly = NO;
 }
 
 
 - (void)loadSample:(Chromatogram *)sample {
 	[self loadTraces:sample.traces.allObjects marker:nil];
-	showMarkerOnly = NO;
 }
 
 
@@ -319,13 +336,11 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 		_genotype = nil;
 		[self loadTraces:nil marker:nil];
 	}
-	showMarkerOnly = NO;
 }
 
 
 - (void)loadMarker:(Mmarker *)marker {
 	[self loadTraces:nil marker:marker];
-	showMarkerOnly = YES;
 }
 
 /// loads the specified traces and the marker
@@ -333,8 +348,8 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	
 	/// We set the hScale to -1 to signify that our geometry is reset and not final. This is to prevent our range from being modified in resizeWithOldSuperViewSize: before prepareForDisplay: (the latter sets our hScale)
 	_hScale = -1.0;
-	if(displayAllTimer.valid) {
-		[displayAllTimer invalidate];
+	if(overdrawTimer.valid) {
+		[overdrawTimer invalidate];
 	}
 	
 	if(resizingTimer.valid) {
@@ -401,6 +416,7 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	}
 	
 	[self prepareForDisplay];
+	showMarkerOnly = traces.count == 0;
 }
 
 /// Returns the panel that we (and our marker view) may show.
@@ -739,8 +755,6 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	if(_peakLabels.count > 0) {
 		self.needsLayoutLabels = YES;
 	}
-	/// labels call a needsDisplayInRect when they are positioned, but in case a previous label is deleted and was hovered/active, the view may not be redrawn in the rectangle, so:
-	self.needsDisplayTraces = YES;
 }
 
 
@@ -828,8 +842,9 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 
 
 -(void)layout {
-	if(traceLayer && self.needsLayoutLabels) {
+	if(self.needsLayoutTraceLayer) {
 		[self repositionTraceLayer];
+		self.needsLayoutTraceLayer = NO;
 	}
 	
 	if(self.needsLayoutFragmentLabels && !self.needsLayoutLabels && self.hScale >=0) {
@@ -892,10 +907,12 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == traceLayer) {
+	if(layer.superlayer == traceLayerParent) {
 		if(traceLayerCanAnimateBoundChange) {
 			return nil;
 		}
+		return NSNull.null;
+	} else if(layer == traceLayerParent) {
 		return NSNull.null;
 	}
 	return nil;
@@ -903,7 +920,7 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 
 
 - (BOOL)layer:(CALayer *)layer shouldInheritContentsScale:(CGFloat)newScale fromWindow:(NSWindow *)window {
-	if(layer == traceLayer) {
+	if(layer.superlayer == traceLayerParent) {
 		return YES;
 	}
 	return NO;
@@ -918,112 +935,221 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 - (void)setNeedsDisplayTraces:(BOOL)display {
 	_needsDisplayTraces = display;
 	if(display) {
-		needsDisplayInVisibleRect = NO;
-		[traceLayer setNeedsDisplay];
+		/// We traces needs to be redrawn, we draw a layer that fits the visible rectangle return by clipRect
+		if(!traceLayerFillingClipRect) {
+			self.needsLayoutTraceLayer = YES;
+		} else {
+			/// If a layer is already in place, we don't need to position it, just mark it for redisplay.
+			[traceLayerFillingClipRect setNeedsDisplay];
+			/// but we need to remove any other trace layer
+			NSArray *sublayers = traceLayerParent.sublayers;
+			long count = sublayers.count;
+			if(count > 1) {
+				for (long i = 0; i < count; i++) {
+					CALayer *aLayer = sublayers[i];
+					if(aLayer != traceLayerFillingClipRect) {
+						[self removeTraceLayer:aLayer];
+						count--;
+						i--;
+					}
+				}
+			}
+		}
 	}
 }
 
 
-- (void)setNeedsDisplayInVisibleRect {
-	needsDisplayInVisibleRect = YES; 	/// This will cause a display in the visible rect only, even if needsDisplayTraces is YES.
-										/// This avoid displaying the whole layer during scrolling if it determined afterward that only the visible part
-										/// needs to be redrawn.
-	/// we mark the whole layer for redrawing, even if only the visible part will be redrawn.
-	/// This is because the visible part of the layer may change between now and the time of redrawing.
-	/// Doing so has no visible impact on performance.
-	[traceLayer setNeedsDisplay];
+- (void)setNeedsLayoutTraceLayer:(BOOL)needsLayoutTraceLayer {
+	_needsLayoutTraceLayer = needsLayoutTraceLayer;
+	if(needsLayoutTraceLayer) {
+		/// We layout trace layers in -layout rather than -layoutSublayersOfLayer: 
+		/// because the latter is not called at appropriate times wrt changes in view geometry.
+		/// Traces should be adjust perfectly in sync with change in view geometry, in particular during zooming
+		self.needsLayout = YES;
+	}
 }
 
 
 -(void)repositionTraceLayer {
-	/// We position the layer so it covers all the region occupied by traces, if possible
-	float traceWidth = (self.trace.chromatogram.readLength - _sampleStartSize) * self.hScale;
-	NSRect bounds = self.bounds;
-	float height = NSMaxY(bounds) + 0.5; /// 0.5 allows to show the curve, which is 1-point tick, for a fluorescence scale of 0
-										 /// while clipping everything that is below (some joints between segment).
-	NSRect layerFrame = NSMakeRect(0, -0.5, traceWidth, height);
-	float maxWidth = 2e6 / height;
-	if(traceWidth > maxWidth) {
-		/// if the traces occupies an area that is too wide, we cover what is not clipped + some margin
-		float visibleWidth = self.visibleWidth; /// We don't use -visibleRect as we want the width of our clipView, even if we are clipped by another clipView in the hierarchy.
-		float targetWidth = visibleWidth * 1.5;
-		if(targetWidth < traceWidth) {
-			if(targetWidth < maxWidth) {
-				targetWidth = maxWidth;
+	NSRect clipRect = self.clipRect;
+	float visibleStart = clipRect.origin.x;
+	float visibleEnd = NSMaxX(clipRect);
+	
+	if(_needsDisplayTraces || visibleEnd < drawnRangeStart || visibleStart > drawnRangeEnd) {
+		/// If traces needs to ne redrawn or if the clipRect does not intersect what is drawn, we place a layer in the clipRect and remove others
+		traceLayerFillingClipRect = [self positionTraceLayerFromStart:visibleStart toEnd:visibleEnd clipRect:clipRect clearOtherLayers:YES];
+		return;
+	}
+	
+	if(drawnRangeStart > 0 && visibleStart < drawnRangeStart+1)  {
+		/// If a region that is not drawn has become visible at the left, we place a layer there.
+		/// The 1-point margin ensure that a layer will be placed if this method is called when there is nothing drawn at the left of the clipRect
+		/// This will draw traces there to anticipate scrolling (overdraw).
+		float layerStart = drawnRangeStart - defaultTraceLayerWidth;
+		if(layerStart > visibleStart) {
+			layerStart = visibleStart;
+		}
+		[self positionTraceLayerFromStart:layerStart toEnd:drawnRangeStart clipRect:clipRect clearOtherLayers:NO];
+	}
+		
+	if (drawnRangeEnd < visibleEnd+1) {
+		/// If some area has become visible (with a 1-point margin) at the right, we place a layer there.
+		float layerEnd = drawnRangeEnd + defaultTraceLayerWidth;
+		if(layerEnd < visibleEnd) {
+			layerEnd = visibleEnd;
+		}
+		[self positionTraceLayerFromStart:drawnRangeEnd toEnd:layerEnd clipRect:clipRect clearOtherLayers:NO];
+	}
+}
+
+
+
+/// Positions a trace layer between two coordinates of the view along the axis, marks it for display, and returns the layer if it could be positioned.
+/// - Parameters:
+///   - start: The suggested position of the leading edge of the layer's frame.
+///   - end: The suggested position of the trailing edge of the layer's frame.
+///   - clipRect: The current visible rectangle of the view (sent only to avoid recomputing it).
+///   - clearOtherLayers: Whether other trace layers should be removed from the view (and placed in the reuse pool).
+-(nullable CALayer *)positionTraceLayerFromStart:(float)start toEnd:(float)end clipRect:(NSRect)clipRect clearOtherLayers:(BOOL)clearOtherLayers {
+	
+	/// We don't position a trace layer before the start or after the end of traces
+	if(start < 0) {
+		start = 0;
+	}
+	float traceEnd = (self.trace.chromatogram.readLength - self.sampleStartSize) * self.hScale;
+	if(end >= traceEnd) {
+		end = traceEnd;
+	}
+	if(end-start <= 1) {
+		return nil;
+	}
+	
+	NSArray *sublayers = traceLayerParent.sublayers;
+	CALayer *traceLayer;
+	BOOL placeLeft = NO; /// whether the layer will be placed at the left of the clipRect (scrolling)
+	if(clearOtherLayers) {
+		traceLayer = traceLayerFillingClipRect? traceLayerFillingClipRect : sublayers.firstObject;
+		long count = sublayers.count;
+		if(traceLayer && count > 1) {
+			/// We remove other trace layers from the view, which we can't do with fast enumeration
+			/// unless we make a copy of the sublayers array, which may take more time
+			for (long i = 0; i < count; i++) {
+				CALayer *aLayer = sublayers[i];
+				if(aLayer != traceLayer) {
+					[self removeTraceLayer:aLayer];
+					count--;
+					i--;
+				}
 			}
-			layerFrame = NSMakeRect(self.visibleOrigin - (targetWidth-visibleWidth)/2, -0.5, targetWidth, height);
-			if(layerFrame.origin.x < 0) {
-				layerFrame.origin.x = 0;
-			}
-			float diff = NSMaxX(layerFrame) - traceWidth;
-			if(diff > 0) {
-				layerFrame.origin.x -= diff;
+		}
+	} else {
+		/// Here, we try to reuse a layer without clearing those already showing traces.
+		/// This path should be taken during scrolling / overdraw.
+		placeLeft = start < drawnRangeStart;
+		/// We first try to get a layer from the pool of unused layers
+		traceLayer = traceLayers.anyObject;
+		if(traceLayer) {
+			[traceLayers removeObject:traceLayer]; /// It is therefore no longer unused
+		} else {
+			/// Otherwise, we reuse a layer that is positioned in the view.
+			/// If we should place it at the left, we use the last layer (the one at the right) or vise versa.
+			CALayer *layer = placeLeft? sublayers.lastObject : sublayers.firstObject;
+			NSRect bounds = layer.bounds;
+			if(layer && !layer.needsDisplay && !NSIntersectsRect(bounds, clipRect)) {
+				/// The layer to reuse must not be visible nor marked for display.
+				traceLayer = layer;
+				if(placeLeft) {
+					/// We adjust the coordinate of the drawn section of the traces to reflect the fact that the reused layer no longer contributes to that
+					/// Here we assume that the layer is contiguous to another one.
+					drawnRangeEnd = bounds.origin.x;
+				} else {
+					drawnRangeStart = NSMaxX(bounds);
+				}
 			}
 		}
 	}
 	
-	BOOL coveredAll = traceLayerStart <= 0 && traceLayerCoversEnd;
+	if(!traceLayer) {
+		traceLayer = self.newTraceLayer;
+		if(!traceLayer) {
+			return nil;
+		} else if(clearOtherLayers) {
+			[traceLayerParent addSublayer:traceLayer];
+		}
+	}
+
+	if(clearOtherLayers) {
+		drawnRangeStart = start;
+		drawnRangeEnd = end;
+	} else {
+		if(placeLeft) {
+			/// A layer placed at the left is inserted first among its siblings.
+			[traceLayerParent insertSublayer:traceLayer atIndex:0];
+			drawnRangeStart = start;
+		} else {
+			/// A layer placed at the right is inserted at the last position
+			/// The order of layers in the sublayers array should thus reflect their positions from left to right.
+			[traceLayerParent addSublayer:traceLayer];
+			drawnRangeEnd = end;
+		}
+	}
 	
-	traceLayerStart = layerFrame.origin.x;
-	traceLayerEnd = NSMaxX(layerFrame);
-	traceLayerCoversEnd = traceLayerEnd >= traceWidth;
-	traceLayerCanAnimateBoundChange = traceLayerCanAnimateBoundChange && coveredAll && traceLayerStart <= 0 && traceLayerCoversEnd;
-	
-	traceLayer.frame = layerFrame;
-	traceLayer.bounds = layerFrame;		/// such that the coordinates in the layer are the same as in the view
-	traceLayerCanAnimateBoundChange = NO;
+	/// The bottom edge of the layer clips the trace curve if it goes below 0, considering that the curve is 1 pt thick.
+	CGRect layerBounds = CGRectMake(start, -0.5, end-start, NSMaxY(clipRect) + 0.5);
+	traceLayer.bounds = layerBounds; /// This ensure that the coordinates in the layer are the same as those in the view
+	traceLayer.position = layerBounds.origin;
+	[traceLayer setNeedsDisplay]; /// In case the bounds haven't changed, we mark the positioned layer for display
+								  
+	return traceLayer;
 }
 
 
-- (void)setNeedsDisplayInRect:(NSRect)invalidRect {
-	[traceLayer setNeedsDisplayInRect:invalidRect];
-	dirtyRect = NSUnionRect(dirtyRect, invalidRect);
-}
-
-
--(void)drawAll {
-	self.needsDisplayTraces = YES;
+-(void)overdraw {
+	if(!_needsDisplayTraces) {
+		self.needsLayoutTraceLayer = YES;
+		/// This should place layers at the end and right of the clipRect if they aren't any
+	}
 }
 
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-	if(layer == traceLayer) {
-		if(_needsDisplayTraces || needsDisplayInVisibleRect) {
-			if(displayAllTimer.valid) {
-				[displayAllTimer invalidate];
-			}
-			if(needsDisplayInVisibleRect) {
-				displayedInVisibleRectOnly = YES;
-				dirtyRect = self.clipRect;
-				displayAllTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self
-																 selector:@selector(drawAll) userInfo:nil repeats:NO];
-			} else {
-				dirtyRect = layer.bounds;
-				displayedInVisibleRectOnly = NO;
-				}
+	if(layer.superlayer == traceLayerParent) {
+		if(overdrawTimer.valid) {
+			[overdrawTimer invalidate];
 		}
-		[self drawTracesInRect:dirtyRect context:ctx];
-		
-		dirtyRect = NSZeroRect;
+		overdrawTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self
+															 selector:@selector(overdraw) userInfo:nil repeats:NO];
+		[self drawTracesInRect:layer.bounds context:ctx];
 		self.needsDisplayTraces = NO;
-		needsDisplayInVisibleRect = NO;
 	}
 }
 
 
 
 /// Draws trace-related elements in the view.
+/// - Parameters:
+///   - dirtyRect: The rectangle in which to draw, which is the same in view coordinates and layer coordinate.
+///   We don't use the clipping bounding box of the context, as it may be costly to query, apparently.
+///   - ctx: The graphics context in which we draw.
 - (void)drawTracesInRect:(NSRect) dirtyRect context:(CGContextRef) ctx {
 	
 	if(visibleTraces.count == 0) {
 		return;
 	}
 	
+	float rectStart = NSMinX(dirtyRect);
+	float rectEnd = NSMaxX(dirtyRect);
+	if(_needsDisplayTraces) {
+		/// In this case, any previous drawing is obsolete, so we make sure that the rendered range reflects the region that is redrawn.
+		drawnRangeStart = rectStart;
+		drawnRangeEnd = rectEnd;
+	}
+	
 	float hScale = self.hScale;
 	float vScale = self.vScale;
 	float sampleStartSize = self.sampleStartSize;
-	float startSize = dirtyRect.origin.x/hScale + sampleStartSize;	/// the size (in base pairs) at the start of the dirty rect
-	float endSize = NSMaxX(dirtyRect)/hScale + sampleStartSize;
+	float startSize = rectStart/hScale + sampleStartSize;	/// the size (in base pairs) at the start of the dirty rect
+	float endSize = rectEnd/hScale + sampleStartSize;
 	Chromatogram *sample = self.trace.chromatogram;
 	const float *sizes = sample.sizes.bytes;
 	long nScans = sample.sizes.length / sizeof(float);
@@ -1031,8 +1157,9 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 		return;
 	}
 	
-	/// We show offscale regions (with vertical grey rectangles)
-	/// We don't drawn them if we have traces from several samples and if a marker label is enabled, as these regions can mask the edges  of this label or its bin labels
+	/// We show offscale regions (with vertical rectangles)
+	/// We don't drawn them if we have traces from several samples and if a marker label is enabled, 
+	/// as these regions can mask the edges  of this label or its bin labels
 	NSData *offscaleRegions = sample.offscaleRegions;
 	if (self.showOffscaleRegions && offscaleRegions.length > 0 && (visibleTraces.count == 1 || self.channel == -1) && !self.enabledMarkerLabel) {
 		/// channel is normally -1 if we show traces for the same sample. In this case, we can draw off-scale regions
@@ -1057,20 +1184,10 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	}
 	
 	
-	/// we draw the fluorescence curve(s) as paths of connected line segments.
-	/// Curves are drawn from left to right.
-	/// optimisations: we skip points of height less than 1 pt and just draw a straight line at y = vOffset,
-	/// except when neighboring points that are at y > 1pt (or else the line would not be parallel to the edge).
-	/// Since most of the trace has low fluorescence (especially with baseline level subtracted), this saves a lot of time
-	/// we skip points that are less than x = 1 pt away from a previous point, except for local maxima/minima (or else peaks gets borked).
-	/// This improves performance at low zoom scale, when paths are long and this is hardly noticeable
-	/// we stroke the path every few dozens of points, since long paths kill performance
+	/// we draw the fluorescence curve(s) from left to right.
+	CGFloat lowerY = threshold;
+	int16_t lowerFluo = threshold / vScale; 	/// to quickly evaluate if some scans should be drawn
 	
-	CGFloat lowerPoint = threshold;
-	short lowerFluo = threshold / vScale; 	/// to quickly evaluate if some scans should be drawn
-	
-	float xFromLastPoint = 0;  				/// the number of quartz points from the last added point, which we use to determine if a scan can be skipped
-	float lastX = 0;
 	int maxPointsInCurve = appleSilicon ? 40 : 400;	  /// we stoke the curve if it reaches this number of points.
 	NSPoint pointArray[maxPointsInCurve];          /// points to add to the curve
 	int startScan = 0, maxScan = 0;	/// we will draw traces for scan between these scans.
@@ -1106,26 +1223,37 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 		
 		NSColor *strokeColor = self.colorsForChannels[traceToDraw.channel];
 		CGContextSetStrokeColorWithColor(ctx, strokeColor.CGColor);
-		int pointsInPath = 0;		/// current number of points being added to the path
+		
+		/// We add the first point to draw to the array
+		float lastX = (sizes[startScan] - sampleStartSize)*hScale;
+		float y = fluo[startScan]*vScale;
+		if (y < lowerY) {
+			y = lowerY -1;
+		}
+		pointArray[0] = CGPointMake(lastX, y);
+		int pointsInPath = 1;		/// current number of points being added
 		BOOL outside = NO;			/// whether a scan is to the right (outside) the dirty rect. Used to determine when to stop drawing.
-		int scan = startScan;
+		
+		int scan = startScan+1;
 		while(scan <= maxScan && !outside) {
-			if(sizes[scan] > endSize) {
+			float size = sizes[scan];
+			if(size > endSize) {
 				outside = YES;
 			}
-			float x = (sizes[scan] - sampleStartSize) * hScale;
-			xFromLastPoint = x - lastX;
+			float x = (size - sampleStartSize) * hScale;
 			
 			int16_t scanFluo = fluo[scan];
 			if (scan < maxScan-1) {
 				/// we may skip a point that is too close from previously drawn scans and not a local minimum / maximum
 				/// or that is lower than the fluo threshold
-				if((xFromLastPoint < 1 && !(fluo[scan-1] >= scanFluo && fluo[scan+1] > scanFluo) &&
-					!(fluo[scan-1] <= scanFluo && fluo[scan+1] < scanFluo)) || scanFluo < lowerFluo) {
+				int16_t previousFluo = fluo[scan-1];
+				int16_t nextFluo = fluo[scan+1];
+				if((x-lastX < 1 && !(previousFluo >= scanFluo && nextFluo > scanFluo) &&
+					!(previousFluo <= scanFluo && nextFluo < scanFluo)) || scanFluo < lowerFluo) {
 					/// and that is not the first/last of a series of scans under the lower threshold
-					if(!(scanFluo <= lowerFluo && (fluo[scan-1] > lowerFluo || fluo[scan+1] > lowerFluo))) {
+					if(!(scanFluo <= lowerFluo && (previousFluo > lowerFluo || nextFluo > lowerFluo))) {
 						/// We must draw the first point and the last point outside the dirty rect
-						if(scan != startScan && !outside) {
+						if(!outside) {
 							scan++;
 							continue;
 						}
@@ -1133,14 +1261,14 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 				}
 			}
 			lastX = x;
-			float y = scanFluo * vScale;
-			if (y < lowerPoint) {
-				y = lowerPoint -1;
+			y = scanFluo * vScale;
+			if (y < lowerY) {
+				y = lowerY -1;
 			}
 			
 			CGPoint point = CGPointMake(x, y);
 			pointArray[pointsInPath++] = point;
-			if(pointsInPath > 1 && (pointsInPath == maxPointsInCurve || outside || scan == maxScan -1)) {
+			if((pointsInPath == maxPointsInCurve || outside || scan == maxScan -1)) {
 				if(appleSilicon) {
 					/// On Apple Silicon Macs, stroking a path is faster (the GPU is used)
 					CGContextBeginPath(ctx);
@@ -1150,9 +1278,9 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 					/// On intel Macs (which cannot use the GPU for drawing), stroking line segments is faster.
 					CGContextStrokeLineSegments(ctx, pointArray, pointsInPath);
 				}
-				pointsInPath = 0;
-				pointArray[pointsInPath++] = point;
-			} else if(pointsInPath > 1 && !appleSilicon) {
+				pointArray[0] = point;
+				pointsInPath = 1;
+			} else if(!appleSilicon) {
 				/// On intel, we draw unconnected depend line segments, so the end of each segment is the start of the next one
 				pointArray[pointsInPath++] = point;
 			}
@@ -1286,7 +1414,7 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 - (void)setVScale:(float)scale {
 	if (scale != _vScale) {
 		_vScale = scale;
-		[self setNeedsDisplayInVisibleRect];
+		self.needsDisplayTraces = YES;
 		self.vScaleView.needsDisplay = YES;
 		self.needsLayoutFragmentLabels = YES;
 	}
@@ -1303,31 +1431,12 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 		/// to compute it, we need to record the previous visible origin (the new mouse location must set it after the scroll)
 		float previous = _visibleOrigin;
 		_visibleOrigin = newVisibleOrigin;
-				
-		if(!needsDisplayInVisibleRect && !_needsDisplayTraces) {
-			/// if no redisplay is scheduled, we check if we need to render traces for parts that will becomes visible
-			if((traceLayerStart > 0 && newVisibleOrigin - traceLayerStart < 10) ||
-			   (!traceLayerCoversEnd && traceLayerEnd - NSMaxX(self.clipRect) < 10)) {
-				/// If we get close to the edge of the layer, we reposition it and redraw the traces
-				/// This is not as efficient as "responsive scrolling", as the redrawing may cause a hiccup if there are many traces
-				/// In particular, parts that are visible get redrawn. I don't have the knowledge to reuse what is already drawn in a single layer.
-				NSLog(@"overdraw");
-				[self repositionTraceLayer];
-				self.needsDisplayTraces = YES;
-			}
-			
-			if(displayedInVisibleRectOnly) {
-				/// In case the traceLayer was not drawn fully we make sure it is drawn
-				/// This may happens if scrolling starts before drawAll is called
-				self.needsDisplayTraces = YES;
-			}
-		}
 		
 		NSClipView *clipView = (NSClipView *)self.superview;
-		if (clipView.bounds.origin.x != newVisibleOrigin) {
-			[clipView scrollToPoint:NSMakePoint(newVisibleOrigin, 0)];
-			[self.enclosingScrollView reflectScrolledClipView:clipView];
-		}
+		[clipView scrollToPoint:NSMakePoint(newVisibleOrigin - self.leftInset, 0)];
+		[self.enclosingScrollView reflectScrolledClipView:clipView];
+		traceLayerFillingClipRect = nil;  /// The layer showing traces no longer fits the visible rectangle
+		self.needsLayoutTraceLayer = YES; /// We need to position trace layers during scrolling.
 		
 		if(mouseIn) {
 			/// We could determine the mouse location "de novo" using the NSWindow method,
@@ -1361,7 +1470,6 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 		[self setFrameSize:newSize];
 		self.isResizing = NO;
 	}
-	[self setNeedsDisplayInVisibleRect];
 }
 
 
@@ -1553,16 +1661,26 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 }
 
 
+- (void)setLeftInset:(float)leftInset {
+	_leftInset = leftInset;
+	NSScrollView *scrollView = self.enclosingScrollView;
+	NSEdgeInsets insets = scrollView.contentInsets;
+	insets.left = leftInset;
+	scrollView.contentInsets = insets;
+}
+
+
 - (void)setBoundsOrigin:(NSPoint)newOrigin {
 	/// we set our bounds origin to adapt to the presence of vScaleView, which overlaps us.
 	/// our bounds x origin must be reflected by the top ruler view and the marker view, or else graduation and markers will not show at the correct position relative to the traces
 	[super setBoundsOrigin:newOrigin];
 	[self.markerView setBoundsOrigin:NSMakePoint(newOrigin.x,0)];
-	[self.vScaleView setBoundsOrigin:NSMakePoint(0, newOrigin.y)];
 	[self.rulerView setBoundsOrigin:NSMakePoint(newOrigin.x, 0)];
-	
+	NSPoint point = [self.vScaleView convertPoint:NSMakePoint(0, 0) fromView:self];
+	[self.vScaleView setBoundsOrigin:NSMakePoint(0, -point.y)];
+	traceLayerParent.bounds = CGRectMake(newOrigin.x, newOrigin.y, 10, 10); /// The size is not important
+	traceLayerParent.frame = traceLayerParent.bounds;
 	self.needsLayoutLabels = YES;
-	
 }
 
 
@@ -1570,8 +1688,10 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	/// overridden as our vScale view hides part of our left region, which ends at our x bounds origin of 0.
 	/// So this region is removed from our visible rect;
 	NSRect rect = super.visibleRect;
-	rect.origin.x -= self.bounds.origin.x;
-	rect.size.width += self.bounds.origin.x;
+	rect = NSIntersectionRect(rect, self.bounds); /// the visible rect may be taller than our bound under macOS 14+
+	float inset = self.leftInset;
+	rect.origin.x += inset;
+	rect.size.width -= inset;
 	if(rect.size.width < 0) {
 		rect.size.width = 0;
 	}
@@ -1580,13 +1700,14 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 
 
 - (float) visibleWidth {
-	return self.superview.bounds.size.width + self.bounds.origin.x;
+	return self.superview.bounds.size.width - self.leftInset;
 }
 
 
--(NSRect)clipRect {
+- (NSRect)clipRect {
 	NSRect bounds = self.bounds;
-	return NSMakeRect(self.visibleOrigin, bounds.origin.y, self.superview.bounds.size.width + bounds.origin.x, bounds.size.height);
+	
+	return NSMakeRect(self.visibleOrigin, bounds.origin.y, self.visibleWidth, bounds.size.height);
 }
 
 
@@ -1655,11 +1776,16 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 
 - (void)setFrameSize:(NSSize)newSize {
 	[super setFrameSize:newSize];
-	if(!self.needsLayoutLabels) {
+	if(!self.needsLayoutLabels && traceLayerFillingClipRect) {
 		/// in this case, the labels have been repositioned immediately, which means the view is resized with animation
-		/// we also reposition the trace layer now
+		/// we also reposition the trace layer now (in layout, it will be too late to follow the animation)
 		traceLayerCanAnimateBoundChange = YES;
+		_needsDisplayTraces = YES;
 		[self repositionTraceLayer];
+		traceLayerCanAnimateBoundChange = NO;
+	} else {
+		self.needsDisplayTraces = YES;
+		self.needsLayoutTraceLayer = YES;
 	}
 }
 
@@ -1833,7 +1959,6 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 		[self scaleToHighestPeakWithAnimation:YES];
 	}
 	self.needsLayoutFragmentLabels = YES; /// because peak heights may change
-	self.needsDisplayTraces = YES;
 }
 
 
@@ -1897,7 +2022,8 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 
 - (void)setVScaleView:(VScaleView *)vScaleView {
 	_vScaleView = vScaleView;
-	[self.vScaleView setBoundsOrigin:NSMakePoint(0, self.bounds.origin.y)];
+	NSPoint point = [vScaleView convertPoint:NSMakePoint(0, 0) fromView:self];
+	[vScaleView setBoundsOrigin:NSMakePoint(0, -point.y)];
 }
 
 
@@ -2259,8 +2385,18 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	if(!NSPointInRect(self.mouseLocation, frame)) {
 		return;
 	}
-	
+	NSRect bounds = self.bounds;
 	NSRect rect = self.visibleRect;
+	RegionEdge clickedEdge = noEdge;
+	if([draggedLabel isKindOfClass:RegionLabel.class]) {
+		clickedEdge = ((RegionLabel *)draggedLabel).clickedEdge;
+		if(clickedEdge == betweenEdges && (frame.size.width >= rect.size.width || draggedLabel == self.enabledMarkerLabel)) {
+			/// if a label is dragged (not resized) and is larger than what we show, we don't scroll.
+			/// We don't scroll either it it is the marker label, as scrolling in this situation is disturbing. 
+			return;
+		}
+	}
+	
 	float leftLimit = rect.origin.x;
 	float rightLimit = NSMaxX(rect);
 	
@@ -2270,9 +2406,9 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	float visibleOrigin = self.visibleOrigin;
 	float newOrigin = -1000;
 	
-	if(delta < 0 & visibleOrigin + delta >= 0) {
+	if(delta < 0 && clickedEdge != rightEdge) {
 		newOrigin = visibleOrigin + delta;
-	} else {
+	} else if(clickedEdge != leftEdge) {
 		/// if the mouse goes beyond the right limit, we scroll to the opposite direction
 		delta = NSMaxX(frame) - rightLimit;
 		if(delta > 0) {
@@ -2280,6 +2416,14 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 		}
 	}
 	if(newOrigin > -1000) {
+		if(newOrigin < bounds.origin.x) {
+			newOrigin =  bounds.origin.x;
+		} else {
+			float maxOrigin = NSMaxX(bounds) - rect.size.width;
+			if(newOrigin > maxOrigin) {
+				newOrigin = maxOrigin;
+			}
+		}
 		BaseRange newRange = self.visibleRange;
 		newRange.start = newOrigin / self.hScale + self.sampleStartSize;
 		self.visibleRange = newRange;

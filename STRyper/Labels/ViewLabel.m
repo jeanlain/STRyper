@@ -144,14 +144,18 @@
 # pragma mark - tracking area
 
 - (nullable NSTrackingArea *) addTrackingAreaForRect:(NSRect)rect {
-	if(!self.view) {
+	TraceView *view = self.view;
+	if(!view) {
 		return nil;
 	}
-	NSRect areaFrame = NSIntersectionRect(rect, self.view.visibleRect);
+	/// The tracking area must be contained in the visible rectangle of the view.
+	/// We use a 1-point distance to avoid interference with other views.
+	NSRect areaFrame = NSIntersectionRect(rect, NSInsetRect(view.visibleRect, 1, 1));
 	if(areaFrame.size.width > 0) {
-		NSTrackingArea *area = [[NSTrackingArea alloc] initWithRect:areaFrame options:(NSTrackingMouseEnteredAndExited | NSTrackingActiveInKeyWindow ) owner:self userInfo:nil];
+		NSTrackingArea *area = [[NSTrackingArea alloc] initWithRect:areaFrame 
+															options:(NSTrackingMouseEnteredAndExited | NSTrackingActiveInKeyWindow ) owner:self userInfo:nil];
 		/// we're not using the NSTrackingActiveCursorUpdate option to set the cursor as it doesn't appear helpful (especially in comparison to NSTrackingMouseEnteredAndExited). We can't reliably tell if the event correspond to the mouse entering or exiting the area
-		[self.view addTrackingArea:area];
+		[view addTrackingArea:area];
 		return area;
 	}
 	return nil;

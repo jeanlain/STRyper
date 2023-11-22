@@ -64,7 +64,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This view shows the horizontal scale of the trace view, in base pairs.
 /// It is created only if is the trace view is in a scroll view.
-@property (nonatomic, readonly, nullable) RulerView *rulerView;
+@property (nonatomic, readonly, nullable, weak) RulerView *rulerView;
 
 /// The view showing the range of markers
 ///
@@ -235,11 +235,23 @@ ShowPeakTooltipsBinding;
 
 # pragma mark - managing the visible range of the trace(s)
 
+/// The left contentInset of the receiver's `NSScrollView`.
+///
+/// This property determines the ``visibleOrigin`` and reflects the ``VScaleView/width`` of the ``vScaleView``.
+@property (nonatomic) float leftInset;
+
+/// The x origin of the visible rectangle of the view.
+///
+/// The visible rectangle excludes the region that is masked by the ``vScaleView``,
+/// hence it does not start at the bounds origin of the view's clipView if the ``vScaleView`` is visible,
+/// hence if ``leftInset`` is positive.
+@property (nonatomic, readonly) float visibleOrigin;
+
 /// The range in base pairs that that the view shows in its visible rectangle.
 ///
 /// The `len` component of the range should normally be positive. If negative, its value will be added to the `start` component, and then inverted.
 ///
-/// The `start` component of the range is used to set the ``LabelView/visibleOrigin`` of the trace view. Its `len` conditions the horizontal scale ``LabelView/hScale`` of the view.
+/// The `start` component of the range is used to set the ``visibleOrigin`` of the trace view. Its `len` conditions the horizontal scale ``LabelView/hScale`` of the view.
 /// Settings this  property thus makes the view show the range in its visible rectangle, resizing and scrolling the view as necessary.
 ///
 /// Setting a new value for this property  sends `-viewDidChangeVisibleRange:`  to the view's ``delegate``. If the value hasn't changed, the delegate is not notified. The view also sets this value for the ``Trace/visibleRange`` of each trace of its ``loadedTraces``.
@@ -276,7 +288,7 @@ ShowPeakTooltipsBinding;
 ///
 /// If `end` is lower than `start`, the parameters are swapped.
 /// - Parameters:
-///   - start: The position in base pairs that will correspond to the ``LabelView/visibleOrigin`` of the view.
+///   - start: The position in base pairs that will correspond to the ``visibleOrigin`` of the view.
 ///   - end: The position in base pairs that will correspond to the right edge of the view's visible rectangle.
 - (void)zoomFromSize:(float)start toSize:(float)end;
 

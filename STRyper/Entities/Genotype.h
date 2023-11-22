@@ -43,7 +43,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The alleles added to the genotype are created with ``Allele/initWithGenotype:``.
 ///
-/// This method returns `nil` if the `sample` and `marker` do not have the same managed object context,  if the sample's ``Chromatogram/panel`` doesn't contain the `marker`,
+/// This method returns `nil` if the `sample` and `marker` do not have the same managed object context,  
+/// if the sample's ``Chromatogram/panel`` doesn't contain the `marker`,
 /// or if the `sample` already has a genotype for the `marker`.
 - (nullable instancetype)initWithMarker:(Mmarker *)marker sample:(Chromatogram *)sample;
 

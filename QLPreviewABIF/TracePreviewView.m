@@ -105,9 +105,7 @@ static BOOL appleSilicon;
 	
 	short lowerFluo = 1 / vScale; 	/// to quickly evaluate if some scans should be drawn
 
-	float xFromLastPoint = 0;  				/// the number of quartz points from the last added point, which we use to determine if a scan can be skipped
-	float lastX = 0;
-	int maxPointsInCurve = 400;					/// we stoke the curve if it has enough points. Numbers between 10-100 seem to yield the best performance
+	int maxPointsInCurve = appleSilicon? 40 : 400;			/// we stoke the curve if it has enough points.
 	NSPoint pointArray[maxPointsInCurve];          /// points to add to the curve
 	int startScan = dirtyRect.origin.x / hScale -1;
 	if(startScan < 0) {
@@ -130,24 +128,29 @@ static BOOL appleSilicon;
 		
 		NSColor *curveColor = colorsForChannels[color];
 		CGContextSetStrokeColorWithColor(ctx, curveColor.CGColor);
-		short pointsInPath = 0;		/// current number of points being added to the path
-		for(int scan = startScan; scan <= maxScan; scan++) {
+		float lastX = startScan * hScale;
+		float y = fluo[startScan]*vScale;
+		if (y < 1) {
+			y = 0;
+		}
+		pointArray[0] = CGPointMake(lastX, y);
+		int pointsInPath = 1;		/// current number of points being added
+				
+		for(int scan = startScan+1; scan <= maxScan; scan++) {
 			
 			float x = scan * hScale;
-			xFromLastPoint = x - lastX;
 			
 			int16_t scanFluo = fluo[scan];
 			if (scan < maxScan-1) {
 				/// we may skip a point that is too close from previously drawn scans and not a local minimum / maximum
 				/// or that is lower than the fluo threshold
-				if((xFromLastPoint < 1 && !(fluo[scan-1] >= scanFluo && fluo[scan+1] > scanFluo) &&
-					!(fluo[scan-1] <= scanFluo && fluo[scan+1] < scanFluo)) || scanFluo < lowerFluo) {
+				int16_t previousFluo = fluo[scan-1];
+				int16_t nextFluo = fluo[scan+1];
+				if((x-lastX < 1 && !(previousFluo >= scanFluo && nextFluo > scanFluo) &&
+					!(previousFluo <= scanFluo && nextFluo < scanFluo)) || scanFluo < lowerFluo) {
 					/// and that is not the first/last of a series of scans under the lower threshold
-					if(!(scanFluo <= lowerFluo && (fluo[scan-1] > lowerFluo || fluo[scan+1] > lowerFluo))) {
-						/// We must draw the first point and the last point outside the dirty rect
-						if(scan != startScan) {
-							continue;
-						}
+					if(!(scanFluo <= lowerFluo && (previousFluo > lowerFluo || nextFluo > lowerFluo))) {
+						continue;
 					}
 				}
 			}
@@ -159,7 +162,7 @@ static BOOL appleSilicon;
 			
 			CGPoint point = CGPointMake(x, y);
 			pointArray[pointsInPath++] = point;
-			if(pointsInPath > 1 && (pointsInPath == maxPointsInCurve || scan == maxScan -1)) {
+			if(pointsInPath == maxPointsInCurve || scan == maxScan -1) {
 				if(appleSilicon) {
 					/// On Apple Silicon Macs, stroking a path is faster (the GPU is used)
 					CGContextBeginPath(ctx);
@@ -169,9 +172,9 @@ static BOOL appleSilicon;
 					/// On intel Macs (which cannot use the GPU for drawing), stroking line segments is faster.
 					CGContextStrokeLineSegments(ctx, pointArray, pointsInPath);
 				}
-				pointsInPath = 0;
-				pointArray[pointsInPath++] = point;
-			} else if(pointsInPath > 1 && !appleSilicon) {
+				pointArray[0] = point;
+				pointsInPath = 1;
+			} else if(!appleSilicon) {
 				/// On intel, we draw unconnected depend line segments, so the end of each segment is the start of the next one
 				pointArray[pointsInPath++] = point;
 			}
@@ -223,7 +226,6 @@ static BOOL appleSilicon;
 
 - (void)resizeWithOldSuperviewSize:(NSSize)oldSize {
 	float width = self.superview.bounds.size.width;
-//	NSLog(@"%s, %f", __PRETTY_FUNCTION__, width);
 	if(width > self.frame.size.width || !hasBeenZoomed) {
 		self.hScale = width / totScans;
 	}

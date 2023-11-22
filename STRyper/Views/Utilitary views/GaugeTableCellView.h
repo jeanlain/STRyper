@@ -31,7 +31,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The color of the gauge also represents this ratio, using a blend of two colors.
 @interface GaugeTableCellView : NSTableCellView <CALayerDelegate>
 /// (This could class could be made a subclass of NSView, for more flexibility, but we use it in table cell views for now, so this avoids a subview).
-/// This class also implement a method to disable animation the gauge its its -objectValue has changed, and NSView doesn't have this property.
+/// This class also implements a method to disable animation the gauge its its -objectValue has changed, and NSView doesn't have this property.
 
 
 /// The thickness of the gauge in points.

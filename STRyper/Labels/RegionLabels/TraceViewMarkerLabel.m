@@ -145,6 +145,10 @@
 			outerLayer.hidden = YES;
 			innerLayer.hidden = YES;
 		}
+		if(anchorLayer && !anchorLayer.isHidden && (anchorPos < self.start + 1 || anchorPos > self.end -1)) {
+			anchorLayer.hidden = YES;
+			anchorPos = -1;
+		}
 	} else {
 		layer.borderWidth = 0.0;							
 		outerLayer.hidden = YES;
@@ -454,7 +458,8 @@
 		if(!dragged) {
 			if(self.editState == editStateBinSet) {
 				/// we move the bin set at the end of a drag
-				/// as our offset will be reset, we need to adjust the anchor position to compensate, otherwise the anchor layer will move to the original clicked position at the beginning of a drag
+				/// as our offset will be reset, we need to adjust the anchor position to compensate, 
+				/// otherwise the anchor layer will move to the original clicked position at the beginning of a drag.
 				MarkerOffset offset = self.offset;
 				anchorPos = anchorPos * offset.slope + offset.intercept;
 				[self moveBinSet];

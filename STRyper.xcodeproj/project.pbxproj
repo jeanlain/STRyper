@@ -77,6 +77,7 @@
 		0F99560D2AF6B9CB00B282BB /* QLPreviewABIF.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0F9955FC2AF6B9CB00B282BB /* QLPreviewABIF.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0F9956142AF6BD3400B282BB /* TracePreviewView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956132AF6BD3400B282BB /* TracePreviewView.m */; };
 		0F9956172AF6C18700B282BB /* ABIFparser.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956162AF6C18700B282BB /* ABIFparser.m */; };
+		0F99F0232B0DD7BB00302117 /* ABIFparser.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956162AF6C18700B282BB /* ABIFparser.m */; };
 		0FA623C7289E5540006A23FE /* SampleTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623C6289E5540006A23FE /* SampleTableController.m */; };
 		0FA623CA289E5580006A23FE /* MarkerTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623C9289E5580006A23FE /* MarkerTableController.m */; };
 		0FA623CD289E559D006A23FE /* SizeStandardTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623CC289E559D006A23FE /* SizeStandardTableController.m */; };
@@ -99,7 +100,6 @@
 		0FE33B022807539E00B9C5DB /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0FE33B002807539E00B9C5DB /* MainMenu.xib */; };
 		0FE33B042807539E00B9C5DB /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FE33B032807539E00B9C5DB /* main.m */; };
 		0FE3433F28A2A70400809BF9 /* LabelView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FE3433E28A2A70400809BF9 /* LabelView.m */; };
-		0FEE41942AF6CABC005AF950 /* ABIFparser.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956162AF6C18700B282BB /* ABIFparser.m */; };
 		0FEE41952AF6CC41005AF950 /* NSError+NSErrorAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F1B5132297C655B00727963 /* NSError+NSErrorAdditions.m */; };
 		0FF5C83429D993880095D95A /* IndexImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FF5C83329D993880095D95A /* IndexImageView.m */; };
 		0FF7E0A82A6AE8B600E25863 /* NSMenuItem+NSMenuItemAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FF7E0A72A6AE8B600E25863 /* NSMenuItem+NSMenuItemAdditions.m */; };
@@ -703,7 +703,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					0F9955FB2AF6B9CB00B282BB = {
 						CreatedOnToolsVersion = 15.0.1;
@@ -783,8 +783,8 @@
 				0F9956022AF6B9CB00B282BB /* PreviewViewController.m in Sources */,
 				0F279C082AF785AA00F78836 /* QLScrollView.m in Sources */,
 				0FEE41952AF6CC41005AF950 /* NSError+NSErrorAdditions.m in Sources */,
+				0F99F0232B0DD7BB00302117 /* ABIFparser.m in Sources */,
 				0F9956142AF6BD3400B282BB /* TracePreviewView.m in Sources */,
-				0FEE41942AF6CABC005AF950 /* ABIFparser.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -899,7 +899,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -915,7 +915,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.3;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper.QLPreviewABIF;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -932,7 +932,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -948,7 +948,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.3;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper.QLPreviewABIF;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1078,7 +1078,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1094,7 +1094,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.3;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper;
 				PRODUCT_NAME = STRyper;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1112,7 +1112,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1128,7 +1128,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.3;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper;
 				PRODUCT_NAME = STRyper;
 				SWIFT_EMIT_LOC_STRINGS = YES;

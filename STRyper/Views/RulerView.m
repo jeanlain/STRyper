@@ -40,7 +40,6 @@ static NSArray <NSAttributedString *> *sizeArrayRed;
 
 /// these arrays will store the with an height of each string to avoid recomputing them at every drawRect
 static float labelWidth[MAX_TRACE_LENGTH +1], labelHeight[MAX_TRACE_LENGTH +1];
-static NSColor *tickmarckColor;
 
 
 /// strings that can be displayed if the sample shown by the traceView is not sized
@@ -82,9 +81,7 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	NSImage *cursorImage = [NSImage imageNamed:@"loupeCursorBordered"];
 	cursorImage.size = NSMakeSize(15, 20);
 	loupeCursor = [[NSCursor alloc]initWithImage:cursorImage hotSpot:NSMakePoint(6.1, 5.9)];
-	
-	tickmarckColor = NSColor.grayColor;
-	
+		
 	extern NSDictionary *gLabelFontStyle;
 	NSDictionary *redFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0],
 								   NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0 green:0.2 blue:0.2 alpha:1]};
@@ -118,16 +115,16 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	/// we initialize the layers that show the current mouse position
 	/// the base layer only shows a vertical line at the position
 	currentPositionMarkerLayer = CALayer.new;
-	currentPositionMarkerLayer.backgroundColor = tickmarckColor.CGColor;
+	currentPositionMarkerLayer.backgroundColor = NSColor.grayColor.CGColor;
 	currentPositionLayer.opaque = YES;
 	currentPositionMarkerLayer.anchorPoint = CGPointMake(1, 1);
 	currentPositionMarkerLayer.opaque = YES;
 	currentPositionMarkerLayer.actions = @{@"position": NSNull.null, @"contents": NSNull.null};
-	currentPositionMarkerLayer.bounds = CGRectMake(0, 0, 1, ruleThickness);
+	currentPositionMarkerLayer.bounds = CGRectMake(0, 0, 1, ruleThickness-1);
 
 	currentPositionLayer = CATextLayer.new;
 	currentPositionLayer.contentsScale = 2.0;								/// this makes text sharper even on a non-retina display
-	currentPositionLayer.bounds = CGRectMake(0, 0, 25, 14);					/// this ensures that the layer hides the ruler labels and tick-marks behind it (25 is larger than any string it can show)
+	currentPositionLayer.bounds = CGRectMake(0, 0, 25, 9);					/// this ensures that the layer hides the ruler labels and tick-marks behind it (25 is larger than any string it can show)
 	currentPositionLayer.anchorPoint = CGPointMake(0, 0);
 	currentPositionLayer.font = (__bridge CFTypeRef _Nullable)(gLabelFontStyle[NSFontAttributeName]);
 	currentPositionLayer.fontSize = 8.0;
@@ -268,18 +265,16 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 			/// But if the layer is in another view, it may means the mouse has entered that view already, so we don't do move the layer
 			return;
 		}
-		if(currentPositionLayer.superlayer != self.layer) {
-			/// a single layer is used for all instances, so we need to make it ours
-			[self.layer addSublayer:currentPositionMarkerLayer];
+		/// a single layer is used for all instances, so we need to make it ours
+		[self.layer addSublayer:currentPositionMarkerLayer];
 			
-			/// maybe it's because the layer is moved between views, but its text sometimes becomes white and cannot be read in light mode.
-			/// Setting the label's color when we acquire it appears to eliminate the issue
-			self.needsChangeAppearance = YES;
-		}
+		/// maybe it's because the layer is moved between views, but its text sometimes becomes white and cannot be read in light mode.
+		/// Setting the label's color when we acquire it appears to eliminate the issue
+		self.needsChangeAppearance = YES;
 	}
 	currentPositionLayer.string = [NSString stringWithFormat:@"%.01f", positionToShow];
 	float pos = [self xForSize:position];
-	currentPositionMarkerLayer.position = CGPointMake(pos, NSMaxY(self.bounds));
+	currentPositionMarkerLayer.position = CGPointMake(pos, NSMaxY(self.bounds)-1);
 }
 
 
@@ -292,8 +287,7 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 }
 
 /// returns the increment between consecutive size labels to show, considering the horizontal scale of the traceView
-- (int)rulerLabelIncrement {
-	float hScale = traceView.hScale;
+int rulerLabelIncrementForHScale(float hScale) {
 	if(hScale > 50) {
 		return 1;
 	}
@@ -319,8 +313,16 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 		self.needsUpdateOffsets = NO;
 	}
 	
+	NSRect bounds = self.bounds;
+	
 	[NSColor.windowBackgroundColor setFill];
-	NSRectFill(self.bounds);
+	NSRectFill(bounds);
+	float topY = NSMaxY(bounds);
+	
+	/// We draw a thin line at the bottom of the view
+	[NSColor.grayColor setFill];
+	NSRectFill(NSMakeRect(traceView.leftInset, topY-1, dirtyRect.size.width, 1));
+
 	/* // to possibly show offscale regions on the ruler (test)
 	Chromatogram *sample = traceView.trace.chromatogram;
 	const float *sizes = sample.sizes.bytes;
@@ -346,7 +348,7 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 		/// draws dragging selection as a grey rectangle (for zooming)
 		[NSColor.secondaryLabelColor setFill];
 		float startSizeX = [self xForSize:startSize];
-		NSBezierPath *selection = [NSBezierPath bezierPathWithRect:NSMakeRect(startSizeX, NSMaxY(self.bounds)-3, mouseLocation.x - startSizeX, NSMaxY(self.bounds))];
+		NSBezierPath *selection = [NSBezierPath bezierPathWithRect:NSMakeRect(startSizeX, topY-3, mouseLocation.x - startSizeX, topY)];
 		[selection fill];
 	}
 	
@@ -354,15 +356,16 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	
 	if(sample && sample.sizingQuality == nil) {
 		if(!sample.sizeStandard) {
-			[noSizing drawAtPoint: NSMakePoint(NSMidX(self.bounds) - noSizingWidth/2, NSMaxY(self.bounds)-15)];
+			[noSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - noSizingWidth/2, topY-15)];
 		} else {
-			[failedSizing drawAtPoint: NSMakePoint(NSMidX(self.bounds) - failedSizingWidth/2, NSMaxY(self.bounds)-15)];
+			[failedSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - failedSizingWidth/2, topY-15)];
 		}
 		return;
 	}
 	
 	/// we draw ruler of sizes in base pairs at the top of the view
-	int labelIncrement = [self rulerLabelIncrement];
+	float hScale = traceView.hScale;
+	int labelIncrement = rulerLabelIncrementForHScale(hScale);
 	
 	/// we determine the range of sizes in the dirty rectangle
 	float startX = dirtyRect.origin.x;
@@ -370,7 +373,7 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 		startX = 0;
 	}
 	float startSize = [self sizeForX:startX] ;
-	float endSize = startSize + dirtyRect.size.width / traceView.hScale +1;
+	float endSize = startSize + dirtyRect.size.width / hScale +1;
 	
 	if(endSize > MAX_TRACE_LENGTH) {
 		endSize = MAX_TRACE_LENGTH;
@@ -384,16 +387,13 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 		}
 		float x = [self xForSize:size + offset];
 		
-		/// We avoid  drawing on top of the vertical ruler (i.e., at negative x position)
-		if(size + labelWidth[size]/2 >= startSize && x >= -1) {
-																						
+		if(x >= traceView.leftInset - 1) {
+			/// We draw only if the label is in the visible area of the trace view
 			NSAttributedString *rulerLabel =  offset == 0? sizeArray[size] : sizeArrayRed[size];
-			NSPoint origin = NSMakePoint(x- labelWidth[size]/2, NSMaxY(self.bounds) - labelHeight[size] -2);
+			NSPoint origin = NSMakePoint(x- labelWidth[size]/2, topY - labelHeight[size] -2);
 			
 			[rulerLabel drawAtPoint:origin];
-			[tickmarckColor setStroke];
-			[NSBezierPath strokeLineFromPoint:NSMakePoint(x, NSMaxY(self.bounds)-3) toPoint:NSMakePoint(x, NSMaxY(self.bounds))]; /// little tick-mark
-			
+			[NSBezierPath strokeLineFromPoint:NSMakePoint(x, topY-3) toPoint:NSMakePoint(x, topY)]; /// little tick-mark
 		}
 	}
 	
@@ -407,12 +407,12 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 
 
 - (float)sizeForX:(float)x {
-	return (traceView.visibleOrigin + x) / traceView.hScale + traceView.sampleStartSize;
+	return (traceView.visibleOrigin -traceView.leftInset + x) / traceView.hScale + traceView.sampleStartSize;
 }
 
 
 - (float)xForSize:(float)size {
-	return (size - traceView.sampleStartSize) * traceView.hScale - traceView.visibleOrigin;
+	return (size - traceView.sampleStartSize) * traceView.hScale - traceView.visibleOrigin + traceView.leftInset;
 }
 
 
@@ -429,8 +429,11 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	}
 	rect.size.height -= height;
 	rect.origin.y += height;
-	rect.origin.x = 0; /// the bound origin may be negative if there to leave room for the vScaleView.
-					   /// The ruler doesn't cover the area of negative x coordinate.
+	if(rect.origin.x < traceView.leftInset) {
+		/// the bound origin may be negative to leave room for the vScaleView.
+		rect.origin.x = traceView.leftInset;
+	}
+	
 
 	[self addCursorRect:NSIntersectionRect(rect, self.visibleRect) cursor:loupeCursor];
 	
@@ -457,16 +460,18 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 
 - (void)autoscrollWithLocation:(NSPoint)location {
 	/// if the mouse is dragged beyond our bounds (in the x dimension), we make the traceView scroll
-	float delta = location.x ;
+	NSRect traceViewBounds = traceView.bounds;
+	float visibleOrigin = traceView.visibleOrigin;
+	float delta = location.x - [self convertPoint:NSMakePoint(visibleOrigin, 0) fromView:traceView].x;
 	if(delta < 0) {	/// the mouse has passed the left limit
-		if(traceView.visibleOrigin + delta < 0) {
+		if(visibleOrigin <= traceViewBounds.origin.x) {
 			return;	/// this would scroll the traceView too far the right
 		}
 	} else {
 		delta = location.x - NSMaxX(self.bounds);
 		if(delta > 0) {	/// the mouse has passed the right limit
-			float newOrigin = traceView.visibleOrigin + delta;
-			if(newOrigin + traceView.visibleRect.size.width > NSMaxX(traceView.bounds)) {
+			float newOrigin = visibleOrigin + delta;
+			if(newOrigin + traceView.visibleRect.size.width > NSMaxX(traceViewBounds)) {
 				return;
 			}
 		} else {

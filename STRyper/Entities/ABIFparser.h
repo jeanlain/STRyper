@@ -20,7 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///    followed by item number (no spacer), and whose values are the keys of the returned dictionary corresponding to the item.
 ///   For instance, if "rawData5" is in the keys, raw fluorescence data at channel 5 will be imported.
 ///   - error: On output, any error that prevented parsing. In this case, the returned object may be `nil`.
-+(NSDictionary *)dictionaryWithABIFile:(NSString *)path itemsToImport:(NSDictionary<NSString *, NSString *> *)itemsToImport error:(NSError **)error;
++(nullable NSDictionary *)dictionaryWithABIFile:(NSString *)path itemsToImport:(NSDictionary<NSString *, NSString *> *)itemsToImport error:(NSError **)error;
 
 @end
 

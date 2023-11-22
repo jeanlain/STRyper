@@ -246,11 +246,12 @@ enum ButtonTag : NSUInteger {
 
 
 - (float)sizeForX:(float)xPosition {
-	return (xPosition + self.visibleOrigin) /self.hScale + self.sampleStartSize;
+	return [self.rulerView sizeForX:xPosition];
 }
 
+
 - (float)xForSize:(float)size {
-	return (size - self.sampleStartSize) * self.hScale - self.visibleOrigin;
+	return [self.rulerView xForSize:size];
 }
 
 
@@ -274,18 +275,20 @@ enum ButtonTag : NSUInteger {
 
 
 - (void)setHidden:(BOOL)hidden {
-	if(!self.traceView.loadedTraces && self.traceView.marker) {		/// if the view only shows a marker, it cannot hide.
-		hidden = NO;
-	}
-	super.hidden = hidden;
-	if(hidden) {
-		for(RegionLabel *label in self.markerLabels) {
-			label.region.editState = editStateNil;		/// TO CHECK if this is still relevant
+	if(hidden != self.isHidden) {
+		if(!self.traceView.loadedTraces && self.traceView.marker) {		/// if the view only shows a marker, it cannot hide.
+			hidden = NO;
 		}
+		super.hidden = hidden;
+		if(hidden) {
+			for(RegionLabel *label in self.markerLabels) {
+				label.region.editState = editStateNil;		/// TO CHECK if this is still relevant
+			}
+		}
+		/// when hidden, we also get a thickness of zero to avoid showing a blank space above the ruler
+		self.rulerView.reservedThicknessForAccessoryView = hidden? 0: markerViewHeight;
+		[self.traceView fitVertically];
 	}
-	/// when hidden, we also get a thickness of zero to avoid showing a blank space above the ruler
-	self.rulerView.reservedThicknessForAccessoryView = hidden? 0: markerViewHeight;
-	[self.traceView fitVertically];
 }
 
 
@@ -391,9 +394,17 @@ enum ButtonTag : NSUInteger {
 - (BaseRange)safeRangeForBaseRange:(BaseRange)range {
 	BaseRange safeRange = range;
 	NSRect rect = NSInsetRect(self.visibleRect, 4, 0);
+	float leftDiff = rect.origin.x - self.traceView.leftInset;
+	if(leftDiff < 0) {
+		rect.origin.x -= leftDiff;
+		rect.size.width += leftDiff;
+		leftDiff = 0;
+	}
+	float rightDiff = NSMaxX(self.bounds) - NSMaxX(rect);
 	float targetHScale = rect.size.width / range.len;
-	safeRange.start -= rect.origin.x/targetHScale;
-	safeRange.len = NSMaxX(self.bounds) / targetHScale;
+	leftDiff = leftDiff/targetHScale;
+	safeRange.start -= leftDiff;
+	safeRange.len += leftDiff + rightDiff/targetHScale;
 	return safeRange;
 }
 
@@ -624,7 +635,8 @@ enum ButtonTag : NSUInteger {
 	if(!NSPointInRect(self.mouseLocation, draggedLabel.frame)) {
 		return;
 	}
-	
+	TraceView *traceView = self.traceView;
+	NSRect traceViewBounds = traceView.bounds;
 	float location = self.mouseLocation.x;
 	NSRect rect = self.visibleRect;
 	float leftLimit = rect.origin.x;
@@ -633,14 +645,14 @@ enum ButtonTag : NSUInteger {
 	/// we scroll the trace view if the mouse goes beyond the limits
 	float delta = location - leftLimit;
 	if(delta < 0) {	/// the mouse has passed the left limit
-		if(self.traceView.visibleOrigin + delta < 0) {
+		if(traceView.visibleOrigin <= traceViewBounds.origin.x) {
 			return;	/// this would scroll the traceView too far
 		}
 	} else {
 		delta = location - rightLimit;
 		if(delta > 0) {	/// the mouse has passed the right limit
-			float newOrigin = self.traceView.visibleOrigin + delta;
-			if(newOrigin + self.traceView.visibleRect.size.width > NSMaxX(self.traceView.bounds)) {
+			float newOrigin = traceView.visibleOrigin + delta;
+			if(newOrigin + traceView.visibleRect.size.width > NSMaxX(traceViewBounds)) {
 				return;
 			}
 		} else {

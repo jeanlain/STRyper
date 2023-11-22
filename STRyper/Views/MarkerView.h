@@ -40,7 +40,7 @@ extern const float markerViewHeight;
 /// IMPORTANT: a marker view must be the accessory view of a horizontal ruler view of a scrollview that has a ``TraceView`` as documentView.
 ///
 /// Since it is subview of a ruler view, a marker view does not scroll, but makes as if it does by moving marker labels to reflect the scrolling position of its associated ``traceView``.
-/// In effect, its ``LabelView/visibleOrigin`` properties is simply taken from its ``traceView``.
+/// In effect, its ``TraceView/visibleOrigin`` properties is simply taken from its ``traceView``.
 @interface MarkerView : LabelView
 
 /// The ``TraceView`` object with which the view is associated.

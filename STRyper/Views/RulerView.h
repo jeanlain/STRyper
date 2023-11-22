@@ -52,6 +52,13 @@
 /// This method has no effect if the sample shown by the trace view is not sized.
 @property (nonatomic) float currentPosition;
 
+/// Equivalent to ``LabelView/xForSize:``
+- (float)xForSize:(float)size;
+
+/// Equivalent to ``LabelView/sizeForX:``
+- (float)sizeForX:(float)x;
+
+
 /// Tells the view whether it needs to change its appearance (dark/light) to conform to the app theme.
 ///
 /// As a ruler view use core animation layers, it must change their colors explicitly.
