@@ -2372,9 +2372,11 @@ static NSColor *traceViewBackgroundColor;
 - (void)updateAlleleLabelBackgroundColor {
 	CGColorRelease(_alleleLabelBackgroundColor);
 	ChannelNumber channel = self.channel;
-	NSArray *colors = LabelView.colorsForChannels;
+	NSArray<NSColor *> *colors = LabelView.colorsForChannels;
 	if(channel >= 0 && channel < colors.count) {
-		_alleleLabelBackgroundColor = CGColorCreateCopyWithAlpha([colors[channel] CGColor], 0.7);
+		_alleleLabelBackgroundColor = CGColorCreateCopyWithAlpha(colors[channel].CGColor, 0.7);
+	} else {
+		_alleleLabelBackgroundColor = nil;
 	}
 }
 

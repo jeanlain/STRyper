@@ -33,11 +33,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// A view that shows traces and associated labels (``ViewLabel`` objects) for peaks, fragments, markers and bins.
 ///
-///	A trace view shows the fluorescence data of ``Trace`` objects as curves whose colors reflect the trace ``Trace/channel``.
+/// A trace view shows the fluorescence data of ``Trace`` objects as curves whose colors reflect the trace ``Trace/channel``.
 /// The view draws a plot in which the x axis represent the size in base pairs, and the y axis the trace fluorescence level, using the view coordinates system.
 /// By default, the trace view has its bound y origin set to -0.5, such that the 1-point-thick curve at a fluorescence level of 0 sits just above the bottom edge.
 ///
-///	This view also shows ``Chromatogram/offscaleRegions`` as colored rectangles behind the curves.
+/// This view also shows ``Chromatogram/offscaleRegions`` as colored rectangles behind the curves.
 ///
 /// A trace view can show several traces at once. These could be all traces of a given  ``Trace/chromatogram`` ("sample"), or of several samples.
 /// Alternatively, this view can show a marker only (no trace).
@@ -140,13 +140,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// Hence, view labels can set them for their layers outside of `drawRect:` or `updateLayer` calls
 /// (they don't have to call `setNeedsDisplay:` on their view whenever the need to apply a color).
 /// The colors are retained and released by the view.
+/// Do not release them unless you retain them first (which would be unnecessary).
 
 /// The color for fragment labels that are not alleles.
 @property (readonly, nonatomic) CGColorRef fragmentLabelBackgroundColor;
 
 /// The color for fragment labels that are alleles.
 ///
-/// The color reflects the view's ``channel``.
+/// The color reflects the view's ``channel`` and is `NULL` if the channel is invalid.
 @property (readonly, nonatomic) CGColorRef alleleLabelBackgroundColor;
 
 /// The color used for the text of fragment labels (including alleles).
@@ -231,7 +232,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Whether peaks resulting from crosstalk should painted with the color of the channel that induced crosstalk.
 ///
-///	Peaks resulting from crosstalk are painted only if the view shows ``peakLabels``, hence if a single ``Trace`` was loaded.
+/// Peaks resulting from crosstalk are painted only if the view shows ``peakLabels``, hence if a single ``Trace`` was loaded.
 /// The default value is `YES`.
 @property (nonatomic) BOOL paintCrosstalkPeaks;
 
@@ -422,7 +423,7 @@ ShowPeakTooltipsBinding;
 
 /// Returns the horizontal location at which a data point (scan) of a trace should show in the view.
 ///
-///	This method uses the ``LabelView/hScale`` and ``LabelView/sampleStartSize`` properties.
+/// This method uses the ``LabelView/hScale`` and ``LabelView/sampleStartSize`` properties.
 /// - Parameter scan: The scan for which the location should be returned.
 - (CGFloat)xForScan:(uint)scan;
 

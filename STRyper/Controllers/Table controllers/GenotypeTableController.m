@@ -236,7 +236,6 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	} else {
 		/// If not, the method must have been called due to a change in the folder content on in the markers applied to samples that are shown.
 		/// In this case the managed object context has changes, so defer the update until all changed are processed.
-		printf(".");
 		shouldRefreshTable = YES;
 	}
 }
