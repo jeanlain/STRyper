@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -9,6 +9,7 @@
             <connections>
                 <outlet property="_markerTableController" destination="QKk-0z-dMc" id="3xc-x3-cas"/>
                 <outlet property="_tableView" destination="loV-Lj-b5u" id="kYQ-bl-vV4"/>
+                <outlet property="applyPanelButton" destination="A2d-Dv-MtO" id="Lgv-Ye-GUq"/>
                 <outlet property="view" destination="Qq8-Lh-G3s" id="Gvo-TZ-aeZ"/>
             </connections>
         </customObject>
@@ -82,18 +83,18 @@
             </connections>
             <point key="canvasLocation" x="-688" y="905"/>
         </menu>
-        <splitView identifier="tab" autosaveName="MarkerSplitView" dividerStyle="thin" vertical="YES" id="Qq8-Lh-G3s">
-            <rect key="frame" x="0.0" y="0.0" width="659" height="318"/>
+        <splitView identifier="MarkerSplitView" autosaveName="" dividerStyle="thin" vertical="YES" id="Qq8-Lh-G3s">
+            <rect key="frame" x="0.0" y="0.0" width="639" height="318"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
                 <customView translatesAutoresizingMaskIntoConstraints="NO" id="oDb-VZ-IPJ" userLabel="left pane">
                     <rect key="frame" x="0.0" y="0.0" width="257" height="318"/>
                     <subviews>
-                        <popUpButton horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="T6b-gG-WBE" userLabel="+">
-                            <rect key="frame" x="1" y="8" width="34" height="14"/>
+                        <popUpButton toolTip="New panel/folder" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="T6b-gG-WBE" userLabel="+">
+                            <rect key="frame" x="1" y="8" width="38" height="14"/>
                             <popUpButtonCell key="cell" type="recessed" bezelStyle="recessed" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="FVo-Kf-QHh" id="xEx-lV-DlA">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
-                                <font key="font" metaFont="systemBold" size="12"/>
+                                <font key="font" metaFont="cellTitle"/>
                                 <menu key="menu" autoenablesItems="NO" id="PYj-qF-yhZ">
                                     <items>
                                         <menuItem image="add" hidden="YES" id="FVo-Kf-QHh">
@@ -116,8 +117,23 @@
                             </popUpButtonCell>
                             <color key="contentTintColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
                         </popUpButton>
+                        <button toolTip="Delete selected panel/folder" tag="4" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="bwP-VA-EZj" userLabel="—">
+                            <rect key="frame" x="42" y="8" width="15" height="15"/>
+                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="trash" imagePosition="only" alignment="center" state="on" inset="2" id="TFy-ZA-f7Z">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                <font key="font" metaFont="systemBold" size="12"/>
+                            </buttonCell>
+                            <connections>
+                                <action selector="remove:" target="-2" id="rTY-Rp-nZz"/>
+                                <binding destination="-2" name="enabled" keyPath="selectedFolder" id="Xfj-Ry-Gcs">
+                                    <dictionary key="options">
+                                        <string key="NSValueTransformerName">NSIsNotNil</string>
+                                    </dictionary>
+                                </binding>
+                            </connections>
+                        </button>
                         <button toolTip="Import panel from text file" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="viV-H4-jv5" userLabel="Import">
-                            <rect key="frame" x="43" y="7" width="15" height="16"/>
+                            <rect key="frame" x="65" y="7" width="15" height="16"/>
                             <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="import" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="ZaB-EL-ydc">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>
@@ -127,7 +143,7 @@
                             </connections>
                         </button>
                         <button toolTip="Export selected panel" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="751" translatesAutoresizingMaskIntoConstraints="NO" id="ZyM-Z3-m9b" userLabel="Export">
-                            <rect key="frame" x="66" y="7" width="15" height="17"/>
+                            <rect key="frame" x="88" y="7" width="15" height="17"/>
                             <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5vj-B1-RUT">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>
@@ -137,6 +153,36 @@
                                 <binding destination="-2" name="enabled" keyPath="selectedFolder.isPanel" id="Wkh-n8-Jgm"/>
                             </connections>
                         </button>
+                        <popUpButton toolTip="Apply selected panel to samples" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="A2d-Dv-MtO" userLabel="Apply">
+                            <rect key="frame" x="106" y="4" width="72" height="19"/>
+                            <popUpButtonCell key="cell" type="recessed" title="Apply To" bezelStyle="recessed" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="xAM-s1-8KM" id="PhL-9Q-I9X">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
+                                <font key="font" metaFont="cellTitle"/>
+                                <menu key="menu" autoenablesItems="NO" id="Ltr-eH-OBg">
+                                    <items>
+                                        <menuItem title="Apply To" hidden="YES" id="xAM-s1-8KM" userLabel="Apply To:">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                        </menuItem>
+                                        <menuItem title="Visible Samples" tag="1" id="DMk-v9-xBf" userLabel="Visible Samples">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="applyPanel:" target="-2" id="hod-Ln-Ftj"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Selected Samples" tag="2" id="iE1-Yx-gKg">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="applyPanel:" target="-2" id="EkO-r0-Pka"/>
+                                            </connections>
+                                        </menuItem>
+                                    </items>
+                                </menu>
+                            </popUpButtonCell>
+                            <color key="contentTintColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
+                            <connections>
+                                <binding destination="-2" name="enabled" keyPath="selectedFolder.isPanel" id="RAa-vH-GYE"/>
+                            </connections>
+                        </popUpButton>
                         <scrollView fixedFrame="YES" borderType="none" autohidesScrollers="YES" horizontalLineScroll="25" horizontalPageScroll="10" verticalLineScroll="25" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" horizontalScrollElasticity="none" translatesAutoresizingMaskIntoConstraints="NO" id="TE0-VN-HPf">
                             <rect key="frame" x="0.0" y="30" width="257" height="288"/>
                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -144,14 +190,14 @@
                                 <rect key="frame" x="0.0" y="0.0" width="257" height="288"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <subviews>
-                                    <outlineView identifier="panelOutlineView" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="inset" columnReordering="NO" columnResizing="NO" multipleSelection="NO" emptySelection="NO" autosaveColumns="NO" typeSelect="NO" rowHeight="25" rowSizeStyle="automatic" viewBased="YES" indentationPerLevel="5" autosaveExpandedItems="YES" outlineTableColumn="lrQ-Bq-BV3" id="loV-Lj-b5u" userLabel="Panel outlineview">
+                                    <outlineView identifier="panelOutlineView" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="fullWidth" columnReordering="NO" columnResizing="NO" multipleSelection="NO" emptySelection="NO" autosaveColumns="NO" typeSelect="NO" rowHeight="25" rowSizeStyle="automatic" viewBased="YES" indentationPerLevel="13" autosaveExpandedItems="YES" outlineTableColumn="lrQ-Bq-BV3" id="loV-Lj-b5u" userLabel="Panel outlineview">
                                         <rect key="frame" x="0.0" y="0.0" width="257" height="288"/>
                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                         <size key="intercellSpacing" width="17" height="0.0"/>
                                         <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                         <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                         <tableColumns>
-                                            <tableColumn width="225" minWidth="40" maxWidth="1000" id="lrQ-Bq-BV3">
+                                            <tableColumn width="245" minWidth="40" maxWidth="1000" id="lrQ-Bq-BV3">
                                                 <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" title="Panels">
                                                     <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
                                                     <color key="backgroundColor" name="headerColor" catalog="System" colorSpace="catalog"/>
@@ -164,11 +210,11 @@
                                                 <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                                 <prototypeCellViews>
                                                     <tableCellView identifier="topSection" id="dJ9-r2-Skc">
-                                                        <rect key="frame" x="18" y="0.0" width="220" height="24"/>
+                                                        <rect key="frame" x="8" y="0.0" width="240" height="24"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
                                                             <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
-                                                                <rect key="frame" x="0.0" y="4" width="220" height="16"/>
+                                                                <rect key="frame" x="0.0" y="4" width="240" height="16"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Marker panels" id="7FA-Ui-YsX">
                                                                     <font key="font" usesAppearanceFont="YES"/>
                                                                     <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
@@ -186,7 +232,7 @@
                                                         </connections>
                                                     </tableCellView>
                                                     <tableCellView identifier="mainCell" id="wv8-RZ-J3F">
-                                                        <rect key="frame" x="18" y="24" width="220" height="25"/>
+                                                        <rect key="frame" x="8" y="24" width="240" height="25"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES" flexibleMaxY="YES"/>
                                                         <subviews>
                                                             <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="AJc-3f-MN7">
@@ -194,7 +240,7 @@
                                                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="Panel" id="7bN-jX-rDv"/>
                                                             </imageView>
                                                             <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
-                                                                <rect key="frame" x="29" y="6" width="191" height="14"/>
+                                                                <rect key="frame" x="29" y="5" width="211" height="14"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" title="Name" id="sPR-x9-rNz">
                                                                     <font key="font" metaFont="smallSystem"/>
                                                                     <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
@@ -213,7 +259,7 @@
                                                             <constraint firstItem="XbY-Eq-tHV" firstAttribute="leading" secondItem="AJc-3f-MN7" secondAttribute="trailing" constant="3" id="6ZE-De-ktc"/>
                                                             <constraint firstAttribute="trailing" secondItem="XbY-Eq-tHV" secondAttribute="trailing" constant="2" id="ThW-AI-3Gt"/>
                                                             <constraint firstItem="AJc-3f-MN7" firstAttribute="centerY" secondItem="wv8-RZ-J3F" secondAttribute="centerY" id="YN0-hN-GKi"/>
-                                                            <constraint firstItem="XbY-Eq-tHV" firstAttribute="centerY" secondItem="AJc-3f-MN7" secondAttribute="centerY" id="ZcQ-L7-R7e"/>
+                                                            <constraint firstItem="XbY-Eq-tHV" firstAttribute="centerY" secondItem="AJc-3f-MN7" secondAttribute="centerY" constant="1" id="ZcQ-L7-R7e"/>
                                                             <constraint firstItem="AJc-3f-MN7" firstAttribute="leading" secondItem="wv8-RZ-J3F" secondAttribute="leading" constant="3" id="bxO-c8-mBR"/>
                                                         </constraints>
                                                         <connections>
@@ -244,18 +290,22 @@
                     <constraints>
                         <constraint firstItem="T6b-gG-WBE" firstAttribute="leading" secondItem="oDb-VZ-IPJ" secondAttribute="leading" constant="6" id="0ry-dM-sf2"/>
                         <constraint firstItem="viV-H4-jv5" firstAttribute="centerY" secondItem="T6b-gG-WBE" secondAttribute="centerY" id="B54-Zf-ZGy"/>
-                        <constraint firstItem="viV-H4-jv5" firstAttribute="leading" secondItem="T6b-gG-WBE" secondAttribute="trailing" constant="8" symbolic="YES" id="OSu-2X-flm"/>
-                        <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="ZyM-Z3-m9b" secondAttribute="trailing" constant="5" id="dfU-nW-QhP"/>
+                        <constraint firstItem="A2d-Dv-MtO" firstAttribute="centerY" secondItem="ZyM-Z3-m9b" secondAttribute="centerY" constant="1" id="BEL-MC-VzP"/>
+                        <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="A2d-Dv-MtO" secondAttribute="trailing" constant="5" id="FDb-8J-IKk"/>
+                        <constraint firstItem="bwP-VA-EZj" firstAttribute="centerY" secondItem="T6b-gG-WBE" secondAttribute="centerY" id="H4D-w3-Flw"/>
+                        <constraint firstItem="viV-H4-jv5" firstAttribute="leading" secondItem="bwP-VA-EZj" secondAttribute="trailing" constant="8" symbolic="YES" id="OSu-2X-flm"/>
+                        <constraint firstItem="A2d-Dv-MtO" firstAttribute="leading" secondItem="ZyM-Z3-m9b" secondAttribute="trailing" constant="3" id="cXg-Vc-Pu7"/>
                         <constraint firstItem="ZyM-Z3-m9b" firstAttribute="centerY" secondItem="viV-H4-jv5" secondAttribute="centerY" id="fIx-4E-J4G"/>
+                        <constraint firstItem="bwP-VA-EZj" firstAttribute="leading" secondItem="T6b-gG-WBE" secondAttribute="trailing" constant="3" id="iFa-nm-qjd"/>
                         <constraint firstItem="ZyM-Z3-m9b" firstAttribute="leading" secondItem="viV-H4-jv5" secondAttribute="trailing" constant="8" symbolic="YES" id="m8w-ab-HZB"/>
                         <constraint firstItem="T6b-gG-WBE" firstAttribute="centerY" secondItem="oDb-VZ-IPJ" secondAttribute="bottom" constant="-15" id="sVC-8F-8X4"/>
                     </constraints>
                 </customView>
                 <customView translatesAutoresizingMaskIntoConstraints="NO" id="lk9-j4-JLf" userLabel="right pane">
-                    <rect key="frame" x="258" y="0.0" width="401" height="318"/>
+                    <rect key="frame" x="258" y="0.0" width="381" height="318"/>
                     <subviews>
-                        <button toolTip="New Marker" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="S4B-gN-1PE" userLabel="+">
-                            <rect key="frame" x="6" y="8" width="14" height="14"/>
+                        <button toolTip="New marker" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="S4B-gN-1PE" userLabel="+">
+                            <rect key="frame" x="6" y="36" width="14" height="14"/>
                             <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="add" imagePosition="only" alignment="center" state="on" imageScaling="proportionallyDown" inset="2" id="l7E-R5-IzX">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>
@@ -265,9 +315,9 @@
                                 <binding destination="-2" name="enabled" keyPath="selectedFolder.isPanel" id="0mW-Sm-Waa"/>
                             </connections>
                         </button>
-                        <button toolTip="Remove Selected Marker(s)" tag="4" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aNO-oA-uzk" userLabel="—">
-                            <rect key="frame" x="28" y="8" width="14" height="14"/>
-                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="remove" imagePosition="only" alignment="center" state="on" inset="2" id="kwx-Sg-0pu">
+                        <button toolTip="Delete selected marker(s)" tag="4" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aNO-oA-uzk" userLabel="—">
+                            <rect key="frame" x="28" y="36" width="15" height="15"/>
+                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="trash" imagePosition="only" alignment="center" state="on" inset="2" id="kwx-Sg-0pu">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>
                             </buttonCell>
@@ -277,14 +327,14 @@
                             </connections>
                         </button>
                         <scrollView fixedFrame="YES" borderType="none" autohidesScrollers="YES" horizontalLineScroll="17" horizontalPageScroll="10" verticalLineScroll="17" verticalPageScroll="10" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="gJR-y5-XLs">
-                            <rect key="frame" x="0.0" y="30" width="401" height="288"/>
+                            <rect key="frame" x="0.0" y="30" width="381" height="288"/>
                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                             <clipView key="contentView" id="eHE-je-1Jj">
-                                <rect key="frame" x="0.0" y="0.0" width="401" height="288"/>
+                                <rect key="frame" x="0.0" y="0.0" width="381" height="288"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <subviews>
                                     <tableView identifier="markerTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="plain" autosaveColumns="NO" rowSizeStyle="small" headerView="aQD-FX-ACV" viewBased="YES" id="JeK-rO-5Ed" userLabel="Marker table">
-                                        <rect key="frame" x="0.0" y="0.0" width="401" height="260"/>
+                                        <rect key="frame" x="0.0" y="0.0" width="381" height="260"/>
                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                         <size key="intercellSpacing" width="17" height="0.0"/>
                                         <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -302,10 +352,45 @@
                                                 </textFieldCell>
                                                 <sortDescriptor key="sortDescriptorPrototype" selector="compare:" sortKey="name"/>
                                                 <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
+                                                <prototypeCellViews>
+                                                    <tableCellView identifier="markerMotiveColumn" id="M1r-nG-Q5p" userLabel="popupCellView">
+                                                        <rect key="frame" x="8" y="0.0" width="64" height="16"/>
+                                                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                        <subviews>
+                                                            <popUpButton toolTip="Length of the repeat motive" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="w9e-7U-MZT" userLabel="motiveLength">
+                                                                <rect key="frame" x="0.0" y="-1" width="64" height="17"/>
+                                                                <popUpButtonCell key="cell" type="recessed" title="2 bp" bezelStyle="recessed" imagePosition="left" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="border" tag="2" inset="2" selectedItem="hP1-8R-O6u" id="HQv-7M-nMS">
+                                                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
+                                                                    <font key="font" metaFont="cellTitle"/>
+                                                                    <menu key="menu" id="m63-m8-xeu">
+                                                                        <items>
+                                                                            <menuItem title="2 bp" state="on" tag="2" id="hP1-8R-O6u" userLabel="2 bp"/>
+                                                                            <menuItem title="3 bp" tag="3" id="foB-ba-8Na" userLabel="3 bp"/>
+                                                                            <menuItem title="4 bp" tag="4" id="1Yv-Pu-yyp" userLabel="4 bp"/>
+                                                                            <menuItem title="5 bp" tag="5" id="KoB-ac-2PA" userLabel="5 bp"/>
+                                                                            <menuItem title="6 bp" tag="6" id="kGj-bS-GL0" userLabel="6 bp"/>
+                                                                            <menuItem title="7 bp" tag="7" id="vAc-Uo-QQu" userLabel="7 bp"/>
+                                                                        </items>
+                                                                    </menu>
+                                                                </popUpButtonCell>
+                                                                <connections>
+                                                                    <action selector="popupClicked:" target="QKk-0z-dMc" id="QcL-yg-Zll"/>
+                                                                    <binding destination="M1r-nG-Q5p" name="selectedTag" keyPath="objectValue.motiveLength" id="X5s-Ud-DKh"/>
+                                                                </connections>
+                                                            </popUpButton>
+                                                        </subviews>
+                                                        <constraints>
+                                                            <constraint firstItem="w9e-7U-MZT" firstAttribute="leading" secondItem="M1r-nG-Q5p" secondAttribute="leading" id="AlH-F5-xGt"/>
+                                                            <constraint firstItem="w9e-7U-MZT" firstAttribute="trailing" secondItem="M1r-nG-Q5p" secondAttribute="trailing" id="pcx-Jb-5jG"/>
+                                                            <constraint firstItem="w9e-7U-MZT" firstAttribute="centerY" secondItem="M1r-nG-Q5p" secondAttribute="centerY" id="uJp-G3-Ml4"/>
+                                                        </constraints>
+                                                    </tableCellView>
+                                                </prototypeCellViews>
                                             </tableColumn>
                                         </tableColumns>
                                         <connections>
                                             <action selector="tableViewIsClicked:" target="-1" id="IXn-Ow-9Ig"/>
+                                            <outlet property="delegate" destination="QKk-0z-dMc" id="xyh-nr-Y8N"/>
                                         </connections>
                                     </tableView>
                                 </subviews>
@@ -319,7 +404,7 @@
                                 <autoresizingMask key="autoresizingMask"/>
                             </scroller>
                             <tableHeaderView key="headerView" wantsLayer="YES" id="aQD-FX-ACV" customClass="TableHeaderView">
-                                <rect key="frame" x="0.0" y="0.0" width="401" height="28"/>
+                                <rect key="frame" x="0.0" y="0.0" width="381" height="28"/>
                                 <autoresizingMask key="autoresizingMask"/>
                             </tableHeaderView>
                         </scrollView>
@@ -348,7 +433,6 @@
         <image name="folderBadge" width="20" height="15"/>
         <image name="import" width="15" height="16"/>
         <image name="panelBadge" width="20" height="15"/>
-        <image name="remove" width="14" height="14"/>
         <image name="trash" width="15" height="15"/>
     </resources>
 </document>

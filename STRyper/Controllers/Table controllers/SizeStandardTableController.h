@@ -22,7 +22,7 @@
 
 #import "TableViewController.h"
 
-extern NSString * _Nonnull const SizeStandardDragType;
+extern NSPasteboardType _Nonnull const SizeStandardDragType;
 
 NS_ASSUME_NONNULL_BEGIN
 

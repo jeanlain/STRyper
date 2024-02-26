@@ -19,23 +19,33 @@
 
 
 #import "RegionLabel.h"
+@class TraceViewMarkerLabel;
 
 NS_ASSUME_NONNULL_BEGIN
 
 /// A label that represents a bin on a ``TraceView``.
 ///
-/// A bin label shows the range of a ``Bin`` on a ``TraceView`` and allows the user to rename the bin and to move/resize it by dragging.
-///
-/// The resizing/dragging behaviour is implemented in the ``ViewLabel/drag`` method.
-/// The ``ViewLabel/deleteAction:`` messaged make the label remove the bin from its ``Bin/marker``.
-///
-/// A bin label is not ``ViewLabel/enabled`` by default.
-///
-/// This label does not react to a change in ``RegionLabel/editState``, as it can only modify its own ``RegionLabel/region``.
+/// A bin label is not ``ViewLabel/enabled`` by default and does not react to a change in ``RegionLabel/editState``, as it can only modify its own ``RegionLabel/region``.
 ///
 /// The ``Region/name`` of its bin only shows if the label is wide enough.
 @interface BinLabel : RegionLabel
 
+/// Makes the label remove the bin from its ``Bin/marker``, regardless of the `sender`.
+- (void)deleteAction:(id)sender;
+
+/// The rectangle where the bin name shows, in view coordinates.
+///
+/// This rectangle can be wider then the bin's ``ViewLabel/frame`` and is never narrower. 
+/// This property can be used to avoid overlap between names of adjacent bin labels, in conjunction to ``binNameHidden``.
+@property (nonatomic, readonly) NSRect binNameRect;
+
+/// Whether the bin name is hidden.
+///
+/// The bin name is always hidden of the label is itself is hidden.
+@property (nonatomic) BOOL binNameHidden;
+
+/// Used internally to access the labels CA layer.
+@property (nonatomic, readonly) CALayer *_layer;
 
 @end
 

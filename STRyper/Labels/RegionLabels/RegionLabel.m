@@ -45,14 +45,22 @@
 
 #pragma mark - initialization and base attributes setting
 
-static NSArray *observedKeys;
+/// We observe some keys of our region to update when they change
+static NSArray<NSString *> const *observedKeyPaths;
+static void * const regionStartChangedContext = (void*)&regionStartChangedContext;
+static void * const regionEndChangedContext = (void*)&regionEndChangedContext;
+static void * const regionEditStateChangedContext = (void*)&regionEditStateChangedContext;
+static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
+
 
 + (void)initialize {
-	observedKeys = @[@"start", @"end", @"name", @"editState"];
-	
+	if (self == [RegionLabel class]) {
+		observedKeyPaths = @[@"region.start", @"region.end", @"region.editState"];
+	}
 }
 
-+ (nullable instancetype)regionLabelWithRegion:(Region *)region view:(__kindof LabelView *)view {
+
++ (nullable __kindof RegionLabel*)regionLabelWithRegion:(Region *)region view:(__kindof LabelView *)view {
 	RegionLabel *label;
 	if([region isKindOfClass:Mmarker.class]) {
 		if([view isKindOfClass:TraceView.class]) {
@@ -64,9 +72,18 @@ static NSArray *observedKeys;
 		label = [[BinLabel alloc] init];
 	}
 	if(label) {
+		
+		[label addObserver:label forKeyPath:observedKeyPaths.firstObject options:NSKeyValueObservingOptionNew context:regionStartChangedContext];
+		[label addObserver:label forKeyPath:observedKeyPaths[1] options:NSKeyValueObservingOptionNew context:regionEndChangedContext];
+		[label addObserver:label forKeyPath:observedKeyPaths.lastObject options:NSKeyValueObservingOptionNew context:regionEditStateChangedContext];
+		if(![label isKindOfClass:TraceViewMarkerLabel.class]) {
+			/// This class of label doesn't show the name of the region.
+			[label addObserver:label forKeyPath:@"region.name" options:NSKeyValueObservingOptionNew context:regionNameChangedContext];
+		}
 		label.view = view;
 		label.region = region;
 	}
+	
 	return label;
 }
 
@@ -98,17 +115,6 @@ static NSArray *observedKeys;
 
 
 - (void)updateAppearance {
-	if(!layer || !defaultColor) {
-		return;
-	}
-	/// we determine which layer gets the color, which differs between markerLabels and binLabels
-	CALayer *coloredLayer = self.isMarkerLabel? bandLayer : layer;
-	
-	if(!self.enabled && !self.hovered) {
-		coloredLayer.backgroundColor = disabledColor.CGColor;
-	} else {
-		coloredLayer.backgroundColor = (self.hovered || self.highlighted)? hoveredColor.CGColor : defaultColor.CGColor;
-	}
 	
 	/// when highlighted, we make our border visible to signify that we can be resized
 	layer.borderWidth = (self.highlighted)? 1.0 : 0.0;
@@ -116,54 +122,10 @@ static NSArray *observedKeys;
 
 
 - (void)updateForTheme {
-	if(self.isBinLabel) {
-		bandLayer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
-	}
 	stringLayer.foregroundColor = NSColor.textColor.CGColor;
 }
 
 # pragma mark - reacting to region and view changes, geometry updates
-
-
-/// We observe some keys of our region to update when they change
-static void * const regionPropertyChangedContext = (void*)&regionPropertyChangedContext;
-
-
-- (void)setRegion:(__kindof Region *)region {
-	/// by this setter, we observe changes in the properties of our region and set some attributes
-	if(region == self.region) {
-		return;
-	}
-	
-	[self stopObserving];
-	_region = region;
-	if(!_region) {
-		return;
-	}
-	
-	for (NSString *key in observedKeys) {
-		[_region addObserver:self forKeyPath:key options:NSKeyValueObservingOptionNew context:regionPropertyChangedContext];
-	}
-	
-	if(!self.isBinLabel) {
-		/// the edit state is not relevant to bin labels.
-		self.editState = self.region.editState;
-	} 
-	[self setName];
-	
-	_start = self.region.start;
-	_end = self.region.end;
-	[self updateAppearance];
-}
-
-
-- (void)stopObserving {
-	if(_region) {
-		for (NSString *key in observedKeys) {
-			[_region removeObserver:self forKeyPath:key];
-		}
-	}
-}
 
 
 - (void)setName {
@@ -175,7 +137,9 @@ static void * const regionPropertyChangedContext = (void*)&regionPropertyChanged
 	CGSize size = stringLayer.preferredFrameSize;
 	stringLayer.bounds = CGRectMake(0, 0, size.width, size.height);
 	
-	[self repositionInternalLayers];		/// the change in name requires repositioning the string layer
+	if(!self.view.needsLayoutLabels) {
+		[self repositionInternalLayers];		/// the change in name requires repositioning the string layer
+	}
 }
 
 
@@ -185,40 +149,40 @@ static void * const regionPropertyChangedContext = (void*)&regionPropertyChanged
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-	if (context == regionPropertyChangedContext) {
-		Region *region = (Region *)object;
-		if([region valueForKey:keyPath] == nil) {
-			/// This may be true if the region is being deleted, in which case we do nothing.
-			return;
-		} else {
-			if([keyPath isEqualToString:@"editState"]) {
-				self.editState = region.editState;
-			}
-			else if([keyPath isEqualToString:@"name"]){
-				[self setName];
-			}
-			else {
-				/// we close any popover we show if it is not the one changing the attributes of the region.
-				if(self.attachedPopover && self.attachedPopover != regionPopover) {
-					[self.attachedPopover performClose:self];
-				}
-				/// If we show the region popover, we update the start and end values to reflect those of our region
-				if(regionPopover.delegate == self) {
-					for (NSTextField *field in regionPopover.contentViewController.view.subviews) {
-						/// the text field contains an identifier that matches the region key
-						if([field.identifier isEqualToString:keyPath]) {
-							field.objectValue = [region valueForKey:keyPath];
-						}
-					}
-				}
-				if([keyPath isEqualToString:@"start"]) {
-					self.start = region.start;
-				}
-				else if([keyPath isEqualToString:@"end"]) {
-					self.end = region.end;
+	
+	if(context == regionEditStateChangedContext) {
+		self.editState = self.region.editState;
+	} else if(context == regionNameChangedContext){
+		[self setName];
+	} else  if(context == regionStartChangedContext || context == regionEndChangedContext) {
+		Region *region = self.region;
+		/// we close any popover we show if it is not the one changing the attributes of the region.
+		if(self.attachedPopover && self.attachedPopover != regionPopover) {
+			[self.attachedPopover performClose:self];
+		}
+		/// If we show the region popover, we update the start and end values to reflect those of our region
+		if(regionPopover.delegate == self) {
+			for (NSTextField *field in regionPopover.contentViewController.view.subviews) {
+				/// the text field contains an identifier that matches the region key
+				if([field.identifier isEqualToString:keyPath]) {
+					field.objectValue = [region valueForKey:keyPath];
 				}
 			}
 		}
+		if(context == regionStartChangedContext) {
+			float start = region.start;
+			if(start > 0) {
+				/// when a label is deleted, its coordinates are set to zero.
+				/// We don't need to react to that, as we will be removed anyway.
+				self.start = start;
+			}
+		} else if(context == regionEndChangedContext) {
+			float end = region.end;
+			if(end > 0) {
+				self.end = end;
+			}
+		}
+
 	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 }
 
@@ -232,24 +196,26 @@ static void * const regionPropertyChangedContext = (void*)&regionPropertyChanged
 
 
 - (void)setHighlighted:(BOOL)highlighted {
-	if(highlighted == self.highlighted) { // || (!highlighted && popover)) {// && NSPointInRect(self.view.clickedPoint, self.frame))) {
+	if(highlighted != self.highlighted) {
 		/// when may get de-highlighted because our popover spawns and our view resigns first responder. We avoid that.
-		return;
+		super.highlighted = highlighted;
+	
+		/// when we get highlighted (the user has clicked our frame), we get "edges" ready for resizing. Hence the user cannot resize before clicking us.
+		/// This ensure that even if we are very close from the adjacent region,the user should always be able to grab the correct edge (and this may avoid unwanted resizing)
+		/// We therefore need to reposition and get/remove tracking areas for our edges
+		[self reposition];
 	}
-	super.highlighted = highlighted;
-
-	/// when we get highlighted (the user has clicked our frame), we get "edges" ready for resizing. Hence the user cannot resize before clicking us.
-	/// This ensure that even if we are very close from the adjacent region,the user should always be able to grab the correct edge (and this may avoid unwanted resizing)
-	/// We therefore need to reposition and get/remove tracking areas for our edges
-	[self reposition];
 }
+
 
 
 
 - (void)setStart:(float)pos {
 	if(_start != pos) {
 		_start = pos;
-		[self reposition];
+		if(!self.view.needsLayoutLabels && (self.dragged || _end == self.region.end)) { /// TESTING
+			[self reposition];
+		}
 	}
 }
 
@@ -257,7 +223,9 @@ static void * const regionPropertyChangedContext = (void*)&regionPropertyChanged
 - (void)setEnd:(float)pos {
 	if(_end != pos) {
 		_end = pos;
-		[self reposition];
+		if(!self.view.needsLayoutLabels && (self.dragged || _start == self.region.start)) { /// TESTING
+			[self reposition];
+		}
 	}
 }
 
@@ -349,7 +317,6 @@ static void * const regionPropertyChangedContext = (void*)&regionPropertyChanged
 		rightEdgeArea = [self addTrackingAreaForRect:rightEdgeRect];
 		NSPoint mouseLocation = view.mouseLocation;
 		self.hoveredEdge = (NSPointInRect(mouseLocation, leftEdgeRect) || NSPointInRect(mouseLocation, rightEdgeRect));
-		
 	} else {
 		leftEdgeRect = NSZeroRect;
 		rightEdgeRect = NSZeroRect;
@@ -455,19 +422,12 @@ enum controlTag : NSInteger {
 		regionPopover.behavior = NSPopoverBehaviorTransient;
 	}
 	if(regionPopover.delegate != self) {
-		regionPopover.delegate = (id)self;
-		
+		regionPopover.delegate = self;
 		for (NSTextField *field in regionPopover.contentViewController.view.subviews) {
 			NSString *identifier = field.identifier;
-			if([@[@"start", @"end"] containsObject:identifier]) {
-				field.delegate = (id)self;
-				/// We directly change the entered value to constrain it to the allowed range of our region start or end.
-				/// If we used bindings,  the region would be modified before we could do that and we wouldn't be able
-				/// to compute the allowed range (since it is based on the coordinates of the region)
-				field.objectValue = [region valueForKey:identifier];
-			} else if(field.tag == nameTextFieldTag) {
-				/// for the name, we use binding, as we can't correct an user error like we do for start and end.
-				[field bind:NSValueBinding toObject:region withKeyPath:@"name" options:@{NSValidatesImmediatelyBindingOption:@YES}];
+			if([@[@"start", @"end", @"name"] containsObject:identifier]) {
+				field.delegate = self;
+				[field bind:NSValueBinding toObject:region withKeyPath:identifier options:@{NSValidatesImmediatelyBindingOption:@YES}];
 			}
 		}
 	}
@@ -480,25 +440,10 @@ enum controlTag : NSInteger {
 	/// we check if the value entered for the start or end of the region is allowed.
 	NSTextField *textField = obj.object;
 	NSInteger tag = textField.tag;
-	if(tag != startTextFieldTag && tag != endTextFieldTag) {
-		return;
-	}
-	Region *region = self.region;
-	float position = textField.floatValue;
-	if(tag == startTextFieldTag) {
-		BaseRange allowedRange = [region allowedRangeForEdge:leftEdge];
-		if(position < allowedRange.start || position > allowedRange.start + allowedRange.len) {
-			textField.floatValue = region.start;
-		} else {
-			region.start = position;
-		}
-	} else if (tag == endTextFieldTag) {
-		BaseRange allowedRange = [region allowedRangeForEdge:rightEdge];
-		if(position < allowedRange.start || position > allowedRange.start + allowedRange.len) {
-			textField.floatValue = region.end;
-		} else {
-			region.end = position;
-		}
+	if(tag == nameTextFieldTag) {
+		[self.view.undoManager setActionName:self.isBinLabel? @"Rename Bin" : @"Rename Marker"];
+	} else if(tag == startTextFieldTag || tag == endTextFieldTag) {
+		[self.view.undoManager setActionName:self.isBinLabel? @"Resize Bin" : @"Resize Marker"];
 	}
 }
 
@@ -524,47 +469,18 @@ enum controlTag : NSInteger {
 }
 
 
-
-
-- (BOOL)popoverShouldClose:(NSPopover *)popover {
-	/// the popover would close even if a value is invalid and an alert is thrown.
-	/// When it does, the invalid value shows in the textfield even though it is not set in the model. So we force some checks here
-	/// I haven't found a better solution (see attempts below)
-	
-	NSError *error;
-	Region *region = self.region;
-	if(popover == regionPopover) {
-		if(!region) {
-			return YES;
+- (BOOL)control:(NSControl *)control textShouldEndEditing:(NSText *)fieldEditor {
+	NSString *identifier = control.identifier;
+	if([@[@"name", @"start", @"end"] containsObject: identifier]) {
+		NSError *error;
+		id value = control.objectValue;
+		[self.region validateValue:&value forKey:identifier error:&error];
+		if(error) {
+			control.objectValue = [self.region valueForKey:identifier];
+			return NO;
 		}
-		for (NSTextField *textField in popover.contentViewController.view.subviews) {
-			NSUInteger tag = textField.tag;
-			switch (tag) {
-				case startTextFieldTag: {
-					NSNumber *start = @(textField.floatValue);
-					[region validateValue:&start forKey:@"start" error:&error];
-					break;
-				}
-				case endTextFieldTag: {
-					NSNumber *end = @(textField.floatValue);
-					[region validateValue:&end forKey:@"end" error:&error];
-					break;
-				}
-				case nameTextFieldTag: {
-					NSString *name = textField.stringValue;
-					[region validateValue:&name forKey:@"name" error:&error];
-					break;
-				}
-				default:
-					break;
-			}
-		}
-	}
-	if(error) {
-		return NO;
 	}
 	return YES;
-	
 }
 
 
@@ -630,8 +546,21 @@ enum controlTag : NSInteger {
 			if(self.start != self.region.start || self.end != self.region.end) {
 				[self updateRegion];
 			}
+			[self updateTrackingArea];
+			
+			/// If the mouse is moving quickly when the drag session ended, it may exit tracking areas without mouseExited: being sent. Hence, the cursor will not update.
+			/// I suppose the tracking areas are not "ready" to react yet (an appkit bug?)
+			/// To reduce the risk of this happening, we send this message:
+			[self performSelector:@selector(_updateHoveredState) withObject:nil afterDelay:0.05];
 		}
 	}
+}
+
+
+-(void)_updateHoveredState {
+	NSPoint mouseLocation = self.view.mouseLocation;
+	self.hovered = NSPointInRect(mouseLocation, self.frame);
+	self.hoveredEdge = (NSPointInRect(mouseLocation, leftEdgeRect) || NSPointInRect(mouseLocation, rightEdgeRect));
 }
 
 
@@ -681,50 +610,35 @@ enum controlTag : NSInteger {
 		} else if(self.isMarkerLabel) {
 			[self spawnRegionPopover:self];
 		}
+	} else {
+		NSString *actionName = self.isBinLabel? @"Edit Bin" : @"Resize Marker";
+		[self.view.undoManager setActionName:actionName];
 	}
 }
 
 
 
--(void)_updateTargetSamples:(EditState)targets withOffset:(MarkerOffset)offset {
+-(void)_updateOffset:(MarkerOffset)offset {
+	TraceView *view = self.view;
+	NSArray *targetSamples = [view.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
+	Mmarker *marker = (Mmarker *)self.region;
+	
+	if(!targetSamples || !marker) {
+		return;
+	}
+	
 	if(offset.slope > 1.1) {
 		offset.slope = 1.1;
 	} else if(offset.slope < 0.9) {
 		offset.slope = 0.9;
 	}
 	float margin = (self.end - self.start)*0.5;
-
-	TraceView *view = self.view;
-
 	if(fabs(self.start - self.start * offset.slope - offset.intercept) > margin + 0.001 || fabs(self.end - self.end * offset.slope - offset.intercept) > margin + 0.001) {
 		return;
 	}
-	
-	NSArray *targetSamples;
-	NSArray *shownSamples = [view.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
-	Mmarker *marker = (Mmarker *)self.region;
-	NSArray *folderSamples = ((SampleFolder *)FolderListController.sharedController.selectedFolder).samples.allObjects;
-	
-	if(!shownSamples || !marker) {
-		return;
-	}
+
 	
 	NSData *offsetCoefs = [NSData dataWithBytes:&offset length:sizeof(offset)];
-	
-	if(targets == editStateShownSamples) {
-		targetSamples = shownSamples;
-	} else if(targets == editStateRun) {
-		NSArray *runs = [shownSamples valueForKeyPath:@"@distinctUnionOfObjects.runName"];
-		NSArray *runTimes = [shownSamples valueForKeyPath:@"@distinctUnionOfObjects.runStopTime"];
-		targetSamples = [folderSamples filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Chromatogram *sample, NSDictionary<NSString *,id> * _Nullable bindings) {
-			return [runs containsObject: sample.runName] && [runTimes containsObject: sample.runStopTime];
-		}]];
-	} else if(targets == editStateFolder) {
-		targetSamples = folderSamples;
-	} else {
-		return;
-	}
-	
 	NSArray *genotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
 	
 	genotypes = [genotypes filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
@@ -732,7 +646,7 @@ enum controlTag : NSInteger {
 	}]];
 	
 	if(genotypes.count > 0) {
-		[marker.managedObjectContext.undoManager setActionName:@"Change Marker Offset"];
+		[self.view.undoManager setActionName:@"Change Marker Offset"];
 		for(Genotype *genotype in genotypes) {
 			genotype.offsetData = offsetCoefs;
 		}
@@ -746,14 +660,18 @@ enum controlTag : NSInteger {
 }
 
 
-
 -(RegionLabel *)addLabelForBin:(Bin *)bin {
 	return nil;
 }
 
 
 - (void)dealloc {
-	[self stopObserving];
+	for(NSString *keyPath in observedKeyPaths) {
+		[self removeObserver:self forKeyPath:keyPath];
+	}
+	if(![self isKindOfClass:TraceViewMarkerLabel.class]) {
+		[self removeObserver:self forKeyPath:@"region.name"];
+	}
 }
 
 @end

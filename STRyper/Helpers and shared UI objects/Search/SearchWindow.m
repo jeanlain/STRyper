@@ -59,7 +59,7 @@
 
 
 - (void)setMessage:(NSString *)message {
-	messageTextField.stringValue = [message copy];
+	messageTextField.stringValue = message.copy;
 }
 
 

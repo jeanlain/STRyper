@@ -70,7 +70,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Stops monitoring the progress (nullifies the ``progress`` property ) and closes the window if necessary.
 ///
-/// Calling method prevents the window from showing after ``showProgressWindowForProgress:afterDelay:modal:parentWindow:``
+/// Calling this method prevents the window from showing after ``showProgressWindowForProgress:afterDelay:modal:parentWindow:``
 /// has been called, if the progress window is not shown yet.
 -(void)stopShowingProgressAndClose;
 

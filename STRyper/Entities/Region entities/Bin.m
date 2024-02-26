@@ -121,9 +121,6 @@
 		}
 	}
 	[self managedObjectOriginal_setStart:start];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName:@"Edit Bin"];
-	}
 }
 
 
@@ -137,9 +134,6 @@
 		}
 	}
 	[self managedObjectOriginal_setEnd:end];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName:@"Edit Bin"];
-	}
 }
 
 
@@ -153,14 +147,11 @@
 		}
 	}
 	[self managedObjectOriginal_setName:name];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName:@"Rename Bin"];
-	}
 }
 
 
 - (void)setMarker:(nullable Mmarker *)marker {
-	/// a bin without a marker must be deleted
+	/// A bin without a marker must be deleted
 	BOOL shouldDelete = self.marker != nil && marker == nil && !self.deleted;
 	[self managedObjectOriginal_setMarker:marker];
 	if(shouldDelete) {

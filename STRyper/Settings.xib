@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -16,16 +16,16 @@
             <windowStyleMask key="styleMask" titled="YES" closable="YES"/>
             <windowCollectionBehavior key="collectionBehavior" fullScreenNone="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="336" y="1003" width="332" height="262"/>
+            <rect key="contentRect" x="336" y="1003" width="316" height="262"/>
             <rect key="screenRect" x="0.0" y="0.0" width="1512" height="944"/>
-            <value key="minSize" type="size" width="332" height="262"/>
-            <value key="maxSize" type="size" width="332" height="262"/>
+            <value key="minSize" type="size" width="316" height="262"/>
+            <value key="maxSize" type="size" width="316" height="262"/>
             <view key="contentView" id="q0D-D5-1Ni">
-                <rect key="frame" x="0.0" y="0.0" width="332" height="262"/>
+                <rect key="frame" x="0.0" y="0.0" width="316" height="284"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="uSe-Tg-Rtm">
-                        <rect key="frame" x="18" y="241" width="82" height="14"/>
+                        <rect key="frame" x="18" y="263" width="82" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Sample sizing" id="EPG-kP-9zS">
                             <font key="font" metaFont="smallSystemBold"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -33,7 +33,7 @@
                         </textFieldCell>
                     </textField>
                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9YE-VV-kHo">
-                        <rect key="frame" x="19" y="223" width="184" height="16"/>
+                        <rect key="frame" x="19" y="245" width="184" height="16"/>
                         <buttonCell key="cell" type="check" title="Detect size standard on import" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="mm8-J8-0jb">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                             <font key="font" metaFont="smallSystem"/>
@@ -47,7 +47,7 @@
                         </connections>
                     </button>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jEe-KA-BXs" userLabel="Default sizing method:">
-                        <rect key="frame" x="18" y="202" width="123" height="14"/>
+                        <rect key="frame" x="18" y="224" width="123" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default sizing method:" id="eiT-aF-Jqe">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -55,7 +55,7 @@
                         </textFieldCell>
                     </textField>
                     <popUpButton verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="WhM-o5-Scp">
-                        <rect key="frame" x="143" y="197" width="173" height="22"/>
+                        <rect key="frame" x="143" y="219" width="157" height="22"/>
                         <popUpButtonCell key="cell" type="push" title="3rd-order polynomial" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" imageScaling="proportionallyDown" inset="2" selectedItem="Yc3-MI-mBl" id="57P-PN-rED">
                             <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
                             <font key="font" metaFont="smallSystem"/>
@@ -78,7 +78,7 @@
                         </connections>
                     </popUpButton>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9yZ-ev-Uc4" userLabel="Genotyping">
-                        <rect key="frame" x="18" y="180" width="69" height="14"/>
+                        <rect key="frame" x="18" y="202" width="69" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Genotyping" id="Xbn-5O-8SE" userLabel="Genotyping">
                             <font key="font" metaFont="smallSystemBold"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -86,7 +86,7 @@
                         </textFieldCell>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="3Sd-10-UKi">
-                        <rect key="frame" x="18" y="163" width="222" height="14"/>
+                        <rect key="frame" x="18" y="185" width="222" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default name for missing/uncalled alleles:" id="TaH-4W-Qy6">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -94,7 +94,7 @@
                         </textFieldCell>
                     </textField>
                     <textField focusRingType="none" verticalHuggingPriority="750" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="D7S-ET-8Vx">
-                        <rect key="frame" x="262" y="161" width="50" height="19"/>
+                        <rect key="frame" x="246" y="183" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="Gev-iN-e94"/>
                         </constraints>
@@ -112,15 +112,15 @@
                         </connections>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="QCa-pv-ImL">
-                        <rect key="frame" x="18" y="141" width="240" height="14"/>
-                        <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default name for dubious/non-binned alleles:" id="Yoc-mJ-Ya8">
+                        <rect key="frame" x="18" y="163" width="224" height="14"/>
+                        <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default name for non-binned alleles:" id="Yoc-mJ-Ya8">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
                     <textField focusRingType="none" verticalHuggingPriority="750" tag="1" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="8do-CE-iUa">
-                        <rect key="frame" x="262" y="139" width="50" height="19"/>
+                        <rect key="frame" x="246" y="161" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="cH2-Z3-6jq"/>
                         </constraints>
@@ -251,6 +251,20 @@
                             </binding>
                         </connections>
                     </button>
+                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="66q-69-92X" userLabel="Annotate supp peaks">
+                        <rect key="frame" x="19" y="140" width="184" height="16"/>
+                        <buttonCell key="cell" type="check" title="Annotate supplementary peaks" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="ysz-Xy-BPu">
+                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                            <font key="font" metaFont="smallSystem"/>
+                        </buttonCell>
+                        <connections>
+                            <binding destination="oXY-Ga-9dS" name="value" keyPath="values.AnnotateSupplementaryPeaks" id="yDE-1Y-Wrr">
+                                <dictionary key="options">
+                                    <bool key="NSValidatesImmediately" value="YES"/>
+                                </dictionary>
+                            </binding>
+                        </connections>
+                    </button>
                 </subviews>
                 <constraints>
                     <constraint firstItem="VMp-rg-KYi" firstAttribute="leading" secondItem="EAx-VE-G92" secondAttribute="leading" id="1Ph-un-on7"/>
@@ -270,10 +284,13 @@
                     <constraint firstItem="boi-tZ-CEl" firstAttribute="leading" secondItem="pmw-k5-0yM" secondAttribute="leading" id="Ks7-8Y-OFk"/>
                     <constraint firstItem="8do-CE-iUa" firstAttribute="leading" secondItem="QCa-pv-ImL" secondAttribute="trailing" constant="6" id="Ku8-co-n8w"/>
                     <constraint firstItem="Mlm-cG-fgS" firstAttribute="top" secondItem="fHg-LG-cUI" secondAttribute="bottom" constant="3" id="LgN-s9-Kka"/>
+                    <constraint firstItem="66q-69-92X" firstAttribute="leading" secondItem="QCa-pv-ImL" secondAttribute="leading" id="N68-dk-TaQ"/>
                     <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="r7V-4r-Krv" secondAttribute="trailing" constant="20" symbolic="YES" id="QzZ-8Q-oLC"/>
                     <constraint firstItem="uSe-Tg-Rtm" firstAttribute="leading" secondItem="q0D-D5-1Ni" secondAttribute="leading" constant="20" symbolic="YES" id="Ssb-iU-O2L"/>
                     <constraint firstAttribute="bottom" secondItem="boi-tZ-CEl" secondAttribute="bottom" constant="20" symbolic="YES" id="Sy2-dt-lQB"/>
+                    <constraint firstItem="66q-69-92X" firstAttribute="top" secondItem="QCa-pv-ImL" secondAttribute="bottom" constant="8" symbolic="YES" id="TBb-oS-M10"/>
                     <constraint firstItem="uSe-Tg-Rtm" firstAttribute="top" secondItem="q0D-D5-1Ni" secondAttribute="top" constant="7" id="Vg9-na-tgd"/>
+                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="WhM-o5-Scp" secondAttribute="trailing" constant="20" symbolic="YES" id="Z9J-nR-sm1"/>
                     <constraint firstItem="WhM-o5-Scp" firstAttribute="leading" secondItem="jEe-KA-BXs" secondAttribute="trailing" constant="8" symbolic="YES" id="bhC-XQ-hVg"/>
                     <constraint firstItem="fHg-LG-cUI" firstAttribute="leading" secondItem="QCa-pv-ImL" secondAttribute="leading" id="boR-ng-Fjg"/>
                     <constraint firstItem="EAx-VE-G92" firstAttribute="top" secondItem="Mlm-cG-fgS" secondAttribute="bottom" constant="10" id="fph-jS-OcQ"/>
@@ -286,7 +303,7 @@
                     <constraint firstItem="WhM-o5-Scp" firstAttribute="trailing" secondItem="8do-CE-iUa" secondAttribute="trailing" id="r4B-Dm-fdG"/>
                     <constraint firstItem="Th6-Yh-gLJ" firstAttribute="leading" secondItem="jSL-5l-Wfa" secondAttribute="trailing" constant="2" id="rOD-6d-4WL"/>
                     <constraint firstItem="D7S-ET-8Vx" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="3Sd-10-UKi" secondAttribute="trailing" constant="8" symbolic="YES" id="tVB-bZ-JIe"/>
-                    <constraint firstItem="fHg-LG-cUI" firstAttribute="top" secondItem="QCa-pv-ImL" secondAttribute="bottom" constant="8" symbolic="YES" id="uXd-Ff-lQM"/>
+                    <constraint firstItem="fHg-LG-cUI" firstAttribute="top" secondItem="66q-69-92X" secondAttribute="bottom" constant="8" symbolic="YES" id="uXd-Ff-lQM"/>
                     <constraint firstItem="Th6-Yh-gLJ" firstAttribute="centerY" secondItem="jSL-5l-Wfa" secondAttribute="centerY" id="vG8-sk-603"/>
                     <constraint firstItem="jSL-5l-Wfa" firstAttribute="bottom" secondItem="Mlm-cG-fgS" secondAttribute="bottom" id="vrb-XI-9C5"/>
                     <constraint firstItem="QCa-pv-ImL" firstAttribute="leading" secondItem="3Sd-10-UKi" secondAttribute="leading" id="x8Y-is-qqz"/>
@@ -302,7 +319,7 @@
             <connections>
                 <outlet property="delegate" destination="-2" id="DqR-Iy-lmK"/>
             </connections>
-            <point key="canvasLocation" x="-595" y="-1063"/>
+            <point key="canvasLocation" x="-603" y="-1063"/>
         </window>
         <userDefaultsController representsSharedInstance="YES" id="oXY-Ga-9dS"/>
     </objects>

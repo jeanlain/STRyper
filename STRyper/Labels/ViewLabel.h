@@ -65,7 +65,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The view hosting the label.
 ///
-/// While possible, it may not make sense to assign the label to a different view, as a label generally represents an entity that is associated to a specific view.
+/// While possible, it may not make sense to move a label to a new view, as a label generally represents an entity that is associated to a specific view.
 ///
 /// The view class is ``TraceView`` rather than ``LabelView`` because the former has specific properties that some labels use.
 /// Implementing these properties in `LabelView` doesn't seem very relevant, but it would make this property more consistent.
@@ -123,7 +123,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Makes the label update its tacking area(s).
 ///
-/// The default implementation adds the tracking area returned by ``addTrackingAreaForRect:`` to the ``view``.
+/// The default implementation remove its ``trackingArea``, if existing.
+/// If ``tracksMouse`` returns `YES`, adds the tracking area returned by ``addTrackingAreaForRect:`` to the ``view``.
 - (void)updateTrackingArea;
 
 /// Returns a suitable tracking area for the label and adds it to the label's  ``view``.
@@ -150,7 +151,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// If this property changes, the label sends ``LabelView/labelDidChangeHoveredState:`` to its ``view``.
 @property (nonatomic) BOOL hovered;
 						
-/// Whether the label is clicked and the mouse button is still down.
+/// Whether the label has been clicked and the mouse button is still down.
 @property (nonatomic) BOOL clicked;
 
 /// Whether the label is highlighted.
@@ -181,7 +182,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Whether the label reacts when the mouse enter or exists its frame..
 ///
-/// When this returns `NO`, the label does not generate a ``trackingArea``.
+/// When this returns `NO`, the label does not generate a ``trackingArea`` using ``updateTrackingArea``.
 /// The default implement returns is the same value as ``enabled``. Subclasses can return YES to make labels become hovered.
 - (BOOL) tracksMouse;
 
@@ -232,15 +233,14 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)doubleClickAction:(id)sender;
 															
 
-#pragma mark - drawing
+#pragma mark - position and appearance
 
-/// Makes label to reposition itself.
+/// Makes label to reposition itself according to the entity that it represents.
 ///
-/// This method is called by the ``LabelView`` in ``LabelView/repositionLabels:allowAnimation:``.
+/// This method is expected to be called when the ``view`` geometry change in such a way that the label needs to be repositioned.
 ///
 /// The default implementation does nothing. Subclass must override this method.
 - (void)reposition;
-
 
 /// Whether layer actions are enabled (wether the label's ``layer``  uses default animations).
 ///
@@ -254,7 +254,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default implementation does nothing. Subclasses must override this method to visually indicate that the label has changed state.
 - (void)updateAppearance;
 
-/// Remove the label from its ``view``.
+/// Makes the label set the colors used by its core animation layers.
+///
+/// This can be called within `-drawRect` or `-updateLayer` to adapt  the label to the appearance (dark/light) of the host view..
+- (void)updateForTheme;
+
+/// Removes the label from its ``view``.
 ///
 /// The default implementation removes the label's ``layer`` from its `superLayer` and calls ``removeTrackingArea``, then sets ``view`` to nil.
 /// Subclass that override this method should call super and the end.

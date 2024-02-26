@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -9,6 +10,7 @@
             <connections>
                 <outlet property="_tableContent" destination="0dN-zh-7AK" id="WeJ-d7-HJR"/>
                 <outlet property="_tableView" destination="KUu-Te-JeL" id="CdX-UV-Dup"/>
+                <outlet property="filterButton" destination="LcU-bU-LZY" id="25X-MD-bCX"/>
                 <outlet property="view" destination="Hkk-O4-Va6" id="CUb-aT-pye"/>
             </connections>
         </customObject>
@@ -16,18 +18,18 @@
         <arrayController mode="entity" entityName="" fetchPredicateFormat="" automaticallyPreparesContent="YES" avoidsEmptySelection="NO" id="0dN-zh-7AK" userLabel="Samples"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <customView misplaced="YES" id="Hkk-O4-Va6" userLabel="Top Pane">
-            <rect key="frame" x="0.0" y="0.0" width="584" height="366"/>
+            <rect key="frame" x="0.0" y="0.0" width="584" height="282"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
                 <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="10" id="l1C-Y4-jv5">
-                    <rect key="frame" x="0.0" y="30" width="584" height="336"/>
+                    <rect key="frame" x="0.0" y="30" width="584" height="252"/>
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     <clipView key="contentView" id="tYv-Hh-kQD">
-                        <rect key="frame" x="0.0" y="0.0" width="584" height="336"/>
+                        <rect key="frame" x="0.0" y="0.0" width="584" height="252"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <tableView identifier="sampleTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" alternatingRowBackgroundColors="YES" autosaveColumns="NO" rowHeight="16" rowSizeStyle="automatic" headerView="yhO-Rg-Mgn" viewBased="YES" floatsGroupRows="NO" id="KUu-Te-JeL" userLabel="sample table">
-                                <rect key="frame" x="0.0" y="0.0" width="584" height="308"/>
+                                <rect key="frame" x="0.0" y="0.0" width="584" height="224"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <size key="intercellSpacing" width="3" height="0.0"/>
                                 <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -43,7 +45,7 @@
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
-                                        <sortDescriptor key="sortDescriptorPrototype" selector="compare:" sortKey="sampleName"/>
+                                        <sortDescriptor key="sortDescriptorPrototype" selector="localizedCaseInsensitiveCompare:" sortKey="sampleName"/>
                                         <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                         <prototypeCellViews>
                                             <tableCellView identifier="textFieldCellView" id="pPF-h2-2tk" userLabel="textFieldCellView">
@@ -267,6 +269,37 @@
                                                     <outlet property="textField" destination="DUg-s1-E1W" id="7v8-ka-HSX"/>
                                                 </connections>
                                             </tableCellView>
+                                            <tableCellView identifier="leftButtonCellView" id="UJK-N8-7q7" userLabel="left button cell view">
+                                                <rect key="frame" x="1" y="128" width="119" height="17"/>
+                                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                                <subviews>
+                                                    <button toolTip="Reveal in source table" translatesAutoresizingMaskIntoConstraints="NO" id="ZeA-cx-xZt">
+                                                        <rect key="frame" x="3" y="1" width="15" height="15"/>
+                                                        <buttonCell key="cell" type="recessed" title="Recessed" bezelStyle="recessed" image="looking left" imagePosition="only" alignment="center" state="on" inset="2" id="fYW-7S-Tgg">
+                                                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                                            <font key="font" metaFont="systemBold" size="12"/>
+                                                        </buttonCell>
+                                                    </button>
+                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="OxV-cJ-f1r" userLabel="Text field">
+                                                        <rect key="frame" x="21" y="1" width="88" height="16"/>
+                                                        <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Sample Name" id="zBB-SW-FpQ">
+                                                            <font key="font" usesAppearanceFont="YES"/>
+                                                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                                        </textFieldCell>
+                                                    </textField>
+                                                </subviews>
+                                                <constraints>
+                                                    <constraint firstItem="OxV-cJ-f1r" firstAttribute="leading" secondItem="ZeA-cx-xZt" secondAttribute="trailing" constant="5" id="KEY-ZU-J7C"/>
+                                                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="OxV-cJ-f1r" secondAttribute="trailing" id="Ov7-L1-eDH"/>
+                                                    <constraint firstItem="ZeA-cx-xZt" firstAttribute="centerY" secondItem="UJK-N8-7q7" secondAttribute="centerY" id="jI8-qt-Mly"/>
+                                                    <constraint firstItem="ZeA-cx-xZt" firstAttribute="leading" secondItem="UJK-N8-7q7" secondAttribute="leading" constant="3" id="jKC-1x-qdU"/>
+                                                    <constraint firstItem="OxV-cJ-f1r" firstAttribute="centerY" secondItem="ZeA-cx-xZt" secondAttribute="centerY" id="seS-q2-SKg"/>
+                                                </constraints>
+                                                <connections>
+                                                    <outlet property="textField" destination="OxV-cJ-f1r" id="kzd-Vb-cs3"/>
+                                                </connections>
+                                            </tableCellView>
                                         </prototypeCellViews>
                                     </tableColumn>
                                 </tableColumns>
@@ -290,7 +323,7 @@
                         <autoresizingMask key="autoresizingMask"/>
                     </tableHeaderView>
                 </scrollView>
-                <button toolTip="Import Samples" tag="2" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="PVl-d1-Z8F" userLabel="import samples">
+                <button toolTip="Import samples" tag="2" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="PVl-d1-Z8F" userLabel="import samples">
                     <rect key="frame" x="5" y="-1" width="32" height="32"/>
                     <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="import samples" imagePosition="only" alignment="center" inset="2" id="ReC-SJ-ltQ">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
@@ -300,7 +333,7 @@
                         <action selector="showImportSamplePanel:" target="-1" id="28M-yU-e7N"/>
                     </connections>
                 </button>
-                <button toolTip="Delete Selected Samples" tag="-1" horizontalHuggingPriority="252" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="h40-cR-AV4" userLabel="delete samples">
+                <button toolTip="Delete selected sample(s)" tag="-1" horizontalHuggingPriority="252" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="h40-cR-AV4" userLabel="delete samples">
                     <rect key="frame" x="42" y="8" width="15" height="15"/>
                     <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="trash" imagePosition="only" alignment="center" controlSize="small" inset="2" id="lsh-qs-mwf">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
@@ -311,37 +344,15 @@
                         <binding destination="0dN-zh-7AK" name="enabled" keyPath="selectedObjects.@count" id="r3s-ma-TWN"/>
                     </connections>
                 </button>
-                <searchField toolTip="Filter table by sample name" focusRingType="none" placeholderIntrinsicWidth="162" placeholderIntrinsicHeight="22" tag="-1" translatesAutoresizingMaskIntoConstraints="NO" id="la1-8g-v9o">
-                    <rect key="frame" x="65" y="4" width="162" height="22"/>
-                    <constraints>
-                        <constraint firstAttribute="width" constant="162" id="Hjl-yS-gt0"/>
-                        <constraint firstAttribute="height" constant="22" id="d4f-RK-z08"/>
-                    </constraints>
-                    <searchFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" allowsUndo="NO" borderStyle="bezel" placeholderString="Sample Name" usesSingleLineMode="YES" bezelStyle="round" sendsSearchStringImmediately="YES" id="nlT-1a-jom">
-                        <font key="font" metaFont="system"/>
-                        <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                    </searchFieldCell>
-                    <connections>
-                        <binding destination="0dN-zh-7AK" name="predicate" keyPath="filterPredicate" id="XM0-hL-M3M">
-                            <dictionary key="options">
-                                <string key="NSDisplayName">predicate</string>
-                                <string key="NSPredicateFormat">sampleName contains[cd] $value</string>
-                            </dictionary>
-                        </binding>
-                    </connections>
-                </searchField>
-                <button toolTip="Modify search criteria" tag="3" horizontalHuggingPriority="252" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="uYZ-Kd-un7" userLabel="edit search">
-                    <rect key="frame" x="235" y="3" width="24" height="24"/>
-                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="edit search" imagePosition="only" alignment="center" controlSize="small" inset="2" id="dzf-ta-44y">
-                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                <button toolTip="Filter samples" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="LcU-bU-LZY" userLabel="Filter">
+                    <rect key="frame" x="65" y="3" width="25" height="25"/>
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="filterButton" imagePosition="only" alignment="center" alternateImage="filterButton On" refusesFirstResponder="YES" focusRingType="none" inset="2" id="o7i-4A-OwH">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                         <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
-                    <connections>
-                        <action selector="editSmartFolder:" target="-1" id="Jha-Qz-Pal"/>
-                    </connections>
+                    <color key="contentTintColor" name="controlAccentColor" catalog="System" colorSpace="catalog"/>
                 </button>
-                <button toolTip="Collapse/Expand Bottom Pane" tag="1" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Gao-VS-sjM" userLabel="toggle bottom tab">
+                <button toolTip="Collapse/Expand bottom pane" tag="1" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Gao-VS-sjM" userLabel="toggle bottom tab">
                     <rect key="frame" x="559" y="5" width="20" height="20"/>
                     <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="bottomBar" imagePosition="only" alignment="center" inset="2" id="CXF-ag-QAE">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
@@ -356,17 +367,14 @@
                 </button>
             </subviews>
             <constraints>
-                <constraint firstItem="uYZ-Kd-un7" firstAttribute="leading" secondItem="la1-8g-v9o" secondAttribute="trailing" constant="8" symbolic="YES" id="16y-2i-pbb"/>
-                <constraint firstItem="Gao-VS-sjM" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="uYZ-Kd-un7" secondAttribute="trailing" constant="5" id="2Gk-gO-KP5"/>
                 <constraint firstItem="h40-cR-AV4" firstAttribute="centerY" secondItem="PVl-d1-Z8F" secondAttribute="centerY" id="3SA-g2-DVP"/>
                 <constraint firstItem="h40-cR-AV4" firstAttribute="leading" secondItem="PVl-d1-Z8F" secondAttribute="trailing" constant="5" id="D4e-Eg-5ce"/>
                 <constraint firstItem="PVl-d1-Z8F" firstAttribute="centerY" secondItem="Hkk-O4-Va6" secondAttribute="bottom" constant="-15" id="EZg-ai-xWb"/>
-                <constraint firstItem="uYZ-Kd-un7" firstAttribute="centerY" secondItem="la1-8g-v9o" secondAttribute="centerY" id="HWn-Q0-sSI"/>
-                <constraint firstItem="la1-8g-v9o" firstAttribute="centerY" secondItem="h40-cR-AV4" secondAttribute="centerY" id="Ktk-v1-kjf"/>
-                <constraint firstItem="Gao-VS-sjM" firstAttribute="centerY" secondItem="la1-8g-v9o" secondAttribute="centerY" id="TRG-7R-HIM"/>
+                <constraint firstItem="LcU-bU-LZY" firstAttribute="leading" secondItem="h40-cR-AV4" secondAttribute="trailing" constant="8" symbolic="YES" id="LKY-iR-zlU"/>
+                <constraint firstItem="LcU-bU-LZY" firstAttribute="centerY" secondItem="h40-cR-AV4" secondAttribute="centerY" id="TJJ-YU-94s"/>
                 <constraint firstItem="PVl-d1-Z8F" firstAttribute="leading" secondItem="Hkk-O4-Va6" secondAttribute="leading" constant="5" id="ciu-Wf-65f"/>
                 <constraint firstItem="Gao-VS-sjM" firstAttribute="trailing" secondItem="Hkk-O4-Va6" secondAttribute="trailing" constant="-5" id="eGF-HL-ZaK"/>
-                <constraint firstItem="la1-8g-v9o" firstAttribute="leading" secondItem="h40-cR-AV4" secondAttribute="trailing" constant="8" symbolic="YES" id="y1T-TS-dsS"/>
+                <constraint firstItem="Gao-VS-sjM" firstAttribute="centerY" secondItem="LcU-bU-LZY" secondAttribute="centerY" id="zfx-Kj-ndf"/>
             </constraints>
             <point key="canvasLocation" x="-837" y="-166"/>
         </customView>
@@ -422,10 +430,10 @@
                         </connections>
                     </menu>
                 </menuItem>
-                <menuItem title="Call Alleles" offStateImage="callAllelesBadge" id="W0E-mx-gbK">
+                <menuItem title="Call Genotypes" offStateImage="bin alleles badge" id="W0E-mx-gbK">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
-                        <action selector="callAlleles:" target="-2" id="oDd-p2-GTa"/>
+                        <action selector="callGenotypes:" target="-2" id="oDd-p2-GTa"/>
                     </connections>
                 </menuItem>
                 <menuItem title="Select Gentoype(s)" offStateImage="circle arrow down" tag="1" id="egq-Pn-ySE">
@@ -463,14 +471,16 @@
     </objects>
     <resources>
         <image name="NSActionTemplate" width="20" height="20"/>
+        <image name="bin alleles badge" width="15" height="15"/>
         <image name="bottomBar" width="20" height="20"/>
-        <image name="callAllelesBadge" width="15" height="15"/>
-        <image name="circle arrow down" width="14" height="14"/>
+        <image name="circle arrow down" width="15" height="15"/>
         <image name="copy" width="15" height="14"/>
-        <image name="edit search" width="24" height="24"/>
+        <image name="filterButton" width="25" height="25"/>
+        <image name="filterButton On" width="25" height="25"/>
         <image name="fittingMethod" width="15" height="15"/>
         <image name="folderBadge" width="20" height="15"/>
         <image name="import samples" width="32" height="32"/>
+        <image name="looking left" width="15" height="15"/>
         <image name="panelBadgeMenu" width="15" height="12"/>
         <image name="sizeStandard" width="15" height="15"/>
         <image name="trash" width="15" height="15"/>

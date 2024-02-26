@@ -180,7 +180,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 										userInfo:@{NSDetailedErrorsKey: [NSArray arrayWithArray:fileErrors],
 												   NSLocalizedDescriptionKey: NSLocalizedString(description, nil),
 												   NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(@"See the error log for details.", nil)
-																					  }];
+													}];
 			}
 		}
 		
@@ -217,7 +217,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 	}
 	
 	if (fetchedSizeStandard.count > 0) {
-		[sample applySizeStandard: fetchedSizeStandard.firstObject];
+		sample.sizeStandard = fetchedSizeStandard.firstObject;
 	}
 	
 }
@@ -248,7 +248,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 		if(!error) {
 			NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingFromData:archive error:&error];
 			if(!error) {
-				unarchiver.delegate = (id)self;
+				unarchiver.delegate = self;
 				self->totalSamplesProcessed = 0;
 				importedFolder = [unarchiver decodeTopLevelObjectOfClass:SampleFolder.class forKey:@"top Folder" error:&error];
 				[unarchiver finishDecoding];

@@ -32,7 +32,7 @@
 /// The ``contentArray`` property determines what the trace views show: ``Chromatogram``,  ``Genotype``  or ``Mmarker`` objects.
 ///
 /// When it shows genotypes or chromatograms, and depending on the ``stackMode`` property, the detailed view also shows "regular" table rows with sample metadata, like the table managed by the ``SampleTableController``.
-@interface DetailedViewController : TableViewController <NSOutlineViewDelegate, NSOutlineViewDataSource, TraceViewDelegate>
+@interface DetailedViewController : TableViewController <TraceViewDelegate>
 
 
 /// The samples (``Chromatogram`` objects), genotypes (``Genotype`` objects)  or markers (``Mmarker`` objects) shown in the detailed view.
@@ -81,6 +81,8 @@ typedef enum StackMode : NSUInteger {
 /// Whether the ``TraceView/visibleRange`` of trace views should be synchronized.
 @property (nonatomic) BOOL synchronizeViews;
 
+/// Records the synchronized visible range of trace views in the user defaults
+-(void)recordReferenceRange;
 
 /// An integer that specifies how the vertical scale of trace views is managed.
 typedef enum TopFluoMode : NSUInteger {

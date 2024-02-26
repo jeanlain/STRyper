@@ -27,22 +27,31 @@
 #import "SampleTableController.h"
 #import "FolderListController.h"
 #import "IndexImageView.h"
-#import "NSPredicate+PredicateAdditions.h"
 #import "AggregatePredicateEditorRowTemplate.h"
 #import "Allele.h"
 
+
+@interface GenotypeTableController ()
+
+/// A variable bound to the genotypes shown in the genotype table.
+@property (nonatomic) NSArray *genotypeContent;
+
+@property (nonatomic) NSDictionary<NSString *, NSString *> *actionNamesForColumnIDs;
+
+@end
+
+
 @implementation GenotypeTableController {
 	NSDictionary *columnDescription;
+	BOOL selectedFolderHasChanged;
 	BOOL shouldRefreshTable;				/// To know if we need to refresh of the genotype table.
 	NSArray<NSImage *> *statusImages;		/// The images that represent the different genotype statuses.
-	__weak IBOutlet NSButton *filterButton;	/// The button to apply a filter to the table
-	NSPopover *filterPopover;				/// The popover allowing to define the filter
-	NSMutableDictionary *filterForFolder;	/// To save filters to the user defaults, for each folder that has a filter
+	NSMutableDictionary *filterDictionary;	/// To save filters to the user defaults, for each folder that has a filter
 }
 
 /// pointers giving context to a KVO notification
-static void * const samplesChangedContext = (void*)&samplesChangedContext;
-static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChangedContext;
+static void * const selectedFolderChangedContext = (void*)&selectedFolderChangedContext;
+static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedContext;
 
 
 + (instancetype)sharedController {
@@ -55,10 +64,10 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 	return controller;
 }
 
-- (instancetype)init {
-	return [super initWithNibName:@"GenotypeTab" bundle:nil];
-}
 
+- (NSNibName)nibName {
+	return @"GenotypeTab";
+}
 
 
 - (void)viewDidLoad {
@@ -67,45 +76,35 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 	statusImages = @[[NSImage imageNamed:@"circle"],
 					 [NSImage imageNamed:@"zero"],
 					 [NSImage imageNamed:@"filled circle"],
-					 [NSImage imageNamed:NSImageNameCaution],
+					 [NSImage imageNamed:@"danger"],
 					 [NSImage imageNamed:NSImageNameStatusPartiallyAvailable],
 					 [NSImage imageNamed:@"edited round"]];
 	
-	/// Here we set up observations to know when to update the table. We once used to bind the genotypes NSArrayController contents to the @unionOfSets.genotypes keypaths of the samples shown in the table
-	/// however, this caused severe performance issues when a panel was applied to thousands of samples, as this creates genotypes for every sample successively, which refreshes the table at each step
-	/// so we update the table "manually". The genotypes NSArrayController still has its arranged objects, sort descriptors and selection indexes bounds to the table's content (as it is convenient for sorting)
-	/// but the content of the controller itself is what we set manually at appropriate times.
-	/// We do it when the samples shown in the sample table change, as we must list heir genotypes
-	/// We do also do it when a panel has its marker changed, as this may create or delete genotypes
-	/// and when a marker has its samples changed (when it is applied to samples, or "unapplied" when it is replaced by another panel)
-	
 	if(SampleTableController.sharedController.samples) {
-		/// we get notified when the samples shown changes
-		[SampleTableController.sharedController.samples addObserver:self
-														 forKeyPath:NSStringFromSelector(@selector(content))
-															options:NSKeyValueObservingOptionNew
-															context:samplesChangedContext];
-		/// We don't observe `arrangedObjects` as we don't need to react to changes in the sort order of the samples.
 		
+		/// We once used to bind the genotypes NSArrayController contents to the @unionOfSets.genotypes keypaths of the samples shown in the table
+		/// however, this caused severe performance issues when a panel was applied to thousands of samples, as this creates genotypes for every sample successively, which refreshes the genotype table at each step.
+		/// So we bind to our dedicated property, and then update the genotype table "manually". The genotypes NSArrayController still has its arranged objects, sort descriptors and selection indexes bounds to the table's content (as it is convenient for sorting)
+		/// but the content of the controller itself is what we set at appropriate times.
+		[self bind:NSStringFromSelector(@selector(genotypeContent))
+		  toObject:SampleTableController.sharedController.samples
+	   withKeyPath:@"content.@unionOfSets.genotypes" options:nil];
+		/// We dont bind to the samples `arrangedObjects` key because we don't need to update the genotype table when the sorting of samples change, for instance.
+		
+		/// Since the samples `content` is not changed when samples are filtered, we observe the filter predicate use to filter samples.
 		[SampleTableController.sharedController.samples addObserver:self
 														 forKeyPath:NSStringFromSelector(@selector(filterPredicate))
 															options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
-															context:samplesChangedContext];
+															context:sampleFilterChangedContext];
 		
+		/// We need to know when the selected folder change, to apply the filter on genotypes (which is specific to a folder).
 		[FolderListController.sharedController addObserver:self
-														 forKeyPath:NSStringFromSelector(@selector(selectedFolder))
-															options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
-															context:samplesChangedContext];
-		[self.genotypes addObserver:self
-						 forKeyPath:NSStringFromSelector(@selector(filterPredicate))
-							options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
-							context:genotypeFilterChangedContext];
+												forKeyPath:NSStringFromSelector(@selector(selectedFolder))
+												   options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+												   context:selectedFolderChangedContext];
+		
 	}
-	/// we get notified when a panel has its samples or marker changed
-	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(panelMarkersDidChange:) name:PanelMarkersDidChangeNotification object:nil];
-	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(panelSamplesDidChange:) name:PanelSamplesDidChangeNotification object:nil];
-	
-	/// We also observe when the context commits changes, as this is the right time to update the table.
+	/// We observe when the context commits changes, as it is the right time to update the table.
 	/// Updating just after each notification would waste resources and lead to errors (especially during undo/redo)
 	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(contextDidChange:) name:NSManagedObjectContextObjectsDidChangeNotification object:self.genotypes.managedObjectContext];
 	
@@ -126,29 +125,51 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 - (NSDictionary *)columnDescription {
 	if(!columnDescription) {
 		columnDescription = @{
-			@"genotypeSampleColumn":	@{KeyPathToBind: @"sample.sampleName",ColumnTitle: @"Sample", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES},
-			@"genotypeStatusColumn":	@{KeyPathToBind: @"statusText", ImageIndexBinding: @"status" ,ColumnTitle: @"Status", CellViewID: @"imageCellView", IsColumnVisibleByDefault: @YES},
-			@"genotypePanelColumn":		@{KeyPathToBind: @"sample.panel.name",ColumnTitle: @"Panel", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES},
-			@"genotypeMarkerColumn":	@{KeyPathToBind: @"marker.name",ColumnTitle: @"Marker", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES},
-		/*	@"genotypeScan1Column":		@{KeyPathToBind: @"allele1.scan",ColumnTitle: @"Scan1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO},
-			@"genotypeScan2Column":		@{KeyPathToBind: @"allele2.scan",ColumnTitle: @"Scan2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO},*/
-			@"genotypeSize1Column":		@{KeyPathToBind: @"allele1.visibleSize",ColumnTitle: @"Size1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES},
-			@"genotypeSize2Column":		@{KeyPathToBind: @"allele2.visibleSize",ColumnTitle: @"Size2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES},
-			@"genotypeAllele1Column":	@{KeyPathToBind: @"allele1.name",ColumnTitle: @"Allele1", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES},
-			@"genotypeAllele2Column":	@{KeyPathToBind: @"allele2.name",ColumnTitle: @"Allele2", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES},
-			@"genotypeOffsetColumn":	@{KeyPathToBind: @"offsetString",ColumnTitle: @"Offset", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES},
-			@"genotypeNotesColumn":	@{KeyPathToBind: @"notes",ColumnTitle: @"Notes", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES}
+			@"genotypeSampleColumn":	@{KeyPathToBind: @"sample.sampleName",ColumnTitle: @"Sample", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
+			@"genotypeStatusColumn":	@{KeyPathToBind: @"statusText", ImageIndexBinding: @"status" ,ColumnTitle: @"Status", CellViewID: @"imageCellView", IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			@"genotypePanelColumn":		@{KeyPathToBind: @"sample.panel.name",ColumnTitle: @"Panel", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
+			@"genotypeMarkerColumn":	@{KeyPathToBind: @"marker.name",ColumnTitle: @"Marker", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
+			/*	@"genotypeScan1Column":		@{KeyPathToBind: @"allele1.scan",ColumnTitle: @"Scan1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO},
+			 @"genotypeScan2Column":		@{KeyPathToBind: @"allele2.scan",ColumnTitle: @"Scan2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO},*/
+			@"genotypeSize1Column":		@{KeyPathToBind: @"allele1.visibleSize",ColumnTitle: @"Size1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			@"genotypeSize2Column":		@{KeyPathToBind: @"allele2.visibleSize",ColumnTitle: @"Size2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			@"genotypeAllele1Column":	@{KeyPathToBind: @"allele1.name",ColumnTitle: @"Allele1", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
+			@"genotypeAllele2Column":	@{KeyPathToBind: @"allele2.name",ColumnTitle: @"Allele2", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
+			@"genotypeOffsetColumn":	@{KeyPathToBind: @"offsetString",ColumnTitle: @"Offset", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			@"additionalFragmentsColumn":	@{KeyPathToBind: @"additionalFragmentString",ColumnTitle: @"Supplementary Peaks", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO},
+			@"genotypeNotesColumn":	@{KeyPathToBind: @"notes",ColumnTitle: @"Notes", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES}
 		};
 	}
 	return columnDescription;
 }
+
 
 - (NSArray<NSString *> *)orderedColumnIDs {
 	/// a column with id @"genotypeStatusColumn" (genotype status) is already set in IB.
 	/// This is because the table shifts to cell-based if it doesn't have a column in Xcode 14. So it must have a column.
 	/// We don't add it to the identifiers
 	return @[@"genotypeSampleColumn", @"genotypePanelColumn",@"genotypeMarkerColumn",/* @"genotypeScan1Column", @"genotypeScan2Column", */
-			 @"genotypeSize1Column",@"genotypeSize2Column", @"genotypeAllele1Column", @"genotypeAllele2Column", @"genotypeOffsetColumn", @"genotypeNotesColumn"];
+			 @"genotypeSize1Column",@"genotypeSize2Column", @"genotypeAllele1Column", @"genotypeAllele2Column", @"genotypeOffsetColumn", @"additionalFragmentsColumn", @"genotypeNotesColumn"];
+}
+
+
+- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
+	NSString *actionName = self.actionNamesForColumnIDs[column.identifier];
+	if(actionName) {
+		return actionName;
+	}
+	return [super actionNameForEditingCellInColumn:column row:row];
+}
+
+
+- (NSDictionary *)actionNamesForColumnIDs {
+	if(!_actionNamesForColumnIDs) {
+		_actionNamesForColumnIDs = @{@"genotypeAllele2Column": @"Rename Allele",
+									 @"genotypeAllele1Column": @"Rename Allele",
+									 @"genotypeNotesColumn": @"Edit Genotype Notes"
+		};
+	}
+	return _actionNamesForColumnIDs;
 }
 
 
@@ -175,14 +196,14 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 		NSArray *genotypes = self.genotypes.arrangedObjects;
 		if(genotypes.count > row) {
 			Genotype *gen = genotypes[row];
-			if(gen.alleles.count < 2) {
+			if(gen.assignedAlleles.count < 2) {
 				return nil;
 			}
 		}
 	}
 	
 	NSTableCellView *view = (NSTableCellView *)[super tableView:tableView viewForTableColumn:tableColumn row:row];
-
+	
 	if([ID isEqualToString:@"genotypeStatusColumn"]) {
 		if([view.imageView respondsToSelector:@selector(imageArray)]) {
 			((IndexImageView *)view.imageView).imageArray = statusImages;
@@ -190,7 +211,7 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 	}
 	
 	return view;
-
+	
 }
 
 
@@ -204,30 +225,19 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 
 #pragma mark - keeping the genotype table up-to-date
 
-/// The table must be update when:
-/// - the samples shown in the selected folder changes, as we show their genotypes
-/// - markers change, as we create a genotype for each sample analyzed at a marker (and we delete genotypes if the marker is removed)
-/// - when a panel is applied to samples
-
--(void)panelMarkersDidChange:(NSNotification *)notification {
-	Panel *panel = notification.object;
-	if([panel isKindOfClass:Panel.class] && panel.managedObjectContext == self.genotypes.managedObjectContext) {
-		if(panel.samples.count > 0) {
-			/// if the panel is not applied to samples, there is no genotype create or deleted
-			/// we could further check the some samples are among those shown in the sample table, but I'm not sure this would save much time
-			shouldRefreshTable = YES;
-		}
-	}
-}
 
 
--(void)panelSamplesDidChange:(NSNotification *)notification {
-	Panel *panel = notification.object;
-	if([panel isKindOfClass:Panel.class] && panel.managedObjectContext == self.genotypes.managedObjectContext) {
-		if(panel.markers.count > 0) {
-			/// if a panel has no marker, changing its samples cannot create new genotypes
-			shouldRefreshTable = YES;
-		}
+- (void)setGenotypeContent:(NSArray *)genotypeContent {
+	/// We don't set any iVar because we retrieve the genotype to show during refreshTable.
+	if(selectedFolderHasChanged) {
+		/// if this was called after a change in selected folder, we refresh the genotype table immediately.
+		[self refreshTable];
+		[self restoreSelectedItems];
+	} else {
+		/// If not, the method must have been called due to a change in the folder content on in the markers applied to samples that are shown.
+		/// In this case the managed object context has changes, so defer the update until all changed are processed.
+		printf(".");
+		shouldRefreshTable = YES;
 	}
 }
 
@@ -241,22 +251,36 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
-	if(context == samplesChangedContext) {
-		if([keyPath isEqualToString:NSStringFromSelector(@selector(selectedFolder))]) {
-			/// If a folder is selected, we apply its filter
-			[self filterGenotypesOfSelectedFolder];
-		}
+	if(context == sampleFilterChangedContext) {
 		[self refreshTable];
-		
-	} else if(context == genotypeFilterChangedContext) {
-		/// We change the button image to reflect the presence of a filter
-		filterButton.image = self.genotypes.filterPredicate? [NSImage imageNamed:@"filterButton On"]: [NSImage imageNamed:@"filterButton"];
+	} else if (context == selectedFolderChangedContext) {
+		/// We don't refresh the table as the content of samples NSArrayController is not updated yet.
+		selectedFolderHasChanged = YES;
+		[self filterGenotypesOfSelectedFolder];
 	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 }
 
 
 -(void)refreshTable {
-	self.genotypes.content = [SampleTableController.sharedController.samples.arrangedObjects valueForKeyPath:@"@unionOfSets.genotypes"];
+	/// The genotypes to show are those of the sample's arrangedObject (not content) because the samples may be filtered.
+	/// We  check if the content to show has changed, to avoid unnecessary updates.
+	selectedFolderHasChanged = NO;
+	NSArray *genotypes = [SampleTableController.sharedController.samples.arrangedObjects valueForKeyPath:@"@unionOfSets.genotypes"];
+	NSArray *content = self.genotypes.content;
+	BOOL refresh = NO;
+	if(content.count != genotypes.count) {
+		refresh = YES;
+	} else {
+		for(id genotype in genotypes) {
+			if([content indexOfObjectIdenticalTo:genotype] == NSNotFound) {
+				refresh = YES;
+				break;
+			}
+		}
+	}
+	if(refresh) {
+		self.genotypes.content = genotypes;
+	} 
 }
 
 
@@ -276,6 +300,20 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 		menuItem.hidden = YES;
 		return NO;
 	}
+	
+	if(menuItem.action == @selector(removeAdditionalFragments:)) {
+		/// we hide and disable this item if no target genotype has an offset
+		NSArray *genotypes = [self targetItemsOfSender:menuItem];
+		for(Genotype *genotype in genotypes) {
+			if(genotype.additionalFragments.count > 0) {
+				menuItem.hidden = NO;
+				return YES;
+			}
+		}
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
 	return [super validateMenuItem:menuItem];
 }
 
@@ -295,29 +333,105 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 }
 
 
+- (IBAction)autoGenotype:(id)sender {
+	/// if the message is sent by the tableView's menu, we call all target genotypes
+	/// else, we will ignore manually edited genotypes
+	BOOL doAll = [sender isKindOfClass:NSMenuItem.class] && [sender topMenu] == self.tableView.menu;
+	
+	NSArray *genotypes = doAll? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
+	
+	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateSupplementaryPeaks];
+	
+	for (Genotype *genotype in genotypes) {
+		GenotypeStatus status = genotype.status;
+		if(status == genotypeStatusNotCalled || status == genotypeStatusNoPeak) {
+			[genotype callAllelesAndSupplementaryPeak:annotateSuppPeaks];
+		} else if((doAll || status != genotypeStatusManual)) {
+			/// if genotypeStatusAutomatic, the action should have no effect either (automatic binning is already done) 
+			/// but we do it again as a safety measure.
+			[genotype binAlleles];
+		}
+	}
+	
+	[self.undoManager setActionName:@"Automatic Genotyping"];
+	[(AppDelegate *)NSApp.delegate saveAction:self];
+}
+
+
 - (IBAction)callAlleles:(id)sender {
 	/// we don't create a managed object context to call alleles as allele call is very quick (less than 1s for 10000 genotypes)
 	/// and is actually slower when we use a child context
-
-	BOOL doAll = self.tableView.clickedRow >= 0;
+	
+	BOOL doAll = [sender isKindOfClass:NSMenuItem.class] && [sender topMenu] == self.tableView.menu;
 	/// if the message was sent by the tableView's menu, we call the alleles of all target genotypes
 	/// else, we will call alleles only for genotypes that have not been called or edited
 	
 	NSArray *genotypes = doAll? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
+	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateSupplementaryPeaks];
 
 	for (Genotype *genotype in genotypes) {
-		if(doAll || (genotype.status != genotypeStatusCalled && genotype.status != genotypeStatusManual)) {
-			[genotype callAlleles];
+		if(doAll || (genotype.status != genotypeStatusAutomatic && genotype.status != genotypeStatusManual)) {
+			[genotype callAllelesAndSupplementaryPeak:annotateSuppPeaks];
 		}
 	}
 	
-	[self.undoManager setActionName:@"Call Alleles"];
+	[self.undoManager setActionName:@"Find Alleles"];
 	[(AppDelegate *)NSApp.delegate saveAction:self];
+	
+}
 
+ /**********debugging******
+static NSInteger genotypeIndex = 0;
+
+-(void) processGenotypes {
+	NSArray *genotypes = self.genotypes.arrangedObjects;
+	if(genotypeIndex < genotypes.count -1) {
+		[self.genotypes setSelectionIndex:genotypeIndex];
+		[self.tableView scrollRowToVisible:genotypeIndex];
+		[NSTimer scheduledTimerWithTimeInterval:0.01f
+										 target: self
+									   selector: @selector(callAllelesOnCurrentIndex)
+									   userInfo: nil
+										repeats: NO];
+	}
 }
 
 
-- (IBAction)showSamples:(id)sender {
+-(void)callAllelesOnCurrentIndex {
+	NSArray *genotypes = self.genotypes.arrangedObjects;
+	if(genotypeIndex < genotypes.count -1) {
+		Genotype *genotype = genotypes[genotypeIndex];
+		[genotype callAlleles];
+		genotypeIndex ++;
+		[self processGenotypes];
+	}
+}
+*/
+
+
+
+/// Removes the additional fragments of target genotypes
+- (IBAction)removeAdditionalFragments:(id)sender {
+	
+	NSArray *genotypes = self.tableView.clickedRow >= 0? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
+	
+	for (Genotype *genotype in genotypes) {
+		BOOL edited = NO;
+		for (Allele *allele in genotype.additionalFragments) {
+			[allele removeFromGenotypeAndDelete];
+			edited = YES;
+		}
+		if(edited) {
+			genotype.status = genotypeStatusManual;
+		}
+	}
+	
+	[self.undoManager setActionName:@"Remove Supplementary Peaks"];
+	[(AppDelegate *)NSApp.delegate saveAction:self];
+}
+
+
+- (IBAction)selectSamples:(id)sender {
 	MainWindowController *mainWindowController = MainWindowController.sharedController;
 	mainWindowController.sourceController = SampleTableController.sharedController;		/// we activate the sample tableview
 	[SampleTableController.sharedController.samples setSelectedObjects:[[self targetItemsOfSender:sender] valueForKeyPath:@"@unionOfObjects.sample"]];
@@ -342,27 +456,30 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 
 
 - (IBAction)exportGenotypes:(id)sender {
-	NSArray *gen = self.genotypes.arrangedObjects;		/// if this is sent from the export button, all genotypes are exported
+	NSArray *genotypes = self.genotypes.arrangedObjects;		/// if this is sent from the export button, all genotypes are exported
 	if(self.tableView.clickedRow >= 0) {				/// if sent from the genotype table menu (meaning that a row has been clicked), only selected/clicked genotypes are exported
-		gen = [self targetItemsOfSender:sender];
+		genotypes = [self targetItemsOfSender:sender];
 	}
-	if (gen.count == 0) {
+	if (genotypes.count == 0) {
 		return;
 	}
 	
 	NSSavePanel* panel = NSSavePanel.savePanel;
-	NSButton* button = [NSButton checkboxWithTitle:@"Add Sample-related Columns" target:nil action:nil];	/// we allow the user to add sample-related information (from the sample table)
+	/// we allow the user to add sample-related information (from the sample table)
+	NSButton* button = [NSButton checkboxWithTitle:@"Add Sample-related Columns" target:nil action:nil];
+	button.toolTip = @"Add columns from the sample table to each genotype";
 	panel.accessoryView = button;
 	button.state = [NSUserDefaults.standardUserDefaults boolForKey:AddSampleInfo];
 	[button setFrameSize:NSMakeSize(button.frame.size.width, 40)];
 	
-	panel.nameFieldStringValue = @"genotypes.txt";
+	panel.nameFieldStringValue = [FolderListController.sharedController.selectedFolder.name stringByAppendingString: @" genotypes.txt"];
 	panel.allowedFileTypes = @[@"public.plain-text"];
+	
 	[panel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
 			NSURL* theFile = panel.URL;
 			[NSUserDefaults.standardUserDefaults setBool:button.state forKey:AddSampleInfo];
-			NSString *exportString = [self stringFromGenotypes:gen withSampleInfo:button.state];
+			NSString *exportString = [self stringFromGenotypes:genotypes withSampleInfo:button.state];
 			NSError *error = nil;
 			[exportString writeToURL:theFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
 			if(error) {
@@ -375,230 +492,192 @@ static void * const genotypeFilterChangedContext = (void*)&genotypeFilterChanged
 
 
 /// creates a string from an array of genotypes based on the table columns
-- (NSString *) stringFromGenotypes:(NSArray *)gen withSampleInfo: (BOOL)addSampleInfo {
+- (NSString *) stringFromGenotypes:(NSArray *)genotypes withSampleInfo: (BOOL)addSampleInfo {
 	
-	NSMutableString *exportString = NSMutableString.new;
-	NSMutableArray *exportStrings = NSMutableArray.new;
+	NSMutableArray<NSString *> *fields = NSMutableArray.new; /// the fields in each rows
+	NSMutableArray<NSString *> *rows = NSMutableArray.new; /// The strings for all rows
 
-	/// we make a header with column names
-	BOOL nameColumnShown = NO;
+	/// The first row is the column headers.
 	for(NSTableColumn *column in self.visibleColumns) {
-		if([column.title isEqualToString:@"Sample"]) {
-			nameColumnShown = YES;
-		}
-		[exportStrings addObject: column.headerCell.stringValue];
+		[fields addObject: column.headerCell.stringValue];
 	}
+	
+	/// We record the genotype table column titles to avoid adding redundant columns if sample info is included.
+	/// The "Sample" column is equivalent to the "Name"' column of the sample table.
+	NSArray *columnTitles = [[NSArray arrayWithArray:fields] arrayByAddingObject:@"Name"];
+	
+	SampleTableController *sampleTableController = SampleTableController.sharedController;
+	NSMutableArray *sampleTableColumns = NSMutableArray.new;
 	
 	if(addSampleInfo) {
-		for(NSTableColumn *column in SampleTableController.sharedController.visibleColumns) {
-			if(!([column.identifier isEqualToString:@"sampleNameColumn"] && nameColumnShown)) {
-				[exportStrings addObject: column.headerCell.stringValue];
+		for(NSTableColumn *column in sampleTableController.visibleColumns) {
+			if(![columnTitles containsObject:column.title]) {
+				[fields addObject: column.headerCell.stringValue];
+				[sampleTableColumns addObject:column];
 			}
 		}
 	}
 	
-	NSString *row = [exportStrings componentsJoinedByString:@"\t"];
-	[exportString appendFormat:@"%@\n", row];
-	
-	for (Genotype *genotype in gen) {
-		[exportStrings removeAllObjects];
+	[rows addObject:[fields componentsJoinedByString:@"\t"]];
+	for (Genotype *genotype in genotypes) {
+		[fields removeAllObjects];
 		/// we export data as shown in the table, hence based on the displayed columns and their order
-		[exportStrings addObject: [self stringForObject:genotype]];
+		[fields addObject: [self stringForObject:genotype]];
 		if(addSampleInfo) {
 			Chromatogram *sample = genotype.sample;
-			SampleTableController *sampleTableController = SampleTableController.sharedController;
-			for (NSTableColumn *column in  sampleTableController.visibleColumns) {
-				if(!([column.identifier isEqualToString:@"sampleNameColumn"] && nameColumnShown)) { /// the sample name column is already part of the genotype table
-					[exportStrings addObject: [sampleTableController stringCorrespondingToColumn:column forObject:sample]];
-				}
+			for (NSTableColumn *column in  sampleTableColumns) {
+				[fields addObject: [sampleTableController stringCorrespondingToColumn:column forObject:sample]];
 			}
 		}
-		row = [exportStrings componentsJoinedByString:@"\t"];
-		[exportString appendFormat:@"%@\n", row];
+		[rows addObject: [fields componentsJoinedByString:@"\t"]];
 	}
-	return exportString;
+	return [rows componentsJoinedByString:@"\n"];
 }
 
 
 #pragma mark - genotype filtering
 
-NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
+UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 
 
-/// Configures and shows the popover allowing to filter the table
-/// - Parameter sender: The object that sent this message.
-- (IBAction)showFilterPopover:(id)sender {
+- (void)setFilterButton:(NSButton *)filterButton {
+	super.filterButton = filterButton;
+	[filterButton bind:NSEnabledBinding toObject:self.genotypes withKeyPath:@"content.@count" options:nil];
+}
+
+
+- (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor {
+	/// we prepare the keyPaths (attributes) that the predicate editor will allow filtering.
+	/// The first we add will be use to generate predicate editor row template "automatically" via core data.
 	
-	if(!filterPopover) {
-		
-		filterPopover = NSPopover.new;
-		NSViewController *controller = [[NSViewController alloc] initWithNibName:@"FilterPopover" bundle:nil];
-		if(controller) {
-			filterPopover.contentViewController = controller;
+	[super configurePredicateEditor:predicateEditor];
+	
+	NSArray *keyPaths = @[@"marker.name", @"marker.panel.name", @"notes"];
+	
+	NSArray *rowTemplates = [NSPredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Genotype.entity];
+	
+	/// To filter according to genotype status, we prepare right expressions for the predicate row template.
+	NSMutableArray *expressions = [NSMutableArray arrayWithCapacity:6];
+	for(NSNumber *status in @[@(genotypeStatusNotCalled),
+							  @(genotypeStatusNoPeak),
+							  @(genotypeStatusAutomatic),
+							  @(genotypeStatusSizingChanged),
+							  @(genotypeStatusMarkerChanged),
+							  @(genotypeStatusManual)]) {
+		[expressions addObject:[NSExpression expressionForConstantValue:status]];
+	}
+	
+	/// We add row templates to filter according to allele properties, which are to-many relationships
+	NSPredicateEditorRowTemplate *markerTemplate = rowTemplates.firstObject;
+	
+	NSPredicateEditorRowTemplate *statusTemplate = [[NSPredicateEditorRowTemplate alloc]
+													initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"status"]]
+													rightExpressions:expressions
+													modifier:NSDirectPredicateModifier
+													operators:@[@(NSEqualToPredicateOperatorType), @(NSNotEqualToPredicateOperatorType)]
+													options:0];
+	
+	NSPredicateEditorRowTemplate *alleleNameTemplate = [[AggregatePredicateEditorRowTemplate alloc]
+														initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"assignedAlleles.name"]]
+														rightExpressionAttributeType:NSStringAttributeType
+														modifier:NSAnyPredicateModifier
+														operators:markerTemplate.operators
+														options:0];
+	
+	NSPredicateEditorRowTemplate *alleleSizeTemplate = [[AggregatePredicateEditorRowTemplate alloc]
+														initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"assignedAlleles.size"]]
+														rightExpressionAttributeType:NSFloatAttributeType
+														modifier:NSAnyPredicateModifier
+														operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)]
+														options:0];
+	
+	NSPredicateEditorRowTemplate *interceptTemplate = [[NSPredicateEditorRowTemplate alloc]
+														initWithLeftExpressions:@[[NSExpression expressionForKeyPath:NSStringFromSelector(@selector(offsetIntercept))]]
+														rightExpressionAttributeType:NSFloatAttributeType
+														modifier:NSDirectPredicateModifier
+														operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType), @(NSEqualToPredicateOperatorType), @(NSNotEqualToPredicateOperatorType)]
+														options:0];
+	
+			
+	NSArray *finalTemplates = [@[statusTemplate, alleleNameTemplate, alleleSizeTemplate] arrayByAddingObjectsFromArray:rowTemplates];
+	 finalTemplates = [finalTemplates arrayByAddingObject:interceptTemplate];
+	
+	NSArray *compoundTypes = @[@(NSNotPredicateType), @(NSAndPredicateType),  @(NSOrPredicateType)];
+	NSPredicateEditorRowTemplate *compound = [[NSPredicateEditorRowTemplate alloc] initWithCompoundTypes:compoundTypes];
+			
+	predicateEditor.rowTemplates = [@[compound] arrayByAddingObjectsFromArray:finalTemplates];
+	predicateEditor.canRemoveAllRows = NO;
+	
+	/// We create a formatting dictionary to translate attribute names into menu item titles. We don't translate other fields (operators)
+	keyPaths = [@[@"status", @"assignedAlleles.name", @"assignedAlleles.size"] arrayByAddingObjectsFromArray:keyPaths];
+	keyPaths = [keyPaths arrayByAddingObject:NSStringFromSelector(@selector(offsetIntercept))];
+
+	/// The titles for the menu items of the editor left popup buttons
+	NSArray *titles = @[@"Status", @"Allele Name", @"Allele Size", @"Marker Name", @"Panel Name", @"Notes", @"Offset"];
+
+	NSMutableArray *keys = NSMutableArray.new;		/// the future keys of the dictionary
+	for(NSString *keyPath in keyPaths) {
+		if([keyPath isEqualToString:@"status"]) {
+			/// We need to translate each status number into a string.
+			for (int status = genotypeStatusNotCalled; status <= genotypeStatusManual; status++) {
+				NSString *key = [NSString stringWithFormat: @"%@%@%@%d%@",  @"%[", keyPath, @"]@ %@ %[", status, @"]@"];
+				[keys addObject:key];
+			}
 		} else {
-			NSLog(@"Failed to load filter popover!");
-			return;
-		}
-		
-		filterPopover.animates = YES;
-		filterPopover.behavior = NSPopoverBehaviorTransient;
-		NSView *contentView = controller.view;
-		NSButton *cancelButton = [contentView viewWithTag:4];
-		cancelButton.action = @selector(close);
-		cancelButton.target = filterPopover;
-		
-		NSButton *clearFilterButton = [contentView viewWithTag:5];
-		clearFilterButton.action = @selector(clearFilter:);
-		clearFilterButton.target = self;
-		[clearFilterButton bind:NSEnabledBinding toObject:self.genotypes withKeyPath:@"filterPredicate" options:@{NSValueTransformerNameBindingOption: NSIsNotNilTransformerName}];
-		
-		NSButton *applyFilterButton = [contentView viewWithTag:6];
-		applyFilterButton.action = @selector(applyFilter:);
-		applyFilterButton.target = self;
-	
-		NSPredicateEditor *predicateEditor = [contentView viewWithTag:2];
-		
-		/// we remove the background of the editor, which is defined by a visual effect view in macOS 14.
-		NSView *view = predicateEditor.subviews.firstObject;
-		view = view.subviews.firstObject;
-		view = view.subviews.firstObject;
-		if([view isKindOfClass:NSVisualEffectView.class]) {
-			view.hidden = YES;
-		}
-		
-		/// we prepare the keyPaths (attributes) that the predicate editor will allow filtering.
-		NSArray *keyPaths = @[@"marker.name", @"marker.panel.name", @"notes"];
-		
-		NSArray *rowTemplates = [NSPredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Genotype.entity];
-		
-		/// We add row templates to filter according to allele properties, which are to-many relationships
-		NSPredicateEditorRowTemplate *markerTemplate = rowTemplates.firstObject;
-		
-		NSPredicateEditorRowTemplate *alleleNameTemplate = [[AggregatePredicateEditorRowTemplate alloc]
-															initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"alleles.name"]]
-															rightExpressionAttributeType:NSStringAttributeType
-															modifier:NSAnyPredicateModifier
-															operators:markerTemplate.operators
-															options:0];
-		
-		
-		NSPredicateEditorRowTemplate *alleleSizeTemplate = [[AggregatePredicateEditorRowTemplate alloc]
-															initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"alleles.size"]]
-															rightExpressionAttributeType:NSFloatAttributeType
-															modifier:NSAnyPredicateModifier
-															operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)]
-															options:0];
-		
-		NSPredicateEditorRowTemplate *interceptTemplate = [[NSPredicateEditorRowTemplate alloc]
-															initWithLeftExpressions:@[[NSExpression expressionForKeyPath:NSStringFromSelector(@selector(offsetIntercept))]]
-															rightExpressionAttributeType:NSFloatAttributeType
-															modifier:NSDirectPredicateModifier
-															operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType), @(NSEqualToPredicateOperatorType), @(NSNotEqualToPredicateOperatorType)]
-															options:0];
-		
-				
-		NSArray *finalTemplates = [@[alleleNameTemplate, alleleSizeTemplate] arrayByAddingObjectsFromArray:rowTemplates];
-		 finalTemplates = [finalTemplates arrayByAddingObject:interceptTemplate];
-		
-		NSArray *compoundTypes = @[@(NSNotPredicateType), @(NSAndPredicateType),  @(NSOrPredicateType)];
-		NSPredicateEditorRowTemplate *compound = [[NSPredicateEditorRowTemplate alloc] initWithCompoundTypes:compoundTypes];
-				
-		/// The predicate editor has a compound predicate row template created in IB, we keep it
-		predicateEditor.rowTemplates = [@[compound] arrayByAddingObjectsFromArray:finalTemplates];
-		predicateEditor.canRemoveAllRows = NO;
-		
-		/// We create a formatting dictionary to translate attribute names into menu item titles. We don't translate other fields (operators)
-		keyPaths = [@[@"alleles.name", @"alleles.size"] arrayByAddingObjectsFromArray:keyPaths];
-		keyPaths = [keyPaths arrayByAddingObject:NSStringFromSelector(@selector(offsetIntercept))];
-
-		/// The titles for the menu items of the editor left popup buttons
-		NSArray *titles = @[@"Allele Name", @"Allele Size", @"Marker Name", @"Panel Name", @"Notes", @"Offset"];
-
-		NSArray *keys = NSArray.new;		/// the future keys of the dictionary
-		for(NSString *keyPath in keyPaths) {
 			NSString *key = [NSString stringWithFormat: @"%@%@%@",  @"%[", keyPath, @"]@ %@ %@"];		/// see https://funwithobjc.tumblr.com/post/1482915398/localizing-nspredicateeditor
-			if([keyPaths indexOfObject:keyPath] < 2) {
+			if([keyPath isEqualToString:@"assignedAlleles.name"] || [keyPath isEqualToString:@"assignedAlleles.size"]) {
 				key = [key stringByAppendingString: @" %@"];
 			}
-			keys = [keys arrayByAddingObject:key];
+			[keys addObject:key];
 		}
-		
-		NSArray *values = NSArray.new;	/// the future values
-		for(NSString *title in titles) {
-			NSString *value = [NSString stringWithFormat: @"%@%@%@",  @"%1$[", title, @"]@ %2$@ %3$@"];
-			if([titles indexOfObject:title] < 2) {
-				value = [value stringByAppendingString: @" %4$@"];
+	}
+	
+	NSMutableArray *values = NSMutableArray.new;	/// the future values
+	for(NSString *title in titles) {
+		if([title isEqualToString:@"Status"]) {
+			/// The different genotype statuses.
+			NSArray *menuItemTitles = @[@"Not called", @"No peak found", @"Called", @"Sizing has changed", @"Marker has changed", @"Edited manually"];
+			for (NSString *menuItemTitle in menuItemTitles) {
+				NSString *value = [NSString stringWithFormat: @"%@%@%@%@%@",  @"%1$[", title, @"]@ %2$@ %3$[", menuItemTitle, @"]@"];
+				[values addObject:value];
 			}
-			values = [values arrayByAddingObject:value];
+		} else {
+			NSString *value;
+			if([title isEqualToString:@"Allele Name"] || [title isEqualToString:@"Allele Size"]) {
+				/// The segmented control, which is at the right of the first popup button in the template is moved left.
+				value = [NSString stringWithFormat: @"%@%@%@",  @"%2$@ %1$[", title, @"]@ %3$@ %4$@"];
+			} else {
+				value = [NSString stringWithFormat: @"%@%@%@",  @"%1$[", title, @"]@ %2$@ %3$@"];
+			}
+			[values addObject:value];
 		}
-		
-		predicateEditor.formattingDictionary = [NSDictionary dictionaryWithObjects:values forKeys:keys];
 	}
 	
-	/// We set the predicate to show in the editor
-	NSPredicate *filterPredicate = self.genotypes.filterPredicate;
-	if(!filterPredicate) {
-		/// The default predicate is based on the allele name
-		filterPredicate = [NSPredicate predicateWithFormat: @"ANY alleles.name ==[c] ''"];
-	}
+	predicateEditor.formattingDictionary = [NSDictionary dictionaryWithObjects:values forKeys:keys];
 	
-	if(filterPredicate.class != NSCompoundPredicate.class) {
-		/// we make the search predicate a compound predicate to make sure it shows the "all/any/none" option.
-		filterPredicate = [NSCompoundPredicate andPredicateWithSubpredicates:@[filterPredicate]];
-	}
-	
-	NSView *contentView = filterPopover.contentViewController.view;
-	
-	NSButton *caseSensitiveButton = [contentView viewWithTag:3];
-	caseSensitiveButton.state = filterPredicate.isCaseInsensitive? NSControlStateValueOn : NSControlStateValueOff;
-	
-	NSPredicateEditor *editor = [contentView viewWithTag:2];
-	editor.objectValue = filterPredicate;
-	
-	NSTextField *errorTextField = [contentView viewWithTag:7];
-	errorTextField.hidden = YES;
-	
-	[filterPopover showRelativeToRect:filterButton.bounds ofView:filterButton preferredEdge:NSMinYEdge];
+	[NSNotificationCenter.defaultCenter addObserver:self
+										   selector:@selector(ruleEditorRowsDidChange:)
+											   name:NSRuleEditorRowsDidChangeNotification
+											 object:predicateEditor];
+
 }
 
-/// Removes the current filter of the table.
--(void)clearFilter:(id)sender {
-	[filterPopover close];
-	self.genotypes.filterPredicate = nil;
-	[self recordFilterPredicate];
+
+- (NSPredicate *)defaultFilterPredicate {
+	return [NSPredicate predicateWithFormat: @"ANY assignedAlleles.name ==[c] ''"];
 }
 
-/// Applies the filter predicate defined by the `filterPopover` to the table.
--(void)applyFilter:(id)sender {
-	NSView *contentView = filterPopover.contentViewController.view;
-	NSPredicateEditor *editor = [contentView viewWithTag:2];
-	NSPredicate *filterPredicate = editor.predicate;
-	
-	if(filterPredicate.hasEmptyTerms) {
-		NSTextField *errorTextField = [contentView viewWithTag:7];
-		errorTextField.hidden = NO;
-		return;
+
+- (void)applyFilterPredicate:(NSPredicate *)filterPredicate {
+	if(self.genotypes.filterPredicate != filterPredicate) {
+		[self recordFilterPredicate:filterPredicate];
 	}
-	
-	NSButton *caseSensitiveButton = [contentView viewWithTag:3];
-	
-	if(caseSensitiveButton.state == NSControlStateValueOn) {
-		filterPredicate = [filterPredicate caseInsensitivePredicate];
-	}
-	
-	if([filterPredicate isEqualTo:self.genotypes.filterPredicate]) {
-		[self.genotypes rearrangeObjects];
-	} else {
-		self.genotypes.filterPredicate = filterPredicate;
-		[self recordFilterPredicate];
-	}
-	
-	[filterPopover close];
+	[super applyFilterPredicate:filterPredicate];
 }
 
 
 /// Associates the filter predicate to the selected folder in the user defaults
--(void)recordFilterPredicate {
+-(void)recordFilterPredicate:(NSPredicate *)filterPredicate {
 	Folder *selectedFolder = FolderListController.sharedController.selectedFolder;
 	if(!selectedFolder) {
 		return;
@@ -612,15 +691,14 @@ NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
 	
 	NSString *key = selectedFolder.objectID.URIRepresentation.absoluteString;
 	
-	if(!filterForFolder) {
-		filterForFolder = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
-		if(!filterForFolder) {
-			filterForFolder = NSMutableDictionary.new;
+	if(!filterDictionary) {
+		filterDictionary = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
+		if(!filterDictionary) {
+			filterDictionary = NSMutableDictionary.new;
 		}
 	}
 	
 	NSData *filterPredicateData;
-	NSPredicate *filterPredicate = self.genotypes.filterPredicate;
 	if(filterPredicate) {
 		filterPredicateData = [NSKeyedArchiver archivedDataWithRootObject:filterPredicate
 								requiringSecureCoding:YES
@@ -629,19 +707,19 @@ NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
 	}
 	
 	if(filterPredicateData) {
-		filterForFolder[key] = filterPredicateData;
+		filterDictionary[key] = filterPredicateData;
 	} else {
-		[filterForFolder removeObjectForKey:key];
+		[filterDictionary removeObjectForKey:key];
 	}
 	
-	[NSUserDefaults.standardUserDefaults setObject:filterForFolder forKey:GenotypeFiltersKey];
+	[NSUserDefaults.standardUserDefaults setObject:filterDictionary forKey:GenotypeFiltersKey];
 }
 
 /// Applies the filter associated to the selected folder to the table, retrieving it from the user defaults
 -(void) filterGenotypesOfSelectedFolder {
-	if(!filterForFolder) {
-		filterForFolder = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
-		if(!filterForFolder) {
+	if(!filterDictionary) {
+		filterDictionary = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
+		if(!filterDictionary) {
 			self.genotypes.filterPredicate = nil;
 			return;
 		}
@@ -649,7 +727,7 @@ NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
 	
 	NSString *key = FolderListController.sharedController.selectedFolder.objectID.URIRepresentation.absoluteString;
 	if(key) {
-		NSData *predicateData = filterForFolder[key];
+		NSData *predicateData = filterDictionary[key];
 		if([predicateData isKindOfClass:NSData.class]) {
 			NSPredicate *filterPredicate = [NSKeyedUnarchiver unarchivedObjectOfClass:NSPredicate.class fromData:predicateData error:nil];
 			[filterPredicate allowEvaluation];
@@ -661,12 +739,75 @@ NSString* const GenotypeFiltersKey = @"genotypeFiltersKey";
 }
 
 
+- (void)ruleEditorRowsDidChange:(NSNotification *)notification {
+	/// We use this notification to add status images to the popup button allowing to filter by status.
+	/// I haven't found a better solution. Providing an custom popup button in -templateViews of NSRuleEditorRowTemplate subclass doesn't work
+	/// because the predicate editor only take the menu item titles to create its own popup button.
+	/// Subclassing NSRuleEditor would certainly be the best solution, but it would require much more effort.
+	NSPredicateEditor *editor = notification.object;
+	NSView *view = editor.subviews.firstObject;
+	for(NSView *row in view.subviews) {
+		/// Hopefully, we are enumerating the rows of the editor (among other subviews).
+		if(row.subviews.count < 4) {
+			continue;
+		}
+		for(NSView *subview in row.subviews) {
+			if([subview isKindOfClass:NSPopUpButton.class]) {
+				NSPopUpButton *popup = (NSPopUpButton *)subview;
+				if(popup.numberOfItems == statusImages.count) {
+					NSMenuItem *item = popup.itemArray.firstObject;
+					if(!item.image && [item.title isEqualToString:@"Not called"]) {
+						int i = 0;
+						for(NSMenuItem *item in popup.itemArray) {
+							if(i < statusImages.count) {
+								item.image = statusImages[i];
+							}
+							i++;
+						}
+						/// No more than 1 popup button should require images, at a given time.
+						return;
+					}
+				}
+			}
+		}
+	}
+}
+
+
+#pragma mark - recording and restoring selection
+
+UserDefaultKey SelectedGenotypes = @"selectedGenotypes";
+
+-(void)recordSelectedItems {
+	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
+	if(!selectedFolder) {
+		return;
+	}
+	NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
+	if(folderID) {
+		[self recordSelectedItemsAtUserDefaultsKey:SelectedGenotypes subKey:folderID maxRecorded:100];
+	}
+}
+
+
+-(void)restoreSelectedItems {
+	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
+	if(!selectedFolder) {
+		return;
+	}
+	NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
+	if(folderID) {
+		[self restoreSelectedItemsWithUserDefaultsKey:SelectedGenotypes subKey:folderID];
+	}
+}
+
 #pragma mark - other
 
 - (void)dealloc {
 	[NSNotificationCenter.defaultCenter removeObserver:self];
 	[SampleTableController.sharedController.samples removeObserver:self forKeyPath:NSStringFromSelector(@selector(content))];
 	[SampleTableController.sharedController.samples removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
+	[FolderListController.sharedController removeObserver:self forKeyPath:NSStringFromSelector(@selector(selectedFolder))];
 	[self.genotypes removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
 }
 

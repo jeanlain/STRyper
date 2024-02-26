@@ -56,7 +56,6 @@
 		[self removeFromView];
 	}
 	_view = aView;
-   
 }
 
 
@@ -81,44 +80,41 @@
 
 
 - (void)mouseDownInView {
-	if(!self.enabled) {
-		return;
-	}
-	if (NSPointInRect(self.view.clickedPoint, self.frame)) {
-		if (!self.highlightedOnMouseUp) {
-			self.highlighted = YES;
+	if(self.enabled) {
+		if (NSPointInRect(self.view.clickedPoint, self.frame)) {
+			if (!self.highlightedOnMouseUp) {
+				self.highlighted = YES;
+			}
+			self.clicked = YES;
+		} else {
+			self.highlighted = NO;
+			self.clicked = NO;
 		}
-		self.clicked = YES;
-	} else {
-		self.highlighted = NO;
-		self.clicked = NO;
 	}
 }
 
 
 - (void)rightMouseDownInView {
-	if(!self.enabled) {
-		return;
-	}
-	if (NSPointInRect(self.view.rightClickedPoint, self.frame)) {
-		self.highlighted = YES;
-		self.clicked = YES;
-	} else {
-		self.highlighted = NO;
-		self.clicked = NO;
+	if(self.enabled) {
+		if (NSPointInRect(self.view.rightClickedPoint, self.frame)) {
+			self.highlighted = YES;
+			self.clicked = YES;
+		} else {
+			self.highlighted = NO;
+			self.clicked = NO;
+		}
 	}
 }
 
 
 - (void)mouseUpInView {
-	if(!self.enabled) {
-		return;
+	if(self.enabled) {
+		if(NSPointInRect(self.view.mouseUpPoint, self.frame) && self.clicked) {
+			self.highlighted = YES;
+		}
+		self.clicked = NO;
+		self.dragged = NO;
 	}
-	if(NSPointInRect(self.view.mouseUpPoint, self.frame) && self.clicked) {
-		self.highlighted = YES;
-	}
-	self.clicked = NO;
-	self.dragged = NO;
 }
 
 
@@ -223,21 +219,20 @@
 
 
 - (void)setHidden:(BOOL)hidden {
-	if(self.hidden == hidden) {
-		return;
-	}
-	_hidden = hidden;
-	if(layer) {
-		layer.hidden = hidden;
-	} else {
-		[self updateAppearance];
-	}
-	if(!hidden) {
-		self.animated = NO;		/// when it becomes visible, the label will repositioned (below), which we don't want to animate
-		[self reposition];
-		self.animated = YES;
-	} else {
-		self.enabled = NO;
+	if(self.hidden != hidden) {
+		_hidden = hidden;
+		if(layer) {
+			layer.hidden = hidden;
+		} else {
+			[self updateAppearance];
+		}
+		if(!hidden) {
+			self.animated = NO;		/// when it becomes visible, the label will repositioned (below), which we don't want to animate
+			[self reposition];
+			self.animated = YES;
+		} else {
+			self.enabled = NO;
+		}
 	}
 }
 
@@ -283,6 +278,11 @@
 
 
 - (void)updateAppearance {
+	
+}
+
+
+- (void)updateForTheme {
 	
 }
 

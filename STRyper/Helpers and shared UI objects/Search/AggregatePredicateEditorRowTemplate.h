@@ -25,10 +25,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// A predicate editor row template that allows to define a comparison predicate modifier for a to-many relationship.
 ///
 /// An `AggregatePredicateEditorRowTemplate` adds a segmented control that allows to specify wether the predicate
-/// compares all entries of the destination of the to-many relationship (`NSAllPredicateModifier`) or matches with any entry (`NSAllPredicateModifier`).
-/// This button is not added if the object's `modifier` is not one of the above modifiers.
+/// compares all entries of the destination of the to-many relationship (`NSAllPredicateModifier`) or matches any entry (`NSAnyPredicateModifier`).
+/// This control is added to the template views (at the right of the first popup button) only if the object's `modifier` is one of the above modifiers.
 /// The predicate to set must be an `NSComparisonPredicate` containing a left expression, a right expression and a comparison modifier.
-@interface AggregatePredicateEditorRowTemplate : NSPredicateEditorRowTemplate
+@interface AggregatePredicateEditorRowTemplate : NSPredicateEditorRowTemplate <NSMenuDelegate>
 
 
 @end

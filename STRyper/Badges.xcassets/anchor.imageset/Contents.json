@@ -1,7 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "anchor.pdf",
+      "filename" : "anchor big.pdf",
+      "idiom" : "mac"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "anchor big dark.pdf",
       "idiom" : "mac"
     }
   ],

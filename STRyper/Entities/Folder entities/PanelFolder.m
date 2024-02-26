@@ -49,6 +49,7 @@ NSNotificationName const PanelFolderSubfoldersDidChangeNotification = @"PanelFol
 	[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
 }
 
+
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
 	if(context == subfoldersChangedContext) {
 		[NSNotificationCenter.defaultCenter postNotificationName:PanelFolderSubfoldersDidChangeNotification object:self];

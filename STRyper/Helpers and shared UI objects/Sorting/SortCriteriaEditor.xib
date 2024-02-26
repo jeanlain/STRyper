@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="21701" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="21701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -40,7 +40,7 @@
                                         <rect key="frame" x="5" y="0.0" width="53" height="24"/>
                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                         <subviews>
-                                            <textField toolTip="Click &amp; drag row to change priority" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="DvV-fP-4dK">
+                                            <textField toolTip="Click &amp; drag row to change priority" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="DvV-fP-4dK">
                                                 <rect key="frame" x="-2" y="5" width="57" height="14"/>
                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" alignment="right" title="Sort by:" id="PGJ-P9-XPD">
                                                     <font key="font" metaFont="smallSystem"/>
@@ -177,26 +177,26 @@
                                         <subviews>
                                             <button toolTip="Remove criterion" verticalHuggingPriority="750" placeholderIntrinsicWidth="19" placeholderIntrinsicHeight="16" translatesAutoresizingMaskIntoConstraints="NO" id="cf2-hn-lXF" userLabel="—">
                                                 <rect key="frame" x="0.0" y="3" width="19" height="17"/>
-                                                <constraints>
-                                                    <constraint firstAttribute="width" constant="19" id="yra-R3-2cc"/>
-                                                </constraints>
                                                 <buttonCell key="cell" type="roundRect" title="+" bezelStyle="roundedRect" image="NSRemoveTemplate" imagePosition="only" alignment="center" controlSize="small" state="on" borderStyle="border" inset="2" id="Su9-ds-7hY">
                                                     <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                     <font key="font" metaFont="smallSystem"/>
                                                 </buttonCell>
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="19" id="yra-R3-2cc"/>
+                                                </constraints>
                                                 <connections>
                                                     <action selector="removeRow:" target="-2" id="MHy-2w-S0j"/>
                                                 </connections>
                                             </button>
                                             <button toolTip="Add sorting criterion" verticalHuggingPriority="750" placeholderIntrinsicWidth="19" placeholderIntrinsicHeight="16" translatesAutoresizingMaskIntoConstraints="NO" id="cKW-Zl-0Lv" userLabel="+">
                                                 <rect key="frame" x="24" y="3" width="19" height="17"/>
-                                                <constraints>
-                                                    <constraint firstAttribute="width" constant="19" id="XUB-Zh-PpM"/>
-                                                </constraints>
                                                 <buttonCell key="cell" type="roundRect" title="-" bezelStyle="roundedRect" image="NSAddTemplate" imagePosition="only" alignment="center" controlSize="small" state="on" borderStyle="border" inset="2" id="ghY-GT-EAn">
                                                     <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                     <font key="font" metaFont="smallSystem"/>
                                                 </buttonCell>
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="19" id="XUB-Zh-PpM"/>
+                                                </constraints>
                                                 <connections>
                                                     <action selector="insertRow:" target="-2" id="p0z-Nu-60C"/>
                                                 </connections>

@@ -18,7 +18,7 @@
             <rect key="frame" x="0.0" y="0.0" width="413" height="102"/>
             <autoresizingMask key="autoresizingMask"/>
             <subviews>
-                <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="l3X-0i-43O">
+                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="l3X-0i-43O">
                     <rect key="frame" x="18" y="60" width="83" height="16"/>
                     <textFieldCell key="cell" lineBreakMode="clipping" title="Processing..." id="vpU-nh-4ZZ">
                         <font key="font" metaFont="system"/>

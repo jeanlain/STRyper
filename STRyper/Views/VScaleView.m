@@ -36,18 +36,20 @@
 /// Each value is an NSArray containing an NSAttributedString + its width, and each key is a given fluo level (NSNumber).
 static NSDictionary *labels;
 
+static NSColor *rulerLabelColor;
 
 + (void)initialize {	
-	extern NSDictionary *gLabelFontStyle;
-	
+	rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
+	NSDictionary *labelFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0], NSForegroundColorAttributeName: rulerLabelColor};
+
 	/// we populate the dictionary.
 	NSMutableDictionary *dict = NSMutableDictionary.new;
 
 	int i = 10;
 	for(int fluo = 0; fluo < 33000;) {
-		NSAttributedString *rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", fluo] attributes:gLabelFontStyle];
+		NSAttributedString *rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", fluo] attributes:labelFontStyle];
 		if(fluo >= 10000) {
-			rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%dk", fluo/1000] attributes:gLabelFontStyle];
+			rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%dk", fluo/1000] attributes:labelFontStyle];
 		}
 		dict[@(fluo)] = @[rulerLabel, @(rulerLabel.size.width)];
 		if (fluo == 200) i = 50;		/// for higher fluo levels, we don't generate all possible values (to save memory)
@@ -122,7 +124,7 @@ static NSDictionary *labels;
 	}
 	
 	float maxX = NSMaxX(bounds);
-	[NSColor.grayColor set];
+	[rulerLabelColor set];
 	NSRectFill(NSMakeRect(maxX-1, 0, 1, NSMaxY(bounds)-3));
 
 	int labelIncrement = rulerLabelIncrementForVScale(vScale);
@@ -196,8 +198,8 @@ int rulerLabelIncrementForVScale(float vScale) {
 		return;
 	}
 	float newTopFluo = self.traceView.topFluoLevel * fabsf(previousY)/fabs(mouseLocation.y);
-	if(newTopFluo > 33000) {
-		newTopFluo = 33000;
+	if(newTopFluo > SHRT_MAX * 1.2) {
+		newTopFluo = SHRT_MAX * 1.2;
 	}
 	[self.traceView setTopFluoLevel: newTopFluo withAnimation:NO];
 	

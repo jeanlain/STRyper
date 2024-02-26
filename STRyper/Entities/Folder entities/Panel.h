@@ -52,10 +52,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) NSSet <Mmarker *> *markers;
 
 
-/// When the `markers` of a panel change, it posts a notification with this name to the default notification center.
-extern NSNotificationName _Nonnull const PanelMarkersDidChangeNotification;
-
-
 /// Returns the ``markers`` of a specific channel.
 ///
 /// The markers returned are those  whose ``Mmarker/channel`` correspond to `channel`,  among the receiver's ``markers``.
@@ -74,14 +70,7 @@ extern NSNotificationName _Nonnull const PanelMarkersDidChangeNotification;
 /// The reverse relationship is ``Chromatogram/panel`` .
 @property (nonatomic) NSSet <Chromatogram *> *samples;
 
-/// When the `samples` of a panel change, it posts a notification with this name to the default notification center
-extern NSNotificationName _Nonnull const PanelSamplesDidChangeNotification;
 
-/// A core data attribute that can be used to denote the version of the panel.
-///
-/// This number can be modified if the ``markers`` composing the panel change.
-@property (nonatomic) NSNumber *version;
-/// STRyper no longer uses this attribute.
 
 /************************Panel import / export *************/
 

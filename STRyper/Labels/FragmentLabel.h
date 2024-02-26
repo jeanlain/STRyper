@@ -24,28 +24,12 @@
 @class LadderFragment, PeakLabel;
 
 
-/// A  draggable label that indicates the size or name of a DNA fragment (ladder fragment or allele) on a view.
+/// A  draggable label that indicates the size or name of a DNA fragment (ladder fragment or allele) on a trace view.
 ///
 ///	A fragment label represents a ``LadderFragment`` entity, which can be an ``Allele``.
 ///
-///	This label shows a rectangular text box above the peak corresponding to the ``fragment``, on the fluorescence curve drawn by a ``TraceView``.
-///	The box text indicates the ``LadderFragment/size`` of the fragment or its ``LadderFragment/name`` if the fragment is an ``Allele``.
-/// This box resides on the label's ``ViewLabel/layer``.
-///
-/// This class overrides the ``ViewLabel/drag`` method to allow the user to move the label to a new peak, if this peak is represented by a ``PeakLabel`` object on the ``ViewLabel/view``.
-///
-/// The ``fragment`` represented by the moved label will take its ``LadderFragment/scan`` from this new peak.
-/// For an label representing an ``Allele``,  the ``fragment`` will also get the name of the ``Bin`` comprising the new peak, if there is any.
-/// See the ``STRyper`` user guide for more information on the consequences of these actions.
-///
-/// **Positioning:** if the fragment that the label represents has a ``LadderFragment/scan`` ≤ 0 and is a ladder fragment, the label places itself against the top edge of its ``ViewLabel/view``, at a horizontal position corresponding to the fragment's ``LadderFragment/size``.
-///
-/// If the fragment is an allele and has a scan ≤ 0 (i.e., it is a missing allele), the label positions itself beyond the top edge of the view, at a position corresponding to the midpoint of the ``Genotype/marker``.
-///
-/// If the label represents an  allele, the ``ViewLabel/doubleClickAction:`` message spawns a text field over the label, allowing the user to change the allele ``LadderFragment/name``.
-///
-/// The ``ViewLabel/deleteAction:`` message removes a ladder size or an allele from the peak at the label.
-@interface FragmentLabel : ViewLabel <NSControlTextEditingDelegate>
+///	This label shows a rectangular text box that indicates the ``LadderFragment/size`` of the fragment or its ``LadderFragment/name`` if the fragment is an ``Allele``.
+@interface FragmentLabel : ViewLabel <NSControlTextEditingDelegate, NSTextFieldDelegate>
 
 /// Returns a label that is initialized given a fragment.
 ///
@@ -58,14 +42,61 @@
 /// The allele or ladder fragment that the label represents.
 ///
 /// ``ViewLabel/representedObject`` also returns this object.
-@property (weak, readonly) LadderFragment *fragment;
+@property (weak, nonatomic) __kindof LadderFragment *fragment;
 
-
-
-/// Internal property used to avoid collision with other labels.
+/// Repositions the ``TraceView/fragmentLabels`` of a ``TraceView`` to avoid collisions.
 ///
-/// This is used internally and should not be set by other classes
-@property (nonatomic) float _distanceToMove;
+/// This method is assumed to be called after all fragment labels of the `view` have been repositioned.
+/// It moves labels vertically, never horizontally.
+/// - Parameters:
+///   - view: The view in which labels should be repositioned.
+///   - animate: Whether labels are repositioned with animation.
++(void) avoidCollisionsInView:(TraceView *)view allowAnimation:(BOOL)animate;
 
+/**************** implementations of methods defined in the superclass *****************/
+
+/// Returns `NO`.
+///
+/// The label does not get ``ViewLabel/hovered`` and does not generate a ``ViewLabel/trackingArea``.
+- (BOOL)tracksMouse;
+
+/// Implements the ``ViewLabel/reposition`` method.
+///
+///	When not ``ViewLabel/dragged``, the label positioned itself slightly above the fluorescence curve at the location of its ``fragment`` in base pairs.
+/// If the fragment  has a ``LadderFragment/scan`` ≤ 0 and is a ladder fragment, the label places itself against the top edge of its ``ViewLabel/view``, at a horizontal position corresponding to the fragment's ``LadderFragment/size``.
+///
+/// If the fragment is an allele and has a scan ≤ 0 (i.e., it is a missing allele), the label positions itself beyond the top edge of the view, at a position corresponding to the midpoint of the ``Genotype/marker``.
+- (void)reposition;
+
+/// Implements the ``ViewLabel/drag`` method.
+///
+///	The method automatically repositions the label according to the ``LabelView/mouseLocation``.
+///	If the label is dragged close to a peak that is a suitable destination (which the method determines),
+///	the peak label takes its ``ViewLabel/hovered`` state and some magnetism locks the horizontal position of the dragged label, with haptic feedback.
+///
+///	If the label is dragged above the top edge of the view, it stops moving and pops  a `disappearingItemCursor` .
+///
+/// At the end of dragging, the ``fragment`` represented by the dragged label will take its ``LadderFragment/scan`` from the destination peak at the end of the dragging session.
+/// For an label representing an ``Allele``,  the ``fragment`` will also get the name of the ``Bin`` comprising the new peak, if any.
+/// If the label was dragged above the top edge of the view, it calls its ``deleteAction:``.
+///
+/// See the ``STRyper`` user guide for more information.
+- (void)drag;
+
+/// Implements the ``ViewLabel/doubleClickAction:``method.
+///
+/// If the label represents an  ``Allele``,  the method spawns a text field over the label, allowing the user to change the allele ``LadderFragment/name``.
+///
+/// If the label represents an  ladder fragment,  the method removes the fragment from sizing.
+/// - Parameter sender: The object that send the message. It is ignored by the method.
+- (void)doubleClickAction:(id)sender;
+
+/// Implements the ``ViewLabel/deleteAction:`` method.
+/// 
+/// If the label represents an ladder fragment, the method removes the fragment from sizing.
+///
+/// If the label represents a non-additional allele, the allele takes a scan of 0 (see ``Allele`` class for the consequences).
+/// If the label is additional, it is deleted and the receiver removed from its ``ViewLabel/view``.
+- (void)deleteAction:(id)sender;
 
 @end

@@ -37,13 +37,20 @@
 
 
 - (void)updateTrackingAreas {
+	[super updateTrackingAreas];
 	if(trackingArea) {
 		[self removeTrackingArea:trackingArea];
 	}
 	if(self.hoveredButton) {
 		trackingArea = [[NSTrackingArea alloc] initWithRect:NSInsetRect(self.visibleRect, 10, 0)		/// the tracking rectangle is slightly narrower than the visible rect,  to correspond to the tracking rectangle used to show the outline button
-													options: NSTrackingMouseEnteredAndExited | NSTrackingActiveInActiveApp owner:self userInfo:nil];
+													options: NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways owner:self userInfo:nil];
 		[self addTrackingArea:trackingArea];
+		NSPoint mouseLocation = self.window.mouseLocationOutsideOfEventStream;
+		mouseLocation = [self convertPoint:mouseLocation fromView:nil];
+		if(!NSPointInRect(mouseLocation, trackingArea.rect) && !self.hoveredButton.hidden) {
+			self.hoveredButton.hidden = YES;
+			self.needsLayout = YES;
+		}
 	}
 }
 
@@ -59,7 +66,7 @@
 
 - (void)mouseEntered:(NSEvent *)event {
 	[super mouseEntered:event];
-	if(self.isGroupRowStyle) {
+	if(self.isGroupRowStyle && event.trackingArea == trackingArea) {
 		self.hoveredButton.hidden = NO;
 		self.needsLayout = YES;
 	}
@@ -67,8 +74,11 @@
 
 
 -(void)mouseExited:(NSEvent *)event {
-	self.hoveredButton.hidden = YES;
-	self.needsLayout = YES;
+	[super mouseExited:event];
+	if(event.trackingArea == trackingArea) {
+		self.hoveredButton.hidden = YES;
+		self.needsLayout = YES;
+	}
 }
 
 

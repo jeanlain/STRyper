@@ -70,8 +70,8 @@
 }
 
 
-- (instancetype)init {
-	return [super initWithNibName:@"LeftPane" bundle:nil];
+- (NSNibName)nibName {
+	return @"LeftPane";
 }
 
 
@@ -127,9 +127,11 @@
 			_trashFolder = [NSEntityDescription insertNewObjectForEntityForName:self.entityName inManagedObjectContext:MOC];
 			_trashFolder.name = @"Trash";
 			/// we save a reference of the trash folder in the user defaults to be able to retrieve it
-			[NSUserDefaults.standardUserDefaults setObject: _trashFolder.objectID.URIRepresentation.absoluteString
-													forKey:[@"trash" stringByAppendingString:self.entityName]];
+			[_trashFolder.managedObjectContext obtainPermanentIDsForObjects:@[_trashFolder] error:nil];
 		}
+		[NSUserDefaults.standardUserDefaults setObject: _trashFolder.objectID.URIRepresentation.absoluteString
+												forKey:[@"trash" stringByAppendingString:self.entityName]];
+
 	}
 	
 	if(!self.smartFolderContainer) {
@@ -148,9 +150,11 @@
 			_smartFolderContainer = [NSEntityDescription insertNewObjectForEntityForName:entityName inManagedObjectContext:MOC];
 			_smartFolderContainer.name = @"__smartFolderContainer";
 			/// we save a reference of the trash folder in the user defaults to be able to retrieve it
-			[NSUserDefaults.standardUserDefaults setObject: _smartFolderContainer.objectID.URIRepresentation.absoluteString
-													forKey:@"smartFolderContainer"];
+			[_smartFolderContainer.managedObjectContext obtainPermanentIDsForObjects:@[_smartFolderContainer] error:nil];
 		}
+		
+		[NSUserDefaults.standardUserDefaults setObject: _smartFolderContainer.objectID.URIRepresentation.absoluteString
+												forKey:@"smartFolderContainer"];
 		
 		for(SampleFolder *folder in self.rootFolder.subfolders) {
 			if(folder.isSmartFolder) {
@@ -162,16 +166,11 @@
 
 
 -(void)setSelectedFolder:(Folder *)selectedFolder {
+
 	_selectedFolder = selectedFolder;
 	self.canImportSamples = selectedFolder != nil && !selectedFolder.isSmartFolder && selectedFolder != self.rootFolder && selectedFolder != self.trashFolder;
-}
-
-
-- (CGFloat)outlineView:(NSOutlineView *)outlineView heightOfRowByItem:(id)item {
-	if([self _folderForItem:item] == self.rootFolder) {
-		return 24.0;
-	}
-	return 24.0;
+	
+	
 }
 
 
@@ -205,6 +204,13 @@
 	}
 	
 	return [outlineView makeViewWithIdentifier:@"StandardRowView" owner:self];
+}
+
+
+- (void)outlineViewSelectionDidChange:(NSNotification *)notification {
+	[SampleTableController.sharedController recordSelectedItems];
+	[GenotypeTableController.sharedController recordSelectedItems];
+	[super outlineViewSelectionDidChange:notification];
 }
 
 
@@ -254,9 +260,7 @@
 	
 	if ([pboard.types containsObject:@"samplesDragType"]) {  /// samples are dragged from other folders
 		NSArray *draggedSamples = SampleTableController.sharedController.draggedSamples;
-		for (Chromatogram *sample in draggedSamples) {
-			sample.folder = (SampleFolder *)destination;
-		}
+		[(SampleFolder *)destination addSamples:[NSSet setWithArray:draggedSamples]];
 		[self.undoManager setActionName:@"Move Sample(s)"];
 		return YES;
 	}
@@ -271,24 +275,23 @@
 
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	BOOL response = [super validateMenuItem:menuItem];
-	if(!response) {
+	BOOL validated = [super validateMenuItem:menuItem];
+	if(!validated) {
 		return NO;
 	}
 	
 	SampleFolder *targetFolder = [self _targetFolderOfSender:menuItem];
-	if(menuItem.action == @selector(addFolder:) && [menuItem.keyEquivalent isEqualToString:@""]) {
-		/// one cannot add a subfolder to a smart folder (except for the item from the main menu,
-		/// which adds a folder at the bottom, and has a key equivalent (cmd-N)
-		menuItem.hidden = !targetFolder.parent || targetFolder.isSmartFolder || targetFolder == self.trashFolder;
+	if(menuItem.action == @selector(addFolder:) && menuItem.topMenu == outlineView.menu) {
+		/// If the menu item belongs to the contextual menu, the new folder would be added to the target folder.
+		/// This folder cannot be a root folder (which isn't clickable/selectable but we check it anyway)
+		/// and cannot be a smart folder.
+		menuItem.hidden = !targetFolder || !targetFolder.parent || targetFolder.isSmartFolder;
 		return !menuItem.hidden;
 	}
 	
 	if(menuItem.action == @selector(editSmartFolder:)) {
 		BOOL disabled = !targetFolder.isSmartFolder;
-		if(menuItem.topMenu == outlineView.menu) {
-			menuItem.hidden = disabled;
-		}
+		menuItem.hidden = disabled;
 		return !disabled;
 	}
 	
@@ -298,7 +301,7 @@
 	}
 	
 	if(menuItem.action == @selector(exportSelection:)) {
-		if(self.selectedFolder) {
+		if(targetFolder) {
 			menuItem.title = @"Export Folder…";
 			return YES;
 		} else {
@@ -584,6 +587,8 @@
 		[backgroundContext performBlock:^{
 			/// if some folders are deleted, we remove their entries from the genotype filters.
 			NSMutableDictionary *genotypeFilters = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
+			NSMutableDictionary *selectedSamples = [NSUserDefaults.standardUserDefaults dictionaryForKey:SelectedSamples].mutableCopy;
+			NSMutableDictionary *selectedGenotypes = [NSUserDefaults.standardUserDefaults dictionaryForKey:SelectedGenotypes].mutableCopy;
 			BOOL modified = NO;
 			NSError *error;
 			/// we don't set an NSProgress as it would be difficult to monitor the progress of deletion
@@ -597,12 +602,16 @@
 					if(!folder.objectID.isTemporaryID) {
 						NSString *key = folder.objectID.URIRepresentation.absoluteString;
 						[genotypeFilters removeObjectForKey:key];
+						[selectedSamples removeObjectForKey:key];
+						[selectedGenotypes removeObjectForKey:key];
 						modified = YES;
 					}
 					[backgroundContext deleteObject:folder];
 				}
 				if(modified) {
 					[NSUserDefaults.standardUserDefaults setObject:genotypeFilters forKey:GenotypeFiltersKey];
+					[NSUserDefaults.standardUserDefaults setObject:selectedSamples forKey:SelectedSamples];
+					[NSUserDefaults.standardUserDefaults setObject:selectedGenotypes forKey:SelectedGenotypes];
 				}
 				if(backgroundContext.hasChanges) {
 					[backgroundContext save:&error];
@@ -641,6 +650,7 @@
 	}];
 	
 }
+
 
 
 

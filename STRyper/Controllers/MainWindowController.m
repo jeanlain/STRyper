@@ -41,9 +41,6 @@
 	
 	/// backs the ``errorLogWindow`` property.
 	IBOutlet NSPanel *_errorLogWindow;
-	
-	/// Toolbar items for which we set tooltips.
-	NSSet<NSToolbarItem *> *toolBarItems;
 }
 
 
@@ -72,8 +69,8 @@ errorLogWindow = _errorLogWindow;
 }
 
 
-- (instancetype)init {
-	return [super initWithWindowNibName:@"MainWindow"];
+- (NSNibName)windowNibName {
+	return @"MainWindow";
 }
 
 
@@ -81,7 +78,6 @@ errorLogWindow = _errorLogWindow;
 	[super windowDidLoad];
 	NSWindow *window = self.window;
 	[window makeKeyAndOrderFront:self];
-	[window makeKeyWindow];
 	[window makeMainWindow];
 	window.acceptsMouseMovedEvents = NO;
 	
@@ -149,17 +145,7 @@ errorLogWindow = _errorLogWindow;
 		NSLog(@"failed to load the search helper.");
 		/// but we don't abort if it is absent.
 	}
-	
-	/// We store the toolbar items containing the undo/redo buttons, to set their tooltips depending an undo/redo action names
-	toolBarItems = NSSet.new;
-	for(NSToolbarItem *item in self.window.toolbar.items) {
-		if(item.action == @selector(undo:) || item.action == @selector(redo:)) {
-			toolBarItems = [toolBarItems setByAddingObject:item];
-		}
-	}
-	
 }
-
 
 
 - (NSUndoManager *)windowWillReturnUndoManager:(NSWindow *)window {
@@ -198,23 +184,12 @@ errorLogWindow = _errorLogWindow;
 		
 		/// the right pane containing the outline view showing traces and/or markers
 		DetailedViewController *detailedViewController = DetailedViewController.sharedController;
-		if(detailedViewController.view) {
-			
-			[detailedViewController.tableView bind:NSSortDescriptorsBinding toObject:SampleTableController.sharedController.samples withKeyPath:NSStringFromSelector(@selector(sortDescriptors)) options:nil];
-			
-			/// we bind the contents to show in the detailed view to the selected objects of the source controller.
-			/// The detailed view will then show the selected objects from the various sources
-			[detailedViewController bind:@"contentArray" toObject:self withKeyPath:@"sourceController.tableContent.selectedObjects" options:nil];
-
-			[detailedViewController bind:@"stackMode" toObject:NSUserDefaults.standardUserDefaults withKeyPath:TraceStackMode options:nil];
-			[detailedViewController bind:@"numberOfRowsPerWindow" toObject:NSUserDefaults.standardUserDefaults withKeyPath:TraceRowsPerWindow options:nil];
-			[detailedViewController bind:@"synchronizeViews" toObject:NSUserDefaults.standardUserDefaults withKeyPath:SynchronizeViews options:nil];
-			[detailedViewController bind:@"topFluoMode" toObject:NSUserDefaults.standardUserDefaults withKeyPath:TraceTopFluoMode options:nil];
-
+		NSView *view = detailedViewController.view;
+		if(view) {
 			NSSplitViewItem *item = [NSSplitViewItem splitViewItemWithViewController:detailedViewController];
 			item.canCollapse = YES;
 			/// we determine its minimum width based on the button shown at the bottom (which should not be clipped)
-			NSView *button = [detailedViewController.view viewWithTag:-5];
+			NSView *button = [view viewWithTag:-5];
 			float thickness = 420;
 			if(button) {
 				thickness = NSMaxX(button.frame) + 5;
@@ -222,12 +197,12 @@ errorLogWindow = _errorLogWindow;
 			item.minimumThickness = thickness;
 			item.collapseBehavior = NSSplitViewItemCollapseBehaviorPreferResizingSiblingsWithFixedSplitView;	/// this doesn't appear to work consistently as revealing the bottom pane may sometimes increase the window height while there is still space
 			[_mainSplitViewController addSplitViewItem:item];
-			
-			mainSplitView.autosaveName = [mainSplitView.identifier stringByAppendingString:@"Configuration"];
 		} else {
 			return nil;
 		}
 		
+		mainSplitView.autosaveName = [mainSplitView.identifier stringByAppendingString:@"Configuration"];
+
 	}
 	return _mainSplitViewController;
 }
@@ -236,7 +211,7 @@ errorLogWindow = _errorLogWindow;
 - (NSSplitViewController *)verticalSplitViewController {
 	if(!_verticalSplitViewController) {
 		
-		NSView *bottomPane = tabView.superview;						/// the bottom pane of the controller's split view (which contains the tab view)
+		NSView *bottomPane = tabView.superview;		/// the bottom pane of the controller's split view (which contains the tab view)
 		/// we record a reference to it, as adding its superview to the controller will clear it from the superview
 		
 		NSSplitView *midPane = (NSSplitView *)bottomPane.superview;	/// the controller's split view itself
@@ -278,6 +253,12 @@ errorLogWindow = _errorLogWindow;
 
 # pragma mark - setting the contents of the detailed outline view
 
+UserDefaultKey SourceControllerKey = @"sourceControllerKey";
+static NSString *GenotypeTableControllerKey = @"GenotypeTableControllerKey";
+static NSString *SampleTableControllerKey = @"SampleTableControllerKey";
+static NSString *MarkerTableControllerKey = @"MarkerTableControllerKey";
+static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
+
 
 - (void)setSourceController:(TableViewController *)controller {
 	/// this message in sent by a TableViewController when its table is clicked (and in other circumstances), so that its selected items show in the detailed outline view
@@ -299,7 +280,36 @@ errorLogWindow = _errorLogWindow;
 	if(activeTableView.window.firstResponder != activeTableView) {
 		[activeTableView.window makeFirstResponder:activeTableView];
 	}
+}
 
+
+-(void)recordSourceController {
+	TableViewController *sourceController = self.sourceController;
+	NSUserDefaults *standardUserDefaults = NSUserDefaults.standardUserDefaults;
+	
+	if(sourceController == GenotypeTableController.sharedController) {
+		[standardUserDefaults setObject:GenotypeTableControllerKey forKey:SourceControllerKey];
+	} else if(sourceController == SampleTableController.sharedController) {
+		[standardUserDefaults setObject:SampleTableControllerKey forKey:SourceControllerKey];
+	} else if(sourceController == MarkerTableController.sharedController) {
+		[standardUserDefaults setObject:MarkerTableControllerKey forKey:SourceControllerKey];
+	} else {
+		[standardUserDefaults setObject:NoSourceControllerKey forKey:SourceControllerKey];
+	}
+}
+
+
+-(void) restoreSelection {
+	[SampleTableController.sharedController restoreSelectedItems];
+	[GenotypeTableController.sharedController restoreSelectedItems];
+	NSString *key = [NSUserDefaults.standardUserDefaults stringForKey:SourceControllerKey];
+	if([key isEqualToString:GenotypeTableControllerKey]) {
+		self.sourceController = GenotypeTableController.sharedController;
+	} else if([key isEqualToString:SampleTableControllerKey]) {
+		self.sourceController = SampleTableController.sharedController;
+	} else if([key isEqualToString:MarkerTableControllerKey]) {
+		self.sourceController = MarkerTableController.sharedController;
+	}
 }
 
 
@@ -309,7 +319,7 @@ errorLogWindow = _errorLogWindow;
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
 
-	if(menuItem.action == @selector(deleteBackward:) || menuItem.action == @selector(rename:)) {
+	if(menuItem.action == @selector(deleteSelection:) || menuItem.action == @selector(rename:) || menuItem.action == @selector(remove:)) {
 		/// If such message reaches us, it means that no responder could handle it.
 		/// Because its title depends on the context, it is better to hide the item rather than show a disabled "Delete Sample" item, for instance.
 		menuItem.hidden = YES;
@@ -375,12 +385,17 @@ errorLogWindow = _errorLogWindow;
 }
 
 
-- (void)deleteBackward:(id)sender {
+- (void)deleteSelection:(id)sender {
 	/// We implement this only to be sent the validateMenuItem message to hide the item
 }
 
 
 - (void)rename:(id)sender {
+	/// We implement this only to be sent the validateMenuItem message to hide the item
+}
+
+
+- (void)remove:(id)sender {
 	/// We implement this only to be sent the validateMenuItem message to hide the item
 }
 
@@ -495,36 +510,27 @@ errorLogWindow = _errorLogWindow;
 	if(item.action == @selector(toggleLeftPane:)) {
 		NSToolbarItem *theItem = (NSToolbarItem *)item;
 		theItem.toolTip = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Expand left pane" : @"Collapse left pane";
-
-		/// This is not elegant, but we also use this method to update the tooltip of undo/redo toolbar items, which dont send this message (their targets is the first responder, not us).
-		/// This is still an appropriate place to update their tooltip, since this message is sent at any action affecting the window.
-		///
-		/// We do this because I see no way to call addToolTipForRect: on the button shown on an NSToolBarItem. This button is not accessible (returns nil) if it is the default one.
-		/// Using a custom button for the item would work but this button would not have the desired properties of the default button, which uses a private class.
-		/// So I don't see how to update the tooltip only when it shows (via stringForTooltip:), which would have been the desired solution. 
-		/// Alternatively, we could register to `NSUndoManagerCheckpointNotification`, but this is sent too often to my taste.
-		for(NSToolbarItem *item in toolBarItems) {
-			SEL action = item.action;
-			NSUndoManager *undoManager = self.window.firstResponder.undoManager;
-			if(action == @selector(undo:)) {
-				item.toolTip = undoManager.undoMenuItemTitle;
-			} else {
-				item.toolTip = undoManager.redoMenuItemTitle;
-			}
-		}
 	} else if(item.action == @selector(toggleRightPane:)) {
 		theItem.toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Expand detailed view" : @"Collapse detailed view";
+	} else if(theItem.action == @selector(undoAction:)) {
+		NSUndoManager *manager = self.window.firstResponder.undoManager;
+		theItem.toolTip = manager.undoMenuItemTitle;
+		return manager.canUndo;
+	} else if(theItem.action == @selector(redoAction:)) {
+		NSUndoManager *manager = self.window.firstResponder.undoManager;
+		theItem.toolTip = manager.redoMenuItemTitle;
+		return manager.canRedo;
 	}
 	return YES;
 }
 
 
--(void)undo:(id)sender {
-	/// this is only to avoid an "unknown selector" warning)
+-(IBAction)undoAction:(id)sender {
+	[self.window.firstResponder.undoManager undo];
 }
 
--(void)redo:(id)sender {
-	/// this is only to avoid an "unknown selector" warning)
+-(IBAction)redoAction:(id)sender {
+	[self.window.firstResponder.undoManager redo];
 }
 
 
@@ -573,7 +579,7 @@ errorLogWindow = _errorLogWindow;
 				} else if(reason.length < description.length && [description rangeOfString:reason].location != NSNotFound) {
 					string = description;
 				} else {
-					string = [description stringByAppendingFormat:@"\t%@", reason];
+					string = [description stringByAppendingFormat:@" %@", reason];
 				}
 			} else {
 				string = description;
@@ -582,10 +588,10 @@ errorLogWindow = _errorLogWindow;
 			string = description.length > 0 ? description : reason;
 		}
 		
-		if(!suggestion) {
-			suggestion = @"";
+		if(suggestion) {
+			string = [string stringByAppendingFormat: @" %@", suggestion];
 		}
-		string = [string stringByAppendingFormat: @"\t%@", suggestion];
+		string = [string stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
 		
 		if(![strings containsObject:string]) {
 			/// we avoid redundant error messages.

@@ -24,22 +24,28 @@
 @implementation NSManagedObjectContext (NSManagedObjectContextAdditions)
 
 - (nullable __kindof NSManagedObject *)objectForURIString:(NSString *)URIString expectedClass:(Class)class {
-	
-		if(!URIString) {
-			return nil;
-		}
+	if(URIString) {
 		NSURL *URI = [NSURL URLWithString:URIString];
-		NSManagedObjectID *ID = [self.persistentStoreCoordinator managedObjectIDForURIRepresentation:URI];
-		if(ID) {
-			NSError *error;
-			NSManagedObject *object = [self existingObjectWithID:ID error:&error];
-			if(!error && [object isKindOfClass:class]) {
-				return object;
+		if([URI.scheme isEqualToString:@"x-coredata"]) {
+			/// We use this check otherwise the method below throws an exception and causes app malfunction.
+			NSManagedObjectID *ID = [self.persistentStoreCoordinator managedObjectIDForURIRepresentation:URI];
+			if(ID) {
+				NSError *error;
+				NSManagedObject *object = [self existingObjectWithID:ID error:&error];
+				
+				if(!error) {
+					if(!class || [object isKindOfClass:class]) {
+						return object;
+					}
+				}
 			}
+		} else {
+			NSLog(@"invalid URI: %@", URIString);
 		}
-		return nil;
-
+	}
+	return nil;
 }
+
 
 -(BOOL)trySavingWithUndo {
 	NSUndoManager *undoManager = self.undoManager;
@@ -58,7 +64,6 @@
 		[self rollback];
 	}
 	return NO;
-	
 }
 
 @end

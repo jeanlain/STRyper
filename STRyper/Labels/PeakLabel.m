@@ -40,6 +40,7 @@
 
 
 @implementation PeakLabel {
+	__weak Trace *trace;					/// The trace of which the label represents a peak
 	__weak Mmarker *marker; 				/// see property with the same name
 	__weak RegionLabel *targetBinLabel;		/// the bin label that is the current target of a drag
 	NSPoint startPoint;						/// to implement dragging behavior. Position of the dragging handle fixed point
@@ -49,24 +50,13 @@
 
 #pragma mark - initialization and base attributes setting
 
-static CALayer *lineLayer;  /// The vertical line that shows that the label is hovered, at the peak tip
-							/// We use a single instance for the class as no more than one label can be hovered at a time
-
 + (void)initialize {
-	//peakArea = [NSBezierPath bezierPath];
-	
-	lineLayer = CALayer.new;
-	lineLayer.backgroundColor = NSColor.blackColor.CGColor;
-	lineLayer.opaque = YES;
-	lineLayer.zPosition = -0.3; /// so that it doesn't show above fragment labels
-	
 	dragLineLayer = CALayer.new;
 	dragLineLayer.anchorPoint = CGPointMake(0, 0);
 	dragLineLayer.contentsScale = 2.0;
 	dragLineLayer.shadowOpacity = 1.0;
 	dragLineLayer.shadowRadius = 1.0;
 	dragLineLayer.shadowOffset = CGSizeMake(0, -1);
-	
 }
 
 
@@ -79,12 +69,8 @@ static CALayer *lineLayer;  /// The vertical line that shows that the label is h
 - (instancetype)initWithPeak:(Peak)peak view:(nonnull TraceView *)view {
 	self = [super init];
 	if (self) {
-		_startScan = peak.startScan;
-		_scan = peak.scansToTip + peak.startScan;
-		_endScan = _scan + peak.scansFromTip;
-		_crossTalk = peak.crossTalk;
-		_trace = view.trace;
 		self.view = view;
+		[self setPeak:peak];
 	}
 	return self;
 }
@@ -95,59 +81,91 @@ static CALayer *lineLayer;  /// The vertical line that shows that the label is h
 }
 
 
+- (void)setPeak:(Peak)peak {
+	_startScan = peak.startScan;
+	_scan = peak.scansToTip + peak.startScan;
+	_endScan = _scan + peak.scansFromTip;
+	_crossTalk = peak.crossTalk;	
+	trace = self.view.trace;
+}
+
+
 - (float) size {
-	return [self.trace sizeForScan:self.scan];
+	return [trace sizeForScan:self.scan];
 }
 
 
 - (LadderFragment *)fragment {
-	if(_fragment && _fragment.scan == self.scan) {
-		return _fragment;
-	}
-	for (LadderFragment *peak in self.trace.fragments) {
-		if (peak.scan == self.scan) {
-			_fragment = peak;
-			return _fragment;
+	if(!_fragment || _fragment.scan != self.scan) {
+		_fragment = nil;
+		for (LadderFragment *fragment in trace.fragments) {
+			if (fragment.scan == self.scan) {
+				_fragment = fragment;
+				return _fragment;
+			}
 		}
 	}
-	_fragment = nil;
 	return _fragment;
 }
 
 
 -(nullable Mmarker *) marker {
-	if(self.trace.isLadder) {
-		return nil;
-	}
-	Chromatogram *sample = self.trace.chromatogram;
-	float size = [sample sizeForScan:self.scan];
-	for (Mmarker *marker in [sample.panel markersForChannel:self.trace.channel]) {
-		if(size >= marker.start && size <= marker.end)  {
-			return marker;
+	if(trace && !trace.isLadder) {
+		Chromatogram *sample = trace.chromatogram;
+		float size = [sample sizeForScan:self.scan];
+		for (Mmarker *marker in [sample.panel markersForChannel:trace.channel]) {
+			if(size >= marker.start && size <= marker.end)  {
+				return marker;
+			}
 		}
 	}
 	return nil;
-	
 }
 
+
+- (nullable NSMenu *)menu {
+	if(trace.isLadder) {
+		if(self.fragment) {
+			NSMenu *menu = NSMenu.new;
+			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Remove from Sizing" action:@selector(removeFragment:) keyEquivalent:@""];
+			item.target = self;
+			[menu addItem:item];
+			return menu;
+		}
+	} else if(self.marker) {
+		LadderFragment *fragment = self.fragment;
+		NSMenu *menu = NSMenu.new;
+		if(fragment) {
+			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Remove Peak" action:@selector(removeFragment:) keyEquivalent:@""];
+			item.target = self;
+			[menu addItem:item];
+		} else {
+			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Add Supplementary Peak" action:@selector(attachAdditionalFragment:) keyEquivalent:@""];
+			item.target = self;
+			[menu addItem:item];
+			return menu;
+		}
+	}
+	return nil;
+}
 
 # pragma mark - tracking area and geometry
 
 
 - (void)updateTrackingArea {
-	TraceView *view = self.view;
-	[self reposition];			/// our view doesn't reposition us during geometry change, so we reposition here. TO CHANGE ?
+	[self reposition];			/// our view doesn't reposition us during geometry change, so we reposition here.
 	[super updateTrackingArea];
 	/// This is the appropriate method to update the tooltip rect (doing it every time we reposition is unnecessary)
-	
-	if(view.showPeakTooltips && self.enabled) {
-		toolTipTag = [view addToolTipRect:self.frame owner:self userData:nil];
-	}
 }
 
 
 - (void)removeTrackingArea {
 	[super removeTrackingArea];
+	[self removeTooltip];
+}
+
+
+- (void)removeTooltip {
 	if(toolTipTag != 0) {
 		[self.view removeToolTip:toolTipTag];
 		toolTipTag = 0;
@@ -162,23 +180,28 @@ static CALayer *lineLayer;  /// The vertical line that shows that the label is h
 	}
 	float startX = round([view xForScan:self.startScan] - 0.5);
 	self.frame = NSMakeRect(startX, 0, [view xForScan:self.endScan] - startX, NSMaxY(view.bounds));
-	if(self.hovered) {
-		[self updateAppearance];
-	}
 }
 
 
 -(void)setFrame:(NSRect)frame {
 	_frame = frame;
+	if(layer) {
+		layer.bounds = frame;
+		layer.position = frame.origin;
+	}
 }
+
 
 
 # pragma mark - drawing and appearance
 
+- (BOOL)layer:(CALayer *)layer shouldInheritContentsScale:(CGFloat)newScale fromWindow:(NSWindow *)window {
+	return YES;
+}
 
 - (NSString *)description {
-	/// used for the tooltip, since -stringForToolTip is deprecated
-	BOOL noSizing = self.trace.chromatogram.sizingQuality.floatValue == 0;
+	/// used for the tooltip
+	BOOL noSizing = trace.chromatogram.sizingQuality.floatValue == 0;
 	NSString *sizeInfo = @"unavailable";
 	if(!noSizing) {
 		sizeInfo = [NSString stringWithFormat:@"%.01f bp", self.size];
@@ -193,34 +216,10 @@ static CALayer *lineLayer;  /// The vertical line that shows that the label is h
 
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == lineLayer || layer == dragLineLayer) {
+	if(layer == dragLineLayer) {
 		return NSNull.null;
 	}
 	return [super actionForLayer:layer forKey:event];
-}
-
-
-- (void)updateAppearance {
-	if(self.hovered) {
-		lineLayer.delegate = self;	/// useful to determine if we show the vertical line
-		lineLayer.hidden = NO;
-		TraceView *view = self.view;
-		float tipPos = [view xForScan:self.scan];
-		
-		lineLayer.frame = CGRectMake(tipPos, 0, 1, self.frame.size.height);
-		CALayer *viewLayer = view.layer;
-		if(lineLayer.superlayer != viewLayer) {
-			[viewLayer addSublayer:lineLayer];
-		}
-	} else {
-		if(lineLayer.delegate == self) {
-			lineLayer.hidden = YES;
-			lineLayer.delegate = nil;
-		}
-	}
-	
-	/// we don't have layers to represent ourself. So when our appearance needs to be updated, the view must draw us
-	//[self.view setNeedsDisplayInRect: NSInsetRect(self.frame, -1, -1)];
 }
 
 
@@ -349,19 +348,24 @@ static CALayer *dragLineLayer;
 		float distX = ceil(startPoint.x - handlePosition.x);
 		float x = distX < 0? startPoint.x : handlePosition.x;
 		CGRect frame = CGRectMake(x - 5, 0, fabsf(distX) + 10, view.frame.size.height);
-		dragLineLayer.frame = frame;
+		dragLineLayer.position = frame.origin;
 		dragLineLayer.bounds = frame; /// so the layer coordinates match those of its super layer (hence the trace view).
 		[dragLineLayer setNeedsDisplay];
-
+		[self.view scrollRectToVisible:frame];
 	}
 }
 
 
 - (void)setHovered:(BOOL)hovered {
-	if(self.dragged && !hovered) {
-		return;				/// a peak label that is dragged keeps its hovered state
+	if((hovered != _hovered || (hovered && toolTipTag == 0)) && !(self.dragged && !hovered)) {
+		/// a peak label that is dragged keeps its hovered state
+		_hovered = hovered;
+		TraceView *view = self.view;
+		[view labelDidChangeHoveredState:self];
+		if(toolTipTag == 0 && hovered && view.showPeakTooltips) {
+			toolTipTag = [view addToolTipRect:self.frame owner:self userData:nil];
+		}
 	}
-	[super setHovered:hovered];
 }
 
 
@@ -370,24 +374,33 @@ static CALayer *dragLineLayer;
 		TraceView *view = self.view;
 		NSPoint mouseLocation = view.mouseLocation;
 		if(dragged) {
-			if(!self.dragged) {
-				if(view.binLabels.count == 0 || !view.showDisabledBins) {
-					/// The user would do nothing with the handle if there is no bin.
-					return;
-				}
-				/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
-				/// This avoids assigning the peak to an allele for what could be a simple click.
-				NSPoint clickedPoint = view.clickedPoint;
-				float dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
-				if(dist < 5) {
-					return;
-				}
-			}
-			marker = self.marker;
-			if(marker.bins.count == 0) {
-				/// we don't do the drag behavior the peak is not within a marker or the marker has no bin
+			if(!view.showDisabledBins) {
+				/// The user would do nothing with the handle if there is no bin.
 				return;
 			}
+						
+			/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
+			/// This avoids assigning the peak to an allele for what could be a simple click.
+			NSPoint clickedPoint = view.clickedPoint;
+			float dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
+			if(dist < 5) {
+				return;
+			}
+			
+			marker = self.marker;
+			if(marker.bins.count == 0) {
+				return;
+			}
+			
+			for(RegionLabel *markerLabel in view.markerLabels) {
+				if(markerLabel.region == marker) {
+					if(markerLabel.binLabels.count == 0) {
+						return;
+					}
+					break;
+				}
+			}
+
 			/// we set the start point of the drag line, which we place horizontally at the peak tip (and vertically where the mouse was clicked)
 			startPoint = self.view.clickedPoint;
 			startPoint.y -=2;	/// this makes the handle closer to the cursor arrow tip
@@ -401,55 +414,66 @@ static CALayer *dragLineLayer;
 				self.hovered = NO;
 			}
 			[dragLineLayer setNeedsDisplay]; /// this clears the layer
-			[self attachAlleleWithBin:targetBinLabel.region];
+			if(NSPointInRect(mouseLocation, view.bounds)) {
+				[self attachAllelesWithBin:targetBinLabel.region];
+			}
 		}
 		_dragged = dragged;
 	}
 }
 
 
-/// Names an allele after a bin and give it our scan.
-/// Bin can be nil, in which case the allele gets the "out of bin" name
-/// This does not create a new allele, as the ploidy is fixed. We rename an move (attach) an existing allele if necessary.
--(void) attachAlleleWithBin:(Bin *)bin {
-															
+/// Names alleles that are at our peak after a bin.
+///
+/// The method may move alleles at our peak (give them the peak scan) before naming them.
+///
+/// - Parameter bin: The bin to use for naming. If `nil`, alleles get the "non-binned" name, or no name if the marker has no bins.
+-(void) attachAllelesWithBin:(nullable Bin *)bin {
+	Mmarker *marker = bin.marker? bin.marker : self.marker;
 	NSString *name = bin.name;
-	if(!name) {
+	if(!name && marker.bins.count > 0) {
 		name = [NSUserDefaults.standardUserDefaults stringForKey:DubiousAlleleName];
-	}
-	if(!name) {
-		name = @"?";
+		if(!name) {
+			name = @"?";
+		}
 	}
 	
-	int scan = self.scan;
-	/// we find a suitable allele, which will be the one closest to our position (which would be the allele we already have, if any)
-	Mmarker *marker = bin.marker? bin.marker : self.marker;
-	Genotype *genotype = [self.trace.chromatogram genotypeForMarker:marker];
+	Genotype *genotype = [trace.chromatogram genotypeForMarker:marker];
 	if(genotype) {
-		Allele *closestAllele = nil;
-		/// we also the distance between the allele scan and our scan (used below).
-		int minDist = INT_MAX;
-		for(Allele *allele in genotype.alleles) {
-			int32_t alleleScan = allele.scan;
-			if(alleleScan <= 0 || alleleScan == scan) {
-				/// if there is an allele available (not used) we give it our scan. We may do this for all alleles available, creating a homozygote.
-				/// we do the same for alleles that are at our scan (and which we represent)
-				allele.scan = scan;  	/// we give our scan position to the allele
-				allele.name = name;
-				self.fragment = allele;
-			} else {
-				if(abs(alleleScan - scan) < minDist) {
-					minDist = abs(alleleScan - scan);
-					closestAllele = allele;
+		/// Every fragment at our peak scan (including our fragment, if any) will be named after the bin.
+		int scan = self.scan;
+		NSSet *allelesWeTake;
+		if(self.fragment.additional) {
+			allelesWeTake = [genotype.additionalFragments filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Allele *allele, NSDictionary<NSString *,id> * _Nullable bindings) {
+				return allele.scan == scan;
+			}]];
+		} else {
+			/// If we don't host an additional fragment (could be no fragment at all), we also take all unused alleles (of scan 0)
+			allelesWeTake = [genotype.assignedAlleles filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Allele *allele, NSDictionary<NSString *,id> * _Nullable bindings) {
+				return allele.scan <= 0 || allele.scan == scan;
+			}]];
+			if(allelesWeTake.count == 0) { /// If there is no such allele, we take the used allele that is closest to our peak.
+				Allele *closestAllele;
+				int minDist = INT_MAX;
+				for(Allele *allele in genotype.assignedAlleles) {
+					int alleleScan = allele.scan;
+					if(abs(alleleScan - scan) < minDist) {
+						minDist = abs(alleleScan - scan);
+						closestAllele = allele;
+					}
 				}
+				allelesWeTake = [NSSet setWithObject:closestAllele];
 			}
 		}
-		if(!self.fragment && closestAllele) {
-			/// If no allele is available or at our scan, we choose the one that is closest to our scan.
-			closestAllele.name = name;
-			closestAllele.scan = scan;
-			self.fragment = closestAllele;
+		
+		for(Allele *allele in allelesWeTake) {
+			if(!self.fragment) {
+				self.fragment = allele;
+			}
+			allele.scan = scan;
+			allele.name = name;
 		}
+			
 		genotype.status = genotypeStatusManual;
 		[self.view.undoManager setActionName:@"Edit Genotype"];
 	}
@@ -457,80 +481,107 @@ static CALayer *dragLineLayer;
 
 
 /// draws the handle during drag
-- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
+- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)context {
 	if(layer == dragLineLayer) {
 		if(!self.dragged) {
 			/// This removes the handle after being dragged
 			return;
 		}
-		NSGraphicsContext *nsGraphicsContext;
-		nsGraphicsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx
-																	flipped:NO];
-		[NSGraphicsContext saveGraphicsState];
-		NSGraphicsContext.currentContext = nsGraphicsContext;
-		
-		[NSColor.grayColor set];
+		CGContextSetStrokeColorWithColor(context, NSColor.grayColor.CGColor);
+		CGContextSetFillColorWithColor(context, NSColor.grayColor.CGColor);
+
 		NSPoint start = startPoint;
-		NSRect origin = NSMakeRect(start.x-3,start.y -3, 6, 6);
+		CGRect origin = CGRectMake(start.x-4,start.y -4, 8, 8);
 		
-		NSPoint point2 = handlePosition;
-		float maxY = NSMaxY(self.view.frame) -3;
-		if(point2.y > maxY) {
-			point2.y = maxY;
-		} else if(point2.y < 2) {
-			point2.y = 2;
+		NSPoint endPoint = handlePosition;
+		float maxY = NSMaxY(self.view.bounds) -18;
+		if(endPoint.y > maxY) {
+			endPoint.y = maxY;
+		} else if(endPoint.y < 2) {
+			endPoint.y = 2;
 		}
-		point2.y += 2;
+		endPoint.y += 2;
 				
-		NSRect current = NSMakeRect(point2.x-3, point2.y-3, 6, 6);
+		CGRect current = CGRectMake(endPoint.x-4, endPoint.y-4, 8, 8);
 		
-		NSBezierPath *thePath = [NSBezierPath bezierPathWithOvalInRect:origin];
-		[thePath fill];
+		CGContextFillEllipseInRect(context, origin);
 		
-		thePath = [NSBezierPath bezierPathWithOvalInRect:current];
-		[thePath fill];
+		CGContextFillEllipseInRect(context, current);
 		
-		[NSBezierPath strokeLineFromPoint:start toPoint:point2];
+		CGContextSetLineWidth(context, 1.5);
 		
-		[NSGraphicsContext restoreGraphicsState];
+		CGPoint points[] = {start, endPoint};
+		CGContextStrokeLineSegments(context, points, 2);
+		
 	}
 }
 
 
 # pragma mark - other
 
-/// Removes the allele(s) at our scan.
-- (void)removeAllele:(id)sender {
-	Allele *ourAllele = (Allele*)self.fragment;
-	for(Allele *allele in ourAllele.genotype.alleles) {
-		if(allele.scan == self.scan) {
-			/// We remove any allele at our scan (ours included). We assume that the user wants to remove all alleles at the peak
-			allele.scan = 0;
-		} else {
-			/// if there is another allele, we use its values to make a homozygote
-			ourAllele.scan = allele.scan;
-			ourAllele.name = allele.name;
+-(void)attachAdditionalFragment:(id)sender {
+	Mmarker *marker = self.marker;
+	if(marker) {
+		Genotype *genotype =  [trace.chromatogram genotypeForMarker:marker];
+		if(genotype) {
+			Allele *newFragment = [[Allele alloc] initWithGenotype:genotype additional:YES];
+			if(newFragment) {
+				newFragment.scan = self.scan;
+				[newFragment findNameFromBins];
+				genotype.status = genotypeStatusManual;
+				[self.view.undoManager setActionName:@"Add Supplementary Peak"];
+			}
 		}
 	}
-	self.fragment = nil;
-	if(ourAllele.genotype) {
-		ourAllele.genotype.status = genotypeStatusManual;
+}
+
+
+/// Removes the fragments(s) at our scan.
+- (void)removeFragment:(id)sender {
+	LadderFragment *ourFragment = self.fragment;
+	if(!ourFragment) {
+		return;
 	}
-	[self.view.undoManager setActionName:@"Edit Genotype"];
+	if(trace.isLadder) {
+		/// If we have a ladder fragment, we remove it from sizing.
+		ourFragment.scan = 0;
+		[trace.chromatogram computeFitting];
+		[self.view.undoManager setActionName:@"Remove Ladder Size"];
+	} else {
+		Allele *ourAllele = (Allele *)ourFragment;
+		Genotype *genotype = ourAllele.genotype;
+		for(Allele *allele in genotype.alleles.copy) {
+			if(allele.scan == self.scan) {
+				/// We remove any fragments at our scan (ours included). We assume that the user wants to remove all alleles at the peak
+				if(allele.additional) {
+					[allele removeFromGenotypeAndDelete];
+				} else {
+					allele.scan = 0;
+				}
+			} else if(!ourAllele.additional && !allele.additional) {
+				/// If there is another valid allele at the genotype, we make a homozygote with our allele
+				ourAllele.scan = allele.scan;
+				ourAllele.name = allele.name;
+				break;
+			 }
+		 }
+		genotype.status = genotypeStatusManual;
+		[self.view.undoManager setActionName:@"Edit Genotype"];
+	}
+	
+	self.fragment = nil;
 }
 
 
 /// Allows the user to assign/detach an allele to the peak we represent
 - (void)doubleClickAction:(id)sender {
 	Mmarker *marker = self.marker;
-	if(self.trace.isLadder || !marker) {
-		return;
-	}
-	if(self.fragment) {
-		/// if we already have an allele at our peak, we remove it
-		[self removeAllele:sender];
-	} else {
-		/// else we find an an allele (or alleles) to add to our peak
+	LadderFragment *fragment = self.fragment;
+	if(fragment) {
+		/// if we have an fragment at our peak, we remove it
+		[self removeFragment:sender];
+	} else if(marker) {
+		/// else if we are in a marker range, we find an an allele (or alleles) to add to our peak
 		Bin *ourBin;		/// we attach it to the bin at our position, if any
 		float ourSize = self.size;
 		for(Bin *bin in marker.bins) {
@@ -539,7 +590,7 @@ static CALayer *dragLineLayer;
 				break;
 			}
 		}
-		[self attachAlleleWithBin:ourBin];
+		[self attachAllelesWithBin:ourBin];
 	}
 }
 

@@ -39,7 +39,7 @@
 /// Either way, the table is (generally) updated only when the managed object context commits changes (so as to avoid updating the table too early)
 
 
-NSString * _Nonnull const FolderDragType = @"org.jpeccoud.stryper.folderDragType";
+NSPasteboardType _Nonnull const FolderDragType = @"org.jpeccoud.stryper.folderDragType";
 
 /// to describe a type of change applied to a folder and to update the view with animation accordingly, we use a dictionary with these keys
 typedef NSString *const FolderChangeKey;
@@ -162,6 +162,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 			Folder *folder = [NSEntityDescription insertNewObjectForEntityForName:entityName inManagedObjectContext:MOC];
 			folder.parent = self.rootFolder;
 			[folder autoName];
+			[_rootFolder.managedObjectContext obtainPermanentIDsForObjects:@[_rootFolder] error:nil];
 		}
 		/// we save a reference of the root folder in the user defaults for quick retrieval
 		[NSUserDefaults.standardUserDefaults setObject: self.rootFolder.objectID.URIRepresentation.absoluteString
@@ -211,7 +212,11 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
 	if(context == trashContentChangedContext) {
-		self.trashContentChanged = YES;
+		if(self.trashFolder.managedObjectContext.hasChanges) {
+			/// The message may be sent when the samples of the trash are accessed at the start of the app
+			/// although no sample was put in the trash
+			self.trashContentChanged = YES;
+		}
 	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 }
 
@@ -391,7 +396,8 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	[NSAnimationContext beginGrouping];
 	[outlineView beginUpdates];
 	if(folderWasMoved) {
-		if(sourceExpanded || destinationExpanded) {		/// if the source and destination folders are collapsed, we don't need to move the row
+		if(sourceExpanded || destinationExpanded) {		
+			/// We only need to move the row of the source and destinations aren't collapsed.
 			[outlineView moveItemAtIndex:sourceIndex inParent:source toIndex:destinationIndex inParent:destination];
 		}
 		[outlineView reloadItem:destination];
@@ -399,6 +405,19 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		[outlineView insertItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideDown];
 		[outlineView expandItem:source];
 	} else if(folderWasDeleted) {
+		/// On macOS 14, removing the row can cause a freeze if its text field is currently edited.
+		/// This can occur if the user undoes the addition of a folder since the name of a new folder is selected on the view.
+		/// To avoid this, we abord editing.
+
+		NSUInteger rowToRemove = [outlineView rowForItem:target];
+		NSTableRowView *rowView = [outlineView rowViewAtRow:rowToRemove makeIfNecessary:NO];
+		if(rowView) {
+			for (NSTableCellView *cellView in rowView.subviews) {
+				if([cellView respondsToSelector:@selector(textField)] && cellView.textField.isEditable) {
+					[cellView.textField abortEditing];
+				}
+			}
+		}
 		[outlineView removeItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideUp];
 	}
 	if(folderWasAdded && !hasSubfolders && self.hasSubfolders && source.parent) {		
@@ -460,6 +479,16 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	}
 	self.shouldQueryFolderNames = NO;
 }
+
+
+- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
+	Folder *folder = [outlineView itemAtRow:row];
+	if(folder) {
+		return [@"Rename " stringByAppendingString:folder.folderType];
+	}
+	return nil;
+}
+
 
 # pragma mark - datasource and delegate methods for the outline view
 
@@ -523,8 +552,11 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	NSTableCellView *view = [outlineView makeViewWithIdentifier:@"mainCell" owner:self];
 	if(view.imageView) {
 		view.imageView.image = [NSImage imageNamed:folder.folderType];
-		
 	}
+	if(view.textField) {
+		view.textField.delegate = (id)self;
+	}
+	
 	return view;
 }
 
@@ -619,8 +651,8 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	}
 }
 
-
-- (void)restoreSelectedFolder {				/// selects the folder that was selected when the app was terminated
+/// selects the folder that was selected when the app was terminated
+- (void)restoreSelectedFolder {
 	NSString *uri = [NSUserDefaults.standardUserDefaults valueForKey:[@"selected" stringByAppendingString:self.entityName]];
 	Folder *folder = [self.managedObjectContext  objectForURIString:uri expectedClass:Folder.class];
 	if(folder) {
@@ -794,17 +826,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 }
 
 
-- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	BOOL response = [super validateMenuItem:menuItem];
-	if(!response) {
-		return NO;
-	}
-	Folder *targetFolder = [self _targetFolderOfSender:menuItem];
-	BOOL hide = targetFolder.parent == nil;
-	menuItem.hidden = hide;
-	return !hide;
-}
-
 
 - (NSString *)removeActionTitleForItems:(NSArray *)items {
 	Folder *folder = items.firstObject;
@@ -846,9 +867,8 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 	Folder *parentFolder = self.rootFolder;
 	
-	if(outlineView.clickedRow >=0) {
-		/// it a folder is right-clicked, we add a new subfolder (or pane) as a last child
-		parentFolder = [self _folderForItem:[outlineView itemAtRow:outlineView.clickedRow]];
+	if([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == outlineView.menu) {
+		parentFolder = [self _targetFolderOfSender:sender];
 	}
 	
 	if(!parentFolder || parentFolder == self.trashFolder) {
@@ -897,9 +917,9 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 /// we use it to avoid replicating code, as adding a smart folder involves a completion handler, while adding other folder types does not
 -(void)finishAddingFolder:(Folder *)folder {
 	if(folder) {
-		[self.undoManager setActionName:[@"New " stringByAppendingString: folder.folderType]];
 		[self _addFolderToTable:folder]; /// we add the folder directly as we want to select the item name
 		[self selectItemName:folder];
+		[self.undoManager setActionName:[@"New " stringByAppendingString: folder.folderType]];
 	}
 
 }

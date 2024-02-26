@@ -41,12 +41,12 @@ typedef enum elementType: int16_t {
 } elementType;
 
 static const int entrySize = 20; 	/// the size of a DirentryEntry in bytes
-static const int headerSize = 34;  /// the size of an ABIF file header in bytes  */
+static const int headerSize = 34;   /// the size of an ABIF file header in bytes
 								   
 								   
 
 +(NSDictionary *)dictionaryWithABIFile:(NSString *)path itemsToImport:(NSDictionary *)itemsToImport error:(NSError **)error {
-	NSString *corruptFileString = [NSString stringWithFormat:@"File '%@' was not imported because it is corrupt.", path];
+	NSString *corruptFileString = [NSString stringWithFormat:@"File '%@' is corrupt.", path];
 	
 	NSError *readError = nil;
 	NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath: path error:&readError];
@@ -60,7 +60,7 @@ static const int headerSize = 34;  /// the size of an ABIF file header in bytes 
 	if( [attributes fileSize] > 1e7) {
 		/// We avoid reading a file that is too big
 		if (error != NULL){
-			NSString *description = [NSString stringWithFormat:@"File '%@' was not imported because it is too large.", path];
+			NSString *description = [NSString stringWithFormat:@"File '%@' is too large.", path];
 			*error = [NSError errorWithDomain:STRyperErrorDomain
 										 code:NSFileReadTooLargeError
 									 userInfo:@{
@@ -97,7 +97,7 @@ static const int headerSize = 34;  /// the size of an ABIF file header in bytes 
 		if (error != NULL) {
 			NSString *code = [[NSString alloc] initWithBytes:fileBytes length:4 encoding:NSASCIIStringEncoding];
 			NSString *reason = [NSString stringWithFormat:@"Header '%@' does not correspond to expected header 'ABIF'.", code];
-			*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File '%@' was not imported because it was not recognized as a chromatogram file.", path]
+			*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File '%@' is not recognized as a chromatogram file.", path]
 												suggestion:@""
 												  filePath:path
 													reason:reason];
@@ -111,7 +111,7 @@ static const int headerSize = 34;  /// the size of an ABIF file header in bytes 
 		/// 4.00 is arbitrary. Specs of version ≥ 1.0x are not public, there is no guaranty to import the file correctly.
 		if (error != NULL) {
 			NSString *reason = [NSString stringWithFormat:@"File version %.01f is unsupported (min supported: 1.00, max supported: 4.00)", (float)version/100];
-			*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File '%@' was not imported because it the ABIF version is not supported by this application.", path]
+			*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File '%@' ABIF version is not supported by this application.", path]
 												suggestion:@""
 												  filePath:path
 													reason:reason];
@@ -172,7 +172,7 @@ static const int headerSize = 34;  /// the size of an ABIF file header in bytes 
 
 
 /// Converts an ABIF directory entry from big endian to native endian
-/// - Parameter entry: The entry to converts.
+/// - Parameter entry: The entry to convert.
 DirEntry nativeEndianEntry(DirEntry entry) {
 	entry.itemNumber = EndianS32_BtoN(entry.itemNumber);
 	entry.elementType = EndianS16_BtoN(entry.elementType);
@@ -192,7 +192,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 /// - Parameters:
 ///   - entry: The directory entry that points to the item.
 ///   - fileData: The data containing bytes of the ABIF file.
-///   - try: Tells wether the method should try to find an equivalent item at another entry if this entry does not point to decodable data
+///   - try: Tells wether the method should try to find an equivalent item at another entry if this entry does not point to decodable data.
 + (nullable id)objectForDirEntry:(DirEntry) entry withABIFData:(NSData *)fileData try:(BOOL)try {
 																						  
 	DirEntry nativeEntry = nativeEndianEntry(entry);
@@ -296,7 +296,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 
 
 /// Finds an returns object based on a directory entry, using its itemName and itemNumber (and not the offset).
-/// Returns nil if no suitable object could be found.
+/// Returns `nil` if no suitable object could be found.
 /// - Parameters:
 ///   - entry: The entry describing the object.
 ///   - fileData: The data containing the ABIF file.

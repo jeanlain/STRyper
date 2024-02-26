@@ -37,6 +37,7 @@
 	NSMutableArray<NSMutableDictionary *> *sortDictionaries;
 	NSMutableDictionary *titlesForSortKeys;						/// makes the correspondence between columns titles used for sorting and sort keys in the generated sort descriptors.
 	NSMutableDictionary *sortKeysForTitles;
+	NSMutableDictionary *selectorNamesForSortKeys;
 	NSInteger draggedRow;										/// the index of the row being dragged
 }
 
@@ -89,10 +90,10 @@ static NSString *const ascendingOrder = @"ascending";
 static NSString *const Title = @"title";
 
 
-- (void)setTitles:(NSArray<NSString *> *)titles forKeyPaths:(NSArray<NSString *> *)keypaths {
+- (void)configureWithKeyPaths:(NSArray<NSString *> *)keypaths selectorNames:(NSArray<NSString *> *)selectorNames titles:(NSArray<NSString *> *)titles {
 	NSUInteger count = titles.count;
-	if(count != keypaths.count) {
-		NSException *exception = [NSException exceptionWithName:@"Editor configuration exception." reason:@"Cannot configure the editor. The titles and keypaths have different counts." userInfo:nil];
+	if(count != keypaths.count || (selectorNames && selectorNames.count != count)) {
+		NSException *exception = [NSException exceptionWithName:@"Editor configuration exception." reason:@"Cannot configure the editor. The titles, keypaths and selector names have different counts." userInfo:nil];
 		[exception raise];
 		return;
 	}
@@ -107,10 +108,13 @@ static NSString *const Title = @"title";
 	
 	titlesForSortKeys = [NSMutableDictionary dictionaryWithCapacity:count];
 	sortKeysForTitles = [NSMutableDictionary dictionaryWithCapacity:count];
-
+	selectorNamesForSortKeys = [NSMutableDictionary dictionaryWithCapacity:count];
 	
 	for(NSUInteger index = 0; index < titles.count; index++) {
 		titlesForSortKeys[keypaths[index]] = titles[index];
+		if(selectorNames) {
+			selectorNamesForSortKeys[keypaths[index]] = selectorNames[index];
+		}
 		sortKeysForTitles[titles[index]] = keypaths[index];
 	}
 }
@@ -144,8 +148,15 @@ static NSString *const Title = @"title";
 	NSMutableArray *sortDescriptors = [NSMutableArray arrayWithCapacity:sortDictionaries.count];
 		for(NSDictionary *dic in sortDictionaries) {
 			NSString *key = sortKeysForTitles[dic[Title]];
+			NSString *selectorName = selectorNamesForSortKeys[key];
+			if(!selectorName) {
+				selectorName = NSStringFromSelector(@selector(compare:));
+			}
+			BOOL ascending = [dic[ascendingOrder] boolValue];
 			if(key) {
-				NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:key ascending:[dic[ascendingOrder] boolValue]];
+				NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:key
+																			 ascending:ascending
+																			  selector:NSSelectorFromString(selectorName)];
 				[sortDescriptors addObject:descriptor];
 			}
 		}

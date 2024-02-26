@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "show offscale light.pdf",
+      "filename" : "show offscale on light.pdf",
       "idiom" : "mac"
     },
     {
@@ -11,7 +11,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "show offscale dark.pdf",
+      "filename" : "show offscale on dark.pdf",
       "idiom" : "mac"
     }
   ],

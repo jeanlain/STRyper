@@ -20,6 +20,8 @@
 
 
 #import "TableViewController.h"
+#import "AppDelegate.h"
+
 NS_ASSUME_NONNULL_BEGIN
 
 /// A singleton class that manages a tableview listing genotypes (``Genotype`` objects).
@@ -34,7 +36,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSArrayController *genotypes;
 
 /// A  key to the user default that allows access to the genotype filters applied to folders
-extern NSString* const GenotypeFiltersKey;
+extern UserDefaultKey GenotypeFiltersKey;
+
+/// A  key to the user default that allows recording the selected genotype in each folder
+extern UserDefaultKey SelectedGenotypes;
 
 @end
 

@@ -27,14 +27,6 @@
 
 @implementation LabelView
 
-static NSArray *defaultColorsForChannels;
-
-
-+ (void)initialize {
-		defaultColorsForChannels = @[[NSColor colorWithCalibratedRed:0.1 green:0.1 blue:1 alpha:1],
-									 [NSColor colorWithCalibratedRed:0 green:0.7 blue:0 alpha:1],
-				   NSColor.darkGrayColor, NSColor.redColor, NSColor.orangeColor];
-}
 
 
 - (instancetype)initWithCoder:(NSCoder *)coder {
@@ -42,7 +34,7 @@ static NSArray *defaultColorsForChannels;
 	if (self && !trackingArea) {
 		self.wantsLayer = YES;
 		trackingArea = [[NSTrackingArea alloc] initWithRect:self.visibleRect
-													options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingCursorUpdate |
+													options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
 															  NSTrackingActiveInActiveApp | NSTrackingInVisibleRect)
 													  owner:self userInfo:nil];
 		[self addTrackingArea:trackingArea];
@@ -56,7 +48,7 @@ static NSArray *defaultColorsForChannels;
 	if (self) {
 		self.wantsLayer = YES;
 		trackingArea = [[NSTrackingArea alloc] initWithRect:self.visibleRect
-													options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingCursorUpdate |
+													options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
 															  NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect)
 													  owner:self userInfo:nil];
 		[self addTrackingArea:trackingArea];
@@ -80,6 +72,7 @@ static NSArray *defaultColorsForChannels;
 
 - (void)mouseEntered:(NSEvent *)event {
 	mouseIn = YES;
+	[self updateCursor];
 }
 
 
@@ -112,7 +105,7 @@ static NSArray *defaultColorsForChannels;
 - (void)mouseUp:(NSEvent *)event {
 	draggedLabel = nil;
 	self.mouseUpPoint = [self convertPoint:event.locationInWindow fromView:nil];
-	[self updateTrackingAreas];
+//	[self updateTrackingAreas];
 
 	/// if the user has double-clicked a label
 	ViewLabel *activeLabel = self.activeLabel;
@@ -125,8 +118,6 @@ static NSArray *defaultColorsForChannels;
 - (void)rightMouseUp:(NSEvent *)event {
 	self.mouseUpPoint =  [self convertPoint:event.locationInWindow fromView:nil];
 }
-
-
 
 
 - (NSMenu *)menuForEvent:(NSEvent *)event {
@@ -165,7 +156,10 @@ static NSArray *defaultColorsForChannels;
 
 
 - (void)cursorUpdate:(NSEvent *)event {
-	[self updateCursor];
+	if(!self.isMoving) {
+		/// This message tends to be sent whenever the view is scrolling, which seems a waste of resources.
+		[self updateCursor];
+	}
 }
 
 
@@ -195,32 +189,105 @@ static NSArray *defaultColorsForChannels;
 }
 
 
-- (void)setFrameSize:(NSSize)newSize {
-	if(!NSEqualSizes(self.frame.size, newSize)) {
-		[super setFrameSize:newSize];
-		if(self.hidden) {
-			return;
-		}
-		/// we determine if the view is resized via animation. If so, we reposition labels immediately.
-		/// If we do during -layout, their movements don't follow the animation nicely.
-		if(NSAnimationContext.currentContext.allowsImplicitAnimation) {
-			[self repositionLabels:self.repositionableLabels allowAnimation:YES];
-		} else {
-			self.needsLayoutLabels = YES;
-		}
-	}
-}
-
-
 - (void)layout {
-	[super layout];  /// Apple say it is required, but it doesn't appear to be the case here, possibly because the view doesn't have subviews
+	[super layout];  /// Apple say it is required.
 	if(self.needsLayoutLabels) {
 		[self repositionLabels:self.repositionableLabels allowAnimation:NO];
 	}
 }
 
+# pragma mark - validation and undo
+
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	if(draggedLabel) {
+		/// We forbid any action sent by a menu (via keyboard shortcut) while a label is being dragged
+		/// In particular, we disable undo/redo.
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(deleteSelection:)) {
+		NSString *title = self.activeLabel.deleteActionTitle;
+		if(title) {
+			menuItem.title = title;
+			menuItem.hidden = NO;				/// because the delete menu is hidden by default
+			return YES;
+		}
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(undo:) || menuItem.action == @selector(redo:)) {
+		/// The window itself is apparently the object that validates the undo/redo menu items.
+		return [self.window validateMenuItem:menuItem];
+	}
+	
+	return YES;
+}
+
+-(void)undo:(id)sender {
+	/// To disable undo/redo menu while a label is dragged, we need to implement this method, otherwise validation will not be asked to us.
+	///
+	/// For reasons I can't understand, no AppKit class implements undo:, even though it is the action of the undo menu item
+	/// which NSWindow is able to validate. No one can manage the message. We have to implement it.
+	[self.undoManager undo];
+}
+
+-(void)redo:(id)sender {
+	[self.undoManager redo];
+}
 
 # pragma mark - labels
+
+
+- (NSArray<RegionLabel *> *)regionLabelsForRegions:(NSArray<Region *> *)regions reuseLabels:(NSArray<RegionLabel *> *)labels {
+	
+	if(regions.count == 0) {
+		return NSArray.new;
+	}
+	
+	if(labels.count == 0) {
+		NSMutableArray *newLabels = [NSMutableArray arrayWithCapacity:regions.count ];
+		for(Region *region in regions) {
+			RegionLabel *label = [RegionLabel regionLabelWithRegion:region view:self];
+			[newLabels addObject:label];
+		}
+		return [NSArray arrayWithArray:newLabels];
+	}
+	
+	NSArray *reusedAsIsLabels = [labels filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(RegionLabel *label, NSDictionary<NSString *,id> * _Nullable bindings) {
+		return [regions indexOfObjectIdenticalTo:label.region] != NSNotFound;
+	}]];
+	NSInteger reusedCounts = reusedAsIsLabels.count;
+	if(reusedCounts < regions.count) {
+		NSArray *regionsWithLabels = [reusedAsIsLabels valueForKeyPath:@"@unionOfObjects.region"];
+		NSArray *otherLabels;
+		if(reusedCounts < labels.count) {
+			otherLabels = reusedCounts == 0? labels : [labels arrayByRemovingObjectsIdenticalInArray:reusedAsIsLabels];
+		}
+		
+		NSMutableArray *newLabels = [NSMutableArray arrayWithCapacity:regions.count - reusedCounts];
+		NSInteger reassignedLabelsCount = 0;
+		NSInteger otherLabelsCount = otherLabels.count;
+		for(Region *region in regions) {
+			if([regionsWithLabels indexOfObjectIdenticalTo:region] == NSNotFound) {
+				RegionLabel *regionLabel;
+				if(reassignedLabelsCount < otherLabelsCount) {
+					regionLabel = otherLabels[reassignedLabelsCount];
+					regionLabel.animated = NO;
+					regionLabel.region = region;
+					regionLabel.animated = YES;
+					reassignedLabelsCount++;
+				} else {
+					regionLabel = [RegionLabel regionLabelWithRegion:region view:self];
+				}
+				[newLabels addObject:regionLabel];
+			}
+		}
+		reusedAsIsLabels = [reusedAsIsLabels arrayByAddingObjectsFromArray:newLabels];
+	}
+	return reusedAsIsLabels;
+}
+
 
 - (void)repositionLabels:(NSArray *)labels allowAnimation:(BOOL)allowAnimate {
 	if(self.hScale > 0.0 && !self.hidden) {
@@ -274,8 +341,6 @@ static NSArray *defaultColorsForChannels;
 		self.needsDisplay = YES;
 	}
 }
-
-
 
 
 - (void)labelDidChangeEnabledState:(ViewLabel *)label {
@@ -358,57 +423,41 @@ static NSArray *defaultColorsForChannels;
 			[marker createGenotypesWithAlleleName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
 		}
 		
-		/// as the label is already present and the region will appear in the view context, we tell us to not recreate region labels (which our subclasses do normally)
-		/// this will help to maintain the highlighted state of the label
-		doNotCreateLabels = YES;
-		BOOL saved = NO;
 		if(temporaryContext.hasChanges) {
-			saved = [region.managedObjectContext save:nil];
-		}
-
-		doNotCreateLabels = NO;
-		if(saved) {
-			/// we need to materialize the region in the view context, to attach it to the label.
-			Region *theRegion = [self.panel.managedObjectContext objectWithID:region.objectID];
-			if(theRegion.objectID.isTemporaryID) {
-				[theRegion.managedObjectContext obtainPermanentIDsForObjects:@[theRegion] error:nil];
+			NSError *error;
+			[region.managedObjectContext save:&error];
+			NSManagedObjectContext *MOC = self.panel.managedObjectContext;
+			if(!error && MOC.hasChanges && [MOC save:nil]) {
+				/// saving is important as the label verifies if the region has a permanent object ID at some point.
+				[self.undoManager setActionName:[@"Add " stringByAppendingString:region.entity.name]];
+			} else {
+				NSString *description = [NSString stringWithFormat:@"The %@ could not be added because of an error in the database", region.entity.name.lowercaseString];
+				[NSApp presentError:[NSError errorWithDescription:description suggestion:@""]];
+				[label removeFromView];
 			}
-			if(theRegion) {
-				label.region = theRegion;
-			}
-			[self.undoManager setActionName:[@"Add " stringByAppendingString:region.entity.name]];
-		} else {
-			NSString *description = [NSString stringWithFormat:@"The %@ could not be added because of an error in the database", region.entity.name.lowercaseString];
-			[NSApp presentError:[NSError errorWithDescription:description suggestion:@""]];
-			[label removeFromView];
 		}
 	}
 }
 
 
-- (void)autoscrollWithDraggedLabel:(ViewLabel *)draggedLabel {
-	/// overridden
+- (void)deleteSelection:(id)sender {
+	
 }
-
 
 # pragma mark - channels
 
 
-+(NSArray<NSColor *> *)defaultColorsForChannels {
-	/// the index of the color correspond to the channels fro 0 to 4;
-	return defaultColorsForChannels;
-}
+static NSArray *_colorsForChannels;
 
-
-- (NSArray<NSColor *> *)colorsForChannels {
++ (NSArray<NSColor *> *)colorsForChannels {
 	if(_colorsForChannels.count < 5) {
-		_colorsForChannels = [self.class defaultColorsForChannels];
+		_colorsForChannels = @[[NSColor colorNamed:@"BlueChannelColor"], [NSColor colorNamed:@"GreenChannelColor"], [NSColor colorNamed:@"BlackChannelColor"], [NSColor colorNamed:@"RedChannelColor"], [NSColor colorNamed:@"OrangeChannelColor"]];
 	}
 	return _colorsForChannels;
 }
 
 
-- (void)setColorsForChannels:(NSArray<NSColor *> *)colorsForChannels {
++ (void)setColorsForChannels:(NSArray<NSColor *> *)colorsForChannels {
 	NSArray *colors = NSArray.new;
 	for(id item in colorsForChannels) {
 		if([item isKindOfClass:NSColor.class]) {
@@ -416,7 +465,6 @@ static NSArray *defaultColorsForChannels;
 		}
 	}
 	_colorsForChannels = colors;
-	self.needsDisplay = YES;
 }
 
 

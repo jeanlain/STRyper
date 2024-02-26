@@ -26,6 +26,7 @@
 	__weak IBOutlet NSTextField *markerStartTextField;
 	__weak IBOutlet NSTextField *markerEndTextField;
 	__weak IBOutlet NSTextField *markerNameTextField;
+	__weak IBOutlet NSPopUpButton *motiveLengthPopup;
 	__weak IBOutlet NSSegmentedControl *ploidyControl;
 	__weak IBOutlet NSPopUpButton *markerChannelPopupButton;
 
@@ -154,6 +155,21 @@
 
 - (void)setDiploid:(BOOL)diploid {
 	ploidyControl.selectedSegment = diploid ;
+}
+
+
+- (NSUInteger)motiveLength {
+	return motiveLengthPopup.selectedTag;
+}
+
+
+- (void)setMotiveLength:(NSUInteger)motiveLength {
+	if(motiveLength < 2) {
+		motiveLength = 2;
+	} else if(motiveLength > 7) {
+		motiveLength = 7;
+	}
+	[motiveLengthPopup selectItemWithTag:motiveLength];
 }
 
 

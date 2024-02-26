@@ -24,31 +24,27 @@
 @class Trace, FragmentLabel, PeakLabel;
 
 /// An entity that represents a DNA fragment identified in a molecular ladder.
-///
-///	A peak of fluorescence arise from a DNA fragment.
-///	For a trace (``Trace`` object), a DNA fragment of interest can either be a fragment from the molecular ladder or the amplicon of an allele.
-///
-///	This class represents  the former.  Alleles are represented by objects of a subclass (``Allele`` class).
-///
-///	A ladder fragment or an allele has a ``scan``, which is the data point at the tip of the `Peak` that indicated its presence (see ``Trace/peaks``).
-///	A ladder fragment has an expected ``size`` that is defined in the size standard applied to its sample (the ``Trace/chromatogram`` of its ``trace``).
 @interface LadderFragment : CodingObject
 
-/// The trace in which the receiver was identified.
+/// The trace in which the ladder fragment was identified.
 ///
 /// The reverse relationship is ``Trace/fragments``.
+/// The trace should in principle return `YES` to ``Trace/isLadder``.
 @property (nonatomic, readonly) Trace *trace;
 
 
 /// The name of the fragment.
 ///
-/// This property is not meaningful for a ladder fragment, but it is for the ``Allele`` subclass.
+/// This property is not meaningful for a ladder fragment, but it can be for subclasses.
 @property (nonatomic) NSString *name;
 
 /// The scan (fluorescence data point) at the tip of the peak caused by the fragment.
 @property (nonatomic) int32_t scan;
 
-/// The size of the fragment in base pairs.
+/// The *theoretical* size of the fragment in base pairs.
+///
+/// The size is that of the peak induced by the fragment, it is defined in the size standard applied to the fragment's sample (the ``Trace/chromatogram`` of its ``trace``).
+/// It should typically not be a decimal number, but subclass may use decimals.
 @property (nonatomic) float size;
 
 /// An estimate of the difference between the fragment's ``size`` and the size derived from its  ``scan`` and the sizing properties of its chromatogram.
@@ -57,9 +53,13 @@
 @property (nonatomic) float offset;
 
 /// Convenience method that returns the ``size`` of the fragment, rounded to the second decimal.
-///
-/// For the ``Allele`` class, this returns the allele name if it is not an empty string (otherwise, its size).
 @property (readonly, nonatomic) NSString *string;
+
+
+/// Whether the fragment represents an additional ("supplementary") peak.
+///
+/// Objects of this class return `NO`. 
+@property (nonatomic, readonly) BOOL additional;
 
 
 @end

@@ -43,8 +43,8 @@
 -(void)layout {
 	[super layout];
 	[self setSubviewFrame:nil];
-	
 }
+
 
 /// Makes our first subview as wide as the tableview's clip view.
 -(void)setSubviewFrame:(NSNotification *)notification {
@@ -55,28 +55,32 @@
 		return;
 	}
 	
-	NSRect frame = NSMakeRect(self.visibleRect.origin.x, 0, clipView.frame.size.width, self.frame.size.height);
+	NSRect ourFrame = self.frame;
+	NSRect frame = NSMakeRect(self.visibleRect.origin.x, 0, clipView.frame.size.width, ourFrame.size.height);
 	NSView *subview = self.subviews.firstObject;
 	if(!subview) {
 		return;
 	}
 	NSRect subviewFrame = subview.frame;
-	if (frame.size.width > 30 && (fabs(frame.origin.x - subviewFrame.origin.x) > 0.4 ||
-								  fabs(frame.size.width - subviewFrame.size.width) > 0.4)) {
+	if (frame.size.width > 30 && (fabs(frame.origin.x - subviewFrame.origin.x) > 0.5 ||
+								fabs(frame.size.width - subviewFrame.size.width) > 0.5)) {
 		subview.frame = frame;
 	}
 }
 
 
 - (void)keyDown:(NSEvent *)event {
-	/// we intercept up/down arrow key events, which our tableview may consume for nothing useful, while the user may expect to select the previous/next sample as if the source tableview was active.
-	unichar key = [event.characters characterAtIndex:0];
-	
-	if (key == NSUpArrowFunctionKey || key == NSDownArrowFunctionKey) {
-		[self.window keyDown:event];
-	} else {
-		[super keyDown:event];
+	/// we intercept up/down arrow key events, which our tableview may consume for nothing useful, 
+	/// while the user may expect to select the previous/next sample as if the source tableview was active.
+	NSString *characters = event.characters;
+	if(characters.length > 0) {
+		unichar key = [characters characterAtIndex:0];
+		if (key == NSUpArrowFunctionKey || key == NSDownArrowFunctionKey) {
+			[self.window keyDown:event];
+			return;
+		}
 	}
+	[super keyDown:event];
 }
 
 

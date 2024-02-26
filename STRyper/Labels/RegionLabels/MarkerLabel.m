@@ -31,21 +31,12 @@ static NSPopover *addBinsPopover;	/// The popover that permits to define the set
 static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to define a new marker
 
 
-/// The tag used to identify the controls in the addBinsPopover
-/// these tags are defined in IB
-enum addBinPopoverTag : NSInteger {
-	binStartTextFieldTag = 4,
-	binEndTextFieldTag = 5,
-	addBinSetCancelButtonTag = 6,
-	addBinsButtonTag = 7,
-	binWidthSliderTag = 8,
-	binSpacingButtonTag = 9
-} addBinPopoverTag;
-
-
 @implementation MarkerLabel {
 	/// As these labels are not drawn in the trace view (their "view" property is the marker view), it is useful to keep a reference to the traceView
 	__weak TraceView *traceView;
+	
+	ChannelNumber channel;
+	NSColor *disabledColor, *hoveredColor, *defaultColor;
 	
 	CALayer *actionButtonLayer;	/// the layer symbolizing the button that can be clicked to popup the menu (or end editing)
 								/// It is more convenient than using an NSButton because we make it a sublayer of our layer
@@ -63,10 +54,12 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 # pragma mark - attributes and appearance
 
 + (void)initialize {
-	actionCheckHoveredImage = [NSImage imageNamed:@"action check hovered"];
-	actionRoundHoveredImage = [NSImage imageNamed:@"action round hovered"];
-	actionCheckImage = [NSImage imageNamed:@"action check"];
-	actionRoundImage = [NSImage imageNamed:@"action round"];
+	if([self class] == MarkerLabel.class) {
+		actionCheckHoveredImage = [NSImage imageNamed:@"action check hovered"];
+		actionRoundHoveredImage = [NSImage imageNamed:@"action round hovered"];
+		actionCheckImage = [NSImage imageNamed:@"action check"];
+		actionRoundImage = [NSImage imageNamed:@"action round"];
+	}
 }
 
 
@@ -80,6 +73,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	self = [super init];
 	if (self) {
 		_offset = MarkerOffsetNone;
+		channel = -1;
 		
 		layer = CALayer.new;
 		layer.delegate = self;
@@ -92,6 +86,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		bandLayer.delegate = self;
 		stringLayer = CATextLayer.new;
 		stringLayer.delegate = self;
+		stringLayer.actions = @{@"contents":NSNull.null};
 		stringLayer.drawsAsynchronously = YES;  			/// maybe that helps a bit (not noticeable)
 		stringLayer.font = (__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:10.0]);
 		stringLayer.foregroundColor = NSColor.textColor.CGColor;
@@ -101,7 +96,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		layer.zPosition = 0.0;
 		layer.masksToBounds = YES;			/// the marker's name is clipped by the layer to avoid overlapping between marker names
 		[layer addSublayer:stringLayer];
-		layer.borderColor = NSColor.grayColor.CGColor; /// this makes edge visible in dark mode.
+		layer.borderColor = NSColor.grayColor.CGColor; 
 		layer.bounds = CGRectMake(0, -3, 50, 20);
 		/// we use -3 because we place the layer bottom edge 3 points below the view, so as to hide the bottom edge of the border when it is highlighted.
 		
@@ -109,6 +104,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		stringLayer.fontSize = 10.0;
 		[layer addSublayer:bandLayer];
 		actionButtonLayer = CALayer.new;
+		actionButtonLayer.hidden = YES;
 		actionButtonLayer.actions = @{NSStringFromSelector(@selector(contents)): NSNull.null};
 		actionButtonLayer.delegate = self;
 		actionButtonLayer.anchorPoint = CGPointMake(0, 0);
@@ -116,9 +112,24 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		[layer addSublayer:actionButtonLayer];
 		
 		disabledColor = [NSColor colorWithCalibratedWhite:0.8 alpha:1.0];
-		edgeColor = NSColor.grayColor;
 	}
 	return self;
+}
+
+
+- (void)setRegion:(__kindof Region *)region {
+	super.region = region;
+	ChannelNumber regionChannel = ((Mmarker *)region).channel;
+	if(channel != regionChannel) {
+		channel = regionChannel;
+		/// We use a horizontal segment to represent the marker range. The color is based on the channel, but a bit brighter
+		defaultColor = LabelView.colorsForChannels[channel];
+		
+		bandLayer.backgroundColor = self.enabled? defaultColor.CGColor : disabledColor.CGColor;
+		
+		/// The color is brighter when the label is hovered
+		hoveredColor = [defaultColor blendedColorWithFraction:0.4 ofColor:NSColor.whiteColor];
+	}
 }
 
 
@@ -126,26 +137,20 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 - (void)setView:(TraceView *)view {
 	super.view = view;
 	if(layer && view) {
-		[view.layer addSublayer:layer];
+		[view.backgroundLayer addSublayer:layer];
 		traceView = ((MarkerView *)view).traceView;
-		NSInteger color = view.channel;		/// the color should depend on the region rather than on the view. TO IMPROVE
-											/// at this stage, the region is not set, and the colors are define by the trace view
-		NSColor *markerColor = traceView.colorsForChannels[color];
-		
-		/// We use a horizontal segment to represent the marker range. The color is based on the channel, but a bit brighter
-		bandColor = [markerColor blendedColorWithFraction:0.2 ofColor:NSColor.whiteColor];
-		
-		defaultColor = defaultColor = self.enabled? bandColor : [NSColor colorWithCalibratedWhite:0.8 alpha:1.0];
-		
-		/// The color is even brighter when the label is hovered
-		hoveredColor = [markerColor blendedColorWithFraction:0.5 ofColor:NSColor.whiteColor];
-		activeColor = markerColor;
 	}
 }
 
 
 - (void)updateAppearance {
 	[super updateAppearance];
+	if(self.hovered || self.highlighted) {
+		bandLayer.backgroundColor = hoveredColor.CGColor;
+	} else {
+		bandLayer.backgroundColor = self.enabled ? defaultColor.CGColor : disabledColor.CGColor;
+	}
+	
 	if(actionButtonLayer) {
 		EditState editState = self.editState;
 		BOOL wasHidden = actionButtonLayer.hidden;
@@ -234,14 +239,15 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 - (void)reposition {
 	TraceView *view = self.view;
 	float hScale = view.hScale;
-	if(hScale <= 0 || self.hidden) {
+	if(!view || hScale <= 0 || self.hidden) {
 		return;
 	}
 	
+	NSRect superLayerBounds = layer.superlayer.bounds;
 	float startSize = self.startSize;
 	float endSize = self.endSize;
 	float startX = [self.view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
-	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(self.view.bounds));
+	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(superLayerBounds));
 	
 	if(self.highlighted) {
 		/// when highlighted, our frame (used by the tracking area) gets a bit wider so that the user can more easily click an edge to resize us
@@ -254,8 +260,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	regionRect.size.height = 3;
 	
 	/// if the label is not in the view's bounds (with some 2-point margin) and wasn't previously, we don't need to update the layer. The label isn't visible
-	NSRect intersection = NSIntersectionRect(regionRect, NSInsetRect(self.view.bounds, -2, 0));
-	if(intersection.size.width <= 0.1 && !CGRectIntersectsRect(layer.frame, layer.superlayer.bounds)) {
+	NSRect intersection = NSIntersectionRect(regionRect, NSInsetRect(superLayerBounds, -2, 0));
+	if(intersection.size.width <= 0.1 && !CGRectIntersectsRect(layer.frame, superLayerBounds)) {
 		return;
 	}
 	/// to avoid drawing a layer that is very large (at very high hScale), we won't draw what is not visible
@@ -286,8 +292,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	/// We don't do that in -layoutSublayersOfLayer: because it would be difficult to know if sublayers should be positioned with animation.
 	/// The -animated property of the label may not be appropriate when that method is called
 	
-	/// The name is at the middle of the part of the marker label that is visible (and not behind the navigation buttons)
-	NSRect visibleMarkerRect = NSIntersectionRect(regionRect, NSMakeRect(0, 0, NSMaxX(self.view.bounds)-15, NSMaxY(self.view.bounds)));
+	/// The name is at the middle of the part of the marker label that is visible
+	NSRect visibleMarkerRect = NSIntersectionRect(regionRect, layer.superlayer.bounds);
 	CGPoint position = CGPointMake(NSMidX(visibleMarkerRect) - regionRect.origin.x - NSMidX(stringLayer.bounds), 3);
 	if(!actionButtonLayer.hidden) {
 		position.x -= actionButtonLayer.bounds.size.width/2 - 0.5;
@@ -365,55 +371,19 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"move bins"]];
 		[_menu.itemArray.lastObject setTag:editStateBinSet];
 		[_menu addItem:NSMenuItem.separatorItem];
-		[_menu addItemWithTitle:@"Adjust Offset" action:nil keyEquivalent:@""];
+		[_menu addItemWithTitle:@"Adjust Offset" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
 		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"marker offset"]];
-		/// we make a submenu which allows specifying the target samples of the action
-		NSMenu *submenu = NSMenu.new;
-		[submenu addItemWithTitle:@"Apply to:" action:nil keyEquivalent:@""];
-		[submenu addItemWithTitle:@"Sample(s) at this row" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[submenu addItemWithTitle:@"Samples of this run in the selected folder" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[submenu addItemWithTitle:@"All samples of the folder" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		EditState j = editStateShownSamples;
-		for(NSMenuItem *anItem in submenu.itemArray) {
-			if(anItem.action) {
-				anItem.target = self;
-				anItem.tag = j;
-				j++;
-			}
-		}
-		[_menu.itemArray.lastObject setSubmenu:submenu];
-		
-		[_menu addItemWithTitle:@"Reset Offset" action:nil keyEquivalent:@""];
+		[_menu.itemArray.lastObject setTag:editStateOffset];
+		[_menu addItemWithTitle:@"Reset Offset" action:@selector(resetOffset:) keyEquivalent:@""];
 		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"reset"]];
-		submenu = submenu.copy;			/// this action has an equivalent submenu as the previous action
-
-		for(NSMenuItem *anItem in submenu.itemArray) {
-			if(anItem.action) {
-				anItem.action = @selector(resetOffset:);
-			}
-		}
-		[_menu.itemArray.lastObject setSubmenu:submenu];
-
+	
 		for(NSMenuItem *item in self.menu.itemArray) {
 			if(!item.submenu) {
 				item.target = self;
 			}
 		}
-		_menu.delegate = self;
 	}
 	return _menu;
-}
-
-
-- (void)menuNeedsUpdate:(NSMenu *)menu {
-	BOOL hide = traceView.loadedTraces.count == 0 || self.editState != editStateNil;
-	for(NSMenuItem *item in menu.itemArray) {
-		if(item.submenu) {
-			/// the items that have submenus all allow action that are not relevant when the traceView doesn't show samples (but only a marker)
-			/// we don't show them either when we are already in an edit state
-			item.hidden = hide;
-		}
-	}
 }
 
 
@@ -427,6 +397,9 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		/// if the target is the bin set, we check if the marker indeed has bins
 		Mmarker *marker = self.region;
 		valid = marker.bins.count > 0;		/// if there is no bin set, we disable the menu that allows to move it
+	} else if(tag == editStateOffset || menuItem.action == @selector(resetOffset:)) {
+		Mmarker *marker = self.region;
+		valid = marker.bins.count > 0 && self.view.trace;		/// if there is no bin set, we disable the menu that allows to move it
 	}
 	menuItem.hidden = !valid;
 	return valid;
@@ -441,7 +414,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 -(void)resetOffset:(NSMenuItem *)sender {
-	[self _updateTargetSamples:sender.tag withOffset:MarkerOffsetNone];
+	[self _updateOffset:MarkerOffsetNone];
 }
 
 /// Sets our edit state depending on the tag of the menu item sending this message
@@ -504,9 +477,9 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 			[newMarkerPopover.markerNameTextField bind:NSValueBinding toObject:marker withKeyPath:@"name" options:nil];
 			newMarkerPopover.okActionTarget = self;
 			newMarkerPopover.cancelActionTarget = self;
-			newMarkerPopover.markerStartTextField.delegate = (id)self;
-			newMarkerPopover.markerEndTextField.delegate = (id)self;
-			newMarkerPopover.delegate = (id)self;
+			newMarkerPopover.markerStartTextField.delegate = self;
+			newMarkerPopover.markerEndTextField.delegate = self;
+			newMarkerPopover.delegate = self;
 		}
 		[newMarkerPopover showRelativeToRect:self.frame ofView:self.view preferredEdge:NSMaxYEdge modal:YES];
 	} else {
@@ -520,7 +493,10 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	if(popover == newMarkerPopover) {
 		return NO;
 	}
-	return [super popoverShouldClose:popover];
+	if([RegionLabel instancesRespondToSelector:@selector(popoverShouldClose:)]) {
+		return [super popoverShouldClose:popover];
+	}
+	return YES;
 }
 
 
@@ -540,6 +516,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	[sender.window makeFirstResponder:nil];	/// this forces the fields of the popover to validate
 	Mmarker *marker = self.region;
 	marker.ploidy = newMarkerPopover.diploid + 1;
+	marker.motiveLength = newMarkerPopover.motiveLength;
 	NSError *error;
 	[marker validateForUpdate:&error];
 	if(error) {
@@ -557,6 +534,19 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 
+/// The tag used to identify the controls in the addBinsPopover
+/// these tags are defined in IB
+enum addBinPopoverTag : NSInteger {
+	binStartTextFieldTag = 4,
+	binEndTextFieldTag = 5,
+	addBinSetCancelButtonTag = 6,
+	addBinsButtonTag = 7,
+	binWidthSliderTag = 8,
+	binSpacingButtonTag = 9,
+	existingBinsCheckboxTag = 10
+} addBinPopoverTag;
+
+
 
 -(void)spawnAddBinsPopover:(NSMenuItem *)sender {
 	if(!addBinsPopover) {
@@ -567,22 +557,23 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		NSButton *cancelButton = [controller.view viewWithTag:addBinSetCancelButtonTag];
 		cancelButton.action = @selector(close);
 		cancelButton.target = addBinsPopover;
-		NSPopUpButton *binSpacingButton = [controller.view viewWithTag:binSpacingButtonTag];
-		[binSpacingButton selectItemAtIndex:1];
-
 	}
+	
 	NSView *view = addBinsPopover.contentViewController.view;
 	addBinsPopover.delegate = self;
+	Mmarker *marker = self.region;
 	NSTextField *startBinTextField = [view viewWithTag:binStartTextFieldTag];
-	startBinTextField.intValue = round(self.region.start + 0.5) +1;
-	startBinTextField.delegate = (id)self;
+	startBinTextField.intValue = round(marker.start + 0.5) +1;
+	startBinTextField.delegate = self;
 	NSTextField *endBinTextfield = [view viewWithTag:binEndTextFieldTag];
-	endBinTextfield.intValue = (int)self.region.end -1;
-	endBinTextfield.delegate = (id)self;
+	endBinTextfield.intValue = (int)marker.end -1;
+	endBinTextfield.delegate = self;
 	NSButton *addBinsButton = [view viewWithTag:addBinsButtonTag];
 	addBinsButton.target = self;
 	addBinsButton.action = @selector(addBinSet:);
-
+	NSPopUpButton *binSpacingButton = [view viewWithTag:binSpacingButtonTag];
+	[binSpacingButton selectItemAtIndex:marker.motiveLength-1];
+	
 	[addBinsPopover showRelativeToRect:self.frame ofView:self.view preferredEdge:NSMaxYEdge];
 
 }
@@ -624,7 +615,9 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		}
 		
 		textField.floatValue = value;
-	} else [super controlTextDidEndEditing:obj];
+	} else if([RegionLabel instancesRespondToSelector:@selector(controlTextDidEndEditing:)]) {
+		[super controlTextDidEndEditing:obj];
+	}
 }
 
 
@@ -634,9 +627,11 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	NSTextField *startBinTextField = [view viewWithTag:binStartTextFieldTag];
 	NSTextField *endBinTextfield = [view viewWithTag:binEndTextFieldTag];
 	NSSlider *binWidthSlider = [view viewWithTag:binWidthSliderTag];
-	NSPopUpButton *binSpacingButton = [view viewWithTag:binSpacingButtonTag];
+	NSPopUpButton *binSpacingPopup = [view viewWithTag:binSpacingButtonTag];
+	NSButton *removeAllBinsButton = [view viewWithTag:existingBinsCheckboxTag];
+	
 	Mmarker *marker = self.region;
-	if(!marker || !startBinTextField || !endBinTextfield || !binWidthSlider || !binSpacingButton) {
+	if(!marker || !startBinTextField || !endBinTextfield || !binWidthSlider || !binSpacingPopup) {
 		return;
 	}
 	
@@ -649,7 +644,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		binWidth = 1.5;
 	}
 	
-	NSInteger binSpacing = binSpacingButton.indexOfSelectedItem + 1;
+	NSInteger binSpacing = binSpacingPopup.indexOfSelectedItem + 1;
 	if(binSpacing < 1) {
 		binSpacing = 1;
 	}
@@ -658,13 +653,24 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		binWidth = binSpacing - 0.1;
 	}
 	
+	
 	float markerStart = marker.start + 0.1;
 	float markerEnd = marker.end - 0.1;
 	NSMutableSet *bins = NSMutableSet.new;
+	NSMutableSet *binsToRemove = NSMutableSet.new;
+	BOOL removeAllBins = removeAllBinsButton.state == NSControlStateValueOn;
+	
 	for(float i = binSetStart; i <= binSetEnd; i+= binSpacing) {
 		float binStart = i - binWidth/2;
 		float binEnd = i + binWidth/2;
 		if(binStart >= markerStart && binEnd < markerEnd) {
+			if(!removeAllBins) {
+				for(Bin *bin in marker.bins) {
+					if(bin.start < binEnd+0.1 && bin.end > binStart-0.1) {
+						[binsToRemove addObject:bin];
+					}
+				}
+			}
 			Bin *newBin = [[Bin alloc] initWithContext:self.region.managedObjectContext];
 			newBin.start = binStart;
 			newBin.end = binEnd;
@@ -673,11 +679,16 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		}
 	}
 	
-	if(bins.count > 0) {
+	if(bins.count > 0 || binsToRemove.count > 0 || (removeAllBins && marker.bins.count > 0)) {
 		[addBinsPopover close];
-		NSUndoManager *undoManager = marker.managedObjectContext.undoManager;
-			[undoManager setActionName:@"Generate Bins"];
-		marker.bins = [NSSet setWithSet:bins];
+		NSUndoManager *undoManager = self.view.undoManager;
+		[undoManager setActionName:@"Generate Bins"];
+		if(removeAllBins) {
+			marker.bins = bins;
+		} else {
+			[marker removeBins:binsToRemove];
+			[marker addBins: bins];
+		}
 		
 		/// we allow the user to move the new bin set (which also forces to show bins regardless of the showBins property of the view)
 		marker.editState = editStateBinSet;
@@ -685,7 +696,9 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		/// if the user undoes the addition of bins, it makes sense to exit the edit state.
 		[undoManager registerUndoWithTarget:self selector:@selector(exitBinSetEditState) object:nil];
 
-	} else {
+	} 
+	
+	if(bins.count == 0) {
 		NSError *error = [NSError errorWithDescription:@"No bin was added because the marker is too narrow." suggestion:@"You may widen the marker."];
 		[[NSAlert alertWithError:error] beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
 		}];

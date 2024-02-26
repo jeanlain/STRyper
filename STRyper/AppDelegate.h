@@ -96,6 +96,12 @@ DefaultStartSize,
 /// The end size (float) of the default visible range of trace views.
 DefaultEndSize,
 
+/// The synchronized start size of trace views
+ReferenceStartSize,
+
+/// The synchronized end size of trace views
+ReferenceEndSize,
+
 /// The number of trace views to show in the detailed view (see ``DetailedViewController/numberOfRowsPerWindow``).
 TraceRowsPerWindow,
 
@@ -104,6 +110,9 @@ TraceStackMode,
 
 /// An integer describing how the vertical scales of trace views are managed (see ``DetailedViewController/topFluoMode``).
 TraceTopFluoMode,
+
+/// Whether peaks resulting from crosstalk should be painted with the colors of the channel that induce crosstalk.
+PaintCrosstalkPeaks,
 
 /// Whether peaks resulting from crosstalk should be ignored when trace views adjust their vertical scales to highest visible peaks.
 IgnoreCrosstalkPeaks,
@@ -137,8 +146,6 @@ ShowChannel3,
 
 /// Whether trace views show data from the fifth channel (see ``Trace/channel``).
 ShowChannel4,
-ShowRuler,
-ShowMarkerView,
 
 /// Whether the metadata of chromatograms should be added to genotype data when genotypes are exported to a text file.
 AddSampleInfo,
@@ -151,6 +158,9 @@ DubiousAlleleName,
 
 /// The name (string) given to missing alleles (those that have a scan of 0).
 MissingAlleleName,
+
+/// Whether supplementary peaks should be annotated during genotyping.
+AnnotateSupplementaryPeaks,
 
 /// The default polynomial order used for sizing (see ``Chromatogram/polynomialOrder``).
 DefaultSizingOrder,

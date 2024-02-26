@@ -4,6 +4,23 @@
 //
 //  Created by Jean Peccoud on 04/11/2023.
 //
+//  Created by Jean Peccoud on 28/03/2022.
+//  Copyright © 2022 Jean Peccoud. All rights reserved.
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 
 #import "TracePreviewView.h"
 #include <sys/sysctl.h>
@@ -25,19 +42,20 @@
 }
 
 
-static NSArray *colorsForChannels;
 static BOOL appleSilicon;
 
-+ (void)initialize {
-	colorsForChannels = @[[NSColor colorWithCalibratedRed:0.1 green:0.1 blue:1 alpha:1],
-									 [NSColor colorWithCalibratedRed:0 green:0.7 blue:0 alpha:1],
-				   NSColor.darkGrayColor, NSColor.redColor, NSColor.orangeColor];
-	
-	size_t size = 100;		/// To make sure that we can read the whole CPU name.
-	char string[size];
-	sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
-	appleSilicon = strncmp(string, "Apple", 5) == 0;
+static NSArray <NSColor *> *colorsForChannel;
+static NSColor *backgroundColor;
 
++ (void)initialize {
+	if (self == [TracePreviewView class]) {
+		size_t size = 100;		/// To make sure that we can read the whole CPU name.
+		char string[size];
+		sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
+		appleSilicon = strncmp(string, "Apple", 5) == 0;
+		colorsForChannel = @[[NSColor colorNamed:@"BlueChannelColor"], [NSColor colorNamed:@"GreenChannelColor"], [NSColor colorNamed:@"BlackChannelColor"], [NSColor colorNamed:@"RedChannelColor"], [NSColor colorNamed:@"OrangeChannelColor"]];
+		backgroundColor = [NSColor colorNamed:@"traceViewBackgroundColor"];
+	}
 }
 
 
@@ -82,7 +100,7 @@ static BOOL appleSilicon;
 		return;
 	}
 		
-	[NSColor.whiteColor setFill];
+	[backgroundColor setFill];
 	NSRectFill(dirtyRect);
 	
 	if(maxFluo > 0) {
@@ -106,13 +124,13 @@ static BOOL appleSilicon;
 	short lowerFluo = 1 / vScale; 	/// to quickly evaluate if some scans should be drawn
 
 	int maxPointsInCurve = appleSilicon? 40 : 400;			/// we stoke the curve if it has enough points.
-	NSPoint pointArray[maxPointsInCurve];          /// points to add to the curve
-	int startScan = dirtyRect.origin.x / hScale -1;
+	NSPoint pointArray[maxPointsInCurve];          			/// points to add to the curve
+	int startScan = dirtyRect.origin.x / hScale -3;			/// The 3-scan margin is necessary to avoid drawing artifacts.
 	if(startScan < 0) {
 		startScan = 0;
 	}
 	
-	int endScan = NSMaxX(dirtyRect) / hScale +1;
+	int endScan = NSMaxX(dirtyRect) / hScale +3;
 	
 	
 	int color = -1;
@@ -126,7 +144,7 @@ static BOOL appleSilicon;
 		long nRecordedScans = fluoData.length/sizeof(int16_t);
 		int maxScan = nRecordedScans < endScan ? (int)nRecordedScans : endScan;
 		
-		NSColor *curveColor = colorsForChannels[color];
+		NSColor *curveColor = colorsForChannel[color];
 		CGContextSetStrokeColorWithColor(ctx, curveColor.CGColor);
 		float lastX = startScan * hScale;
 		float y = fluo[startScan]*vScale;
@@ -185,7 +203,7 @@ static BOOL appleSilicon;
 
 
 - (BOOL)isOpaque {
-	return YES;
+	return NO;
 }
 
 

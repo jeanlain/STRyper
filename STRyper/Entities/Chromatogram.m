@@ -75,9 +75,6 @@ const float DefaultReadLength	= 550.0;
 /// the url of the source file (computed on demand from -sourceFile). We use it to bind to a NSPathControl value.
 @property (readonly, nonatomic) NSURL *fileURL;
 
-/// use to bind the size standard to UI elements (NSPopupButton) and apply the standard with a custom setter (as we don't override setSizeStandard)
-@property (nonatomic) SizeStandard *boundSizeStandard;
-
 @end
 
 
@@ -97,6 +94,8 @@ const float DefaultReadLength	= 550.0;
 -(void)managedObjectOriginal_setReverseCoefs:(nullable NSData *)coefs;
 -(void)managedObjectOriginal_setTraces:(nullable NSSet<Trace *>*)traces;
 -(void)managedObjectOriginal_setGenotypes:(nullable NSSet<Genotype *> *)genotypes;
+-(void)managedObjectOriginal_setOffscaleRegions:(nullable NSData *)coefs;
+
 -(nullable NSSet *)managedObjectOriginal_genotypes;
 
 @end
@@ -111,9 +110,9 @@ const float DefaultReadLength	= 550.0;
 
 @implementation Chromatogram
 
-@dynamic comment, gelType, importDate, instrument, lane, nChannels, nScans, offScaleScans, offscaleRegions, owner, panelName, plate, protocol, resultsGroup, runName, runStopTime, sampleName, sampleType, polynomialOrder, intercept, sizingSlope, sizingQuality, coefs, reverseCoefs, sourceFile, well, folder, panel, sizeStandard, standardName, traces, genotypes, panelVersion;
+@dynamic comment, gelType, importDate, instrument, lane, nChannels, nScans, offScaleScans, offscaleRegions, owner, panelName, plate, protocol, resultsGroup, runName, runStopTime, sampleName, sampleType, polynomialOrder, intercept, sizingSlope, sizingQuality, coefs, reverseCoefs, sourceFile, well, folder, panel, sizeStandard, standardName, traces, genotypes;
 
-@synthesize sizes = _sizes, readLength = _readLength, minScan = _minScan, maxScan = _maxScan, startSize = _startSize, boundSizeStandard = _boundSizeStandard;
+@synthesize sizes = _sizes, readLength = _readLength, minScan = _minScan, maxScan = _maxScan, startSize = _startSize;
 
 /// some arrays of dictionaries we use when importing an ABIF file (see +initialize)
 NSArray *colors;		/// the colors of the dyes in order
@@ -214,11 +213,16 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 	sample.folder = folder;
 	
 	/// We make the sample determine which channel is offscale at saturated regions
-	[sample inferOffScaleChannel];
+	[sample inferOffscaleChannel];
 	
 	/// once this is done, we make traces find peaks
 	for(Trace *trace in sample.traces) {
 		[trace findPeaks];
+	}
+	
+	/// The detection of crosstalk must be done after peak are found in all traces.
+	for(Trace *trace in sample.traces) {
+		[trace findCrossTalk];
 	}
 
 	return sample;
@@ -250,7 +254,7 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 			if(channel < 5 || [dyeName isKindOfClass:NSString.class]) {
 				NSString *reason = [NSString stringWithFormat:@"No valid data for fluorescence channel %d.", channel];
 				if(error != NULL) {
-					*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File %@ was not imported because fluorescence data is missing.", path]
+					*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File %@ has fluorescence data missing.", path]
 														suggestion:@""
 														  filePath:path
 															reason:reason];
@@ -264,7 +268,7 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 		if(![dyeName isKindOfClass:NSString.class]) {
 			NSString *reason = [NSString stringWithFormat:@"No dye name found for fluorescence channel %d.", channel];
 			if(error != NULL) {
-				*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File %@ was not imported because fluorescence data is missing.", path]
+				*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File %@ has fluorescence data missing.", path]
 													suggestion:@""
 													  filePath:path
 														reason:reason];
@@ -276,7 +280,7 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 		if(fluo.length / sizeof(int16_t) != nScans) {
 			NSString *reason = [NSString stringWithFormat:@"Length of fluorescence data for channel %d (%ld bytes) is inconsistent with the number of reported scans (%ld scans)", channel, fluo.length, nScans];
 			if(error != NULL) {
-				*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File %@ was not imported because it has inconsistent fluorescence data.", path]
+				*error = [NSError fileReadErrorWithDescription:[NSString stringWithFormat:@"File %@ has inconsistent fluorescence data.", path]
 													suggestion:@""
 													  filePath:path
 														reason:reason];
@@ -320,6 +324,10 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 		[sample setPrimitiveValue:runStopTime forKey:ChromatogramRunStopTimeKey];
 	}
 	
+	if(sample.sampleName.length == 0) {
+		sample.sampleName = sample.well;
+	}
+	
 	/// we create Trace objects
 	for(NSArray *traceValues in traceData) {
 		ChannelNumber channel = [traceValues[1] shortValue];
@@ -336,13 +344,13 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 }
 
 
-/// Infers the channels that caused saturation and sets the -offscaleRegions attributes
-- (void)inferOffScaleChannel {
-	if(self.offScaleScans.length == 0) {
+- (void)inferOffscaleChannel {
+	NSData *offscaleScanData = self.offScaleScans;
+	if(offscaleScanData.length == 0) {
 		return;
 	}
-	const int32_t *offscaleScan = self.offScaleScans.bytes;
-	long nOffScale = self.offScaleScans.length/sizeof(int);
+	const int32_t *offscaleScan = offscaleScanData.bytes;
+	long nOffScale = offscaleScanData.length/sizeof(int);
 	int nScans = self.nScans;
 	
 	OffscaleRegion *regions = malloc(nOffScale * sizeof(*regions));
@@ -356,11 +364,14 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 			regions[count].startScan = currentScan;           /// so we record its first scan
 			int16_t maxFluo = 0;
 			for (Trace *trace in self.traces) {
-				/// to determine the channel that is off scale, we just see which has higher fluo in the first scan
+				/// to determine the channel that is off scale, we just see which has higher fluo in the first scan -1
 				/// (not at the tip, as sometimes saturation can truncate a peak)
-				const int16_t *rawFluo = trace.rawData.bytes;
-				if (rawFluo[currentScan] > maxFluo) {
-					maxFluo = rawFluo[currentScan];
+				int refScan = currentScan -1 >= 0 ? currentScan-1 : 0;
+				NSData *rawData = trace.rawData;
+				const int16_t *rawFluo = rawData.bytes;
+				long nScans = rawData.length/sizeof(int16_t);
+				if (refScan < nScans && rawFluo[refScan] > maxFluo) {
+					maxFluo = rawFluo[refScan];
 					regions[count].channel = trace.channel;
 				}
 			}
@@ -372,7 +383,7 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 		}
 	}
 	
-	[self setPrimitiveValue:[NSData dataWithBytes:regions length:count*sizeof(OffscaleRegion)] forKey:ChromatogramOffscaleRegionsKey];
+	[self managedObjectOriginal_setOffscaleRegions: [NSData dataWithBytes:regions length:count*sizeof(OffscaleRegion)]];
 	free(regions);
 	
 }
@@ -381,7 +392,7 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 # pragma mark - sizing
 
 
-- (void)applySizeStandard:(SizeStandard *)sizeStandard {
+- (void)setSizeStandard:(SizeStandard *)sizeStandard {
 	[self managedObjectOriginal_setSizeStandard:sizeStandard];
 	if(sizeStandard) {
 		[self managedObjectOriginal_setPolynomialOrder: [NSUserDefaults.standardUserDefaults integerForKey:DefaultSizingOrder]];
@@ -404,14 +415,18 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 	float scans[nFragments];		/// arrays used to compute the polynomial
 	float sizes[nFragments];
 
-	float maxSize = (float)DefaultReadLength;	/// will record the max size of a ladder fragment, which we need in case the sizing fails
+	float readLength = (float)DefaultReadLength;	/// the read length we will set in case sizing fails
+	int lastPeakScan = 0;
 	int nPoints = 0;
 	for(LadderFragment *fragment in trace.fragments) {
 		float fragmentSize = fragment.size;
-		if(fragmentSize + 50.0 > maxSize) {
-			maxSize = fragmentSize + 50.0;
-		}
 		int scan = fragment.scan;
+		if(scan > lastPeakScan) {
+			lastPeakScan = scan;
+		}
+		if(fragmentSize + 50.0 > readLength) {
+			readLength = fragmentSize + 50.0;
+		}
 		if(scan > 0) {
 			sizes[nPoints] = fragmentSize;
 			scans[nPoints] = scan;
@@ -420,10 +435,9 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 	}
 	
 	int k = self.polynomialOrder +1;
-
 		
 	if (nPoints < 4 || nPoints < nFragments/2 || k < 1 || k > 3) {
-		[self setLinearCoefsForReadLength:maxSize];
+		[self setLinearCoefsForReadLength:readLength];
 		return;
 	}
 	
@@ -433,7 +447,6 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 	
 	[self managedObjectOriginal_setSizingSlope:sizingSlope];
 	[self managedObjectOriginal_setIntercept:intercept];
-
 	
 	float coefs[k+1];			/// This will store the results of the fitting.
 	float reversedCoefs[k+1];
@@ -447,8 +460,26 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 	
 	if(info != 0) {		/// This indicates a failure in finding coefficients.
 		NSLog(@"Failed to compute coefficients for sample %@ using polynomial of order %d.", self.sampleName, k);
-		[self setLinearCoefsForReadLength:maxSize];
+		[self setLinearCoefsForReadLength:readLength];
 		return;
+	}
+	
+	if(k > 1) {
+		/// We check if the coefficients yield a curve that never descends before the last ladder peak.
+		/// This may occur if peaks have very inappropriate sizes during manual assignment.
+		float maxScanSize = yGivenPolynomial(0, coefs, k+1);
+		for (int scan = 1; scan < lastPeakScan + 20; scan += 10) { /// We check every 10 scans
+			float size = yGivenPolynomial(scan, coefs, k+1);
+			if(size < maxScanSize) {
+				/// We must the fitting in as certain peaks may not be drawable otherwise, preventing manual assignment to sizes.
+				/// The fitting would not be usable anyway.
+				[self setLinearCoefsForReadLength:readLength];
+				NSLog(@"Fitting too poor.");
+				return;
+			} else if(size > maxScanSize){
+				maxScanSize = size;
+			}
+		}
 	}
 	
 	[self managedObjectOriginal_setReverseCoefs:[NSData dataWithBytes:reversedCoefs length:(k+1)*sizeof(float)]];
@@ -488,6 +519,8 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 					break;
 				}
 			}
+		} else {
+			fragment.offset = 0;
 		}
 	}
 	
@@ -568,7 +601,7 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 		}
 	}
 	
-	/// we solve the system Ax = b using LAPACK's sposv, as the A martrix is always symmetric and positive definite
+	/// we solve the system Ax = b using LAPACK's sposv, as the A matrix is always symmetric and positive definite
 	char uplo = 'U';		/// specifies the lower triangle of the matrix (this doesn't matter since we have filled the whole matrix)
 	int nColB = 1;			/// number of columns of b
 	sposv_(&uplo, &dim, &nColB, A, &dim, b, &dim, info);		/// results are put in b
@@ -597,7 +630,8 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 - (NSData *)sizes {
 	if(_sizes.length == 0) {
 		if(!self.coefs) {
-			[self computeFitting];		/// this method modifies core data attribute, hence may generate undo actions that may not be desirable. This is why we compute sizing coeffcients on sample import.
+			[self computeFitting];		/// this method modifies core data attribute, hence may generate undo actions that may not be desirable. 
+										/// This is why we compute sizing coefficients on sample import.
 		}
 		[self computeSizes];
 	}
@@ -612,7 +646,7 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	if(hadSizes && sizes) {
 		for (Genotype *genotype in self.genotypes) {
 			for(Allele *allele in genotype.alleles) {
-				[allele setSize];
+				[allele computeSize];
 			}
 		}
 	}
@@ -632,7 +666,8 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 /// Computes and sets the `size` attribute.
 - (void)computeSizes {
 	
-	if(self.nScans == 0 || self.coefs.length == 0) {
+	NSData *coefData = self.coefs;
+	if(self.nScans == 0 || coefData.length == 0) {
 		self.readLength = DefaultReadLength;
 		return;
 	}
@@ -645,8 +680,8 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	float start = 0;
 	float B = 1;
 	vDSP_vramp(&start, &B, scans, 1, nScans);
-	const float *a = self.coefs.bytes;
-	NSInteger order = self.coefs.length / sizeof(float);
+	const float *a = coefData.bytes;
+	NSInteger order = coefData.length / sizeof(float);
 	for (int n = 0; n < order; n++) {
 		float exponent = n;						/// we will raise scans to the power of n
 		vDSP_vfill(&exponent, exponents, 1, nScans);
@@ -656,6 +691,11 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 		vDSP_vsmul(scan2power, 1, &a[n], scan2power, 1, nScans);
 		vDSP_vadd(computedSizes, 1, scan2power, 1, computedSizes, 1, nScans);
 	}
+	
+	free(scans);
+	free(exponents);
+	free(scan2power);
+	
 	/// we compute minScan, maxScan and readLength based on the sizing
 	vDSP_Length maxScan = nScans-1, minScan = 0;
 	float max = computedSizes[maxScan], min = computedSizes[0];
@@ -673,15 +713,13 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	
 	self.sizes =[NSData dataWithBytes:computedSizes length:nScans * sizeof(float)];
 	
-	free(scans);
 	free(computedSizes);
-	free(exponents);
-	free(scan2power);
+	
 }
 
 
 - (int)maxScan {
-	if(_maxScan == 0) {
+	if(_sizes.length == 0) {
 		[self computeSizes];
 	}
 	return _maxScan;
@@ -689,29 +727,34 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 
 
 - (float)sizeForScan:(int)scan {
-	if(!self.coefs) {
+	NSData *coefData = self.coefs;
+	if(!coefData) {
 		[self computeFitting];
-		if(!self.coefs) {
+		coefData = self.coefs;
+		if(!coefData) {
 			return -1;
 		}
 	}
-	return yGivenPolynomial(scan, self.coefs.bytes, (int)self.coefs.length/sizeof(float));
+	return yGivenPolynomial(scan, coefData.bytes, (int)coefData.length/sizeof(float));
 }
 
 
 - (int)scanForSize:(float)size {
-	if(!self.reverseCoefs) {
+	NSData *reverseCoefs = self.reverseCoefs;
+	if(!reverseCoefs) {
 		[self computeFitting];
-		if(!self.reverseCoefs || !self.coefs) {
+		reverseCoefs = self.reverseCoefs;
+		if(!reverseCoefs || !self.coefs) {
 			return -1;
 		}
 	}
-	int scan = yGivenPolynomial(size, self.reverseCoefs.bytes, (int)self.reverseCoefs.length/sizeof(float));
+	int scan = yGivenPolynomial(size, reverseCoefs.bytes, (int)reverseCoefs.length/sizeof(float));
 	
-	/// the scan returned may not be the closest to the size, as the revese coefs do not do the exact reverse of what the coefs do (which is expected)
+	/// the scan returned may not be the closest to the size, as the reverse coefs do not do the exact reverse of what the coefs do (which is expected)
 	/// but as this scan should be close to the scan we want, we find it by iteration
-	const float *sizes = self.sizes.bytes;
-	long nScans = self.sizes.length/sizeof(float);
+	NSData *sizeData = self.sizes;
+	const float *sizes = sizeData.bytes;
+	long nScans = sizeData.length/sizeof(float);
 	if (scan > nScans-1 || scan < 0) {
 		return scan;
 	}
@@ -756,16 +799,6 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 	return nil;
 }
 
-
-- (void)setBoundSizeStandard:(SizeStandard *)sizeStandard {
-	[self applySizeStandard:sizeStandard];
-	[self.managedObjectContext.undoManager setActionName:@"Apply Size Standard"];
-}
-
-
-- (SizeStandard *)boundSizeStandard {
-	return self.sizeStandard;
-}
 
 
 + (NSSet<NSString *> *)keyPathsForValuesAffectingBoundSizeStandard {
@@ -825,29 +858,6 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 
 
 
-- (void)setSampleName:(NSString *)sampleName {
-	[self managedObjectOriginal_setSampleName:sampleName];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName: @"Rename Sample"];
-	}
-}
-
-
-- (void)setSampleType:(NSString *)sampleType {
-	[self managedObjectOriginal_setSampleType:sampleType];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName: @"Edit Sample Type"];
-	}
-}
-
-
-- (void)setComment:(NSString *)comment {
-	[self managedObjectOriginal_setComment:comment];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName: @"Edit Sample Comment"];
-	}
-}
-
 
 - (void)setPolynomialOrder:(PolynomialOrder)polynomialOrder {
 	if(polynomialOrder < -1 || polynomialOrder > 3 || polynomialOrder == self.polynomialOrder) {
@@ -857,14 +867,8 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 	
 	if(!self.deleted) {
 		[self computeFitting];
-		[self.managedObjectContext.undoManager setActionName:@"Change Fitting Method"];
 	}
 }
-/*
-- (void)applyFitting:(NSNumber *)polynomialOrder {
-	self.polynomialOrder = polynomialOrder;
-	[self computeSizing];
-}  */
 
 
 
@@ -873,16 +877,13 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 	if (self.panel) {
 		for (Mmarker *marker in self.panel.markers) {
 			Genotype *newGenotype = [[Genotype alloc] initWithMarker:marker sample:self];
-			if(!newGenotype) {
-				NSLog(@"%@", [NSString stringWithFormat:@"failed to add genotype for marker %@ and sample %@", marker.name, self.sampleName ]);
-			} else {
+			if(newGenotype) {
 				for(Allele *allele in newGenotype.alleles) {
 					[allele managedObjectOriginal_setName:alleleName];
 				}
 			}
 		}
 	}
-	self.panelVersion = self.panel.version.copy;
 }
 
 
@@ -891,7 +892,7 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 	[self updateSizes];
 	/// when sizing has changed, we note that any genotype may be checked
 	for(Genotype *genotype in self.genotypes) {
-		genotype.status =genotypeStatusSizingChanged;
+		genotype.status = genotypeStatusSizingChanged;
 	}
 
 }
@@ -935,7 +936,7 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 - (BOOL)validateSampleName:(id *) value error:(NSError **)error {
 	/// the sample must have a name
 	NSString *name = *value;
-	if(name.length == 0) {
+	if(name.length < 0) {
 		if (error != NULL) {
 			*error = [NSError managedObjectValidationErrorWithDescription:@"The sample must have a name."
 															   suggestion:@""
@@ -944,28 +945,6 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 
 		}
 		return NO;
-	}
-	return YES;
-}
-
-
-- (BOOL)validatePanel:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {
-	/// we do not validate a panel if we lack channel used by markers
-	Panel *panel = *value;
-	if(panel) {
-		for(Mmarker *marker in panel.markers) {
-			Trace *trace = [self traceForChannel:marker.channel];
-			if(!trace || trace.isLadder) {
-				if (error != NULL) {
-					NSString *reason = [NSString stringWithFormat:@"The chromatogram lacks adequate data for the %@ channel, required by marker '%@'.", colors[marker.channel], marker.name];
-					*error = [NSError managedObjectValidationErrorWithDescription:[NSString stringWithFormat:@"Panel '%@' cannot be applied to sample '%@' because the sample lacks a required channel.", panel.name, self.sampleName]
-																	   suggestion:@""
-																		   object:self
-																		   reason:reason];
-				}
-				return NO;
-			}
-		}
 	}
 	return YES;
 }
@@ -1016,10 +995,16 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 	self = [super initWithCoder:coder];
 	if(self) {
 		[self managedObjectOriginal_setPanel: [coder decodeObjectOfClass:Panel.class forKey:ChromatogramPanelKey]];	/// it is important to decode the panel first, as it may be replaced by one already in the store
-		[self setPrimitiveValue:self.panel.version.copy forKey:@"panelVersion"]; /// the panel that is decoded may not be the one we had, but an equivalent one present in the store with a different version. We use its version.
 		[self managedObjectOriginal_setSizeStandard: [coder decodeObjectOfClass:SizeStandard.class forKey:ChromatogramSizeStandardKey]];
 		[self managedObjectOriginal_setTraces: [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, Trace.class, nil] forKey:ChromatogramTracesKey]];
 		[self managedObjectOriginal_setGenotypes: [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, Genotype.class, nil]  forKey:ChromatogramGenotypesKey]];
+		NSSet <NSString *>*identifiers = [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, NSString.class, nil]  forKey:@"versionIdentifiers"];
+		
+		if(![identifiers containsObject:@"1.1"]) {
+			for (Trace *trace in self.traces) {
+				[trace findCrossTalk];
+			}
+		}
 	}
 	return self;
 }

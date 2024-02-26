@@ -23,12 +23,14 @@
 
 @implementation BinLabel
 
+@synthesize binNameHidden = _binNameHidden;
+
 - (BOOL)isBinLabel {
 	return YES;
 }
 
-- (instancetype)init
-{
+
+- (instancetype)init {
 	self = [super init];
 	if (self) {
 		_enabled = NO;			/// bin labels are disabled by default
@@ -42,36 +44,35 @@
 		layer.zPosition = -0.5;
 		
 		bandLayer = CALayer.new;
+		bandLayer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
+							  NSStringFromSelector(@selector(borderWidth)):NSNull.null};
 		bandLayer.delegate = self;
 		stringLayer = CATextLayer.new;
 		stringLayer.delegate = self;
+		
+		/// Because `actionForLayer:` is called some time after the layer's string is changed, it is difficult to know
+		/// whether we should animate the change. So we just never do.
+		stringLayer.actions = @{NSStringFromSelector(@selector(contents)):NSNull.null};
+		
 		stringLayer.drawsAsynchronously = YES;  			/// maybe that helps a bit (not noticeable)
 		stringLayer.font = (__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:10.0]);
-		stringLayer.foregroundColor = NSColor.textColor.CGColor;
-		stringLayer.allowsFontSubpixelQuantization = YES;
 		stringLayer.contentsScale = 2.0;
+		stringLayer.alignmentMode = kCAAlignmentCenter;
+		stringLayer.foregroundColor = NSColor.textColor.CGColor;
 		
-		layer.borderColor = NSColor.blackColor.CGColor;
 		layer.opaque = YES;
 		
-		/// our bandLayer is a thin rectangle behind the bin name, which appears at its center.
-		/// We use two layers instead of just a CATextLayer with kCAAlignmentCenter to center the text. Changing the bounds of a CATextLayer kills performance
-		/// Instead, we never modify the bounds of the stringLayer, only those of the bandLayer
-		bandLayer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
+		/// our bandLayer is a thin rectangle behind the bin name, which appears at its center. It is at least as wide as the bin.
+		/// We use two layers instead of just a CATextLayer with kCAAlignmentCenter to center the text. Changing the bounds of a CATextLayer kills performance.
+		/// Instead, we never modify the bounds of the stringLayer (unless the text changes), only those of the bandLayer
 		bandLayer.opaque = YES;
-		
 		bandLayer.anchorPoint = CGPointMake(0.5, 1);		/// this helps to position that layer within its parent (same for the following instruction)
 		bandLayer.zPosition = 1.0;							/// because for some unclear reasons, this layer may sometimes show behind trace
 		stringLayer.fontSize = 8.5;
 		layer.geometryFlipped = YES;
 		[bandLayer addSublayer:stringLayer];
-		
-		disabledColor = [NSColor colorWithCalibratedWhite:0.8 alpha:1.0];
-		defaultColor = [NSColor colorWithCalibratedWhite:0.8 alpha:1.0];     	/// default color is grey
-		hoveredColor = [NSColor colorWithCalibratedWhite:0.6 alpha:1.0];		/// darker gray when hovered
-		activeColor = hoveredColor;
-		edgeColor = NSColor.blackColor;
 	}
+	
 	return self;
 }
 
@@ -79,37 +80,80 @@
 - (void)setView:(TraceView *)view {
 	super.view = view;
 	if(view && layer) {
-		[view.backgroundLayer addSublayer:layer];
+		layer.backgroundColor = view.binLabelColor;
+		layer.borderColor = view.regionLabelEdgeColor;
+		bandLayer.backgroundColor = view.binNameBackgroundColor;
+		bandLayer.borderColor = view.hoveredBinLabelColor;
 		[view.layer addSublayer:bandLayer];
 	}
 }
 
 
+- (CALayer *)_layer {
+	return layer;
+}
+
+
 - (void)updateAppearance {
 	[super updateAppearance];
-	if(self.hovered == bandLayer.isHidden) {
+	TraceView *view = self.view;
+	BOOL hovered = self.hovered;
+	layer.backgroundColor = (hovered || self.highlighted)? view.hoveredBinLabelColor : view.binLabelColor;
+	bandLayer.backgroundColor = hovered? view.hoveredBinNameBackgroundColor : view.binNameBackgroundColor;
+	bandLayer.borderWidth = hovered? 1.0 : 0.0;
+	if(hovered == bandLayer.isHidden) {
 		/// if a bin label is hovered, its name must show,
 		self.animated = NO;
+		bandLayer.hidden = !hovered && _binNameHidden;
+		
 		[self repositionInternalLayers];
 		self.animated = YES;
 	}
 }
 
 
+- (void)updateForTheme {
+	TraceView *view = self.view;
+	layer.borderColor = view.regionLabelEdgeColor;
+	layer.backgroundColor = self.hovered? view.hoveredBinLabelColor : view.binLabelColor;
+	bandLayer.backgroundColor = view.binNameBackgroundColor;
+	bandLayer.borderColor = view.hoveredBinLabelColor;
+	[super updateForTheme];
+}
+
+
 - (void)setHidden:(BOOL)hidden {
 	if(self.hidden != hidden) {
-		bandLayer.hidden = hidden;	/// for these labels, the bandlayer is not hosted by the layer, so we must hide/show it separately
+		self.binNameHidden = hidden;	/// for these labels, the bandlayer is not hosted by the layer, so we must hide/show it separately
 		super.hidden = hidden;
 	}
 }
 
+
+- (void)setBinNameHidden:(BOOL)binNameHidden {
+	if(!self.hidden) {
+		_binNameHidden = binNameHidden;
+		bandLayer.hidden = binNameHidden;
+	}
+}
+
+
+- (BOOL)binNameHidden {
+	return bandLayer.isHidden;
+}
+
+
+-(NSRect)binNameRect {
+	return bandLayer.frame;
+}
+
+
 - (void)reposition {
 	TraceView *view = self.view;
 	float hScale = view.hScale;
-	if(hScale <= 0 || self.hidden) {
+	if(hScale <= 0) {
 		return;
 	}
-	
 
 	float startSize = self.startSize;
 	float endSize = self.endSize;
@@ -132,18 +176,15 @@
 
 /// Repositions the layers showing the bin name
 -(void) repositionInternalLayers {
-	/// we don't show the bandLayer (hence the name) if the bin label is too narrow.
-	if (regionRect.size.width <= stringLayer.bounds.size.width/2 && !self.hovered) {
-		bandLayer.hidden = YES;
-	} else {
-		bandLayer.hidden = NO;
-		CGRect rect = stringLayer.bounds;
-		if(rect.size.width < regionRect.size.width) {
-			rect.size.width = regionRect.size.width;
-		}
-		bandLayer.bounds = rect;
-		bandLayer.position = CGPointMake(NSMidX(regionRect), NSMaxY(regionRect));
-		stringLayer.position = CGPointMake(NSMidX(bandLayer.bounds), NSMidY(bandLayer.bounds));
+	CGRect rect = stringLayer.bounds;
+	if(rect.size.width < regionRect.size.width) {
+		rect.size.width = regionRect.size.width;
+	}
+	bandLayer.bounds = rect;
+	bandLayer.position = CGPointMake(NSMidX(regionRect), NSMaxY(regionRect));
+	stringLayer.position = CGPointMake(NSMidX(rect), NSMidY(rect));
+	if (!bandLayer.hidden) {
+		bandLayer.zPosition = self.hovered? 1.1 : 1.0;
 	}
 }
 
@@ -153,7 +194,7 @@
 }
 
 
-- (NSMenu *)menu {
+- (nullable NSMenu *)menu {
 	_menu = super.menu;
 	if(_menu.itemArray.count < 2) {
 		/// we just add a menu item allowing to delete our bin
@@ -174,7 +215,7 @@
 		if(!MOC) {
 			return;
 		}
-		[MOC deleteObject:self.region];		/// this triggers the recreation of labels by the view, which will deallocate us
+		[MOC deleteObject:self.region];		/// this triggers the recreation of labels, which will deallocate us
 		[self.view.undoManager setActionName: self.deleteActionTitle];
 		self.view = nil; 									/// this removes us from the view because when our region is removed, we may still exist in the view and interfere.
 	}

@@ -37,11 +37,11 @@ extern const float markerViewHeight;
 /// A `MakerView` can make its ``traceView`` zoom to the range of a marker. It has two navigation buttons to that effect.
 /// It can also set a specific mode allowing the creation of a new marker by click & drag.
 ///
-/// IMPORTANT: a marker view must be the accessory view of a horizontal ruler view of a scrollview that has a ``TraceView`` as documentView.
+/// IMPORTANT: a marker view must be the accessory view of a horizontal ruler view of a scrollview that has a ``TraceView`` as `documentView`.
 ///
 /// Since it is subview of a ruler view, a marker view does not scroll, but makes as if it does by moving marker labels to reflect the scrolling position of its associated ``traceView``.
 /// In effect, its ``TraceView/visibleOrigin`` properties is simply taken from its ``traceView``.
-@interface MarkerView : LabelView
+@interface MarkerView : LabelView <CALayerDelegate>
 
 /// The ``TraceView`` object with which the view is associated.
 ///
@@ -49,7 +49,7 @@ extern const float markerViewHeight;
 @property (nonatomic, readonly, weak) TraceView *traceView;
 
 /// The ``TraceView/channel`` (colour) that the ``traceView`` shows.
-@property (nonatomic, readonly) NSInteger channel;
+@property (nonatomic, readonly) ChannelNumber channel;
 					
 /// Returns a BaseRange that allows the `range` argument to fill in the visible rectangle of the view.
 ///

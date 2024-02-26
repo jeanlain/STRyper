@@ -37,22 +37,29 @@ NS_ASSUME_NONNULL_BEGIN
 @property (weak) IBOutlet id<SortCriteriaEditorDelegate> delegate;
 
 
-/// Configures the receiver with available key paths for sorting, and corresponding user-friendly titles.
+/// Configures the receiver with available key paths for sorting, corresponding selectors, and user-facing titles.
+///
+/// The `titles` will compose the menu items of popup buttons allowing the user to define sort criteria.
 /// - Parameters:
 ///   - titles: The titles that will show in the popup button (from top to bottom) allowing the user to select among sort attributes at a given row.
 ///   The array must contain at least two elements, each of which must be unique.
 ///   - keypaths: The key paths used for sorting. Each key path corresponds to an element of the `titles` argument at the same index, and must be unique.
--(void)setTitles:(NSArray<NSString *>*)titles forKeyPaths:(NSArray<NSString *>*)keypaths;
+///   - selectorNames: Names of selectors used for sorting the corresponding `keypaths`.
+///   These names can me produced with `NSStringFromSelector`. If `nil`, the default selector `compare:` will be used to generated the ``sortDescriptors``.
+///   If not `nil`, the count of the array must be the same as the `keypaths` array.
+-(void)configureWithKeyPaths:(NSArray<NSString *>*)keypaths 
+			   selectorNames:(nullable NSArray<NSString *>*)selectorNames
+					  titles: (NSArray<NSString *>*)titles;
 
 /// The sort descriptors that the receiver shows.
 ///
-/// The `selector` of each sort descriptor is ignored, but its `key` must belong to the `keypaths` specified in ``setTitles:forKeyPaths:``,
+/// The `selector` of each sort descriptor is ignored, but its `key` must belong to the `keypaths` specified in ``configureWithKeyPaths:selectorNames:titles:``,
 /// otherwise the method throws an exception.
 @property (nonatomic) NSArray <NSSortDescriptor *>* sortDescriptors;
 
 /// The table view that contains the rows representing sort descriptors.
 ///
-/// The table content, its `delegate` and its `datasource` should not be changed as they are set internally.
+/// The table content, its `delegate` and its `datasource` must not be changed as they are set internally.
 /// Only visuals attributes may be changed.
 @property (nonatomic, readonly) NSTableView *sortCriteriaTable;
 

@@ -18,6 +18,8 @@
 		0F1B5133297C655B00727963 /* NSError+NSErrorAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F1B5132297C655B00727963 /* NSError+NSErrorAdditions.m */; };
 		0F1BBF12291F91970094BA09 /* SampleInspectorController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F1BBF10291F91970094BA09 /* SampleInspectorController.m */; };
 		0F279C082AF785AA00F78836 /* QLScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F279C072AF785AA00F78836 /* QLScrollView.m */; };
+		0F2999A42B32E87B007990F8 /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0F2999A32B32E87B007990F8 /* Colors.xcassets */; };
+		0F2999A52B32F1A6007990F8 /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0F2999A32B32E87B007990F8 /* Colors.xcassets */; };
 		0F2A951129EEF32E0034833E /* STableRowView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F2A951029EEF32E0034833E /* STableRowView.m */; };
 		0F2C9AEC29CF4F02001A0787 /* BinLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F2C9AEB29CF4F02001A0787 /* BinLabel.m */; };
 		0F2C9AEF29CF4F13001A0787 /* TraceViewMarkerLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F2C9AEE29CF4F13001A0787 /* TraceViewMarkerLabel.m */; };
@@ -60,6 +62,7 @@
 		0F4B473528A631F300895434 /* RegionPopover.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F4B473428A631F300895434 /* RegionPopover.xib */; };
 		0F50C3382923A5DA00AF1F67 /* CodingObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F50C3372923A5DA00AF1F67 /* CodingObject.m */; };
 		0F51CD8D292E058B0036D512 /* Badges.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0F51CD8C292E058B0036D512 /* Badges.xcassets */; };
+		0F5430512B25B727009F6B3F /* CDUndoManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F5430502B25B727009F6B3F /* CDUndoManager.m */; };
 		0F61B727289D039100191496 /* RightPane.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F61B726289D039100191496 /* RightPane.xib */; };
 		0F7402242864F26500F84CCC /* Folder.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F7402232864F26500F84CCC /* Folder.m */; };
 		0F77801D289BA13000CD7480 /* SizeStandardTab.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F77801C289BA13000CD7480 /* SizeStandardTab.xib */; };
@@ -150,6 +153,7 @@
 		0F1BBF10291F91970094BA09 /* SampleInspectorController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SampleInspectorController.m; sourceTree = "<group>"; };
 		0F279C062AF785AA00F78836 /* QLScrollView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = QLScrollView.h; sourceTree = "<group>"; };
 		0F279C072AF785AA00F78836 /* QLScrollView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = QLScrollView.m; sourceTree = "<group>"; };
+		0F2999A32B32E87B007990F8 /* Colors.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Colors.xcassets; sourceTree = "<group>"; };
 		0F2A950F29EEF32E0034833E /* STableRowView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = STableRowView.h; sourceTree = "<group>"; };
 		0F2A951029EEF32E0034833E /* STableRowView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = STableRowView.m; sourceTree = "<group>"; };
 		0F2C9AEA29CF4F02001A0787 /* BinLabel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BinLabel.h; sourceTree = "<group>"; };
@@ -231,6 +235,8 @@
 		0F50C3362923A5DA00AF1F67 /* CodingObject.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CodingObject.h; sourceTree = "<group>"; };
 		0F50C3372923A5DA00AF1F67 /* CodingObject.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CodingObject.m; sourceTree = "<group>"; };
 		0F51CD8C292E058B0036D512 /* Badges.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Badges.xcassets; sourceTree = "<group>"; };
+		0F54304F2B25B727009F6B3F /* CDUndoManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CDUndoManager.h; sourceTree = "<group>"; };
+		0F5430502B25B727009F6B3F /* CDUndoManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CDUndoManager.m; sourceTree = "<group>"; };
 		0F61B726289D039100191496 /* RightPane.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = RightPane.xib; sourceTree = "<group>"; };
 		0F7402222864F26500F84CCC /* Folder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Folder.h; sourceTree = "<group>"; };
 		0F7402232864F26500F84CCC /* Folder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Folder.m; sourceTree = "<group>"; };
@@ -465,6 +471,8 @@
 			isa = PBXGroup;
 			children = (
 				0FFF774429F50ABF00695EBF /* NewMarkerPopover.xib */,
+				0F54304F2B25B727009F6B3F /* CDUndoManager.h */,
+				0F5430502B25B727009F6B3F /* CDUndoManager.m */,
 				0FFF774629F50BBE00695EBF /* NewMarkerPopover.h */,
 				0FFF774729F50BBE00695EBF /* NewMarkerPopover.m */,
 				0F1A761D29BFB909004136D8 /* AutoBinPopover.xib */,
@@ -533,10 +541,10 @@
 				0F43C8552A6D41DD005252DE /* SortCriteriaEditor.xib */,
 				0F43C8522A6D4170005252DE /* SortCriteriaEditor.h */,
 				0F43C8532A6D4170005252DE /* SortCriteriaEditor.m */,
+				0FC4C2E72A6C6E9C00DAF6D5 /* SortCriteriaEditorDelegate.h */,
 				0FFF1AF4296C17B6009C32F2 /* TableSort Popover.xib */,
 				0FC4C2E42A6C68AD00DAF6D5 /* TableSortPopover.h */,
 				0FC4C2E52A6C68AD00DAF6D5 /* TableSortPopover.m */,
-				0FC4C2E72A6C6E9C00DAF6D5 /* SortCriteriaEditorDelegate.h */,
 			);
 			path = Sorting;
 			sourceTree = "<group>";
@@ -650,6 +658,7 @@
 				0FE33B052807539E00B9C5DB /* STRyper.entitlements */,
 				0F0D01FD29FE6841006D724F /* STRyper.xcdatamodeld */,
 				0FE33AFE2807539D00B9C5DB /* Assets.xcassets */,
+				0F2999A32B32E87B007990F8 /* Colors.xcassets */,
 				0F51CD8C292E058B0036D512 /* Badges.xcassets */,
 				0F3D2EF92807551A006FAAF2 /* Buttons.xcassets */,
 				0F3D2EFA2807551A006FAAF2 /* TraceButtons.xcassets */,
@@ -738,6 +747,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0F9956082AF6B9CB00B282BB /* PreviewViewController.xib in Resources */,
+				0F2999A52B32F1A6007990F8 /* Colors.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -760,6 +770,7 @@
 				0FBB567B298C353500110490 /* ProgressWindow.xib in Resources */,
 				0F77801D289BA13000CD7480 /* SizeStandardTab.xib in Resources */,
 				0FFF774529F50ABF00695EBF /* NewMarkerPopover.xib in Resources */,
+				0F2999A42B32E87B007990F8 /* Colors.xcassets in Resources */,
 				0FE33B022807539E00B9C5DB /* MainMenu.xib in Resources */,
 				0F61B727289D039100191496 /* RightPane.xib in Resources */,
 				0FFF1AF6296C17B6009C32F2 /* TableSort Popover.xib in Resources */,
@@ -796,6 +807,7 @@
 				0F3D2F4828075974006FAAF2 /* MarkerView.m in Sources */,
 				0FDDE85428F6A13B00A734BD /* TableHeaderView.m in Sources */,
 				0F081948291EA50D00BF990A /* GaugeTableCellView.m in Sources */,
+				0F5430512B25B727009F6B3F /* CDUndoManager.m in Sources */,
 				0F3D2F4528075974006FAAF2 /* SampleFolder.m in Sources */,
 				0FA623D3289EBBF9006A23FE /* GenotypeTableController.m in Sources */,
 				0FF5C83429D993880095D95A /* IndexImageView.m in Sources */,
@@ -899,7 +911,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -915,7 +927,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = "1.0 beta";
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper.QLPreviewABIF;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -932,7 +944,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -948,7 +960,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = "1.0 beta";
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper.QLPreviewABIF;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1078,7 +1090,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1094,7 +1106,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = "1.0 beta";
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper;
 				PRODUCT_NAME = STRyper;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1112,7 +1124,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -1128,7 +1140,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = "1.0 beta";
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper;
 				PRODUCT_NAME = STRyper;
 				SWIFT_EMIT_LOC_STRINGS = YES;

@@ -26,24 +26,33 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A TraceView marker label shows the range of a marker (``Mmarker`` object)  on a ``TraceView`` and allows the user to edit bins, move bins and modify the maker offset of target samples.
 ///
-/// This label is ``ViewLabel/hidden`` when it is not ``ViewLabel/enabled``.
+/// A TraceView marker label automatically creates/updates bin labels for the marker it represents.
+/// It repositions them in its ``ViewLabel/reposition`` method, avoiding overlap in bin names.
+@interface TraceViewMarkerLabel : RegionLabel
+
+/// Implements ``ViewLabel/mouseDownInView``.
 ///
-/// Its ``RegionLabel/binLabels`` property returns labels for the ``Mmarker/bins`` of its marker.
+///  if the ``ViewLabel/view``'s ``LabelView/clickedPoint`` lies outside the label's ``ViewLabel/frame``,
+///  the method sets the ``RegionLabel/editState`` of the label to `editStateNil`.
+- (void)mouseDownInView;
+
+/// Sets the label's ``RegionLabel/editState``.
 ///
-/// When its ``RegionLabel/editState``  is `editStateNil` (which is the default), the label is not ``ViewLabel/enabled``.
+/// When set to `editStateNil` (the initial state), the label is not ``ViewLabel/enabled``.
 ///
-/// When its state is `editStateBinSet`, the label is ``ViewLabel/highlighted`` and can be used to resize and move its ``RegionLabel/binLabels`` with its ``ViewLabel/drag`` method.
-///
-/// When its state is `editStateBinSet`, the label is ``ViewLabel/enabled``, so are its ``RegionLabel/binLabels``, to allows the user to add and modify bins manually.
+/// When set to `editStateBins`, the label gets ``ViewLabel/enabled``, so do all its ``RegionLabel/binLabels``.
 /// The label cannot be ``ViewLabel/highlighted`` when it is in this state.
 ///
-/// When the label is in another ``RegionLabel/editState``, it is ``ViewLabel/highlighted``  and can be used to edit the marker offset of target samples, with its ``ViewLabel/drag`` method.
-///
-/// The ``ViewLabel/cancelOperation:`` message sets the ``RegionLabel/editState`` of the label to `editStateNil`.
-///
-/// The ``ViewLabel/mouseDownInView`` message has the same effect if the ``ViewLabel/view``'s ``LabelView/clickedPoint`` lies outside the label's ``ViewLabel/frame``.
-@interface TraceViewMarkerLabel : RegionLabel 
+/// When set to another value , the label is ``ViewLabel/highlighted`` and its bin labels are disabled.
+- (void)setEditState:(EditState)editState;
 
+/// Implement the ``ViewLabel/drag`` method.
+///
+/// The method moves or resizes the label to move/resize its set of ``RegionLabel/binLabels`` if the label's ``RegionLabel/editState`` is `editStateBin`, or to edit the ``Genotype/offset`` of target genotypes if in another state.
+///
+///	The method prevents excessive resizing and contrains bins within their ``Bin/marker``'s range.
+/// See ``STRyper``'s user guide for a visual representation.
+- (void)drag;
 
 
 @end

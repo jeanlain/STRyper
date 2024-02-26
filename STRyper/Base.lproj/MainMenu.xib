@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -138,7 +138,7 @@
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="q43-dI-NyN"/>
-                            <menuItem title="Rename" id="pMU-5z-h56">
+                            <menuItem title="Rename" hidden="YES" id="pMU-5z-h56">
                                 <string key="keyEquivalent" base64-UTF8="YES">
 DQ
 </string>
@@ -147,13 +147,13 @@ DQ
                                     <action selector="rename:" target="-1" id="T68-hG-ID7"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Delete Item" tag="2" id="qLR-ID-vxr">
+                            <menuItem title="Delete Item" tag="2" hidden="YES" id="qLR-ID-vxr">
                                 <string key="keyEquivalent" base64-UTF8="YES">
 CA
 </string>
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
-                                    <action selector="deleteBackward:" target="-1" id="EoT-Uj-YZC"/>
+                                    <action selector="deleteSelection:" target="-1" id="XpA-nv-5vU"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Remove" tag="1" id="9nf-HZ-qVW">
@@ -331,10 +331,22 @@ CA
                                 </menu>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="H2O-sn-gHR"/>
+                            <menuItem title="Peak Information" id="RO0-W0-QJw">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <binding destination="OHE-m2-ofX" name="value" keyPath="values.ShowPeakTooltips" id="DGy-PY-ega"/>
+                                </connections>
+                            </menuItem>
                             <menuItem title="Saturated Regions" state="on" alternate="YES" keyEquivalent="s" id="glW-6C-Itw">
                                 <modifierMask key="keyEquivalentModifierMask" control="YES"/>
                                 <connections>
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.ShowOffScale" id="Uht-eP-Sef"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Paint Crosstalk Peaks" state="on" alternate="YES" id="vqE-nB-0Xz">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <binding destination="OHE-m2-ofX" name="value" keyPath="values.PaintCrosstalkPeaks" id="Y0T-kK-zU3"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Bins" state="on" alternate="YES" keyEquivalent="b" id="gi2-wn-bew">
@@ -343,6 +355,7 @@ CA
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.ShowBins" id="E6n-hM-IMi"/>
                                 </connections>
                             </menuItem>
+                            <menuItem isSeparatorItem="YES" id="Ybg-M7-Kl5"/>
                             <menuItem title="Subtract Baseline Fluorescence" state="on" keyEquivalent="r" id="GYv-4O-kd0">
                                 <modifierMask key="keyEquivalentModifierMask" control="YES"/>
                                 <connections>
@@ -351,12 +364,6 @@ CA
                                             <string key="NSValueTransformerName">NSNegateBoolean</string>
                                         </dictionary>
                                     </binding>
-                                </connections>
-                            </menuItem>
-                            <menuItem title="Peak Information" id="RO0-W0-QJw">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                                <connections>
-                                    <binding destination="OHE-m2-ofX" name="value" keyPath="values.ShowPeakTooltips" id="DGy-PY-ega"/>
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="R5I-Vh-s1D"/>
@@ -436,17 +443,17 @@ CA
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="AOe-w4-B1U"/>
-                            <menuItem title="Error Log" tag="3" id="bfN-42-Dio">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                                <connections>
-                                    <action selector="showErrorLogWindow:" target="-1" id="HPd-tM-7VH"/>
-                                </connections>
-                            </menuItem>
-                            <menuItem isSeparatorItem="YES" id="Xof-xx-wKD"/>
                             <menuItem title="Sort Table…" id="qm1-mi-wDu">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <action selector="showSortCriteria:" target="-1" id="cwA-Cf-2TB"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem isSeparatorItem="YES" id="Xof-xx-wKD"/>
+                            <menuItem title="Error Log" tag="3" id="bfN-42-Dio">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="showErrorLogWindow:" target="-1" id="HPd-tM-7VH"/>
                                 </connections>
                             </menuItem>
                         </items>

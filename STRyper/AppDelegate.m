@@ -24,6 +24,10 @@
 
 #import "FolderListController.h"
 #import "PanelListController.h"
+#import "SampleTableController.h"
+#import "GenotypeTableController.h"
+#import "DetailedViewController.h"
+#import "CDUndoManager.h"
 
 @implementation AppDelegate {
 	
@@ -40,8 +44,11 @@ OutlinePeaks = @"OutlinePeaks",
 ShowPeakTooltips = @"ShowPeakTooltips",
 DefaultEndSize = @"DefaultEndSize",
 DefaultStartSize = @"DefaultStartSize",
+ReferenceStartSize = @"ReferenceStartSize",
+ReferenceEndSize = @"ReferenceEndSize",
 TraceRowsPerWindow = @"TraceRowsPerWindow",
 TraceStackMode = @"StackMode",
+PaintCrosstalkPeaks = @"PaintCrosstalkPeaks",
 IgnoreCrosstalkPeaks = @"IgnoreCrossTalkPeaks",
 MaintainPeakHeights = @"MaintainPeakHeights",
 SynchronizeViews = @"SynchronizeViews",
@@ -54,13 +61,12 @@ ShowChannel1 = @"Channel1",
 ShowChannel2 = @"Channel2",
 ShowChannel3 = @"Channel3",
 ShowChannel4 = @"Channel4",
-ShowRuler = @"ShowRuler",
-ShowMarkerView = @"ShowMarkerView",
 AddSampleInfo = @"AddSampleInfo",
 AutoDetectSizeStandard = @"AutoDetectSizeStandard",
 DubiousAlleleName = @"DubiousAlleleName",
 MissingAlleleName = @"MissingAlleleName",
 DefaultSizingOrder = @"DefaultSizingOrder",
+AnnotateSupplementaryPeaks = @"AnnotateSupplementaryPeaks",
 BottomTab = @"BottomTab",
 CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
@@ -78,6 +84,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   TraceRowsPerWindow: @2,
 							   TraceStackMode: @0,
 							   TraceTopFluoMode: @0,
+							   PaintCrosstalkPeaks : @YES,
 							   IgnoreCrosstalkPeaks : @NO,
 							   SynchronizeViews: @YES,
 							   SwipeBetweenMarkers: @YES,
@@ -89,12 +96,11 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   ShowChannel2: @YES,
 							   ShowChannel3: @YES,
 							   ShowChannel4: @YES,
-							   ShowRuler: @YES,
-							   ShowMarkerView: @YES,
 							   AddSampleInfo: @NO,
 							   AutoDetectSizeStandard:@NO,
 							   DubiousAlleleName:@"?",
 							   MissingAlleleName:@"",
+							   AnnotateSupplementaryPeaks:@YES,
 							   DefaultSizingOrder: @2,
 							   @"NSOutlineView Items sampleInspector":@[@"Sample information", @"Sizing"],
 							   @"log": @NO,						
@@ -104,12 +110,33 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	[NSUserDefaults.standardUserDefaults registerDefaults:defaults];
 }
 
-- (void)applicationDidFinishLaunching:(NSNotification *)notification {	
 
-	NSManagedObjectContext *MOC = self.managedObjectContext;		/// we load the context early
+- (void)applicationDidFinishLaunching:(NSNotification *)notification {
+	
+	NSManagedObjectContext *MOC = self.managedObjectContext;
 	if(!MOC) {
 		NSLog(@"Failed to load the database.");
 		abort();
+	}
+
+	/// We check the version of the persistent store to improve the detection of crosstalk in traces if necessary.
+	/// Earlier versions of the app did not detect crosstalk in a way that allows showing it in trace views.
+	NSURL *url = [MOC.persistentStoreCoordinator URLForPersistentStore: MOC.persistentStoreCoordinator.persistentStores.firstObject];
+	if(url) {
+		NSDictionary *data = [NSPersistentStoreCoordinator metadataForPersistentStoreOfType:NSSQLiteStoreType URL:url options:nil error:nil];
+		if(data) {
+			NSArray *identifiers = [data valueForKey:NSStoreModelVersionIdentifiersKey];
+			if(identifiers && ![identifiers containsObject:@"1.1"]) {
+				NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:Chromatogram.entity.name];
+				NSArray *samples = [MOC executeFetchRequest:request error:nil];
+				for(Chromatogram *sample in samples) {
+					[sample inferOffscaleChannel];
+					for(Trace *trace in sample.traces) {
+						[trace findCrossTalk];
+					}
+				}
+			}
+		}
 	}
 	
 	/// We load the main window.
@@ -246,7 +273,7 @@ enum TextFieldTag: NSInteger {
 }
 
 
-/// This currently show a pdf guide located in the main bundle. It would be better to use the system help
+/// This currently shows a pdf guide located in the main bundle. It would be better to use the system help
 -(IBAction)showHelp:(id)sender {
 	NSURL *helpFileURL = [NSBundle.mainBundle URLForResource:@"STRyper help" withExtension:@"pdf"];
 	if(![NSWorkspace.sharedWorkspace openURL:helpFileURL]) {
@@ -384,7 +411,9 @@ enum TextFieldTag: NSInteger {
 	}
 	
 	_managedObjectContext = self.persistentContainer.viewContext;
-	_managedObjectContext.undoManager = NSUndoManager.new;
+	CDUndoManager *undoManager = CDUndoManager.new;
+	_managedObjectContext.undoManager = undoManager;
+	undoManager.managedObjectContext = _managedObjectContext;
 	_managedObjectContext.automaticallyMergesChangesFromParent = YES;
 	return _managedObjectContext;
 }
@@ -468,6 +497,10 @@ enum TextFieldTag: NSInteger {
 	/// Even if we cancel termination, this isn't costly. However, they won't be restored if the app crashed and did not call this method.
 	[FolderListController.sharedController recordSelectedFolder];
 	[PanelListController.sharedController recordSelectedFolder];
+	[SampleTableController.sharedController recordSelectedItems];
+	[GenotypeTableController.sharedController recordSelectedItems];
+	[MainWindowController.sharedController recordSourceController];
+	[DetailedViewController.sharedController recordReferenceRange];
 	
     /// Save changes in the application's managed object context before the application terminates.
 	NSManagedObjectContext *context = self.managedObjectContext;

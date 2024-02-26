@@ -31,10 +31,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An abstract class that implements methods used by several singleton subclasses managing tableviews in  ``STRyper``.
 ///
-/// This class provides common methods for controller objects that are delegate/datasource of NSTableView objects.
+/// This class provides common methods for controller objects that are delegate/datasource of `NSTableView` objects.
 ///	Objects that compose the rows of these tables inherit from ``CodingObject``.
 ///
-/// This class implements methods for the deletion of items representing table rows, with optional alerts that ask the user for confirmation or explain why the deletion is not allowed.
+/// This class implements methods for the deletion of items representing table rows and to record/restore the selected items in/from the user defaults
 ///
 /// Other methods can populate the tableview with columns and cell views, based on column descriptions provided as a dictionary (see ``columnDescription``).
 /// This dictionary is useful for tables that have too many columns to all be designed in a nib.
@@ -42,8 +42,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// This class implements `-copy` (to the paste board) of the text content of selected rows, for subclasses that provide a ``columnDescription``
 ///	and for the items shown in the table if they implement the `NSPasteBoardWriting` protocol.
 ///
-/// This class also provides  a menu for the table header view, to allow hiding/showing columns.
-@interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate> {
+/// This class also provides  a menu for the table header view, to allow hiding/showing columns and sorting via a popover of class ``TableSortPopover``.
+@interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSPopoverDelegate> {
 	
 	/// backs the ``tableView`` readonly property.
 	///
@@ -54,6 +54,9 @@ NS_ASSUME_NONNULL_BEGIN
 	///
 	/// It is used so subclasses can modify it.
 	IBOutlet NSArrayController *_tableContent;
+	
+	/// A popover allowing to define the filter on the table content
+	NSPopover *filterPopover;
 }
 
 
@@ -86,7 +89,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The optional dictionary describing, for each column, what cell view it should have and how to bind it with keyPaths of the items the ``tableView`` shows.
 ///
 /// The keys are the column identifiers, the values are itself dictionaries describing the cell views (keys are of type ``ColumnDescriptorKey``).
-@property (readonly, nullable, nonatomic) NSDictionary *columnDescription;
+@property (readonly, nullable, nonatomic) NSDictionary<NSString *, NSDictionary *> *columnDescription;
 
 /// Keys of the NSDictionary describing cells that populate a given column the ``TableViewController/tableView``.
 typedef NSString *const ColumnDescriptorKey;
@@ -94,10 +97,11 @@ extern ColumnDescriptorKey KeyPathToBind, /// the keyPath to bind to the textFie
 IsTextFieldEditable,		/// Whether the cell text field is editable. The value must be an NSNumber (bool).
 CellViewID,					/// the identifier of the cell view, which `viewForCellPrototypes` should be able to make. Value must be an NSString.
 ColumnTitle,				/// the title the column should have. Value must be an NSString.
-IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value must be an NSNumber (bool).
+IsColumnVisibleByDefault, 	/// Whether the column is visible by default. Value must be an NSNumber (bool).
+IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensitive.
 
-/// When columns are generated programmatically,
-/// the tableview that contains the tableCellView prototypes (by default, the receiver's ``tableView``).
+
+/// The tableview that contains the tableCellView prototypes (by default, the receiver's ``tableView``).
 @property (nonatomic, weak) NSTableView *viewForCellPrototypes;
 
 
@@ -107,6 +111,18 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 ///
 /// This is only relevant if columns are generated programmatically.
 @property (readonly, nonatomic, nullable) NSArray<NSString *> *orderedColumnIDs;
+
+
+/// The visible columns of the ``tableView``.
+@property (readonly, nullable, nonatomic) NSArray<NSTableColumn *>* visibleColumns;
+
+
+/// Returns whether a column of the ``tableView`` can be hidden.
+///
+/// The default implementation returns `YES`.
+/// - Parameter column: The column that may be hidden.
+- (BOOL)canHideColumn:(NSTableColumn *)column;
+
 
 /// Whether the ``tableView`` saves its configuration.
 ///
@@ -131,7 +147,7 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 @property (readonly, nonatomic) BOOL shouldDeleteObjectsOnRemove;
 
 
-/****methods used to manage addition or deletion of objects shown in the tableview***************/
+/****methods used to manage the selection, addition or deletion of objects shown in the tableview***************/
 
 /// The user-facing name for the type of item populating the table (used in dialogs).
 ///
@@ -150,6 +166,7 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 /// - Parameter item: The item to be renamed.
 -(BOOL)canRenameItem:(id)item;
 
+
 /// Selects the text showing the name of the provided item in the ``tableView``.
 ///
 /// This convenience method relies on ``itemNameColumn``, to select the name of new items for editing by the user.
@@ -163,8 +180,6 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 /// The default value is 0.
 - (NSInteger) itemNameColumn;
 
-/// The visible columns of the ``tableView``.
-@property (readonly, nullable, nonatomic) NSArray<NSTableColumn *>* visibleColumns;
 
 /// A generic method that removes target items from the ``tableView``, sent from menus and buttons.
 /// - Parameter sender: The object that sent the message.
@@ -172,9 +187,11 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 - (IBAction)remove:(id)sender;
 
 
-/// The items that are the target of an action on, i.e., which are at the clicked row and/or selected rows of the ``tableView``.
+/// The items that are the target of an action by a sender.
 ///
-/// - Parameter sender: The object that sent the message, typically an NSMenuItem.
+/// These items are at the clicked row and/or selected rows of the ``tableView``, depending on the sender.
+///
+/// - Parameter sender: The object that sent the message, typically an `NSMenuItem`.
 /// Because this method analyzes the sender to determine which items to remove, not any sender is adequate.
 - (nullable NSArray *) targetItemsOfSender:(id)sender;
 
@@ -188,7 +205,7 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 
 /// An appropriate action title for the removal of items.
 ///
-///	The return value will be used for the title a menu item whose action is ``remove:`` and the target is the receiver.
+///	The returned value will be used for the title a menu item whose action is ``remove:`` and the target is the receiver.
 /// The default value is "Delete " followed by the the value returned by ``nameForItem:``.
 /// If this returns `nil`, the menu is hidden out and removal is prevented.
 ///
@@ -229,6 +246,29 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 @property (readonly, nonatomic) BOOL canAlwaysRemove;
 
 
+/// The action name to provide to the receiver's undo manager when a cell has been edited.
+///
+/// The default implementation returns "Edit " followed by the column title. If `nil` is returned, no action name will be set.
+/// - Parameter column: The column at which text has been edited.
+/// - Parameter row: The row a at which text has been edited.
+- (nullable NSString *) actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row;
+
+
+/// Action that can be sent by a popup button within a cell.
+///
+/// The default implementation sets the undo manager's action name with
+/// ``actionNameForEditingCellInColumn:row:`` if `sender` is in the ``tableView``.
+/// - Parameter sender: The popup that sent the message.
+- (IBAction)popupClicked:(NSPopUpButton *)sender;
+
+/// Reveals an item by scrolling the ``tableView``  if necessary and flashes its row with a white frame.
+/// - Parameter item: The item to reveal.
+///
+/// The method does nothing if the item is not found in the ``tableContent``'s `arrangedObjects`,
+/// neither does it change the selection.
+- (void)revealItem:(id)item;
+
+
 /// The action sent to the receiver by the ``tableView`` when it is when clicked.
 ///
 /// Subclasses override this method to set the ``MainWindowController/sourceController``.
@@ -236,13 +276,16 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 
 
 /// Shows a popover that allows the user to sort the ``tableView`` by several columns.
-///
+/// 
 /// This method uses a ``TableSortPopover``.
 /// The popover is shown relative to the table header view.
+/// - Parameter sender: The object that sent this message. The default implementation ignores this parameter.
 - (IBAction)showSortCriteria:(id)sender;
 
 
 /// Moves the selected rows of the ``tableView`` one step down or up while maintaining the number of selected rows.
+///
+/// - Parameter sender: The object that sent this message. The default implementation ignores this parameter.
 - (void)moveSelectionByStep:(id)sender;
 
 
@@ -276,7 +319,85 @@ IsColumnVisibleByDefault; 	/// Whether the column is visible by default. Value m
 /// If `nil`, each copied element will be represented by its own pasteboard item if it implements `NSPasteboardWriting`.
 ///
 /// Using a single pasteboard item allows much faster reading of the pasteboard upon paste.
--(nullable NSPasteboardType)pasteboardTypeForCombinedItems;
+- (nullable NSPasteboardType)pasteboardTypeForCombinedItems;
+
+
+/******recording and restoring selection ****/
+
+/// Records the selected items (selected rows) in the use defaults.
+///
+/// The items are recorded using the absolute string of the URI representation of their object IDs.
+/// - Parameters:
+///   - key: The key of the user default to record the selected items.
+///   - subKey: A key for the dictionary that is saved in the user default.
+///   - maxRecorded: The maximum number of selected items to be recorded. Use 0 if all items are recorded.
+-(void)recordSelectedItemsAtUserDefaultsKey:(NSString *)key subKey:(NSString *)subKey maxRecorded:(NSUInteger)maxRecorded;
+
+/// Restore the selected items (selects rows) retrieved from the user defaults.
+/// - Parameters:
+///   - key: The key of the user default.
+///   - subKey: The key of the dictionary saved in the user defaults.
+-(void)restoreSelectedItemsWithUserDefaultsKey:(NSString *)key subKey:(NSString *)subKey;
+
+/// Records the selected Items in the user defaults.
+///
+/// Subclass are expected to override this method and call ``recordSelectedItemsAtUserDefaultsKey:subKey:maxRecorded:``.
+-(void)recordSelectedItems;
+
+/// Restores the selected items store in the user defaults and scrolls the ``tableView`` to show the first selected row.
+///
+/// Subclass are expected to override this method and call ``restoreSelectedItemsWithUserDefaultsKey:subKey:``.
+-(void)restoreSelectedItems;
+
+/************filtering ***************/
+
+/// The method below are not much generic, the merely avoid replicating code in two subclasses
+/// that allow filtering the table content.
+
+/// A button that is used to filter the table content.
+@property (weak, nonatomic) IBOutlet NSButton *filterButton;
+
+/// The default action of the ``filterButton.
+///
+/// The default implementation presents a `NSPopover`showing an `NSPredicateEditor`
+/// relative to the ``filterButton``, only if ``filterUsingPopover`` return `YES`.
+/// Otherwise the method does nothing.
+/// - Parameter sender: The ``filterButton``.
+- (void)filterButtonAction:(NSButton *)sender;
+
+/// The image to show on the ``filterButton``.
+///
+/// The default image is similar to that used in Apple Mail (as of macOS 14) and depends
+/// on the presence of a filter predicate on the ``tableContent``.
+@property (nonatomic) NSImage *filterButtonImage;
+
+
+/// Whether the filter to apply should be configurable by the user using a popover.
+///
+/// The default implementation returns `YES`.
+- (BOOL)filterUsingPopover;
+
+/// Configures the predicate editor used to filter content.
+/// 
+/// The method is called just before the popover used to present the filter predicate editor shows for the first time.
+/// The default implementation only removes a visual effect view which was added in macOS 14, which negatively impacts the visuals.
+/// Subclasses are expected to configure the `rowTemplates` and the `formattingDictionary`of the `predicateEditor`.
+/// - Parameter predicateEditor: The predicate editor to configure.
+- (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor;
+
+/// The predicate to show in the predicate editor by default.
+///
+/// This method is called when there is no filter predicate applied to ``tableContent`` and the predicate editor will be shown to the user.
+@property (nonatomic, readonly) NSPredicate *defaultFilterPredicate;
+
+/// Applies a filter predicate to ``tableContent``.
+///
+///	This method is called when the user applies the predicate configure in the popover, using a validation button.
+/// If the predicate is the same as already applied the method calls `rearrangeObject` on ``tableContent``.
+/// Subclasses can override this method and perform additional actions.
+/// - Parameter filterPredicate: The filter predicate to apply.
+- (void)applyFilterPredicate:(nullable NSPredicate *)filterPredicate;
+
 
 @end
 

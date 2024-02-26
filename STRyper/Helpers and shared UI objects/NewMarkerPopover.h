@@ -65,6 +65,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Whether the marker is diploid (if the ``Mmarker/ploidy`` equals 2).
 @property (nonatomic) BOOL diploid;
 
+/// The length of the repeat motive of the marker, in base pairs), constrained to {2...7}.
+@property (nonatomic) NSUInteger motiveLength;
+
 /// The action of the "Add marker" button.
 ///
 /// This property is nil by default.
@@ -83,9 +86,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default is the popover itself.
 @property (weak, nonatomic) id cancelActionTarget;
 
-/// Does the same as `showRelativeToRect:ofView:preferredEdge:` of NSPopover, with an option to start a modal session with the popover.
+/// Does the same as `showRelativeToRect:ofView:preferredEdge:` of `NSPopover`, with an option to start a modal session with the popover.
 ///
-/// When `modal` is YES, the popover blocks any event outside its window. It must be closed for the modal session to end.
+/// When `modal` is `YES, the popover blocks any event outside its window. It must be closed for the modal session to end.
 /// - Parameters:
 ///   - positioningRect: The rectangle within positioningView relative to which the popover should be positioned. Normally set to the bounds of positioningView. May be an empty rectangle, which will default to the bounds of positioningView.
 ///   - positioningView: The view relative to which the popover should be positioned. Causes the method to raise `NSInvalidArgumentException` if nil.

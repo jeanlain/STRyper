@@ -88,14 +88,6 @@ CodingObjectKey SizeStandardNameKey = @"name";
 
 
 
-- (void)setName:(NSString *)name {		// overridden just to specify the undo menu title
-	[self managedObjectOriginal_setName:name];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName: @"Rename Size Standard"];
-	}
-}
-
-
 - (BOOL)validateName:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {		/// raises an error if several standards have the same name
     NSString *name = *value;
     NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:SizeStandard.entity.name];

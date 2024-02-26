@@ -22,7 +22,7 @@
 #import "FittingView.h"
 #import "LadderFragment.h"
 #import "SizeStandard.h"
-#import "LabelView.h"
+
 
 @interface FittingView()
 
@@ -207,7 +207,7 @@
 		/// we show the curve only if one sample is selected
 		Chromatogram *sample = samples.firstObject;
 		self.trace = sample.ladderTrace;
-		traceColor = [[LabelView defaultColorsForChannels] objectAtIndex:self.trace.channel];
+		traceColor = self.trace.channel == redChannelNumber ? [NSColor colorNamed:@"RedChannelColor"] : [NSColor colorNamed:@"OrangeChannelColor"];
 	} else {
 		self.textField.stringValue = samples.count > 1 ? self.multipleSampleString : self.noSampleString;
 		self.trace = nil;
@@ -244,7 +244,9 @@
 	Chromatogram *sample = self.trace.chromatogram;
 	/// if there sample is not sized, we hide certain elements
 	noSizing = sample == nil || sample.sizingQuality == nil;
-	dashedLineLayer.hidden = noSizing;
+	if(noSizing) {
+		dashedLineLayer.hidden = YES;
+	}
 
 	if(sample && noSizing) {
 		self.textField.stringValue = sample.sizeStandard == nil? self.noSizingString : self.failedSizingString;
@@ -318,7 +320,8 @@
 		return;
 	}
 	
-	const float *sizes = sample.sizes.bytes;
+	NSData *sizeData = sample.sizes;
+	const float *sizes = sizeData.bytes;
 	NSRect bounds = self.bounds;
 	float width = bounds.size.width;
 	float height = bounds.size.height;
@@ -385,7 +388,9 @@
 
 - (void)mouseEntered:(NSEvent *)event {
 	[NSCursor.arrowCursor set];
-	if(self.trace && !noSizing) dashedLineLayer.hidden = NO;
+	if(self.trace && !noSizing) {
+		dashedLineLayer.hidden = NO;
+	}
 }
 
 

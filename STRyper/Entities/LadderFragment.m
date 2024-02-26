@@ -62,4 +62,8 @@ LadderFragmentOffsetKey = @"offset";
 	return @"";
 }
 
+- (BOOL)additional {
+	return NO;
+}
+
 @end

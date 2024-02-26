@@ -22,14 +22,17 @@
 #import "SizeStandardTableController.h"
 #import "SizeStandard.h"
 #import "SizeStandardSize.h"
+#import "SampleTableController.h"
 @class SizeTableController;
 
 
-NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStandardDragType";	/// used when copying a size standard to the pasteboard.
+NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStandardDragType";	/// used when copying a size standard to the pasteboard.
 
 @implementation SizeStandardTableController {
-		IBOutlet SizeTableController *sizeController;  	/// to retain this controller, which is a top-level object of the nib we own
+	IBOutlet SizeTableController *sizeController;  	/// to retain this controller, which is a top-level object of the nib we own
+	__weak IBOutlet NSPopUpButton *applySizeStandardButton;
 }
+
 
 + (instancetype)sharedController {
 	static SizeStandardTableController *controller = nil;
@@ -42,8 +45,8 @@ NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStan
 }
 
 
-- (instancetype)init {
-	return [super initWithNibName:@"SizeStandardTab" bundle:nil];
+- (NSNibName)nibName {
+	return @"SizeStandardTab";
 }
 
 
@@ -51,14 +54,43 @@ NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStan
 	return SizeStandard.entity.name;
 }
 
+
 - (NSString *)nameForItem:(id)item {
 	return @"Size Standard";
 }
 
 
-
-- (void)viewDidLoad {
+-(void)viewDidLoad {
 	[super viewDidLoad];
+	NSMenu *menu = NSMenu.new;
+	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Duplicate" action:@selector(duplicateStandard:) keyEquivalent:@""];
+	item.offStateImage = [NSImage imageNamed:@"copy"];
+	item.target = self;
+	[menu addItem:item];
+	item = [[NSMenuItem alloc] initWithTitle:@"Rename" action:@selector(rename:) keyEquivalent:@""];
+	item.offStateImage = [NSImage imageNamed:@"edited"];
+	item.target = self;
+	[menu addItem:item];
+	item = [[NSMenuItem alloc] initWithTitle:@"Delete" action:@selector(remove:) keyEquivalent:@""];
+	item.offStateImage = [NSImage imageNamed:@"trash"];
+	item.target = self;
+	[menu addItem:item];
+	self.tableView.menu = menu;
+	menu.delegate = self;
+	
+	SampleTableController *sharedController = SampleTableController.sharedController;
+	for(NSMenuItem *item in applySizeStandardButton.menu.itemArray) {
+		if(item.tag == 1) {
+			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"samples.arrangedObjects.@count" options:nil];
+		} else if(item.tag == 2) {
+			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"samples.selectedObjects.@count" options:nil];
+		}
+	}
+}
+
+
+- (void)configureTableContent {
+	[super configureTableContent];
 	/// we create the "factory" size standards if needed
 	AppDelegate *appDelegate = (AppDelegate *)NSApp.delegate;
 	NSManagedObjectContext *MOC = appDelegate.managedObjectContext;
@@ -87,6 +119,7 @@ NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStan
 			}
 		}
 	}
+	
 }
 
 
@@ -106,6 +139,11 @@ NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStan
 }
 
 
+- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column {
+	return @"Rename Size Standard";
+}
+
+
 - (BOOL)canRenameItem:(id)item {
 	if([item respondsToSelector:@selector(editable)]) {
 		return [item editable];
@@ -120,13 +158,13 @@ NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStan
 
 
 - (nullable NSAlert *)cannotRemoveAlertForItems:(NSArray *)items {
-
+	
 	SizeStandard *standard = items.firstObject;		/// there can be only one item, as the table doesn't allow multiple selection
 	if(!standard || standard.editable) {
 		return nil;			/// there is no alert if the size standard to remove is editable
 	}
 	return [super cannotRemoveAlertForItems:items];
-
+	
 }
 
 
@@ -152,7 +190,7 @@ NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStan
 
 
 - (IBAction)duplicateStandard:(id)sender {
-	NSArray *selectedObjects = self.tableContent.selectedObjects;
+	NSArray *selectedObjects = [self targetItemsOfSender:sender];
 	if (selectedObjects.count > 0) {
 		SizeStandard *initialStandard = selectedObjects.firstObject;
 		SizeStandard *duplicateStandard = [initialStandard copy];
@@ -160,11 +198,21 @@ NSString * _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStan
 		[duplicateStandard autoName];
 		[self.tableContent addObject:duplicateStandard];
 		[self selectItemName:duplicateStandard];
-	//	[self addObject:duplicateStandard]; /// required to automatically select the name
 		[self.undoManager setActionName:@"Duplicate Size Standard"];
 	}
 }
 
 
+- (IBAction)applySizeStandard:(NSMenuItem *)sender {
+	SizeStandard *selectedSizeStandard = self.tableContent.selectedObjects.firstObject;
+	SampleTableController *sharedController = SampleTableController.sharedController;
+	if(selectedSizeStandard && sharedController) {
+		if(sender.tag == 1) {
+			[sharedController applySizeStandard:selectedSizeStandard toSamples:sharedController.samples.arrangedObjects];
+		} else if(sender.tag == 2) {
+			[sharedController applySizeStandard:selectedSizeStandard toSamples:sharedController.samples.selectedObjects];
+		}
+	}
+}
 
 @end

@@ -24,9 +24,11 @@
 #import "Mmarker.h"
 #import "MainWindowController.h"
 #import "PanelFolder.h"
+#import "SampleTableController.h"
 
 @implementation PanelListController {
 	IBOutlet MarkerTableController *_markerTableController;
+	__weak IBOutlet NSPopUpButton *applyPanelButton;
 	NSMutableArray *draggedMarkers;
 	
 }
@@ -43,8 +45,9 @@
 	return controller;
 }
 
-- (instancetype)init {
-	return [super initWithNibName:@"MarkerTab" bundle:nil];
+
+- (NSNibName)nibName {
+	return @"MarkerTab";
 }
 
 
@@ -57,6 +60,15 @@
     [super viewDidLoad];
 	
 	[outlineView registerForDraggedTypes:@[FolderDragType, MarkerPasteboardType]];   ///so we can drag a panel between folders (and apply it to sample by dragging to the sample table)
+	
+	SampleTableController *sharedController = SampleTableController.sharedController;
+	for(NSMenuItem *item in applyPanelButton.menu.itemArray) {
+		if(item.tag == 1) {
+			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"samples.arrangedObjects.@count" options:nil];
+		} else if(item.tag == 2) {
+			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"samples.selectedObjects.@count" options:nil];
+		}
+	}
 	
 }
 
@@ -167,28 +179,26 @@
 		return self.selectedFolder.isPanel && [pboard.types containsObject:MarkerPasteboardType];
 	}
 	
+	PanelFolder *targetItem = [self _targetFolderOfSender:menuItem];
 	if(menuItem.topMenu == outlineView.menu) {
-		/// a menu item belonging to the outline view's contextual menu. This check isn't very future-proof…
-		PanelFolder *clickedPanel = [self _targetFolderOfSender:menuItem];
-		if(clickedPanel.isPanel) {					/// a panel is clicked.
+		/// a menu item belonging to the outline view's contextual menu.
+		if(targetItem.isPanel) {					/// a panel is clicked.
 			if(menuItem.action == @selector(addFolder:) || menuItem.action == @selector(importPanel:)) {
 				/// we can't add a folder or import a panel into a panel
 				menuItem.hidden = YES;
 				return NO;
 			}
-		} else {
-			if(menuItem.action == @selector(exportSelection:)) {
-				/// we can't export a folder that isn't a panel
-				menuItem.hidden = YES;
-				return NO;
-			}
+		} else if(menuItem.action == @selector(exportSelection:)) {
+			/// we can't add a folder or import a panel into a panel
+			menuItem.hidden = YES;
+			return NO;
 		}
 		return YES;
 	}
 	
+	
 	if(menuItem.action == @selector(exportSelection:)) {
-		Folder *folder = self.selectedFolder;
-		if(folder.isPanel) {
+		if(targetItem.isPanel) {
 			menuItem.title = @"Export Panel…";
 			return YES;
 		} else {
@@ -216,7 +226,7 @@
 }
 
 
-+ (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
+- (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
 	Folder *folder = items.firstObject;
 	if(folder.isPanel) {
 		return @"All markers and associated genotypes will be removed. \nThis action can be undone.";
@@ -328,6 +338,16 @@
 }
 
 
-
+-(IBAction)applyPanel:(NSMenuItem *)sender {
+	Panel *selectedPanel = self.selectedFolder;
+	SampleTableController *sharedController = SampleTableController.sharedController;
+	if(selectedPanel.isPanel && sharedController) {
+		if(sender.tag == 1) {
+			[sharedController applyPanel:selectedPanel toSamples:sharedController.samples.arrangedObjects];
+		} else if(sender.tag == 2) {
+			[sharedController applyPanel:selectedPanel toSamples:sharedController.samples.selectedObjects];
+		}
+	}
+}
 
 @end

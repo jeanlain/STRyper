@@ -72,7 +72,7 @@
 		request.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"nChannels" ascending:YES]];		/// we don't use sorting (the samples array controller does it for us), but a sort descriptor is required
 		fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:request
 																	   managedObjectContext:MOC sectionNameKeyPath:nil cacheName:nil];
-		fetchedResultsController.delegate = (id)self;
+		fetchedResultsController.delegate = self;
 		
 		/// we react when the view context saves, to potentially fetch samples.
 		[[NSNotificationCenter defaultCenter] addObserver:self
@@ -91,7 +91,8 @@
 	if(!_searchWindow) {
 		_searchWindow = SearchWindow.searchWindow;
 		_searchWindow.message = @"Find samples meeting the following conditions:";
-		[self configurePredicateEditor];
+		[SampleTableController.sharedController configurePredicateEditor:self.predicateEditor];
+
 	}
 	return _searchWindow;
 }
@@ -111,72 +112,6 @@
 	return self.searchWindow.predicateEditor;
 }
 
-/// Configures the predicate editors with Chromatogram keys corresponding to columns shown by the sample table.
-- (void)configurePredicateEditor {
-	
-	if(!self.predicateEditor) {
-		return;
-	}
-	
-	/// The searchable attributes are those shown in the sample table.
-	NSDictionary *columnDescription = SampleTableController.sharedController.columnDescription;
-	/// We also use the column ids to show searchable attributes in a consistent order
-	NSArray *sampleColumnIDs = SampleTableController.sharedController.orderedColumnIDs;
-	if(!columnDescription || !sampleColumnIDs) {
-		return;
-	}
-	
-	NSArray *columnDescriptions = [columnDescription objectsForKeys:sampleColumnIDs notFoundMarker:@""];		/// Dictionaries describing the sample-related columns
-	/// we prepare the keyPaths (attributes) that the predicate editor will allow searching. sampleName and folder are not in sampleColumnIDs
-	NSArray *keyPaths = @[ChromatogramSampleNameKey, @"folder.name"];
-	/// We also prepare the titles for the menu items of the editor left popup buttons, as keypath names are not user-friendly
-	NSArray *titles = @[@"Sample Name", @"Folder Name"];
-	
-	for(NSDictionary *colDescription in columnDescriptions) {
-		keyPaths = [keyPaths arrayByAddingObject:[colDescription valueForKey:KeyPathToBind]];
-		titles = [titles arrayByAddingObject:[colDescription valueForKey:ColumnTitle]];
-	}
-	
-	NSArray *rowTemplates = [NSPredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Chromatogram.entity];
-	
-	/// for float attributes, we modify the template so that it only shows the < and > operators (equality is not very relevant for floats)
-	NSMutableArray *finalTemplates = [NSMutableArray arrayWithArray:rowTemplates];
-	for(NSPredicateEditorRowTemplate *template in rowTemplates) {
-		if(template.rightExpressionAttributeType == NSFloatAttributeType){
-			NSPredicateEditorRowTemplate *replacementTemplate = [[NSPredicateEditorRowTemplate alloc]
-																 initWithLeftExpressions:template.leftExpressions
-																 rightExpressionAttributeType:NSFloatAttributeType
-																 modifier:template.modifier
-																 operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)]
-																 options: 0];
-			finalTemplates[[rowTemplates indexOfObject:template]] = replacementTemplate;
-		}
-	}
-	
-	NSArray *compoundTypes = @[@(NSNotPredicateType), @(NSAndPredicateType),  @(NSOrPredicateType)];
-	NSPredicateEditorRowTemplate *compound = [[NSPredicateEditorRowTemplate alloc] initWithCompoundTypes:compoundTypes];
-	
-	/// The predicate editor has a compound predicate row template created in IB, we keep it
-	self.predicateEditor.rowTemplates = [@[compound] arrayByAddingObjectsFromArray:finalTemplates];
-	
-	
-	/// We create a formatting dictionary to translate attribute names into menu item titles. We don't translate other fields (operators)
-	NSArray *keys = NSArray.new;		/// the future keys of the dictionary
-	for(NSString *keyPath in keyPaths) {
-		NSString *key = [NSString stringWithFormat: @"%@%@%@",  @"%[", keyPath, @"]@ %@ %@"];		/// see https://funwithobjc.tumblr.com/post/1482915398/localizing-nspredicateeditor
-		keys = [keys arrayByAddingObject:key];
-	}
-	
-	NSArray *values = NSArray.new;	/// the future values
-	for(NSString *title in titles) {
-		NSString *value = [NSString stringWithFormat: @"%@%@%@",  @"%1$[", title, @"]@ %2$@ %3$@"];
-		values = [values arrayByAddingObject:value];
-	}
-	
-	self.predicateEditor.formattingDictionary = [NSDictionary dictionaryWithObjects:values forKeys:keys];
-	
-}
-
 
 - (BOOL)beginSheetModalFoWindow:(NSWindow *)window withPredicate:(nullable NSPredicate *)searchPredicate completionHandler:(void (^)(NSModalResponse returnCode))callbackBlock {
 	
@@ -188,7 +123,7 @@
 	}
 	
 	if(!searchPredicate) {
-		searchPredicate = [NSPredicate predicateWithFormat: @"(%K CONTAINS[c] '' )", ChromatogramSampleNameKey];
+		searchPredicate = SampleTableController.sharedController.defaultFilterPredicate;
 	}
 	
 	if(searchPredicate.class != NSCompoundPredicate.class) {

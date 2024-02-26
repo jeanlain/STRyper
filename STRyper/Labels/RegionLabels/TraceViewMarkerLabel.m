@@ -55,12 +55,24 @@
 
 # pragma mark - attributes and appearance
 
+static NSImage *anchorImage;
+
+
++ (void)initialize {
+	if (self == [TraceViewMarkerLabel class]) {
+		anchorImage = [NSImage imageNamed:@"anchor"];
+	}
+}
+
+
 - (BOOL)isMarkerLabel {
 	return YES;
 }
 
-- (instancetype)init
-{
+
+static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
+
+- (instancetype)init {
 	self = [super init];
 	if (self) {
 		_offset = MarkerOffsetNone;
@@ -68,20 +80,16 @@
 		layer = CALayer.new;
 		layer.delegate = self;
 		layer.opaque = YES;
+		layer.anchorPoint = CGPointMake(0, 0);
+		layer.actions = @{NSStringFromSelector(@selector(sublayers)): NSNull.null};
 		
 		/// Our layer represents the range of our region and is a light pink rectangle with black borders
 		layer.zPosition = -1;  				/// this makes sure we show behind bin labels
-		layer.borderColor = NSColor.blackColor.CGColor;
-		defaultColor = [NSColor colorWithCalibratedRed:1 green:0.9 blue:0.9 alpha:1];
-		layer.backgroundColor = defaultColor.CGColor;
 		
-		/// This type is hidden by default. It only shows when it is enabled
+		/// This type is disabled by default
 		_enabled = NO;
-		_hidden = YES;
-		layer.hidden = YES;
-		hoveredColor = defaultColor;				/// we don't change color when hovered or highlighted
-		activeColor = defaultColor;
-		edgeColor = NSColor.blackColor;
+		
+		[self addObserver:self forKeyPath:@"region.bins" options:NSKeyValueObservingOptionNew context:markerBinsChangedContext];
 	}
 	return self;
 }
@@ -90,7 +98,17 @@
 - (void)setView:(TraceView *)view {
 	super.view = view;
 	if(layer && view) {
+		layer.borderColor = view.regionLabelEdgeColor;
 		[view.backgroundLayer addSublayer:layer];
+	}
+}
+
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+	if (context == markerBinsChangedContext) {
+		[self updateBinLabels];
+	} else {
+		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 	}
 }
 
@@ -100,7 +118,6 @@
 	[innerLayer removeFromSuperlayer];
 	[outerLayer removeFromSuperlayer];
 	[super removeFromView];
-
 }
 
 
@@ -114,14 +131,16 @@
 
 
 - (void)updateAppearance {
+	TraceView *view = self.view;
+	layer.backgroundColor = self.enabled? view.traceViewMarkerLabelBackgroundColor : nil;
 	if(self.highlighted) {
 		/// when highlighted, we make our border visible to signify that we can be resized
 		layer.borderWidth = 1.0;
 		if(self.dragged) {
-			/// when dragged or resized, we show layer indicating the limits
+			/// when dragged or resized, we show layers indicating the limits
 			if(!outerLayer) {
 				outerLayer = CALayer.new;
-				outerLayer.backgroundColor = [NSColor colorWithCalibratedRed:0.8 green:1 blue:0.8 alpha:1].CGColor;
+				outerLayer.backgroundColor = view.traceViewMarkerLabelAllowedRangeColor;
 				layer.opaque = YES;
 				outerLayer.zPosition = -1;
 				outerLayer.actions = @{@"frame": NSNull.null, @"bounds": NSNull.null, @"position": NSNull.null};
@@ -131,10 +150,10 @@
 				if(!innerLayer) {					/// the inner layer is transparent, only its border is visible
 					innerLayer = CALayer.new;
 					innerLayer.borderWidth = 2.0;
-					innerLayer.borderColor = NSColor.whiteColor.CGColor;
+					innerLayer.borderColor = view.regionLabelEdgeColor;
 					innerLayer.zPosition = 2;		/// otherwise, this could be hidden by bins
 					innerLayer.actions = @{@"frame": NSNull.null, @"bounds": NSNull.null, @"position": NSNull.null};
-					[self.view.backgroundLayer insertSublayer:innerLayer above:layer];
+					[self.view.backgroundLayer addSublayer:innerLayer];
 				}
 				innerLayer.hidden = NO;
 			} else {
@@ -161,11 +180,9 @@
 
 - (void)setEnabled:(BOOL) state {
 	if(self.enabled != state) {
-		/// These labels are hidden when disabled and show otherwise
-		self.hidden = !state;
 		super.enabled = state;
 		if(!state) {
-			/// when disabled, exit the edit state of our marker (which will affect all labels showing this marker)
+			/// when disabled, we exit the edit state of our marker (which will affect all labels showing this marker)
 			self.region.editState = editStateNil;
 		} 
 		anchorPos = -1;
@@ -185,9 +202,14 @@
 
 
 - (void)setHighlighted:(BOOL)highlighted {
-	/// overridden so that we don't get highlighted when the user is editing bins manually
-	if(!(self.editState == editStateBins && highlighted)) {
-		[super setHighlighted:highlighted];
+	if(highlighted != self.highlighted) {
+		EditState editState = self.editState;
+		if((highlighted && (editState == editStateBinSet || editState == editStateOffset)) ||
+		   /// If we get highlighted, the user must be moving the bin set or adjusting an offset
+		   (!highlighted && editState != editStateBinSet && editState != editStateOffset)) {
+			/// if we get de-highlighted, the user is not moving a bing set or adjusting an offset
+			super.highlighted = highlighted;
+		}
 	}
 }
 
@@ -207,11 +229,13 @@
 					anchorLayer.zPosition = 10.0;		/// this layer shows on top
 					anchorLayer.actions = @{@"position": NSNull.null};
 					anchorSymbolLayer = CALayer.new;
-					anchorSymbolLayer.contents = [NSImage imageNamed:@"anchor"];
-					anchorSymbolLayer.bounds = CGRectMake(0, 0, 11.0, 12.0);
+					anchorSymbolLayer.bounds = CGRectMake(0, 0, 15.0, 14.0);
 					//	anchorSymbolLayer.actions = @{@"position": NSNull.null};
+					anchorSymbolLayer.contents = (__bridge id _Nullable)([anchorImage CGImageForProposedRect:nil context:nil hints:nil]);
 					[anchorLayer addSublayer:anchorSymbolLayer];
-					[self.view.layer addSublayer:anchorLayer];
+					[self.view.backgroundLayer addSublayer:anchorLayer];
+					/// Because the anchor is an image that depends on the appearance, it must be set during updateForTheme (other it may not have the correct appearance).
+					self.view.needsUpdateLabelAppearance = YES;
 				}
 				anchorLayer.hidden = NO;
 				[self reposition];
@@ -223,16 +247,36 @@
 	}
 }
 
+
+- (void)updateForTheme {
+	TraceView *view = self.view;
+	layer.borderColor = view.regionLabelEdgeColor;
+	layer.backgroundColor = self.enabled? view.traceViewMarkerLabelBackgroundColor : nil;
+	if(outerLayer) {
+		outerLayer.backgroundColor = view.traceViewMarkerLabelAllowedRangeColor;
+		innerLayer.borderColor = view.regionLabelEdgeColor;
+	}
+	if(anchorSymbolLayer) {
+		anchorSymbolLayer.contents = (__bridge id _Nullable)([anchorImage CGImageForProposedRect:nil context:nil hints:nil]);
+	}
+	
+	for(BinLabel *binLabel in self.binLabels) {
+		[binLabel updateForTheme];
+	}
+}
+
 # pragma mark -  actions / dragging
 
 - (void)mouseDownInView {
-	if(!NSPointInRect(self.view.clickedPoint, self.frame)) {
-		/// if the user has clicked outside our frame on the view, we end the editing of all labels showing our marker
-		self.region.editState = editStateNil;
+	if(self.enabled) {
+		if(!NSPointInRect(self.view.clickedPoint, self.frame)) {
+			/// if the user has clicked outside our frame on the view, we end the editing of all labels showing our marker
+			self.region.editState = editStateNil;
+		}
+		[super mouseDownInView];
 	}
-
-	[super mouseDownInView];
 }
+
 
 
 - (void)setEditState:(EditState)editState {
@@ -265,9 +309,6 @@
 		self.offset = desiredOffset;
 		[self reposition];
 		self.view.rulerView.needsUpdateOffsets = YES;
-		for(BinLabel *binLabel in self.binLabels) {
-			[binLabel reposition];
-		}
 	}
 	
 	BOOL binEnabledState = NO;
@@ -282,10 +323,10 @@
 	} else {
 		self.highlighted = YES;
 	}
+	
 	for(BinLabel *binLabel in self.binLabels) {
 		binLabel.enabled = binEnabledState;
 	}
-
 }
 
 
@@ -439,12 +480,6 @@
 	self.offset = offset;
 	[self reposition];
 	
-	for(RegionLabel *binLabel in self.binLabels) {
-		binLabel.animated = NO;
-		[binLabel reposition];
-		binLabel.animated = YES;
-	}
-	
 	if(self.editState != editStateBinSet) {
 		self.view.rulerView.needsUpdateOffsets = YES;
 	}
@@ -465,12 +500,16 @@
 				[self moveBinSet];
 			} else {
 				/// we update the offset of the target genotype(s) at the end of a drag
-				[self _updateTargetSamples:self.editState withOffset:self.offset];
+				[self _updateOffset:self.offset];
 			}
+			[self updateTrackingArea];
+			[self performSelector:@selector(_updateHoveredState) withObject:nil afterDelay:0.05];
 		}
 		[self updateAppearance];	/// because our inner and outer layers show depending on dragged state
 	}
 }
+
+
 
 
 /// Moves the marker's bins by transferring the position of bin labels (considering their offset) to their bins, an resets their offset.
@@ -510,7 +549,7 @@
 	self.offset = MarkerOffsetNone;
 	[self reposition];
 	if(binUpdated) {
-		[self.region.managedObjectContext.undoManager setActionName:@"Move Bin Set"];
+		[self.view.undoManager setActionName:@"Move Bin Set"];
 	}
 }
 
@@ -552,13 +591,17 @@
 	float endSize = end*slope + intercept;
 	float startX = [view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
 	
-	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(view.bounds));
+	NSRect viewBounds = view.bounds;
+	float viewBoundsOrigin = viewBounds.origin.y;
+	regionRect = NSMakeRect(startX, viewBoundsOrigin, (endSize - startSize) * hScale, NSMaxY(viewBounds));
 
 	/// when highlighted, our frame (used by the tracking area) gets a bit wider so that the user can more easily click an edge to resize us
 	self.frame = self.highlighted? NSInsetRect(regionRect, -2, 0) : regionRect;
 
 	/// the layer is a bit taller than its host view to  hide the bottom and top edges.
-	layer.frame = CGRectInset(regionRect, 0, -2);
+	NSRect layerFrame = CGRectInset(regionRect, 0, -2);
+	layer.bounds = layerFrame;
+	layer.position = layerFrame.origin;
 	
 	if(anchorLayer && !anchorLayer.hidden) {
 		CGRect bounds = CGRectMake(0, 0, 1, layer.bounds.size.height);
@@ -569,18 +612,42 @@
 	if(outerLayer && !outerLayer.hidden) {
 		startX =  [view xForSize:outerLeftLimit];
 		float endX = [view xForSize:outerRightLimit];
-		outerLayer.frame = NSMakeRect(startX, 0, endX-startX, NSMaxY(view.bounds));
+		outerLayer.frame = NSMakeRect(startX, viewBoundsOrigin, endX-startX, NSMaxY(viewBounds));
 		if(innerLayer && !innerLayer.hidden) {
 			startX =  [view xForSize:innerLeftLimit]+1;
 			endX = [view xForSize:innerRightLimit]-1;
-			innerLayer.frame = NSMakeRect(startX, -2, endX-startX, NSMaxY(view.bounds)+4);
+			innerLayer.frame = NSMakeRect(startX, viewBoundsOrigin - 3, endX-startX, NSMaxY(viewBounds)+6);
 		}
 	}
 	
 	if(!view.isMoving && !self.dragged) {
 		[self updateTrackingArea];  
 	}
+	
+	BOOL animate = self.animated && !self.dragged;
+	NSArray *binLabels = self.binLabels;
+	float currentMaxX = 0; /// To avoid overlap in bin names.
+
+	for(BinLabel *binLabel in binLabels) {
+		if(!binLabel.hidden) {
+			binLabel.animated = animate;
+			[binLabel reposition];
+			NSRect nameRect = binLabel.binNameRect;
+			float nameRectMinX = nameRect.origin.x;
+			if(nameRectMinX <= currentMaxX && !binLabel.hovered) {
+				binLabel.binNameHidden = YES;
+			} else {
+				binLabel.binNameHidden = NO;
+				float nameRectMaxX = NSMaxX(nameRect);
+				if(nameRectMaxX > currentMaxX) {
+					currentMaxX = nameRectMaxX;
+				}
+			}
+			binLabel.animated = YES;
+		}
+	}
 }
+
 
 
 -(void)setFrame:(NSRect)frame {
@@ -610,45 +677,50 @@
 
 
 - (RegionLabel *)addLabelForBin:(Bin *)bin {
-	RegionLabel *binLabel = [RegionLabel regionLabelWithRegion:bin view:self.view];
+	BinLabel *binLabel = [RegionLabel regionLabelWithRegion:bin view:self.view];
 	binLabel.offset = self.offset;
+	[layer addSublayer:binLabel._layer];
 	if(!_binLabels) {
-		_binLabels = @[binLabel];
+		self.binLabels = @[binLabel];
 	} else {
-		_binLabels = [_binLabels arrayByAddingObject:binLabel];
+		self.binLabels = [_binLabels arrayByAddingObject:binLabel];
 	}
 	return binLabel;
 }
 
 
-- (NSArray<BinLabel *> *)binLabels {
-	if(_binLabels) {
-		return _binLabels;
-	}
+-(void)updateBinLabels {
 	Mmarker *marker = self.region;
-	NSMutableArray *temp = NSMutableArray.new;
 	TraceView *view = self.view;
-	BOOL hide = !view.showDisabledBins && !self.enabled && view.trace != nil;		/// we hide the new bin labels if needed. Ideally, we should let the view decide that,
-														/// but since we enumerate the labels (below), this is a bit more efficient
-														/// the view does not have re-enumerate the labels, which may speedup the load of contents
+	
+	NSArray *newBinLabels = [view regionLabelsForRegions:marker.bins.allObjects reuseLabels:self.binLabels];
+	BOOL hide = !view.showDisabledBins && !self.enabled && view.trace != nil;		/// we hide the new bin labels if needed.
 	BOOL enable = self.editState == editStateBins;
-	for (Bin *bin in marker.bins) {
-		RegionLabel *label = [RegionLabel regionLabelWithRegion:bin view:view];
-		if(hide) {
-			label.hidden = YES;
-		} else if(enable) {
-			label.enabled = YES;
+	for(BinLabel *binLabel in newBinLabels) {
+		binLabel.hidden = hide;
+		binLabel.enabled = enable;
+		if(!binLabel._layer.superlayer) {
+			[layer addSublayer:binLabel._layer];
 		}
-		label.offset = self.offset;
-		[temp addObject:label];
 	}
-	_binLabels = temp;
-	return _binLabels;
+	
+	/// We sort bin labels by ascending start to facilitate the management of overlap in bin names.
+	self.binLabels = [newBinLabels sortedArrayUsingComparator:^NSComparisonResult(BinLabel * _Nonnull label1, BinLabel * _Nonnull label2) {
+		if(label1.start < label2.start) {
+			return NSOrderedAscending;
+		}
+		return NSOrderedDescending;
+	}];
 }
 
 
-- (void)resetBinLabels {
-	_binLabels = nil;
+-(void)setBinLabels:(NSArray<BinLabel *> *)binLabels {
+	for(BinLabel *label in _binLabels) {
+		if([binLabels indexOfObjectIdenticalTo:label] == NSNotFound) {
+			[label removeFromView];
+		}
+	}
+	_binLabels = binLabels;
 }
 
 
@@ -662,6 +734,9 @@
 }
 
 
+- (void)dealloc {
+	[self removeObserver:self forKeyPath:@"region.bins"];
+}
 
 
 @end

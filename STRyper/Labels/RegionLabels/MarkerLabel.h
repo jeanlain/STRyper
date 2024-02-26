@@ -23,16 +23,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// A label that represents a molecular marker on a ``MarkerView``.
 ///
-/// A marker label shows the range of a molecular marker on a ``MarkerView`` and allows the user to rename the marker and to resize it by dragging an edge.
-///
-/// The resizing behaviour is implemented in the ``ViewLabel/drag`` method.
-///
 /// When it is ``ViewLabel/hovered`` or ``ViewLabel/highlighted``, the label shows a button that pops the label's ``ViewLabel/menu``.
+///
 /// This  menu allowing several actions described in the ``STRyper`` user guide.
 ///
 /// To implement some of these actions, the label must find an label representing its marker among the ``LabelView/markerLabels`` of its marker view's ``MarkerView/traceView``.
 @interface MarkerLabel : RegionLabel <NSMenuDelegate>
 
+/// Returns a menu that allows zooming to the range of the marker the the label represents, change some of its attributes,
+/// or perform other actions affecting the label's ``RegionLabel/editState``.
+- (NSMenu *)menu;
 
 @end
 

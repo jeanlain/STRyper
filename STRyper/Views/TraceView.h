@@ -21,7 +21,6 @@
 
 
 @import QuartzCore;
-@import Cocoa;
 #import "LabelView.h"
 #import "Chromatogram.h"
 #import "Trace.h"
@@ -70,7 +69,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This is the accessory view of the ``rulerView``, which shows on top of the trace view.
 /// The markerView is created only if is the trace view is in a scroll view.
-@property (readonly, nonatomic, nullable) MarkerView *markerView;
+@property (readonly, nonatomic, nullable, weak) MarkerView *markerView;
 
 ///The trace view's delegate.
 @property (nullable, weak, nonatomic) IBOutlet id <TraceViewDelegate> delegate;
@@ -78,40 +77,27 @@ NS_ASSUME_NONNULL_BEGIN
 
 # pragma mark - loading and displaying content
 
-/// Makes the view show traces.
+/// Makes the view load and show some content.
 ///
-/// IMPORTANT: these traces are assumed to be from the same ``Trace/channel``.
+/// The `object` must either be a ``Trace``, an array of ``Trace`` objects of the same ``Trace/channel``,
+/// an object of class ``Genotype``, ``Mmarker`` or ``Chromatogram``.
+/// The managed object context of any loaded Chromatogram, Trace, Marker or Genotype must be the view context of the application.
 ///
-/// The traces array can be of any size, but only the first 400 traces at most will be loaded, for performance reasons.
-/// - Parameter traces: The traces that the view should show.
--(void)loadTraces:(NSArray<Trace *> *)traces;
-
-/// Makes the view show a genotype.
+/// The view will only load the first 400 traces of the array if it contains more.
 ///
-/// This method makes the view show the trace associated with the ``Mmarker/channel`` of the genotype's ``Genotype/marker``,
-/// and set its ``visibleRange``  to the range of this marker.
-/// - Parameter genotype: The genotype to show in the view.
--(void)loadGenotype:(Genotype*)genotype;
-
-/// Makes the view show a sample.
+/// If the `object` is a chromatogram, the view will show its  ``Chromatogram/traces``  (depending of the ``displayedChannels``).
 ///
-/// This makes the view shows the ``Chromatogram/traces`` of the sample (depending of the ``displayedChannels``).
+/// If the `object` is a genotype, the view will show the trace associated with the ``Mmarker/channel`` of the genotype's ``Genotype/marker``,
+/// and will set its ``visibleRange``  to the range of this marker.
 ///
-/// The view will not show any ``ViewLabel`` and will not have a ``LabelView/panel``.
-/// - Parameter sample: The sample to show in the view.
--(void)loadSample:(Chromatogram*)sample;
-
-
-/// Makes the view show a marker using a marker label.
-///
-/// The view will show no trace and and will set its ``visibleRange``  to the range of the marker.
+/// If the `object` is a marker, the view will show no trace and and will set its ``visibleRange``  to the range of the marker.
 /// The marker's ``Mmarker/bins`` will also be shown if it has any.
-/// - Parameter marker: The marker to show in the view.
--(void)loadMarker:(Mmarker*)marker;
+/// - Parameter object: The content to show in the view.
+-(void)loadContent:(id)object;
 
 /// The trace(s) that the view shows.
 ///
-/// This array will contain no more than 400 traces (see ``loadTraces:``).
+/// This array will contain no more than 400 traces.
 @property (nonatomic, readonly, nullable) NSArray<Trace *> *loadedTraces;
 
 /// The longest trace (in base pairs) among the ``loadedTraces``, or `nil`  if there is none.
@@ -120,7 +106,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This property helps the implementation even if the view shows several traces.
 @property (nonatomic, readonly, nullable) Trace *trace;
 
-/// The genotype the view has loaded with ``loadGenotype:``.
+/// The genotype the view has loaded .
 @property (nonatomic, readonly, nullable) Genotype *genotype;
 
 /// The marker associated with the view.
@@ -132,17 +118,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The ``Trace/channel`` of the trace(s) or marker shown by the view, from 0 to 4.
 ///
-/// The returned value is -1 if the view shows traces from different channels (i.e., after ``loadSample:`` was called).
+/// The returned value is -1 if the view shows traces from different channels (i.e., if a ``Chromatogram`` was loaded).
 @property (nonatomic, readonly) ChannelNumber channel;
 
 
 
 # pragma mark - ViewLabel management
-
-/// The bin labels the view shows.
-///
-/// These bins shown are those from the ``Panel/markers`` of the view's ``LabelView/panel``.
-@property (nonatomic, readonly, nullable) NSArray<RegionLabel *> *binLabels;
 
 /// The fragment labels that the view shows.
 ///
@@ -152,20 +133,62 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The labels representing peaks when hovered (vertical line and tooltips) or clicked, if the view shows a single trace.
 @property (nonatomic, readonly, nullable) NSArray<PeakLabel *> *peakLabels;
-																		 
-/// Makes the view reposition its ``fragmentLabels`` .
+
+/******** colors that adapt to the view appearance and which are use by view labels ******/
 ///
-///	This methods calls ``ViewLabel/reposition`` on these labels.
+/// The view updates these properties within its `updateLayer` method after a change of appearance.
+/// Hence, view labels can set them for their layers outside of `drawRect:` or `updateLayer` calls
+/// (they don't have to call `setNeedsDisplay:` on their view whenever the need to apply a color).
+/// The colors are retained and released by the view.
+
+/// The color for fragment labels that are not alleles.
+@property (readonly, nonatomic) CGColorRef fragmentLabelBackgroundColor;
+
+/// The color for fragment labels that are alleles.
+///
+/// The color reflects the view's ``channel``.
+@property (readonly, nonatomic) CGColorRef alleleLabelBackgroundColor;
+
+/// The color used for the text of fragment labels (including alleles).
+@property (readonly, nonatomic) CGColorRef fragmentLabelStringColor;
+
+/// The color used by bin labels when not hovered.
+@property (readonly, nonatomic) CGColorRef binLabelColor;
+
+/// The color used by bin labels when hovered.
+@property (readonly, nonatomic) CGColorRef hoveredBinLabelColor;
+
+/// The color of the edges of bin labels and ``LabelView/markerLabels``  to signify that they can be resized.
+@property (readonly, nonatomic) CGColorRef regionLabelEdgeColor;
+
+/// The color showing behind bin names in bin labels.
+@property (readonly, nonatomic) CGColorRef binNameBackgroundColor;
+
+/// The color showing behind bin names in bin labels that are hovered.
+@property (readonly, nonatomic) CGColorRef hoveredBinNameBackgroundColor;
+
+/// The color of the marker region when bins are being added/edited/moved or when the marker offset is being adjusted.
+@property (readonly, nonatomic) CGColorRef traceViewMarkerLabelBackgroundColor;
+
+/// The color denoting the allowed range of a marker being resized/moved when moving bins or adjusting the marker offset.
+@property (readonly, nonatomic) CGColorRef traceViewMarkerLabelAllowedRangeColor;
+
+																		 
+/// Tells the view whether its ``fragmentLabels`` must be repositioned.
 ///
 /// This method accounts for the fact that the position of a ``FragmentLabel`` depends on the vertical scale and peak height, as opposed to other labels.
 /// Hence, only these labels may need to be repositioned in certain conditions.
 @property (nonatomic) BOOL needsLayoutFragmentLabels;
 
 
-/// The layer that hosts the layer of the view's ``binLabels`` and ``LabelView/markerLabels``.
-/// This layer is a sublayer of the clipview's backing layer, so as to show behind the curves of the traces.
-@property (readonly, nonatomic) CALayer *backgroundLayer;
-
+/// Action that can be sent by a control to rename an item represented by a label.
+///
+/// Currently, only alleles are renamed by this action.
+/// The view sends ``ViewLabel/doubleClickAction:`` to the selected ``FragmentLabel`` if it
+/// represents an allele, scrolling to show the allele if necessary.
+/// The view also performs validation on a menu item that has this action.
+/// - Parameter sender: The object that sent the message, it is ignored by the method.
+- (IBAction)rename:(id)sender;
 
 # pragma mark - display settings
 
@@ -183,7 +206,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default value is `NO`.
 @property (nonatomic) BOOL showPeakTooltips;
 
-/// Whether  the view's ``binLabels`` that are not ``ViewLabel/enabled`` should be shown.
+/// Whether  the view's bin labels that are not ``ViewLabel/enabled`` should be shown.
 ///
 /// The default value is `YES`. When it is `NO`, the bin labels that are not ``ViewLabel/enabled`` have their ``ViewLabel/hidden`` property set to `YES`.
 @property (nonatomic) BOOL showDisabledBins;
@@ -206,6 +229,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default value is `NO.
 @property (nonatomic) BOOL autoScaleToHighestPeak;
 
+/// Whether peaks resulting from crosstalk should painted with the color of the channel that induced crosstalk.
+///
+///	Peaks resulting from crosstalk are painted only if the view shows ``peakLabels``, hence if a single ``Trace`` was loaded.
+/// The default value is `YES`.
+@property (nonatomic) BOOL paintCrosstalkPeaks;
+
 /// Whether peaks resulting from crosstalk should be ignored by ``topFluoForRange:``.
 ///
 /// The default value is `NO`.
@@ -216,10 +245,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// The `len` component cannot be negative and `start` + `len` is constrained to [2; 1000]
 @property (nonatomic) BaseRange defaultRange;
 
-/// The channels the view displays if it has loaded a sample with ``loadSample:``.
+/// The channels the view displays if it has loaded a sample with ``loadContent:``.
 ///
 /// The value of this property is meaningless if the view has not loaded a sample.
-@property (nonatomic, nonnull, copy) NSArray<NSNumber *>* displayedChannels;
+@property (nonatomic, copy) NSArray<NSNumber *>* displayedChannels;
 
 /// strings used for binding the properties defined above
 extern const NSBindingName ShowOffScaleRegionsBinding,
@@ -228,6 +257,7 @@ ShowRawDataBinding,
 MaintainPeakHeightsBinding,
 AutoScaleToHighestPeakBinding,
 DisplayedChannelsBinding,
+PaintCrosstalkPeakBinding,
 IgnoreCrossTalkPeaksBinding,
 DefaultRangeBinding,
 ShowPeakTooltipsBinding;
@@ -273,6 +303,22 @@ ShowPeakTooltipsBinding;
 ///   - visibleRange: The visible range the view should have.
 ///   - animate: Whether the change in view geometry should be animated.
 - (void)setVisibleRange:(BaseRange)visibleRange animate:(BOOL)animate;
+
+
+/// Performs `-scrollRectToVisible:rect` with optional animation and returns if any scrolling was made.
+///
+/// The method updates the view's ``visibleRange``. 
+/// - Parameters:
+///   - rect: The rectangle that should be visible.
+///   - animate: Whether the scroll should be animated.
+- (BOOL)scrollRectToVisible:(NSRect)rect animate:(BOOL)animate;
+
+
+/// Performs `-scrollPoint:point` with optional animation and returns if any scrolling was made.
+/// - Parameters:
+///   - point: The pont that should become the visible origin of the view.
+///   - animate: Whether the scroll should be animated.
+- (void)scrollPoint:(NSPoint)point animate:(BOOL) animate;
 		
 /// Zooms the view to a point given a zoom factor.
 ///

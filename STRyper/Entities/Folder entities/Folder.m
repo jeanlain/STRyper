@@ -42,7 +42,7 @@
 
 
 
-@synthesize folderType;
+@synthesize folderType, filterPredicate;
 @dynamic parent, subfolders, name;
 
 
@@ -92,14 +92,6 @@
 
 - (BOOL)canTakeSubfolders {
 	return YES;
-}
-
-
-- (void)setName:(NSString *)name {
-	[self managedObjectOriginal_setName:name];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName: [@"Rename " stringByAppendingString: self.folderType]];
-	}
 }
 
 

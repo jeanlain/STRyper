@@ -32,13 +32,21 @@
 	return SizeStandardSize.entity.name;
 }
 
+
 - (NSString *)nameForItem:(id)item {
 	return @"Size";
 }
 
+
+- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column {
+	return @"Change Fragment Size";
+}
+
+
 - (BOOL)canAlwaysRemove {
 	return NO;				/// fragments from a non-editable size standard cannot be removed
 }
+
 
 - (nullable NSAlert *)cautionAlertForRemovingItems:(NSArray *)items {
 	return nil;

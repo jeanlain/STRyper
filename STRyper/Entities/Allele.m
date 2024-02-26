@@ -27,11 +27,22 @@
 #import "Mmarker.h"
 
 
+@interface Allele ()
+
+/// The attribute corresponding to the``LadderFragment/additional`` property, as defined in the managed object model.
+///
+/// It was written in a typo which I didn't want to shown in the public header.
+/// I didn't want to create a new model version just to correct the typo either.
+@property (nonatomic) BOOL additionnal;
+
+@end
+
 @interface Allele (DynamicAccessors)
 /// to set attributes and relationships that are readonly in the interface file
 
 -(void)managedObjectOriginal_setGenotype:(Genotype *)genotype;
--(void)managedObjectOriginal_setName:(NSString *)name;
+-(void)managedObjectOriginal_setAdditionnal:(BOOL)additional;
+-(BOOL)managedObjectOriginal_additionnal;
 
 @end
 
@@ -45,49 +56,24 @@
 
 
 @implementation Allele
-@dynamic genotype;
+@dynamic genotype, additionnal, size;
 
-/// pointers use for context of KVO
-static void * const sizeChangedContext = (void*)&sizeChangedContext;
-static void * const nameChangedContext = (void*)&nameChangedContext;
-
-
-- (void)awakeFromFetch {
-	[super awakeFromFetch];
-	/// We observe some of our one attributes to notify the genotype of changes
-	/// Observing self is not very elegant but that facilitates undo support as these attributes are reverted during undo
-	[self addObserver:self forKeyPath:@"size" options:NSKeyValueObservingOptionNew context:sizeChangedContext];
-
-}
-
-
-- (void)awakeFromInsert {
-	[super awakeFromInsert];
-	[self addObserver:self forKeyPath:@"size" options:NSKeyValueObservingOptionNew context:sizeChangedContext];
-}
-
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
-	if(context == sizeChangedContext) {
-		/// if our size changes, the genotypes must assign alleles (see Genotype implementation)
-		[self.genotype _assignAlleles];
-	}  else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-}
-
-
-- (nullable instancetype)initWithGenotype:(Genotype *)genotype {
+- (nullable instancetype)initWithGenotype:(Genotype *)genotype additional:(BOOL)additional {
 	if(!genotype.managedObjectContext) {
 		return nil;
 	}
-	Trace *trace = [genotype.sample traceForChannel:genotype.marker.channel];
+	Mmarker *marker = genotype.marker;
+	Trace *trace = [genotype.sample traceForChannel:marker.channel];
 	if(!trace) {
 		return nil;
 	}
-	if(genotype.alleles.count >= genotype.marker.ploidy) {
+	NSInteger ploidy = marker.ploidy;
+	if(!additional && genotype.alleles.count > ploidy && genotype.assignedAlleles.count >= ploidy) {
 		return nil;
 	}  
 	self = [super initWithContext:genotype.managedObjectContext];
 	if (self) {
+		[self managedObjectOriginal_setAdditionnal:additional];
 		[self managedObjectOriginal_setGenotype:genotype];
 		[self managedObjectOriginal_setTrace:trace];
 	}
@@ -95,23 +81,22 @@ static void * const nameChangedContext = (void*)&nameChangedContext;
 }
 
 
-- (void)setName:(NSString *)name {
-	[self managedObjectOriginal_setName:name];
-	if(!self.deleted) {
-		/// Setting the undo action name is convenient when the user edits the allele name manually,
-		/// but this can be costly if many alleles names are changed
-		/// perhaps we should move this elsewhere
-		[self.managedObjectContext.undoManager setActionName:@"Rename Allele"];
-	}
-}
-
-
 
 -(void)findNameFromBins {
+	if(self.scan <= 0) {
+		return;
+	}
+	NSSet *bins = self.genotype.marker.bins;
+	if(bins.count == 0) {
+		/// If there is no bin, we remove the name so that the `string` property returns the size.
+		self.name = nil;
+		return;
+	}
+	
 	float size = self.size;
-	for (Bin *bin in self.genotype.marker.bins) {
+	for (Bin *bin in bins) {
 		if (size >= bin.start && size <= bin.end) {
-			[self managedObjectOriginal_setName: bin.name];
+			self.name = bin.name;
 			return;
 		}
 	}
@@ -119,23 +104,28 @@ static void * const nameChangedContext = (void*)&nameChangedContext;
 	if(!name) {
 		name = @"?";
 	}
-	[self managedObjectOriginal_setName: name];
+	self.name = name;
 
 }
 
 
 - (void)setScan:(int32_t)scan {
 	[self managedObjectOriginal_setScan:scan];
-	if(self.scan <= 0) {
+	if(self.scan <= 0 && !self.additional) {
 		/// an allele that is missing (no peak found) has a scan of zero, but is still present
-		[self managedObjectOriginal_setName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
+		self.name = [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName];
 	}
 	/// if the scan has changed, the size must be updated
-	[self setSize];
+	[self computeSize];
 }
 
 
--(void) setSize {
+- (BOOL)additional {
+	return [self managedObjectOriginal_additionnal];
+}
+
+
+-(void) computeSize {
 	if(self.scan <= 0) {
 		/// an allele that is missing (no peak found) has a scan of zero, but is still present
 		self.size = 0;
@@ -145,7 +135,7 @@ static void * const nameChangedContext = (void*)&nameChangedContext;
 			float size = [sample sizeForScan:self.scan];
 			if(self.genotype.offsetData) {
 				MarkerOffset offset = self.genotype.offset;
-				self.size = size * offset.slope + offset.intercept;
+				self.size = (size - offset.intercept)/offset.slope;
 			} else {
 				self.size = size;
 			}
@@ -156,10 +146,15 @@ static void * const nameChangedContext = (void*)&nameChangedContext;
 
 
 - (NSString *)string {
-	if(self.name.length >0) {
+	if(self.name.length > 0) {
 		return self.name;
 	}
 	return super.string;
+}
+
+/// Convenience method used to show additional fragments of a genotype in a table.
+- (NSString *)sizeAndName {
+	return [super.string stringByAppendingFormat:@":%@", self.name];
 }
 
 
@@ -173,6 +168,15 @@ static void * const nameChangedContext = (void*)&nameChangedContext;
 		return nil;
 	}
 	return @(self.size);
+}
+
+
+- (void)removeFromGenotypeAndDelete {
+	if(self.additional) {
+		[self managedObjectOriginal_setGenotype:nil];
+		[self managedObjectOriginal_setTrace:nil];
+		[self.managedObjectContext deleteObject:self];
+	}
 }
 
 

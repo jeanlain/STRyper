@@ -39,6 +39,8 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 /// The different peak thresholds the user can define for a ladder trace. We use this property to bind to the an NSPopupButton menu contents.
 @property (nonatomic) NSArray<NSNumber *> *peakThreshold;
+
+@property (nonatomic) NSDictionary<NSString *, NSString *> *actionForKeyPath;
 															
 @end
 
@@ -75,8 +77,13 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 }
 
 
+- (NSNibName)nibName {
+	return @"SampleInspector";
+}
+
+
 - (instancetype)init {
-	self = [super initWithNibName:@"SampleInspector" bundle:nil];
+	self = [super init];
 	if(self) {
 		_peakThreshold = @[@10, @50, @100, @200, @500];
 		sampleController = NSArrayController.new;
@@ -179,36 +186,43 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 		NSTableRowView *rowView = [outlineView makeViewWithIdentifier:[item firstObject] owner:self];
 		for(NSView *subView in rowView.subviews) {
 			if([subView isKindOfClass:NSTextField.class]) {
+				NSTextField *textField = (NSTextField *)subView;
+				if(textField.isEditable) {
+					textField.delegate = (id)self;
+				}
 				/// a row view contains text fields whose identifiers are attribute names of the Chromatogram entity, to simplify bindings
-				if([sampleKeyPaths containsObject:subView.identifier]) {
-					NSString *keyPath = [@"selection." stringByAppendingString:subView.identifier];
-					if(((NSTextField *)subView).drawsBackground) {
+				if([sampleKeyPaths containsObject:textField.identifier]) {
+					NSString *keyPath = [@"selection." stringByAppendingString:textField.identifier];
+					if(textField.drawsBackground) {
 						/// these textfields are those that show dye names.
-						[subView bind:NSValueBinding toObject:sampleController
+						[textField bind:NSValueBinding toObject:sampleController
 						  withKeyPath:keyPath options:@{NSNoSelectionPlaceholderBindingOption: @"", NSMultipleValuesPlaceholderBindingOption: @"…"}];
 						/// Since they draw their background, it is better to hide them when the selected samples don't have the corresponding dye
-						[subView bind:NSHiddenBinding toObject:sampleController
+						[textField bind:NSHiddenBinding toObject:sampleController
 						  withKeyPath:keyPath options:@{NSValueTransformerNameBindingOption: NSIsNilTransformerName}];
-						[subView bind:@"hidden2" toObject:sampleController		/// we also hide them when no sample is selected (the above binding is insufficient)
+						[textField bind:@"hidden2" toObject:sampleController		/// we also hide them when no sample is selected (the above binding is insufficient)
 						  withKeyPath:@"content.@count" options:@{NSValueTransformerNameBindingOption: NSNegateBooleanTransformerName}];
 					} else {
-						[subView bind:NSValueBinding toObject:sampleController
+						[textField bind:NSValueBinding toObject:sampleController
 						  withKeyPath:keyPath options:@{NSValidatesImmediatelyBindingOption: @YES}];
 					}
 				}
 			} else if([subView isKindOfClass:NSPopUpButton.class]) {
+				NSButton *popup = (NSPopUpButton *)subView;
+				popup.target = self;
+				popup.action = @selector(popupClicked:);
 				NSString *boundKeyPath = [@"selection." stringByAppendingString:subView.identifier];
-				if([subView.identifier isEqualToString:@"boundSizeStandard"]) {
+				if([popup.identifier isEqualToString:@"sizeStandard"]) {
 					/// a section has a popup button indicating the selected samples' size standard among the available size standards
 					NSString *keyPath = @"tableContent.arrangedObjects";
 					/// the content (menu) of the popup button represents the size standards
-					[subView bind:NSContentBinding toObject:SizeStandardTableController.sharedController withKeyPath:keyPath options:nil];
+					[popup bind:NSContentBinding toObject:SizeStandardTableController.sharedController withKeyPath:keyPath options:nil];
 					/// the values shown by menu items are the size standard names
-					[subView bind:NSContentValuesBinding toObject:SizeStandardTableController.sharedController
+					[popup bind:NSContentValuesBinding toObject:SizeStandardTableController.sharedController
 					  withKeyPath:[keyPath stringByAppendingString:@".name"] options:nil];
 					/// and the selected item is the size standard of the selected sample(s)
-					[subView bind:NSSelectedObjectBinding toObject:sampleController withKeyPath: boundKeyPath options:nil];
-					((NSPopUpButton *)subView).menu.delegate = self;
+					[popup bind:NSSelectedObjectBinding toObject:sampleController withKeyPath: boundKeyPath options:nil];
+					popup.menu.delegate = self;
 
 				} else if([subView.identifier isEqualToString:@"polynomialOrder"]) {
 					/// the fitting method used by a size standard is the index of the selected menu item of a popup button showing the fitting method
@@ -293,6 +307,37 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 	}
 }
 
+
+- (NSDictionary<NSString *,NSString *> *)actionForKeyPath {
+	if(!_actionForKeyPath) {
+		_actionForKeyPath = @{ChromatogramSampleNameKey: @"Rename Sample",
+							  ChromatogramCommentKey: @"Edit Sample Comment",
+							  ChromatogramSizeStandardKey: @"Change Size Standard",
+							  @"polynomialOrder": @"Change Fitting Method",
+							  @"peakThreshold": @"Change Peak Detection Threshold",
+		};
+	}
+	return _actionForKeyPath;
+}
+
+
+- (void)controlTextDidEndEditing:(NSNotification *)notification {
+	NSControl *control = notification.object;
+	[self setActionNameForControl:control];
+}
+
+
+- (void)popupClicked:(NSPopUpButton *)sender {
+	[self setActionNameForControl:sender];
+}
+
+
+- (void)setActionNameForControl:(NSControl *)sender {
+	NSString *actionName = self.actionForKeyPath[sender.identifier];
+	if(actionName) {
+		[self.undoManager setActionName:actionName];
+	}
+}
 
 
 @end

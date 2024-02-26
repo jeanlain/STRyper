@@ -36,8 +36,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// The horizontal dimension of a label view represents positions/sizes in base pairs.
 ///
 /// This superclass is tailored for the ``MarkerView`` and ``TraceView`` concrete subclasses and might not be suitable for all possible subclasses showing ``ViewLabel`` objects.
-@interface LabelView : NSView <NSViewLayerContentScaleDelegate>
-{
+/// Instances of this class disable menu items that target them while a label is being dragged, to avoid unwanted effect (for instance, deleting a label being dragged).
+@interface LabelView : NSView <NSViewLayerContentScaleDelegate> {
 	
 	/// A tracking area covering the visible rectangle of the view, so it can react to mouse movement and enter/exit events.
 	NSTrackingArea *trackingArea;
@@ -76,9 +76,7 @@ NS_ASSUME_NONNULL_BEGIN
 				  
 	/// A temporary context used to materialize a ``RegionLabel`` object that the user can create using the view.
 	NSManagedObjectContext *temporaryContext;
-	
-	/// internal
-	BOOL doNotCreateLabels;
+
 }
 
 
@@ -168,6 +166,24 @@ NS_ASSUME_NONNULL_BEGIN
 
 #pragma mark - labels managed by the view and represented objects
 
+
+/// Returns region labels for an array or regions, reusing existing region labels.
+///
+/// The method first tries to reuse region labels whose regions are comprised in `regions`.
+/// If there aren't enough labels that can be reused "as is", it attributes new regions to reused labels, or creates new labels if there aren't enough labels to reuse.
+///
+/// New labels are instantiated with ``RegionLabel/regionLabelWithRegion:view:``, setting the receiver as the `view` argument.
+///
+/// This method avoids recreating a new label for each region to represent, which takes significantly longer time than reusing a label.
+/// - Parameters:
+///   - regions: The region that should be represented by labels.
+///   - labels: Labels that can be reused.
+- (NSArray<RegionLabel *> *) regionLabelsForRegions:(NSArray<Region *> *)regions
+										reuseLabels:(nullable NSArray <RegionLabel *> *)labels;
+
+/// The layer that hosts the layer of the view's ``markerLabels``.
+@property (readonly, nonatomic) CALayer *backgroundLayer;
+
 /// The ``Panel``  that the view shows.
 @property (nonatomic, readonly, nullable) Panel *panel;
 
@@ -212,32 +228,23 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)updateTrackingAreasOf:(NSArray <ViewLabel *> *)labels;
 	
 
-# pragma mark -colors and appearance.
+# pragma mark - colors and appearance.
 
-/// The default array of colors corresponding to channels (see ``Trace/channel``).
-///
-/// This array contains:  blue, green, dark grey, red and orange colors.
-+(NSArray <NSColor *>*)defaultColorsForChannels;
 
 /// Array of colors corresponding to channels that the view can show (see ``Trace/channel``).
 ///
-/// If the array contains less than 5 elements or if some are not `NSColors`, the value return by ``defaultColorsForChannels`` is used.
-///
-/// Some colors of other elements of the view are derived from colors in this property, so using other colors than the default ones may cause visually inadequate results.
-@property (nonatomic, nonnull, copy) NSArray<NSColor *>* colorsForChannels;
+/// These colors are defined in the assets of ``STRyper``.
+@property (class, nonatomic, copy) NSArray<NSColor *>* colorsForChannels;
 																
 /// Whether the appearance of some of the ``viewLabels`` needs to be updated in response to change in dark/light appearance.
 ///
 /// As some labels use core animation layers, the colors of these layers must be set during `-drawRect` or `-updateLayer` to take effect.
 /// Hence setting this property to `YES` also sets `-needsDisplay` to `YES`.
 ///
+///
 /// Subclasses can use this property to avoid setting `CALayer` colors every time the view must redisplay.
 @property (nonatomic) BOOL needsUpdateLabelAppearance;
 															
-/// Scrolls the view so that a label that is dragged can be moved past the left or right edge of the visible rectangle.
-///
-/// - Parameter draggedLabel: the label that is dragged.
-- (void)autoscrollWithDraggedLabel:(ViewLabel *)draggedLabel;
 
 /// Makes the view update the mouse cursor.
 ///
@@ -245,6 +252,14 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The default implementation does nothing. Subclasses can use the ``hoveredMarkerLabel`` property and others to set the correct cursor.
 - (void)updateCursor;
+
+
+/// Action that can be sent by a control to delete an item (or items) represented by a label (or labels).
+///
+/// The default implementation does nothing, but the view does perform validation
+/// on a menu item that has this action.
+/// - Parameter sender: The object that sent the message.
+- (IBAction)deleteSelection:(id)sender;
 
 @end
 

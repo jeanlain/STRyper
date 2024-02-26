@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -17,7 +17,7 @@
             <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="283" y="305" width="1594" height="707"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="1512" height="944"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
             <value key="minSize" type="size" width="612" height="500"/>
             <view key="contentView" wantsLayer="YES" id="44z-Es-MQQ">
                 <rect key="frame" x="0.0" y="0.0" width="1594" height="707"/>
@@ -44,14 +44,14 @@
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <subviews>
                                             <segmentedControl verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="6sD-5X-sgA" userLabel="tab chooser">
-                                                <rect key="frame" x="253" y="342" width="155" height="24"/>
-                                                <segmentedCell key="cell" borderStyle="border" alignment="left" segmentDistribution="fillEqually" style="rounded" trackingMode="selectOne" id="RdZ-m9-eau">
+                                                <rect key="frame" x="258" y="341" width="145" height="23"/>
+                                                <segmentedCell key="cell" borderStyle="border" alignment="left" segmentDistribution="fillEqually" style="texturedSquare" trackingMode="selectOne" id="RdZ-m9-eau">
                                                     <font key="font" metaFont="system"/>
                                                     <segments>
                                                         <segment toolTip="Sample inspector" image="inspector" imageScaling="none" selected="YES"/>
-                                                        <segment toolTip="Genotypes of the current folder" image="genotypes" imageScaling="none" tag="1"/>
-                                                        <segment toolTip="Marker Library" image="panelBadge" imageScaling="none"/>
-                                                        <segment toolTip="Size standard libary" image="sizeStandard" imageScaling="none"/>
+                                                        <segment toolTip="Genotypes of listed samples" image="genotypes" imageScaling="none" tag="1"/>
+                                                        <segment toolTip="Marker library" image="panelBadge" imageScaling="none"/>
+                                                        <segment toolTip="Size standard library" image="sizeStandard" imageScaling="none"/>
                                                     </segments>
                                                 </segmentedCell>
                                                 <connections>
@@ -93,17 +93,17 @@
                 <allowedToolbarItems>
                     <toolbarItem implicitItemIdentifier="07D88F48-47D6-4C0D-9298-5FF5BF81B717" label="Toggle sidebar" paletteLabel="Toggle sidebar" toolTip="Collapse/Expand sidebar" image="sideBar" bordered="YES" sizingBehavior="auto" id="G1k-kx-eNg">
                         <connections>
-                            <action selector="toggleLeftPane:" target="-1" id="FxA-8w-FiN"/>
+                            <action selector="toggleLeftPane:" target="-2" id="3jl-Fe-NOw"/>
                         </connections>
                     </toolbarItem>
                     <toolbarItem implicitItemIdentifier="9657C589-816C-4DC2-AC20-AF1C5C504382" label="Undo" paletteLabel="Undo" tag="-1" image="undo" bordered="YES" sizingBehavior="auto" id="8OM-KQ-zXl">
                         <connections>
-                            <action selector="undo:" target="-1" id="Gxi-jM-x6J"/>
+                            <action selector="undoAction:" target="-2" id="RL2-a6-TVR"/>
                         </connections>
                     </toolbarItem>
                     <toolbarItem implicitItemIdentifier="5B0D1ED7-7D67-4E8A-8113-585557116DE6" label="Redo" paletteLabel="Redo" toolTip="Redo" tag="-1" image="redo" bordered="YES" sizingBehavior="auto" id="04A-oi-9cf">
                         <connections>
-                            <action selector="redo:" target="-1" id="bFr-ff-0pw"/>
+                            <action selector="redoAction:" target="-2" id="5wM-R1-Ja3"/>
                         </connections>
                     </toolbarItem>
                     <toolbarItem implicitItemIdentifier="97D6F672-6DA8-46A8-B7BE-392296964CEB" label="Sample Search" paletteLabel="Sample Search" toolTip="New Sample Search" tag="4" image="loupe" bordered="YES" sizingBehavior="auto" id="leH-Qc-eZ1">
@@ -115,7 +115,7 @@
                     <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="MMi-az-ny5"/>
                     <toolbarItem implicitItemIdentifier="C385BE42-E684-43FD-84F2-E3BFCAD8B8C0" label="Detailed view" paletteLabel="Detailed view" toolTip="Collapse/Expand detailed view" tag="2" image="RightsideBar" bordered="YES" sizingBehavior="auto" id="VaN-gF-m3n">
                         <connections>
-                            <action selector="toggleRightPane:" target="-1" id="hl7-lv-KUI"/>
+                            <action selector="toggleRightPane:" target="-2" id="GMf-R8-hB2"/>
                         </connections>
                     </toolbarItem>
                 </allowedToolbarItems>

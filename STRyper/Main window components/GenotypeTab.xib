@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22155" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22155"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
@@ -11,7 +11,7 @@
             <connections>
                 <outlet property="_tableContent" destination="t85-dl-98d" id="5YP-w6-yNc"/>
                 <outlet property="_tableView" destination="EP9-jv-hOU" id="a5B-gm-5Ie"/>
-                <outlet property="filterButton" destination="8AM-PB-m6K" id="dlY-sy-X94"/>
+                <outlet property="filterButton" destination="8AM-PB-m6K" id="egw-OP-kbU"/>
                 <outlet property="view" destination="zDR-oD-NhW" id="LUJ-88-jIE"/>
             </connections>
         </customObject>
@@ -69,9 +69,20 @@
                         <autoresizingMask key="autoresizingMask"/>
                     </tableHeaderView>
                 </scrollView>
-                <button toolTip="Call/re-call alleles" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="HUG-HJ-2n8" userLabel="call genotypes">
+                <button toolTip="Automatic genotyping" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="ajc-U1-atz" userLabel="bin alleles">
                     <rect key="frame" x="10" y="5" width="25" height="20"/>
-                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="call genotypes" imagePosition="overlaps" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5wo-h7-G60">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="bin alleles" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="bGL-Ca-ObV">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="autoGenotype:" target="-2" id="8Z7-mC-pry"/>
+                        <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="JmQ-Zx-fyz"/>
+                    </connections>
+                </button>
+                <button toolTip="Find alleles" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="HUG-HJ-2n8" userLabel="call genotypes">
+                    <rect key="frame" x="40" y="5" width="25" height="20"/>
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="call genotypes" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5wo-h7-G60">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                         <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
@@ -81,8 +92,19 @@
                         <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="GIu-hi-que"/>
                     </connections>
                 </button>
+                <button toolTip="Select source sample(s)" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="PaT-eH-IJe" userLabel="Select samples">
+                    <rect key="frame" x="73" y="8" width="15" height="15"/>
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="circle arrow up" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="a87-nh-eeG">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="selectSamples:" target="-2" id="a5l-eh-FWO"/>
+                        <binding destination="t85-dl-98d" name="enabled" keyPath="selectedObjects.@count" id="M6q-E1-Lcr"/>
+                    </connections>
+                </button>
                 <button toolTip="Export genotypes" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="674-57-fTx" userLabel="Export">
-                    <rect key="frame" x="43" y="7" width="15" height="17"/>
+                    <rect key="frame" x="96" y="8" width="15" height="17"/>
                     <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="6e9-gU-clX">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                         <font key="font" metaFont="systemBold" size="12"/>
@@ -92,42 +114,54 @@
                         <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="d1Z-6Y-MRe"/>
                     </connections>
                 </button>
-                <button toolTip="Filter genotypes" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="8AM-PB-m6K" userLabel="call genotypes">
-                    <rect key="frame" x="66" y="3" width="25" height="25"/>
-                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="filterButton" imagePosition="overlaps" alignment="center" alternateImage="filterButton On" refusesFirstResponder="YES" focusRingType="none" inset="2" id="gfI-ca-Wtf">
+                <button toolTip="Filter genotypes" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="8AM-PB-m6K" userLabel="Filter">
+                    <rect key="frame" x="116" y="4" width="25" height="25"/>
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="filterButton" imagePosition="only" alignment="center" alternateImage="filterButton On" refusesFirstResponder="YES" focusRingType="none" inset="2" id="gfI-ca-Wtf">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                         <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <color key="contentTintColor" name="controlAccentColor" catalog="System" colorSpace="catalog"/>
-                    <connections>
-                        <action selector="showFilterPopover:" target="-2" id="1A9-OU-saC"/>
-                        <binding destination="t85-dl-98d" name="enabled" keyPath="content.@count" id="KHK-ba-Z3J"/>
-                    </connections>
                 </button>
             </subviews>
             <constraints>
                 <constraint firstItem="8AM-PB-m6K" firstAttribute="centerY" secondItem="674-57-fTx" secondAttribute="centerY" id="5Ui-IU-FMv"/>
-                <constraint firstItem="674-57-fTx" firstAttribute="leading" secondItem="HUG-HJ-2n8" secondAttribute="trailing" constant="8" symbolic="YES" id="E4h-GK-OhO"/>
-                <constraint firstItem="8AM-PB-m6K" firstAttribute="leading" secondItem="674-57-fTx" secondAttribute="trailing" constant="8" symbolic="YES" id="Npw-Gu-CbB"/>
-                <constraint firstItem="HUG-HJ-2n8" firstAttribute="leading" secondItem="zDR-oD-NhW" secondAttribute="leading" constant="10" id="VnY-mp-vW3"/>
-                <constraint firstItem="674-57-fTx" firstAttribute="centerY" secondItem="HUG-HJ-2n8" secondAttribute="centerY" id="bgg-ZM-WZh"/>
-                <constraint firstItem="HUG-HJ-2n8" firstAttribute="centerY" secondItem="zDR-oD-NhW" secondAttribute="bottom" constant="-15" id="mrf-B7-N1P"/>
+                <constraint firstItem="674-57-fTx" firstAttribute="leading" secondItem="PaT-eH-IJe" secondAttribute="trailing" constant="8" symbolic="YES" id="E4h-GK-OhO"/>
+                <constraint firstItem="ajc-U1-atz" firstAttribute="centerY" secondItem="zDR-oD-NhW" secondAttribute="bottom" constant="-15" id="JUH-DR-D4n"/>
+                <constraint firstItem="8AM-PB-m6K" firstAttribute="leading" secondItem="674-57-fTx" secondAttribute="trailing" constant="5" id="Npw-Gu-CbB"/>
+                <constraint firstItem="PaT-eH-IJe" firstAttribute="centerY" secondItem="HUG-HJ-2n8" secondAttribute="centerY" id="P63-iV-ids"/>
+                <constraint firstItem="HUG-HJ-2n8" firstAttribute="bottom" secondItem="ajc-U1-atz" secondAttribute="bottom" id="PSb-UO-KbG"/>
+                <constraint firstItem="HUG-HJ-2n8" firstAttribute="leading" secondItem="ajc-U1-atz" secondAttribute="trailing" constant="5" id="PT3-ii-2uE"/>
+                <constraint firstItem="PaT-eH-IJe" firstAttribute="leading" secondItem="HUG-HJ-2n8" secondAttribute="trailing" constant="8" symbolic="YES" id="Tqz-GT-QV6"/>
+                <constraint firstItem="674-57-fTx" firstAttribute="bottom" secondItem="PaT-eH-IJe" secondAttribute="bottom" id="bgg-ZM-WZh"/>
+                <constraint firstItem="ajc-U1-atz" firstAttribute="leading" secondItem="zDR-oD-NhW" secondAttribute="leading" constant="10" id="uyf-bq-8MH"/>
             </constraints>
-            <point key="canvasLocation" x="-320.5" y="144.5"/>
+            <point key="canvasLocation" x="-290" y="33"/>
         </view>
         <arrayController mode="entity" entityName="" editable="NO" selectsInsertedObjects="NO" avoidsEmptySelection="NO" id="t85-dl-98d" userLabel="Genotypes"/>
         <menu identifier="Genotypes" id="iKd-rY-qln" userLabel="Genotype menu">
             <items>
-                <menuItem title="Show Source Sample(s)" offStateImage="stackChannelsButton" tag="1" id="QVy-ar-pUX">
+                <menuItem title="Select Source Sample(s)" offStateImage="circle arrow up badge" tag="1" id="QVy-ar-pUX">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
-                        <action selector="showSamples:" target="-2" id="e55-wK-ZgY"/>
+                        <action selector="selectSamples:" target="-2" id="e55-wK-ZgY"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Call Alleles" offStateImage="callAllelesBadge" id="8Qs-Zp-pFu">
+                <menuItem title="Call Genotype(s)" offStateImage="bin alleles badge" id="GDe-kb-xmu">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="autoGenotype:" target="-2" id="3Hb-Ty-dtJ"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Find Alleles" offStateImage="callAllelesBadge" id="8Qs-Zp-pFu">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="callAlleles:" target="-2" id="AHG-1e-yc5"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Remove supplementary peaks" offStateImage="removeAdditionalFragmentsBadge" id="boL-bF-Chx">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="removeAdditionalFragments:" target="-2" id="NBT-dW-rFM"/>
                     </connections>
                 </menuItem>
                 <menuItem title="Reset Offset(s)" offStateImage="reset" id="Ef6-hr-YRw">
@@ -143,7 +177,7 @@
                         <action selector="copy:" target="-2" id="gYo-GI-8sL"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Export Table to File…" offStateImage="export" id="EcG-k0-wtA">
+                <menuItem title="Export to Text File…" offStateImage="export" id="EcG-k0-wtA">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="exportGenotypes:" target="-2" id="Oeo-Wr-dwt"/>
@@ -157,14 +191,18 @@
         </menu>
     </objects>
     <resources>
+        <image name="bin alleles" width="25" height="20"/>
+        <image name="bin alleles badge" width="15" height="15"/>
         <image name="call genotypes" width="25" height="20"/>
         <image name="callAllelesBadge" width="15" height="15"/>
+        <image name="circle arrow up" width="15" height="15"/>
+        <image name="circle arrow up badge" width="15" height="15"/>
         <image name="copy" width="15" height="14"/>
         <image name="export" width="15" height="17"/>
         <image name="filterButton" width="25" height="25"/>
         <image name="filterButton On" width="25" height="25"/>
+        <image name="removeAdditionalFragmentsBadge" width="16" height="15"/>
         <image name="reset" width="14" height="14"/>
-        <image name="stackChannelsButton" width="25" height="20"/>
         <namedColor name="AccentColor">
             <color red="0.0" green="0.46000000000000002" blue="0.89000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

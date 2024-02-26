@@ -30,8 +30,6 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A folder is equivalent to a directory in a file manager, and is mostly used as a UI element.
 /// It allows building a tree of instances: a folder can have subfolders, each of which may have subfolders.
-///
-/// A folder also has a name.
 @interface Folder : CodingObject
 
 /// The folder's parent folder.
@@ -50,9 +48,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) NSString *name;
 
 
-/// Returns a user-legible string that denotes the folder type.
+/// A user-legible string that denotes the folder type.
 ///
-/// The default implementation returns "Folder". Subclasses can override the getter to return another value.
+/// The default implementation returns "Folder".
 @property (nonatomic, readonly) NSString *folderType;
 
 
@@ -66,7 +64,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Whether the receiver can have subfolders.
 ///
-/// The default value is YES.
+/// The default value is `YES`.
 @property (readonly, nonatomic) BOOL canTakeSubfolders;
 
 
@@ -85,7 +83,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Gives the receiver a ``name`` that differs from its ``siblings``.
 ///
-/// This methods adds an integer number to the existing name.
+/// This methods adds an integer number to the existing name to avoid duplicate names.
 /// If ``name`` returns `nil` or an empty string, the method starts with "Unnamed " appended to ``folderType``.
 - (void)autoName;
 
@@ -116,12 +114,20 @@ NS_ASSUME_NONNULL_BEGIN
 /**** convenience methods to tell whether a folder is a panel, or a smart folder. We use it as several objects can have folders of different types, and this avoids testing for the folder class. ****/
 
 /// Whether the receiver's class is of kind ``Panel``.
+///
+/// The default implementation returns `NO`.
 @property (readonly, nonatomic) BOOL isPanel;
 
 /// Whether the receiver's class is of kind ``SmartFolder``.
+///
+/// The default implementation returns `NO`.
 @property (readonly, nonatomic) BOOL isSmartFolder;
 
 
+/// A predicate that can be associated with the folder, to filter its content.
+///
+/// This is not a core data attribute.
+@property (nonatomic, nullable) NSPredicate *filterPredicate;
 
 @end
 

@@ -27,19 +27,28 @@
 #import "FileImporter.h"
 #import "IndexImageView.h"
 #import "TableSortPopover.h"
-
-TableSortPopover *tableSortPopover;
-
-
+#import "NSPredicate+PredicateAdditions.h"
+#import "NSManagedObjectContext+NSManagedObjectContextAdditions.h"
+@import QuartzCore;
 
 ColumnDescriptorKey KeyPathToBind = @"keyPathToBind",
 CellViewID =  @"cellViewID",
 ColumnTitle = @"columnTitle",
 IsTextFieldEditable = @"isTextFieldEditable",
-IsColumnVisibleByDefault = @"columnVisibleByDefault";
+IsColumnVisibleByDefault = @"columnVisibleByDefault",
+IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
+
+@interface TableViewController ()
+
+@property (nonatomic) NSImage *filterButtonImageActive;
+@property (nonatomic) NSImage *filterButtonImageInactive;
+@property (nonatomic) NSString *URIStringPrefix;
+@property (nonatomic) CALayer *flashLayer;
+
+@end
+
 
 @implementation TableViewController
-
 
 #pragma mark - methods for populating the table and common delegate methods
 
@@ -90,7 +99,7 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 	
 	[super viewDidLoad];
 	[self configureTableContent];
-
+	
 	NSTableView *tableView = self.tableView;
 	tableView.delegate = self;
 	tableView.dataSource = self;
@@ -102,10 +111,21 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 		tableView.autosaveTableColumns = YES;
 	}
 	
+	for(NSTableColumn *col in tableView.tableColumns) {
+		if(![self canHideColumn:col]) {
+			col.hidden = NO;
+		}
+	}
+	
 	if(self.shouldMakeTableHeaderMenu) {
 		NSMenu *menu = NSMenu.new;
 		tableView.headerView.menu = menu;
 		menu.delegate = (id) self;
+	}
+	
+	NSSplitView *view = (NSSplitView *)self.view;
+	if([view isKindOfClass:NSSplitView.class]) {
+		view.autosaveName = view.identifier;
 	}
 }
 
@@ -124,7 +144,7 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 }
 
 
-- (nullable NSDictionary *)columnDescription {
+- (NSDictionary<NSString *, id> *)columnDescription {
 	return nil;
 }
 
@@ -141,13 +161,20 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 	NSDictionary *columnDescription = self.columnDescription;
 	for (NSString *ID in self.orderedColumnIDs) {
 		NSTableColumn *col = [[NSTableColumn alloc] initWithIdentifier:ID];
-		col.title = columnDescription[ID][ColumnTitle];
-		col.sortDescriptorPrototype = [NSSortDescriptor sortDescriptorWithKey:columnDescription[ID][KeyPathToBind] ascending:YES];
+		NSDictionary *colDescription = columnDescription[ID];
+		col.title = colDescription[ColumnTitle];
+		NSString *keyPath = colDescription[KeyPathToBind];
+		BOOL caseInsensitiveSorting = [colDescription[IsColumnSortingCaseInsensitive] boolValue];
+		
+		if(keyPath) {
+			col.sortDescriptorPrototype = caseInsensitiveSorting ? [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)] : [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES];
+		}
+		
 		[self.tableView addTableColumn:col];
 		
 		col.width = col.headerCell.cellSize.width + 10;
 		col.minWidth = col.headerCell.cellSize.width ;
-		col.hidden = ![columnDescription[ID][IsColumnVisibleByDefault] boolValue];
+		col.hidden = ![colDescription[IsColumnVisibleByDefault] boolValue];
 		
 	}
 }
@@ -164,46 +191,46 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 		return view;		/// which should be the view set in interface builder, if it exists (by default it has the same identifier as the column)
 	}
 	
-	NSDictionary *columnDescription = self.columnDescription;
-	if(!columnDescription) {
+	NSDictionary *cellDescription = self.columnDescription[ID];
+	if(!cellDescription) {
 		return nil;
 	}
 	
-	NSString *viewID = columnDescription[ID][CellViewID];  /// in no such view exists, we return the right prototype table cell view that is in the sampleTable (in the xib)
+	NSString *viewID = cellDescription[CellViewID];  /// in no such view exists, we return the right prototype table cell view that is in the sampleTable (in the xib)
 	view = [self.viewForCellPrototypes makeViewWithIdentifier:viewID owner:self];
-	if(!view) {
-		return  nil;					/// hopefully, this won't happen otherwise some views will be missing
-	}
 	
 	if(view.subviews.count == 0) {
-		return nil;
+		return  view;					/// hopefully, this won't happen otherwise some views will be missing
 	}
 	
 	/// we bind elements in this cell to properties of the object is represents.
 	/// We could have done it in IB, but it is clearer to do it in code. The bindings are also described in +columnDescription
 	NSString *keyPath;
-	view.identifier = ID;
+	view.identifier = ID;		/// So that the view will not need to be configured in the future.
 	NSTextField *textField = view.textField;
 	if(textField) {
-		keyPath = [@"objectValue." stringByAppendingString: columnDescription[ID][KeyPathToBind]];
+		keyPath = [@"objectValue." stringByAppendingString: cellDescription[KeyPathToBind]];
 		[textField bind:NSValueBinding toObject:view withKeyPath:keyPath options:@{NSValidatesImmediatelyBindingOption:@YES}];
 		textField.selectable = YES;
-		textField.editable = [columnDescription[ID][IsTextFieldEditable] boolValue];
+		if([cellDescription[IsTextFieldEditable] boolValue]) {
+			textField.editable = YES;
+			textField.delegate = (id)self;
+		}
 	}
 	
 	if(view.imageView) {
 		if([view.imageView respondsToSelector:@selector(imageIndex)]) {
-			keyPath = [@"objectValue." stringByAppendingString: columnDescription[ID][ImageIndexBinding]];
+			keyPath = [@"objectValue." stringByAppendingString: cellDescription[ImageIndexBinding]];
 			[view.imageView bind:ImageIndexBinding toObject:view withKeyPath:keyPath options:nil];
 		}
 		if (!view.textField) {		/// the cells only showing an image (no textfield), we bind to the tooltip
-			keyPath = [@"objectValue." stringByAppendingString: columnDescription[ID][KeyPathToBind]];
+			keyPath = [@"objectValue." stringByAppendingString: cellDescription[KeyPathToBind]];
 			[view.imageView bind:NSToolTipBinding toObject:view withKeyPath:keyPath options:nil];
 		}
 	}
 	
 	if([view isKindOfClass: GaugeTableCellView.class]) {
-		keyPath = [@"objectValue." stringByAppendingString: columnDescription[ID][KeyPathToBind]];
+		keyPath = [@"objectValue." stringByAppendingString: cellDescription[KeyPathToBind]];
 		[view bind:NSValueBinding toObject:view withKeyPath:keyPath options:nil];
 	}
 	
@@ -213,15 +240,24 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 
 
 - (NSString *)tableView:(NSTableView *)tableView typeSelectStringForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
-	/// Overridden for performance. We take advantage of the fact that we know which value of an item a table cell  shows
+	/// Overridden for performance. We take advantage of the fact that we know which value of an item a table cell shows.
+	if(tableColumn.isHidden) {
+		return nil;
+	}
+	
 	NSDictionary *columnDescription = self.columnDescription;
+	
 	if(_tableContent && columnDescription) {
 		NSDictionary *dic = columnDescription[tableColumn.identifier];
+		NSString *keyPath = dic[KeyPathToBind];
+		if(![_tableContent.sortDescriptors.firstObject.key isEqualToString:keyPath]) {
+			/// We don't use a column for type selection if it's not the first one used for sorting.
+			return nil;
+		}
 		if(![dic[CellViewID] isEqualToString:@"imageCellView"]) {
 			/// This type of column does not show any text (or number), so we don't use it
 			if([_tableContent.arrangedObjects count] > row) {
 				id itemAtRow = _tableContent.arrangedObjects[row];
-				NSString *keyPath = dic[KeyPathToBind];
 				if(keyPath) {
 					id value = [itemAtRow valueForKeyPath:keyPath];
 					if(value) {
@@ -253,12 +289,17 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 }
 
 
+- (BOOL)canHideColumn:(NSTableColumn *)column {
+	return YES;
+}
+
+
 - (void)menuNeedsUpdate:(NSMenu *)menu {
 	NSTableView *tableView = self.tableView;
 	NSTableHeaderView *headerView = tableView.headerView;
 	if(menu == headerView.menu) {		/// we populate the menu with items representing the columns that the user can show/hide.
-		[menu removeAllItems];							/// we do it every time the menu appears so that the columns are in the order of the table (the user may have reordered columns)
-		/// we first add the item allowing to sort the table. We don't need to recreate this item each time, but this isn't costly.
+		[menu removeAllItems];			/// we do it every time the menu appears so that the columns are in the order of the table (the user may have reordered columns)
+		/// we first add the item allowing to sort the table. Recreating this item each time isn't costly.
 		if([self canSortByMultipleColumns]) {
 			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Sort Table…" action:@selector(showSortCriteria:) keyEquivalent:@""];
 			item.target = self;
@@ -272,11 +313,13 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 			NSInteger clickedCol = [headerView columnAtPoint:clickPoint];
 			if(clickedCol >= 0 && clickedCol < tableView.numberOfColumns) {
 				NSTableColumn *clickedColumn = tableView.tableColumns[clickedCol];
-				NSString *title = [@"Hide " stringByAppendingFormat:@"\"%@\"", clickedColumn.title];
-				NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(hideColumn:) keyEquivalent:@""];
-				item.target = self;
-				item.representedObject = clickedColumn;
-				[menu addItem:item];
+				if([self canHideColumn:clickedColumn]) {
+					NSString *title = [@"Hide " stringByAppendingFormat:@"\"%@\"", clickedColumn.title];
+					NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(hideColumn:) keyEquivalent:@""];
+					item.target = self;
+					item.representedObject = clickedColumn;
+					[menu addItem:item];
+				}
 			}
 		}
 		if(menu.itemArray.count > 0) {
@@ -293,11 +336,7 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 		[menu addItem:NSMenuItem.separatorItem];
 		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Show All" action:@selector(showAllColumns:) keyEquivalent:@""];
 		[menu addItem:item];
-		
-		return;
-	}
-	
-	if(menu == tableView.menu) {
+	} else if(menu == tableView.menu) {
 		/// if the menu is from our tableview's menu (set in IB), we hide its items if there is no clicked row
 		for(NSMenuItem *menuItem in menu.itemArray) {
 			menuItem.hidden = tableView.clickedRow < 0;
@@ -308,7 +347,7 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 
 - (void)hideColumn:(NSMenuItem *)sender {
 	NSTableColumn *column = sender.representedObject;
-	if(column) {
+	if(column && [self canHideColumn:column]) {
 		column.hidden = YES;
 	}
 }
@@ -471,6 +510,7 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 - (void)selectItemName:(id)object {
 	NSInteger row = [self.tableContent.arrangedObjects indexOfObject: object];
 	if(row >=0) {
+		[self.tableView scrollRowToVisible:row];
 		[self.tableView editColumn:[self itemNameColumn] row:row withEvent:nil select:YES];
 	}
 }
@@ -492,80 +532,16 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 			NSArray *arrangedObjects = self.tableContent.arrangedObjects;
 			if(arrangedObjects.count >= clickedRow) {
 				id clickedItem = arrangedObjects[clickedRow];
-				if([self.tableContent.selectedObjects containsObject:clickedItem]) {
+				if([self.tableContent.selectedObjects indexOfObjectIdenticalTo:clickedItem] != NSNotFound) {
 					return self.tableContent.selectedObjects;
 				}
-				return @[clickedItem];
+				return clickedItem == nil? nil : @[clickedItem];
 			}
 		}
 	}
 	return self.tableContent.selectedObjects;
 }
 
-
-- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	NSInteger clickedRow = self.tableView.clickedRow;
-	
-
-	if(menuItem.action == @selector(remove:)) {
-		/// we give a contextual title to the menu that removes an item.
-		NSString *title = [self removeActionTitleForItems:[self targetItemsOfSender:menuItem]];
-		if(title) {
-			menuItem.title = title;
-			menuItem.hidden = NO;
-			return YES;
-		}
-		menuItem.title = @"Remove";
-		menuItem.hidden = YES;
-		/// absence of title means there is nothing to remove, so we disable the menu item
-		/// (which in this case should be from the main application menu, as we hide all items from the contextual menu if there is no clicked item)
-		return NO;
-	}
-	
-	if(menuItem.action == @selector(rename:) && menuItem.topMenu == NSApp.menu) {
-		/// we give a contextual title to the menu that renames an item.
-		id item = [self targetItemsOfSender:menuItem].firstObject;
-		if([self canRenameItem:item]) {
-			menuItem.title = [@"Rename " stringByAppendingString: [self nameForItem:[self targetItemsOfSender:menuItem].firstObject]];
-			menuItem.hidden = NO;
-			return YES;
-		}
-		menuItem.hidden = YES;
-		return NO;
-	}
-	
-	if(menuItem.action == @selector(showSortCriteria:)) {
-		return [self canSortByMultipleColumns];
-	}
-	
-	if(menuItem.action == @selector(moveSelectionByStep:)) {
-		return self.tableContent.selectedObjects.count > 0;
-	}
-	
-	if(menuItem.action == @selector(copy:)) {
-		if(menuItem.topMenu == self.tableView.menu) {
-			return clickedRow >= 0;
-		}
-		return self.columnDescription && self.tableContent.selectedObjects.count > 0;
-	}
-	
-	if(menuItem.action == @selector(toggleColumnVisibility:)) {
-		NSTableColumn *column = menuItem.representedObject;
-		menuItem.state = !column.isHidden;
-		BOOL canHideColumn = YES;
-		if(!column.isHidden) {
-			/// We can't hide a column if there is not more than 1 visible column
-			canHideColumn = self.visibleColumns.count > 1;
-		}
-		return canHideColumn || column.isHidden;
-	}
-	
-	if(menuItem.action == @selector(showAllColumns:)) {
-		return self.visibleColumns.count < self.tableView.tableColumns.count;
-	}
-
-	return YES;
-}
 
 
 - (IBAction)remove:(id)sender {
@@ -688,8 +664,51 @@ IsColumnVisibleByDefault = @"columnVisibleByDefault";
 	return self.shouldMakeTableHeaderMenu;
 }
 
+#pragma mark - cell text editing
+
+- (void)controlTextDidChange:(NSNotification *)notification {
+	/// Makes sure the row being edited is visible.
+	NSTextField *textField = notification.object;
+		NSInteger rowIndex = [self.tableView rowForView:textField];
+		if(rowIndex >= 0) {
+			[self.tableView scrollRowToVisible:rowIndex];
+		}
+}
+
+
+- (void)controlTextDidEndEditing:(NSNotification *)notification {
+	NSTextField *textField = notification.object;
+	
+	NSInteger columnIndex = [self.tableView columnForView:textField];
+	NSInteger rowIndex = [self.tableView rowForView:textField];
+	if(columnIndex >= 0 && rowIndex >= 0) {
+		NSString *actionName =  [self actionNameForEditingCellInColumn: self.tableView.tableColumns[columnIndex] row:rowIndex];
+		if(actionName) {
+			[self.undoManager setActionName:actionName];
+		}
+	}
+}
+
+
+/// The action sent by a popup button in a cell
+- (IBAction)popupClicked:(NSPopUpButton *)sender {
+	NSInteger columnIndex = [self.tableView columnForView:sender];
+	NSInteger rowIndex = [self.tableView rowForView:sender];
+	NSArray *columns = self.tableView.tableColumns;
+	if(columnIndex >= 0 && columnIndex <= columns.count && rowIndex >= 0) {
+		[self.undoManager setActionName: [self actionNameForEditingCellInColumn:columns[columnIndex] row:rowIndex]];
+	}
+}
+
+
+- (nullable NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
+	return [@"Edit " stringByAppendingString:column.title];
+}
+
 
 #pragma mark - table sorting
+
+TableSortPopover *tableSortPopover;
 
 static NSString *const AscendingOrderKey = @"AscendingOrderKey";
 static NSString *const KeypathKey = @"KeypathKey";
@@ -710,10 +729,15 @@ static NSString *const KeypathKey = @"KeypathKey";
 	/// We prepare the sort criteria editor
 	NSArray *columnTitles = [visibleColumns valueForKeyPath:@"@unionOfObjects.title"];
 	NSMutableArray *keypaths = [NSMutableArray arrayWithCapacity:visibleColumns.count];
+	NSMutableArray *selectorNames = [NSMutableArray arrayWithCapacity:visibleColumns.count];
 	for(NSTableColumn *column in visibleColumns) {
-		NSString *keypath = self.columnDescription[column.identifier][KeyPathToBind];
+		NSDictionary *columnDescription = self.columnDescription[column.identifier];
+		NSString *keypath = columnDescription[KeyPathToBind];
 		if(keypath) {
 			[keypaths addObject:keypath];
+			BOOL caseSensitive = [columnDescription[IsColumnSortingCaseInsensitive]boolValue];
+			NSString *selectorName = caseSensitive? NSStringFromSelector(@selector(localizedCaseInsensitiveCompare:)) : NSStringFromSelector(@selector(compare:));
+			[selectorNames addObject:selectorName];
 		} else {
 			NSLog(@"Missing keypath for column identifier '%@'.", column.identifier);
 			return;
@@ -753,7 +777,9 @@ static NSString *const KeypathKey = @"KeypathKey";
 		tableSortPopover.behavior = NSPopoverBehaviorTransient;
 	}
 	
-	[tableSortPopover.sortCriteriaEditor setTitles:columnTitles forKeyPaths:keypaths];
+	[tableSortPopover.sortCriteriaEditor configureWithKeyPaths:keypaths 
+												 selectorNames:selectorNames
+														titles:columnTitles];
 	tableSortPopover.sortCriteriaEditor.sortDescriptors = sortDescriptors;
 	
 	tableSortPopover.sortAction = @selector(applySort:);
@@ -788,6 +814,115 @@ static NSString *const KeypathKey = @"KeypathKey";
 #pragma mark - other
 
 
+- (void)revealItem:(id)item {
+	NSInteger row = [self.tableContent.arrangedObjects indexOfObjectIdenticalTo:item];
+	if(row != NSNotFound) {
+		NSTableView *tableView = self.tableView;
+		[tableView scrollRowToVisible:row];
+		CALayer *flashLayer = self.flashLayer;
+		if(flashLayer) {
+			NSRect frame = NSIntersectionRect([tableView rectOfRow:row], tableView.visibleRect);
+			flashLayer.frame = NSInsetRect(frame, 1, 1); /// This makes the frame more visible in light mode.
+			[tableView.layer addSublayer:flashLayer];
+			CABasicAnimation* flashAnimation = [CABasicAnimation animationWithKeyPath:@"opacity"];
+			flashAnimation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
+			flashAnimation.fromValue = @(1.0);
+			flashAnimation.toValue = @(0.0);
+			flashAnimation.duration = 1.0;
+			[CATransaction setCompletionBlock:^{
+				[flashLayer removeFromSuperlayer];
+			}];
+			[flashLayer addAnimation:flashAnimation forKey:@"opacity"];
+		}
+	}
+}
+
+
+- (CALayer *)flashLayer {
+	if(!_flashLayer) {
+		_flashLayer = CALayer.new;
+		_flashLayer.borderColor = NSColor.whiteColor.CGColor;
+		_flashLayer.borderWidth = 2.0;
+		_flashLayer.zPosition = 1000;
+		_flashLayer.opacity = 0.0;
+		_flashLayer.actions = @{NSStringFromSelector(@selector(bounds)):NSNull.null,
+								NSStringFromSelector(@selector(position)):NSNull.null
+		};
+	}
+	return _flashLayer;
+}
+
+
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	NSInteger clickedRow = self.tableView.clickedRow;
+	
+
+	if(menuItem.action == @selector(remove:)) {
+		/// we give a contextual title to the menu that removes an item.
+		NSString *title = [self removeActionTitleForItems:[self targetItemsOfSender:menuItem]];
+		if(title) {
+			if(menuItem.topMenu == NSApp.menu) {
+				menuItem.title = title;
+			}
+			menuItem.hidden = NO;
+			return YES;
+		}
+		menuItem.title = @"Delete";
+		menuItem.hidden = YES;
+		/// absence of title means there is nothing to remove, so we disable the menu item
+		/// (which in this case should be from the main application menu, as we hide all items from the contextual menu if there is no clicked item)
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(rename:)) {
+		/// we give a contextual title to the menu that renames an item.
+		id item = [self targetItemsOfSender:menuItem].firstObject;
+		if([self canRenameItem:item]) {
+			if(menuItem.topMenu == NSApp.menu) {
+				menuItem.title = [@"Rename " stringByAppendingString: [self nameForItem:[self targetItemsOfSender:menuItem].firstObject]];
+			}
+			menuItem.hidden = NO;
+			return YES;
+		}
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(showSortCriteria:)) {
+		return [self canSortByMultipleColumns];
+	}
+	
+	if(menuItem.action == @selector(moveSelectionByStep:)) {
+		return self.tableContent.selectedObjects.count > 0;
+	}
+	
+	if(menuItem.action == @selector(copy:)) {
+		if(menuItem.topMenu == self.tableView.menu) {
+			return clickedRow >= 0;
+		}
+		return self.columnDescription && self.tableContent.selectedObjects.count > 0;
+	}
+	
+	if(menuItem.action == @selector(toggleColumnVisibility:)) {
+		NSTableColumn *column = menuItem.representedObject;
+		menuItem.state = !column.isHidden;
+		BOOL canHideColumn = YES;
+		if(!column.isHidden) {
+			/// We can't hide a column if there is not more than 1 visible column
+			canHideColumn = self.visibleColumns.count > 1 && [self canHideColumn:column];
+		}
+		menuItem.hidden = !canHideColumn;
+		return canHideColumn || column.isHidden;
+	}
+	
+	if(menuItem.action == @selector(showAllColumns:)) {
+		return self.visibleColumns.count < self.tableView.tableColumns.count;
+	}
+
+	return YES;
+}
+
+
 - (void)tableViewIsClicked:(NSTableView *)sender {	/// when our tableview is clicked, we set ourselves as source for the content of the detailed outline view
 	MainWindowController.sharedController.sourceController = self;
 }
@@ -819,8 +954,282 @@ static NSString *const KeypathKey = @"KeypathKey";
 		}
 
 	}
+}
+
+
+- (void)dealloc {
+	/// This removes ourselves as observer
+	self.filterButton = nil;
+}
+
+#pragma mark - recording and restoring selection
+
+- (void)recordSelectedItemsAtUserDefaultsKey:(NSString *)key subKey:(NSString *)subKey maxRecorded:(NSUInteger)maxRecorded {
+	NSArrayController *tableContent = self.tableContent;
+	NSArray *selectedObjects = tableContent.selectedObjects;
+
+	NSMutableDictionary *dic = [NSUserDefaults.standardUserDefaults dictionaryForKey:key].mutableCopy;
+	if(!dic) {
+		dic = NSMutableDictionary.new;
+	}
+	[tableContent.managedObjectContext obtainPermanentIDsForObjects:selectedObjects error:nil];
+	NSArray *selectedItemIDs = [selectedObjects valueForKeyPath:@"@unionOfObjects.objectID.URIRepresentation.lastPathComponent"];
+	NSInteger count = selectedItemIDs.count;
+	if(count > 0) {
+		if(maxRecorded > 0 && count > maxRecorded) {
+			selectedItemIDs = [selectedItemIDs objectsAtIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, maxRecorded)]];
+		}
+		dic[subKey] = selectedItemIDs;
+	} else {
+		[dic removeObjectForKey:subKey];
+	}
+	[NSUserDefaults.standardUserDefaults setObject:dic forKey:key];
+}
+
+
+- (void)restoreSelectedItemsWithUserDefaultsKey:(NSString *)key subKey:(NSString *)subKey {
+	NSDictionary *dic = [NSUserDefaults.standardUserDefaults dictionaryForKey:key];
+	if(dic) {
+		NSArray *itemIDs = dic[subKey];
+		if([itemIDs isKindOfClass:NSArray.class]) {
+			NSString *prefix = self.URIStringPrefix;
+			if(!prefix) {
+				return;
+			}
+			NSArrayController *tableContent = self.tableContent;
+			NSMutableArray *selectedItems = NSMutableArray.new;
+			for(NSString *itemID in itemIDs) {
+				NSString *longID = [prefix stringByAppendingString:itemID];
+				id object = [tableContent.managedObjectContext objectForURIString:longID expectedClass:nil];
+				if(object) {
+					[selectedItems addObject:object];
+				} else {
+					return;
+				}
+			}
+			if(selectedItems.count > 0 && [tableContent setSelectedObjects:selectedItems]) {
+				[self.tableView scrollRowToVisible:self.tableView.selectedRow];
+			}
+		}
+	}
+}
+
+
+- (void)recordSelectedItems {
 	
 }
+
+
+- (void)restoreSelectedItems {
+	
+}
+
+
+- (NSString *)URIStringPrefix {
+	if(!_URIStringPrefix) {
+		NSManagedObject *anObject = [self.tableContent.content firstObject];
+		if([anObject respondsToSelector:@selector(objectID)]) {
+			NSError *error;
+			NSManagedObjectID *objectID = anObject.objectID;
+			if(objectID.isTemporaryID) {
+				[anObject.managedObjectContext obtainPermanentIDsForObjects:@[anObject] error:&error];
+			}
+			if(!error) {
+				_URIStringPrefix = objectID.URIRepresentation.URLByDeletingLastPathComponent.absoluteString;
+			}
+		}
+	}
+	return _URIStringPrefix;
+}
+
+
+# pragma mark - filtering
+
+static void * const filterChangedContext = (void*)&filterChangedContext;
+
+- (void)setFilterButton:(NSButton *)filterButton {
+	if(_filterButton) {
+		[self.tableContent removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
+	}
+	_filterButton = filterButton;
+	if(filterButton) {
+		[self.tableContent addObserver:self
+							forKeyPath:NSStringFromSelector(@selector(filterPredicate))
+							   options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+							   context:filterChangedContext];
+
+		if(!_filterButton.action) {
+			_filterButton.action = @selector(filterButtonAction:);
+			_filterButton.target = self;
+		}
+	}
+}
+
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+	if (context == filterChangedContext) {
+		self.filterButton.image = self.filterButtonImage;
+	} else {
+		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+	}
+}
+	
+
+- (NSImage *)filterButtonImage {
+	return self.tableContent.filterPredicate == nil? self.filterButtonImageInactive : self.filterButtonImageActive;
+}
+
+
+- (NSImage *)filterButtonImageActive {
+	if(!_filterButtonImageActive) {
+		_filterButtonImageActive = [NSImage imageNamed:@"filterButton On"];
+	}
+	return _filterButtonImageActive;
+}
+
+
+- (NSImage *)filterButtonImageInactive {
+	if(!_filterButtonImageInactive) {
+		_filterButtonImageInactive = [NSImage imageNamed:@"filterButton"];
+	}
+	return _filterButtonImageInactive;
+}
+
+
+- (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor {
+	if(self.filterUsingPopover) {
+		/// we remove the background of the editor, which is defined by a visual effect view in macOS 14.
+		NSView *view = predicateEditor.subviews.firstObject;
+		view = view.subviews.firstObject;
+		view = view.subviews.firstObject;
+		if([view isKindOfClass:NSVisualEffectView.class]) {
+			view.hidden = YES;
+		}
+	}
+}
+
+
+- (BOOL)filterUsingPopover {
+	return YES;
+}
+
+/// Configures and shows the popover allowing to filter the table
+/// - Parameter sender: The object that sent this message.
+- (void)filterButtonAction:(NSButton *)sender {
+	if(!self.filterUsingPopover) {
+		return;
+	}
+	
+	if(!filterPopover) {
+		
+		filterPopover = NSPopover.new;
+		NSViewController *controller = [[NSViewController alloc] initWithNibName:@"FilterPopover" bundle:nil];
+		if(controller) {
+			filterPopover.contentViewController = controller;
+		} else {
+			NSLog(@"Failed to load filter popover!");
+			return;
+		}
+				
+		filterPopover.animates = YES;
+		filterPopover.behavior = NSPopoverBehaviorTransient;
+		NSView *contentView = controller.view;
+		
+		NSTextField *title = [contentView viewWithTag:1];
+		title.stringValue = [NSString stringWithFormat:@"Show only %@s meeting these conditions:", self.entityName.lowercaseString];
+		
+		NSButton *cancelButton = [contentView viewWithTag:4];
+		cancelButton.action = @selector(close);
+		cancelButton.target = filterPopover;
+		
+		NSButton *clearFilterButton = [contentView viewWithTag:5];
+		clearFilterButton.action = @selector(clearFilter:);
+		clearFilterButton.target = self;
+		[clearFilterButton bind:NSEnabledBinding
+					   toObject:self.tableContent 
+					withKeyPath:NSStringFromSelector(@selector(filterPredicate))
+						options:@{NSValueTransformerNameBindingOption: NSIsNotNilTransformerName}];
+		
+		NSButton *applyFilterButton = [contentView viewWithTag:6];
+		applyFilterButton.action = @selector(applyFilter:);
+		applyFilterButton.target = self;
+	
+		NSPredicateEditor *predicateEditor = [contentView viewWithTag:2];
+		if(![predicateEditor isKindOfClass:NSPredicateEditor.class]) {
+			return;
+		}
+		
+		
+		[self configurePredicateEditor:predicateEditor];
+
+	}
+	
+	
+	/// We set the predicate to show in the editor
+	NSPredicate *filterPredicate = self.tableContent.filterPredicate;
+	if(!filterPredicate) {
+		filterPredicate = self.defaultFilterPredicate;
+	}
+	
+	if(filterPredicate.class != NSCompoundPredicate.class) {
+		/// we make the search predicate a compound predicate to make sure it shows the "all/any/none" option.
+		filterPredicate = [NSCompoundPredicate andPredicateWithSubpredicates:@[filterPredicate]];
+	}
+	
+	NSView *contentView = filterPopover.contentViewController.view;
+	
+	NSButton *caseSensitiveButton = [contentView viewWithTag:3];
+	caseSensitiveButton.state = filterPredicate.isCaseInsensitive? NSControlStateValueOn : NSControlStateValueOff;
+	
+	NSPredicateEditor *editor = [contentView viewWithTag:2];
+	editor.objectValue = filterPredicate;
+	
+	NSTextField *errorTextField = [contentView viewWithTag:7];
+	errorTextField.hidden = YES;
+	
+	[filterPopover showRelativeToRect:sender.bounds ofView:sender preferredEdge:NSMinYEdge];
+}
+
+
+/// Applies the filter predicate defined by the `filterPopover` to the table.
+-(void)applyFilter:(id)sender {
+	NSView *contentView = filterPopover.contentViewController.view;
+	NSPredicateEditor *editor = [contentView viewWithTag:2];
+	NSPredicate *filterPredicate = editor.predicate;
+	
+	if(filterPredicate.hasEmptyTerms) {
+		NSTextField *errorTextField = [contentView viewWithTag:7];
+		errorTextField.hidden = NO;
+		return;
+	}
+	
+	NSButton *caseSensitiveButton = [contentView viewWithTag:3];
+	
+	if(caseSensitiveButton.state == NSControlStateValueOn) {
+		filterPredicate = [filterPredicate caseInsensitivePredicate];
+	}
+	
+	[self applyFilterPredicate:filterPredicate];
+	
+	[filterPopover close];
+}
+
+
+-(void)applyFilterPredicate:(NSPredicate *)filterPredicate {
+	if([filterPredicate isEqualTo:self.tableContent.filterPredicate]) {
+		[self.tableContent rearrangeObjects];
+	} else {
+		self.tableContent.filterPredicate = filterPredicate;
+	}
+}
+
+
+/// Removes the current filter of the table.
+-(void)clearFilter:(id)sender {
+	[filterPopover close];
+	[self applyFilterPredicate:nil];
+}
+
 
 
 @end

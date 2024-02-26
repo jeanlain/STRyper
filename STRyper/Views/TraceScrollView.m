@@ -63,7 +63,6 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 
 
 -(void)setAttributes {
-	self.backgroundColor = NSColor.whiteColor;
 	self.hasHorizontalScroller = YES;
 	self.verticalScrollElasticity = NSScrollElasticityNone;
 	self.scrollerStyle = NSScrollerStyleLegacy;
@@ -124,8 +123,8 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 
 	float topInset = 0;
 	NSRulerView *rulerView = self.horizontalRulerView;
-	if(rulerView && !rulerView.hidden) {
-		topInset = rulerView.frame.size.height -4 ;		/// the vscaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level displayed.
+	if(rulerView && !rulerView.isHidden) {
+		topInset = rulerView.frame.size.height -4 ;		/// the vScaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level displayed.
 	}
 	NSRect newFrame = NSMakeRect(0, topInset, vScaleView.width, self.frame.size.height - topInset);
 	if(!NSEqualRects(vScaleView.frame, newFrame)) {
@@ -151,7 +150,7 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 		/// the view being resized tends to trigger this method which messes with the scrolling. So we don't scroll in this situation.
 		/// We also check the presence of a scroll event, because appkits tends to call this method inappropriately, in particular after a swipe between markers.
 		/// The swipe requires ignoring some scrollWheel messages that occur after the fingers have left the trackpad (inertial scrolling events after the swipe).
-		/// Appkit apparently buffers these events and sees fit to call this method when the mouse exists us,
+		/// Appkit apparently buffers these events and sees fit to call this method when the mouse exists our frame,
 		/// to make us scroll the document view where it should have scrolled if we did not ignore the scrollWheel messages
 		/// This causes a jump in scroll position.
 		if(aPoint.x >= 0) {
@@ -159,18 +158,8 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 		}
 	}
 	
-	BaseRange newRange = traceView.visibleRange;
-	newRange.start = aPoint.x / hScale + traceView.sampleStartSize;
-	
-	if(hitPart == NSScrollerIncrementPage || hitPart == NSScrollerDecrementPage) {
-		/// if the user is scrolling "by page", we move the view to the newRange with animation
-		/// this makes other trace views move in sync (otherwise, only the focus view would move with animation, the others would jump)
-		/// and they change their vertical scale during the scroll (not after) if they autoscale to the highest visible peak
-		[traceView setVisibleRange:newRange animate:YES];
-	} else {
-		/// else we just set the visible range.
-		traceView.visibleRange = newRange;
-	} 
+	[traceView scrollPoint:aPoint animate:hitPart == NSScrollerIncrementPage || hitPart == NSScrollerDecrementPage];
+
 }
 
 

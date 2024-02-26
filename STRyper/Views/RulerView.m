@@ -77,12 +77,16 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 
 #pragma mark - initialization and general attributes
 
+static NSColor *rulerLabelColor;
+
 + (void)initialize {
+	rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
+
 	NSImage *cursorImage = [NSImage imageNamed:@"loupeCursorBordered"];
 	cursorImage.size = NSMakeSize(15, 20);
 	loupeCursor = [[NSCursor alloc]initWithImage:cursorImage hotSpot:NSMakePoint(6.1, 5.9)];
 		
-	extern NSDictionary *gLabelFontStyle;
+	NSDictionary *labelFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0], NSForegroundColorAttributeName: rulerLabelColor};
 	NSDictionary *redFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0],
 								   NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0 green:0.2 blue:0.2 alpha:1]};
 
@@ -90,7 +94,7 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	NSMutableArray *temp = NSMutableArray.new;
 	NSMutableArray *tempRed = NSMutableArray.new;
 	for(int size = 0; size <= MAX_TRACE_LENGTH; size++) {
-		NSAttributedString *rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", size] attributes:gLabelFontStyle];
+		NSAttributedString *rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", size] attributes:labelFontStyle];
 		NSAttributedString *rulerLabelRed = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", size] attributes:redFontStyle];
 
 		
@@ -123,16 +127,16 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	currentPositionMarkerLayer.bounds = CGRectMake(0, 0, 1, ruleThickness-1);
 
 	currentPositionLayer = CATextLayer.new;
-	currentPositionLayer.contentsScale = 2.0;								/// this makes text sharper even on a non-retina display
+	currentPositionLayer.contentsScale = 3.0;	/// this makes text sharper (a non-retina display would require 2.0, so it's overkill in this situation)
 	currentPositionLayer.bounds = CGRectMake(0, 0, 25, 9);					/// this ensures that the layer hides the ruler labels and tick-marks behind it (25 is larger than any string it can show)
 	currentPositionLayer.anchorPoint = CGPointMake(0, 0);
-	currentPositionLayer.font = (__bridge CFTypeRef _Nullable)(gLabelFontStyle[NSFontAttributeName]);
+	currentPositionLayer.font = (__bridge CFTypeRef _Nullable)(labelFontStyle[NSFontAttributeName]);
 	currentPositionLayer.fontSize = 8.0;
 	currentPositionLayer.allowsFontSubpixelQuantization = YES;
 	currentPositionLayer.actions = @{@"position": NSNull.null, @"string": NSNull.null, @"bounds": NSNull.null};
 	
 	[currentPositionMarkerLayer addSublayer:currentPositionLayer];
-	currentPositionLayer.position = CGPointMake(1, 2);		/// this places this layer 1 pixel to the right of the vertical line of the currentPositionMarkerLayer
+	currentPositionLayer.position = CGPointMake(1, 1.8);		/// this places this layer 1 pixel to the right of the vertical line of the currentPositionMarkerLayer
 	
 }
 
@@ -320,7 +324,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 	float topY = NSMaxY(bounds);
 	
 	/// We draw a thin line at the bottom of the view
-	[NSColor.grayColor setFill];
+	[rulerLabelColor setFill];
 	NSRectFill(NSMakeRect(traceView.leftInset, topY-1, dirtyRect.size.width, 1));
 
 	/* // to possibly show offscale regions on the ruler (test)
@@ -399,10 +403,9 @@ int rulerLabelIncrementForHScale(float hScale) {
 	
 	if(self.needsChangeAppearance) {
 		currentPositionLayer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
-		currentPositionLayer.foregroundColor = NSColor.secondaryLabelColor.CGColor;
+		currentPositionLayer.foregroundColor = rulerLabelColor.CGColor;
 		self.needsChangeAppearance = NO;
 	}
-	
 }
 
 
@@ -487,27 +490,22 @@ int rulerLabelIncrementForHScale(float hScale) {
 
 - (void)mouseUp:(NSEvent *)theEvent {
 	[loupeCursor set];
-	if (theEvent.clickCount == 2) {  /// we zoom out to the default when the user double clicks
-		if (traceView.marker) {
-			[traceView zoomToMarker];
-			return;
-		}
+	if (theEvent.clickCount == 2) {  
+		/// we zoom out to the default when the user double clicks
 		[self zoomToFit:self];
-		return;
-	}
-	if (isDraggingForZoom) {               				/// if the mouse has been dragged, we may zoom to the selected region
+	} else if (isDraggingForZoom) {               				
+		/// if the mouse has been dragged, we may zoom to the selected region
 		isDraggingForZoom = NO;
-		if((theEvent.timestamp - timeStamp > 0.2 && fabs(startPoint - mouseLocation.x) > 3) || fabs(startPoint - mouseLocation.x) > 10) { ; 	/// we do not zoom if this appears to be a simple click (of a double click sequence)
+		if((theEvent.timestamp - timeStamp > 0.2 && fabs(startPoint - mouseLocation.x) > 3) || fabs(startPoint - mouseLocation.x) > 10) { /// we do not zoom if this appears to be a simple click (of a double click sequence)
 			[traceView zoomFromSize:startSize toSize:[self sizeForX:mouseLocation.x]];
 		}
-		self.needsDisplay = YES;  						/// eve if the zoom did not occur (which tiggers a redisplay) we need to clear the selection rectangle
+		self.needsDisplay = YES;  	/// even if the zoom did not occur (which tiggers a redisplay) we need to clear the selection rectangle
 	}
 }
 
 
 -(void)zoomToFit:(id)sender {
-	[traceView zoomFromSize:[NSUserDefaults.standardUserDefaults doubleForKey:DefaultStartSize]
-					 toSize:[NSUserDefaults.standardUserDefaults doubleForKey:DefaultEndSize]];
+	[traceView setVisibleRange:traceView.defaultRange animate:YES];
 }
 
 

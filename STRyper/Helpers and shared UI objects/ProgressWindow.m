@@ -97,7 +97,8 @@ static void *progressChangedContext = &progressChangedContext;
 	}
 	if(self.progress) {
 		if(self.progress.fractionCompleted >= 0.5 || self.progress.isPaused || self.progress.isCancelled) {
-			/// the first condition is set to avoid showing the progress window for a amount of time that is too short (we assume that the delay is a few seconds or less)
+			/// the first condition is set to avoid showing the progress window for a amount of time that is too short 
+			/// (we assume that the delay is a few seconds or less)
 			return;
 		}
 	}
@@ -111,12 +112,14 @@ static void *progressChangedContext = &progressChangedContext;
 	if(!windowToAttach.isVisible) {
 		return;
 	}
+	
 	if(self.progress.totalUnitCount <= 0) {
 		self.progressBar.indeterminate = YES;
 		[self.progressBar startAnimation:self];
 	} else {
 		self.progressBar.indeterminate = NO;
 	}
+	
 	self.stopButton.enabled = self.progress.isCancellable;
 	
 	if(!self.isVisible) {

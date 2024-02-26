@@ -23,7 +23,6 @@
 
 
 #import "CodingObject.h"
-#import "LadderFragment.h"
 
 @class Chromatogram, TraceView, LadderFragment, ViewLabel, PeakLabel, FragmentLabel, Allele;
 
@@ -115,10 +114,11 @@ typedef struct Peak {
 	int32_t scansFromTip;
 	/// this structure complicates the code as we frequently compute the scan of the peak tip or peak end, but it ensures that the peak structure is consistent (peak tip between start and ends, for instance).
 	
-	/// Indicates saturation in fluorescence at the peak location.
+	/// Indicates saturation or crosstalk in fluorescence at the peak location.
 	///
-	/// The absolute value represents the width of the `OffscaleRegion` at the peak location.
-	/// A negative value means that peak results from crosstalk (saturation in another ``Trace/channel``).
+	/// A positive value represents the width of the offscale region (see ``Chromatogram/offscaleRegions``) at the peak location.
+	/// A negative value between -1 and -5 represents the opposite of the ``Trace/channel`` that induced crosstalk, minus 1
+	/// (e.g., a value of -3 represents channel 4), meaning that the peak results from crosstalk.
 	int32_t crossTalk;
 } Peak;
 
@@ -126,13 +126,21 @@ typedef struct Peak {
 Peak MakePeak(int32_t startScan, int32_t scansToTip, int32_t scansFromTip, int32_t crossTalk);
 
 /// Convenience function that returns the scan number at the end of a peak.
-int32_t peakEndScan(Peak peak);
+/// - Parameter peakPTR: Pointer to the peak.
+int32_t peakEndScan(const Peak *peakPTR);
 
 /// The array peaks (``Peak`` structs) that were detected in the fluorescence data, in ascending scan order.
 @property (nonatomic, readonly) NSData *peaks;
 
 /// Makes the trace set its ``peaks`` attribute by analyzing its fluorescence data.
 - (void)findPeaks;
+
+/// Makes the trace determine whether each if its peak results from crosstalk.
+///
+///	The method sets the `crossTalk` member of each peak in ``peaks``.
+///
+/// **IMPORTANT:** the method relies on ``peaks`` found in the other ``Chromatogram/traces`` of the ``chromatogram``.
+- (void)findCrossTalk;
 
 /// The minimum fluorescence level that a ``Peak`` must have to be detected.
 ///
@@ -179,7 +187,7 @@ int32_t peakEndScan(Peak peak);
 /// This method finds peaks that may correspond to the ``SizeStandard/sizes`` of the ``Chromatogram/sizeStandard``,
 /// sets the trace's ``fragments`` accordingly and calls ``Chromatogram/computeFitting`` on its ``chromatogram``.
 ///
-/// This method does nothing is the trace returns `NO` to ``isLadder`` and if its ``chromatogram`` has no size standard.
+/// This method does nothing is the trace returns `NO` to ``isLadder`` or if its ``chromatogram`` has no size standard.
 - (void)findLadderFragmentsAndComputeSizing;
 
 
@@ -203,7 +211,7 @@ BaseRange MakeBaseRange(float start, float len);
 /// A trace is likely to be displayed in a row of a table. As `NSTableView` objects shuffle and reuse views for rows and cells,
 /// a trace may be randomly shown in different views (``TraceView`` objects).
 ///
-/// A ``TraceView`` can use this property to set its``TraceView/visibleRange``.
+/// A ``TraceView`` can use this property to set its ``TraceView/visibleRange``.
 @property (nonatomic) BaseRange visibleRange;
 
 /// The maximum fluorescent level that a view can set to display the trace.

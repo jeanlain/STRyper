@@ -121,7 +121,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)_addFolderToTable:(Folder *)folder;
 
 /// The pasteboard type used to allow folder drag & drop.
-extern NSString * _Nonnull const FolderDragType;
+extern NSPasteboardType _Nonnull const FolderDragType;
 
 
 @end

@@ -43,29 +43,8 @@
 NSString * _Nonnull const MarkerBinsKey = @"bins";
 NSString * _Nonnull const MarkerPanelKey = @"panel";
 NSPasteboardType _Nonnull const MarkerPasteboardType = @"org.jpeccoud.stryper.markerPasteboardType";
-NSNotificationName _Nonnull const MarkerBinsDidChangeNotification = @"MarkerBinsDidChangeNotification";
 static void * const binsChangedContext = (void*)&binsChangedContext;
 
-
-
-- (void)awakeFromFetch {
-	[super awakeFromFetch];
-	[self addObserver:self forKeyPath:MarkerBinsKey options:NSKeyValueObservingOptionNew context:binsChangedContext];
-
-}
-
-
-- (void)awakeFromInsert {
-	[super awakeFromInsert];
-	[self addObserver:self forKeyPath:MarkerBinsKey options:NSKeyValueObservingOptionNew context:binsChangedContext];
-}
-
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
-	if(context == binsChangedContext) {
-		[NSNotificationCenter.defaultCenter postNotificationName:MarkerBinsDidChangeNotification object:self];
-	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-}
 
 
 - (instancetype)initWithStart:(float)start end:(float)end channel:(ChannelNumber)channel panel:(Panel *)panel {
@@ -113,9 +92,6 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 			}
 		}
 		[self managedObjectOriginal_setStart:start];
-		if(!self.deleted) {
-			[self.managedObjectContext.undoManager setActionName:@"Resize Marker"];
-		}
 	}
 }
 
@@ -129,9 +105,6 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 			}
 		}
 		[self managedObjectOriginal_setEnd:end];
-		if(!self.deleted) {
-			[self.managedObjectContext.undoManager setActionName:@"Resize Marker"];
-		}
 	}
 }
 
@@ -139,9 +112,6 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 
 - (void)setChannel:(int16_t)channel {
 	[self managedObjectOriginal_setChannel:channel];
-	/// the UI doesn't allow changing a marker's channel after it is created
-	if(!self.deleted) [self.managedObjectContext.undoManager setActionName:@"Change Marker Colour"];
-	
 }
 
 
@@ -273,30 +243,94 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 }
 
 
+- (BOOL)validatePloidy:(id _Nullable __autoreleasing *)valueRef error:(NSError * _Nullable __autoreleasing *)error {
+	NSNumber *num = *valueRef;
+	int ploidy = num.intValue;
+	
+	if(ploidy < 1) {
+		if (error != NULL) {
+			NSString *description = [NSString stringWithFormat:@"Marker '%@' ploidy of %d is too low.", self.name, ploidy];
+			*error = [NSError managedObjectValidationErrorWithDescription:description
+															   suggestion:@"Ploidy must be either 1 (haploid) or 2 (diploid)."
+																   object:self reason:description];
+			
+		}
+		return NO;
+	} else if(ploidy > 2) {
+		if (error != NULL) {
+			NSString *description = [NSString stringWithFormat:@"Marker '%@' ploidy of %d is too large.", self.name, ploidy];
+			*error = [NSError managedObjectValidationErrorWithDescription:description
+															   suggestion:@"Ploidy must be either 1 (haploid) or 2 (diploid)."
+																   object:self reason:description];
+		}
+		return NO;
+	}
+	
+	return YES;
+}
+
+
+
+- (BOOL)validateChannel:(id _Nullable __autoreleasing *)valueRef error:(NSError * _Nullable __autoreleasing *)error {
+	NSNumber *num = *valueRef;
+	int channel = num.intValue;
+	
+	if(channel < 0) {
+		if (error != NULL) {
+			NSString *description = [NSString stringWithFormat:@"Marker '%@' channel is too low.", self.name];
+			*error = [NSError managedObjectValidationErrorWithDescription:description
+															   suggestion:@"Channel must be comprised between 0 (blue) and 3 (red)."
+																   object:self reason:description];
+			
+		}
+		return NO;
+	} else if(channel > 3) {
+		if (error != NULL) {
+			NSString *description = [NSString stringWithFormat:@"Marker '%@' channel is too large.", self.name];
+			*error = [NSError managedObjectValidationErrorWithDescription:description
+															   suggestion:@"Channel must be comprised between 0 (blue) and 3 (red)."
+																   object:self reason:description];
+		}
+		return NO;
+	}
+	
+	return YES;
+}
+
+
+- (BOOL)validateMotiveLength:(id _Nullable __autoreleasing *)valueRef error:(NSError * _Nullable __autoreleasing *)error {
+	NSNumber *num = *valueRef;
+	int motiveLength = num.intValue;
+	
+	if(motiveLength < 2) {
+		if (error != NULL) {
+			NSString *description = [NSString stringWithFormat:@"Marker '%@' motive length of %d is too low.", self.name, motiveLength];
+			*error = [NSError managedObjectValidationErrorWithDescription:description
+															   suggestion:@"Motive length must be comprised between 2 and 7."
+																   object:self reason:description];
+			
+		}
+		return NO;
+	} else if(motiveLength > 7) {
+		if (error != NULL) {
+			NSString *description = [NSString stringWithFormat:@"Marker '%@' motive length of %d is too large.", self.name, motiveLength];
+			*error = [NSError managedObjectValidationErrorWithDescription:description
+															   suggestion:@"Motive length must be comprised between 2 and 7."
+																   object:self reason:description];
+		}
+		return NO;
+	}
+	
+	return YES;
+}
+
+
 
 - (void)autoName {
 	if(self.panel) {
 		self.name = [self.panel proposedMarkerName];
 	} else {
 		self.name = @"marker 1";
-	}
-}
-
-
-
-- (void)binAllele:(Allele*)allele {
-	for (Bin *bin in self.bins) {
-		if (allele.size >= bin.start && allele.size <= bin.end) {
-			allele.name = bin.name;
-			return;
-		}
-	}
-	/// if no bin contains the allele, the allele name is that of a out-of-bin allele.
-	NSString *name = [NSUserDefaults.standardUserDefaults stringForKey:DubiousAlleleName];
-	if(name) {
-		allele.name = name;
-	} else {
-		allele.name = @"?";
 	}
 }
 
@@ -356,7 +390,7 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 
 
 - (NSString *)stringRepresentation {
-	return [NSString stringWithFormat:@"marker\t%@\t%g\t%g\t%@\t%d\n", self.name, self.start, self.end, self.channelName, self.ploidy];
+	return [NSString stringWithFormat:@"marker\t%@\t%g\t%g\t%@\t%d\t%d\n", self.name, self.start, self.end, self.channelName, self.ploidy, self.motiveLength];
 }
 
 

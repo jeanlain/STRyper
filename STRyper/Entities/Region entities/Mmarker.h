@@ -68,8 +68,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// This attribute considers that alleles arise from variation in the number of short tandem repeats composing the locus.
 ///
 /// The default value is 2. Possible values are numbers from 1 to 10.
-///
-/// This property is not currently used by other methods in ``STRyper``.
 @property (nonatomic) int16_t motiveLength;
 
 /// The bins that the marker comprises.
@@ -99,15 +97,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property (readonly, nonatomic) NSString *stringRepresentation;
 
 
-/// Gives an allele the name of a bin that the marker possesses.
-///
-/// The bin used is the one (among the marker's ``bins``) whose range comprises the allele ``LadderFragment/size``.
-///
-/// If no bin can be used, the method sets the name given to out-of-bin alleles (see ``STRyper`` user guide).
-/// - Parameter allele: The allele that should be binned.
-- (void)binAllele:(Allele*)allele;
-
-
 /// Makes the receiver create new genotypes for the ``Panel/samples`` of its ``panel``.
 /// - Parameter alleleName: The ``LadderFragment/name`` to give to new ``Genotype/alleles``.
 ///
@@ -123,12 +112,15 @@ extern NSPasteboardType  _Nonnull const MarkerPasteboardType;
 
 extern NSString * _Nonnull const MarkerBinsKey;
 extern NSString * _Nonnull const MarkerPanelKey;
-extern NSNotificationName _Nonnull const MarkerBinsDidChangeNotification;
 
 
-@interface Mmarker (CoreDataProperties)
+@interface Mmarker (CoreDataGeneratedAccessors)
+
+-(void)addBins:(NSSet *)bins;
+-(void)removeBins:(NSSet *)bins;
 
 @end
+
 
 @interface Mmarker (DynamicAccessors)
 

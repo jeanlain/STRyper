@@ -23,11 +23,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Additions to the class
 @interface NSManagedObjectContext (NSManagedObjectContextAdditions)
 
 /// Returns a managed object based on a string derived from its objectID.
 /// If the object is not found or does not correspond to the expected class, returns `nil`.
--(nullable __kindof NSManagedObject *)objectForURIString:(NSString *)URIString expectedClass:(Class)class;
+-(nullable __kindof NSManagedObject *)objectForURIString:(NSString *)URIString expectedClass:(nullable Class)class;
 																									
 
 

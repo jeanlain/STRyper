@@ -34,25 +34,18 @@
 @synthesize editState = _editState;
 
 
-- (void)setName:(NSString *)name {
-	[self managedObjectOriginal_setName:name];
-	if(!self.deleted) {
-		[self.managedObjectContext.undoManager setActionName: [@"Rename " stringByAppendingString: self.entity.name]];
-	}
-}
-
 
 - (BOOL) overlapsWith:(Region *)region {
-
 	return [self overlapsWithBaseRange:MakeBaseRange(region.start, region.end - region.start)];
 }
+
 
 - (BOOL) overlapsWithBaseRange:(BaseRange)range {
 	float start = range.start;
 	float end = range.start + range.len;
 	return self.start <= end && self.end >= start ;
-	
 }
+
 
 -(BaseRange)allowedRangeForEdge:(RegionEdge)edge {
 	/// min and max allowed positions for the edge, the margin we have for collision with another edge
@@ -107,15 +100,16 @@
 	return MakeBaseRange(leftLimit, rightLimit - leftLimit);
 }
 
+
 - (void)autoName {
 	/// overridden
 }
+
 
 - (NSArray *)siblings {
 	/// overridden
 	return NSArray.new;
 }
-
 
 
 - (BOOL)validateStart:(id *)valueRef error:(NSError **)error {

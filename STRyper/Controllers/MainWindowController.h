@@ -39,10 +39,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// The controller of the main split view, which occupies the whole window.
 ///
 /// The split view is configured to implement a behavior similar to Apple Mail.
-@property (nonatomic, readonly) NSSplitViewController *verticalSplitViewController;
+@property (nonatomic, readonly) NSSplitViewController *mainSplitViewController;
 
 /// The controller of the middle pane, which is a vertical split view.
-@property (nonatomic, readonly) NSSplitViewController *mainSplitViewController;
+@property (nonatomic, readonly) NSSplitViewController *verticalSplitViewController;
+
 
 /// The controller of the tableview whose selected rows serve as source for the detailed view.
 ///
@@ -51,6 +52,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// Only the ``SampleTableController``, the ``GenotypeTableController`` and the ``MarkerTableController`` are valid sources.
 @property (weak, nonatomic) TableViewController *sourceController;
+
+-(void)recordSourceController;
 
 /// A panel that can be used to show an error log.
 ///
@@ -79,7 +82,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter error: The error to show in the alert.
 -(void)showAlertForError:(NSError *)error;
 
-/// Actions sent by controls to the first responder and that have only one possible receiver.
+/// Actions sent by controls to the first responder and that only have one possible receiver.
 /// As a window controller, this object may receives them and relay them to their target.
 
 /// This sends ``TableViewController/moveSelectionByStep:`` to the ``sourceController``.
@@ -109,6 +112,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// Calls ``FolderListController/editSmartFolder:``.
 - (IBAction)editSmartFolder:(id)sender;
 
+/// Restored the selected items and source controller saved in the user defaults
+-(void) restoreSelection;
 
 @end
 

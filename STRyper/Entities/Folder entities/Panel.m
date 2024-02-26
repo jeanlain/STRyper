@@ -36,9 +36,6 @@
 @end
 
 
-NSNotificationName const PanelMarkersDidChangeNotification = @"PanelMarkersDidChangeNotification";
-NSNotificationName const PanelSamplesDidChangeNotification = @"PanelSamplesDidChangeNotification";
-
 static void * const markersChangedContext = (void*)&markersChangedContext;
 static void * const samplesChangedContext = (void*)&samplesChangedContext;
 
@@ -52,11 +49,10 @@ static NSNumberFormatter *numberFormatter;	/// a number formatter used during pa
 											
 NSString * _Nonnull const PanelMarkersKey = @"markers";
 NSString * _Nonnull const PanelSamplesKey = @"samples";
-NSString * _Nonnull const PanelVersionKey = @"version";
 
 @implementation Panel
 
-@dynamic markers, samples, version;
+@dynamic markers, samples;
 
 + (void)initialize {
 	fileErrorSuggestion = @"Check the file. Encoding must be ASCII or UTF-8 and fields separated by tabs";
@@ -66,7 +62,7 @@ NSString * _Nonnull const PanelVersionKey = @"version";
 	/// The value contains the class of the described object, followed by the keys that the other fields specify for the object.
 	fieldDescription = @{
 		@"panel": @[Panel.entity.name, @"name"],
-		@"marker": @[Mmarker.entity.name, @"name",@"start",@"end",@"channel",@"ploidy"],
+		@"marker": @[Mmarker.entity.name, @"name", @"start", @"end", @"channel", @"ploidy", @"motiveLength"],
 		@"bin": @[Bin.entity.name, @"name", @"start", @"end"],
 	};
 	
@@ -95,30 +91,6 @@ NSString * _Nonnull const PanelVersionKey = @"version";
 
 - (BOOL)canTakeSubfolders {
 	return NO;
-}
-
-
-- (void)awakeFromFetch {
-	[super awakeFromFetch];
-	[self addObserver:self forKeyPath:PanelMarkersKey options:NSKeyValueObservingOptionNew context:markersChangedContext];
-	[self addObserver:self forKeyPath:PanelSamplesKey options:NSKeyValueObservingOptionNew context:samplesChangedContext];
-
-}
-
-
-- (void)awakeFromInsert {
-	[super awakeFromInsert];
-	[self addObserver:self forKeyPath:PanelMarkersKey options:NSKeyValueObservingOptionNew context:markersChangedContext];
-	[self addObserver:self forKeyPath:PanelSamplesKey options:NSKeyValueObservingOptionNew context:samplesChangedContext];
-}
-
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
-	if(context == markersChangedContext) {
-		[NSNotificationCenter.defaultCenter postNotificationName:PanelMarkersDidChangeNotification object:self];
-	} else if(context == samplesChangedContext) {
-		[NSNotificationCenter.defaultCenter postNotificationName:PanelSamplesDidChangeNotification object:self];
-	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 }
 
 
@@ -483,7 +455,7 @@ NSString * _Nonnull const PanelVersionKey = @"version";
 	if(obj.class != self.class) {
 		return NO;
 	}
-	/// to test for equivalence, we don't compare all our attributes. In particular we may have different versions
+	/// to test for equivalence, we don't compare all our attributes.
 	Panel *panel = obj;
 	if(![panel.name isEqualToString:self.name]) {
 		return NO;		/// we must have equivalent names and markers

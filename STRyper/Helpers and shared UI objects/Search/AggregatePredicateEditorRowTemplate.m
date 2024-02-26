@@ -82,6 +82,8 @@ enum SelectedSegmentIndex : NSUInteger {
 	NSSegmentedControl *control = self.modifierControl;
 	if(self.modifier == NSAnyPredicateModifier || self.modifier == NSAllPredicateModifier) {
 		NSMutableArray *templateViews = views.mutableCopy;
+		/// If we insert the segmented control as first view, the template will not display.
+		/// So we insert it as the second view (after the left popup button). The formatting dictionary of the editor may place it at the left.
 		[templateViews insertObject:control atIndex:1];
 		return [NSArray arrayWithArray:templateViews];
 	}

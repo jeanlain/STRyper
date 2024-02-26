@@ -32,20 +32,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// An entity that describes the genotype of a sample at a molecular marker.
 ///
 /// A genotype regroups the ``alleles`` of a ``sample`` (chromatogram) at a molecular ``marker``.
-///
+/// The alleles may comprise additional fragments which have caused peaks in the marker range.
 /// A new genotype comes with "blank" alleles that have a ``LadderFragment/scan`` of 0 and no ``LadderFragment/name``.
 ///
-/// The ``callAlleles`` method can be used to identify the genotype's ``alleles`` in terms of size and name, given the ``Trace/peaks``  found in its sample's trace in the range of its marker.
+/// The ``callAllelesAndSupplementaryPeak:`` method can be used to identify the genotype's ``alleles`` in terms of size and name, given the ``Trace/peaks``  found in its sample's trace in the range of its marker.
 @interface Genotype : CodingObject
 
 
 /// Inits an returns a genotype for a sample and a marker, giving it the necessary alleles.
 ///
-/// The alleles added to the genotype are created with ``Allele/initWithGenotype:``.
+/// The alleles added to the genotype are created with ``Allele/initWithGenotype:additional:``.
 ///
-/// This method returns `nil` if the `sample` and `marker` do not have the same managed object context,  
-/// if the sample's ``Chromatogram/panel`` doesn't contain the `marker`,
-/// or if the `sample` already has a genotype for the `marker`.
+/// This method returns `nil` if the `sample` and `marker` do not have the same managed object context, if the sample's ``Chromatogram/panel`` doesn't contain the `marker`, or if the `sample` already has a genotype for the `marker`.
 - (nullable instancetype)initWithMarker:(Mmarker *)marker sample:(Chromatogram *)sample;
 
 
@@ -62,32 +60,51 @@ NS_ASSUME_NONNULL_BEGIN
 
 #pragma mark - properties and methods related to alleles
 
-/// The alleles composing the genotype.
-///
-/// The number of alleles must be the same as the ``Mmarker/ploidy`` of the genotype's ``marker``.
+
+/// The alleles and additional fragments of the genotype.
 ///
 /// The reverse relationship is ``Allele/genotype``.
-@property (nonatomic, readonly, nullable) NSSet *alleles;
+@property (nonatomic, readonly, nullable) NSSet<Allele *> *alleles;
+/// The name "alleles" was chosen in the model before additional fragments were implemented, and can be a bit misleading
 
-/// Makes the genotype characterize its ``alleles``.
+/// The "assigned" (non additional) alleles composing the genotype.
+///
+/// The number of alleles must be the same as the ``Mmarker/ploidy`` of the genotype's ``marker``.
+@property (nonatomic, readonly, nullable) NSSet<Allele *> *assignedAlleles;
+
+
+/// The fragments (putative alleles) that may have cause additional peak at the marker.
+///
+/// This relationship can be used to indicate the presence of DNA contamination, paralogs of the marker
+/// or polyploidy.
+@property (nonatomic, readonly, nullable) NSSet<Allele *> *additionalFragments;
+
+/// A string describing the ``alleles``.
+///
+/// For additional fragments sorted by increasing size, the string include the size, the name (separated by a colon).
+/// Spaces separate fragments.
+@property (nonatomic, readonly, nullable) NSString *additionalFragmentString;
+
+
+/// Makes the genotype characterize its ``alleles``  optionally containing "additional" ones.
 ///
 /// This method looks for peaks in the range of the genotype's ``marker`` in the trace whose ``Trace/channel`` corresponds to the channel of the marker.
-/// It gives each allele the ``LadderFragment/scan`` of a suitable peak, and calls ``Mmarker/binAllele:`` on its ``marker``.
+/// It gives each allele the ``LadderFragment/scan`` of a suitable peak, and calls ``Allele/findNameFromBins``.
+/// 
+/// If no suitable peak is found, any assigned allele is given a scan of 0.
+/// - Parameter annotateSuppPeaks: Whether supplementary peaks should be annotated, creating ``additionalFragments``.
+- (void)callAllelesAndSupplementaryPeak:(BOOL)annotateSuppPeaks;
+
+/// Makes the genotype name its ``alleles`` based on the bins of its marker.
 ///
-/// If no suitable peak is found, an allele is given a scan of 0.
-- (void)callAlleles;
+/// The method calls ``Allele/findNameFromBins``.
+- (void)binAlleles;
 
 /// The allele of shorter size for a diploid genotype, or the only allele.
 @property (nonatomic, readonly, nullable) Allele *allele1;
 
 /// The longer allele for a diploid genotype, or nil for a haploid.
 @property (nonatomic, readonly, nullable) Allele *allele2;
-
-/// Makes the genotype assign the correct allele for its ``allele1`` and ``allele2`` properties.
-///
-/// This method gets called when an allele change size, and pertains to internal implementation.
-- (void)_assignAlleles;
-
 
 #pragma mark - genotype status
 
@@ -99,8 +116,8 @@ typedef enum GenotypeStatus : int32_t {
 	/// Denotes that not peak has been detected in allele call.
 	genotypeStatusNoPeak,
 	
-	/// Denotes that alleles have been called automatically (and found) using the `callAlleles method.
-	genotypeStatusCalled,
+	/// Denotes that alleles have been called automatically (and found) using the `callAllelesAndSupplementaryPeak` method.
+	genotypeStatusAutomatic,
 	
 	/// Denotes that the sample sizing has changed.
 	genotypeStatusSizingChanged,
@@ -156,7 +173,7 @@ extern const MarkerOffset MarkerOffsetNone;
 
 /// The marker offset of the genotype.
 ///
-/// The `MarkerOffset` struct is placed in an NSData object for compatibility with core data.
+/// The `MarkerOffset` struct is placed in an `NSData` object for compatibility with core data.
 @property (nonatomic, nullable) NSData *offsetData;
 
 /// When the `offsetData` attribute of the genotype changes, the genotype posts a notification with this name to the default notification center.

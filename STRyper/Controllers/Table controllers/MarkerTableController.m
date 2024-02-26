@@ -29,11 +29,21 @@
 #import "NewMarkerPopover.h"
 #import "Genotype.h"
 
+
+
+
+@interface MarkerTableController ()
+
+@property (nonatomic) NSDictionary *actionNamesForColumnIDs;
+
+@end
+
+
 @implementation MarkerTableController {
-		NewMarkerPopover *newMarkerPopover;    	/// spawned when the users clicks the + button to add a marker. Since we manage panels and panels have markers, we also control the addition of markers (this may be moved to another class)
+		NewMarkerPopover *newMarkerPopover;    	/// spawned when the users clicks the + button to add a marker. 
+												/// Since we manage panels and panels have markers, we also control the addition of markers (this may be moved to another class)
 
 }
-
 
 
 - (NSString *)entityName {
@@ -56,6 +66,7 @@ static NSArray *channelColorImages;
 	];
 }
 
+
 - (void)viewDidLoad {
 	[super viewDidLoad];
 	NSMenu *menu = NSMenu.new;
@@ -63,7 +74,7 @@ static NSArray *channelColorImages;
 	item.offStateImage = [NSImage imageNamed:@"copy"];
 	item.target = self;
 	[menu addItem:item];
-	item = [[NSMenuItem alloc] initWithTitle:@"Delete Marker" action:@selector(remove:) keyEquivalent:@""];
+	item = [[NSMenuItem alloc] initWithTitle:@"Delete" action:@selector(remove:) keyEquivalent:@""];
 	item.offStateImage = [NSImage imageNamed:@"trash"];
 	item.target = self;
 	[menu addItem:item];
@@ -78,11 +89,13 @@ static NSArray *channelColorImages;
 	static NSDictionary *columnDescription = nil;
 	if(!columnDescription) {
 		columnDescription = @{
-			@"markerNameColumn":	@{KeyPathToBind: @"name",ColumnTitle: @"Marker", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES},
-			@"markerChannelColumn":	@{KeyPathToBind: @"channelName", ImageIndexBinding: @"channel" ,ColumnTitle: @"Dye color", CellViewID: @"compositeCellViewText", IsColumnVisibleByDefault: @YES},
-			@"markerStartColumn":		@{KeyPathToBind: @"start",ColumnTitle: @"Start", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES},
-			@"markerEndColumn":		@{KeyPathToBind: @"end",ColumnTitle: @"End", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES},
-			@"markerPloidyColumn":		@{KeyPathToBind: @"ploidy",ColumnTitle: @"Ploidy", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES}
+			@"markerNameColumn":	@{KeyPathToBind: @"name",ColumnTitle: @"Marker", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
+			@"markerChannelColumn":	@{KeyPathToBind: @"channelName", ImageIndexBinding: @"channel" ,ColumnTitle: @"Dye color", CellViewID: @"compositeCellViewText", IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			@"markerStartColumn":		@{KeyPathToBind: @"start",ColumnTitle: @"Start", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			@"markerEndColumn":		@{KeyPathToBind: @"end",ColumnTitle: @"End", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			/// For the column below, the cell view prototype is in a different table and we don't use the cell view ID
+			@"markerMotiveColumn":		@{KeyPathToBind: @"motiveLength",ColumnTitle: @"Motive", CellViewID: @"", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			@"markerPloidyColumn":		@{KeyPathToBind: @"ploidy",ColumnTitle: @"Ploidy", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO}
 		};
 	}
 	return columnDescription;
@@ -91,10 +104,41 @@ static NSArray *channelColorImages;
 
 - (NSArray<NSString *> *)orderedColumnIDs {
 	/// a column with id @"markerNameColumn" is already set in the nib.
-	/// This is because the table shifts to cell-based if it doesn't have a column in Xcode 14. So it must have a column.
-	/// So we don't add it to the identifiers
-	return @[@"markerChannelColumn", @"markerStartColumn", @"markerEndColumn", @"markerPloidyColumn"];
+	/// This is because the table shifts to cell-based if it doesn't have a column in Xcode 14. 
+	/// So it must have a column, and we don't add it to the identifiers
+	return @[@"markerChannelColumn", @"markerStartColumn", @"markerEndColumn", @"markerMotiveColumn", @"markerPloidyColumn"];
 }
+
+
+
+- (NSInteger)itemNameColumn {	
+	return [self.tableView.tableColumns indexOfObjectPassingTest:^BOOL(NSTableColumn * _Nonnull column, NSUInteger idx, BOOL * _Nonnull stop) {
+		return [column.identifier isEqualToString:@"markerNameColumn"];
+	}];
+}
+
+
+
+- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
+	NSString *actionName = self.actionNamesForColumnIDs[column.identifier];
+	if(actionName) {
+		return actionName;
+	}
+	return [super actionNameForEditingCellInColumn:column row:row];
+}
+
+
+- (NSDictionary *)actionNamesForColumnIDs {
+	if(!_actionNamesForColumnIDs) {
+		_actionNamesForColumnIDs = @{@"markerNameColumn": @"Rename Marker",
+									 @"markerStartColumn": @"Resize Marker",
+									 @"markerEndColumn": @"Resize Marker",
+									 @"markerMotiveColumn": @"Change Marker Motive Length"
+		};
+	}
+	return _actionNamesForColumnIDs;
+}
+
 
 
 - (NSTableView *)viewForCellPrototypes {
@@ -103,10 +147,15 @@ static NSArray *channelColorImages;
 
 
 - (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
+	NSString *ID = tableColumn.identifier;
+
+	if([ID isEqualToString:@"markerMotiveColumn"]) {
+		NSTableCellView *view = [self.tableView makeViewWithIdentifier:ID owner:self];
+		return view;
+	}
+	
 	NSTableCellView *view = (NSTableCellView *)[super tableView:tableView viewForTableColumn:tableColumn row:row];
 
-	NSString *ID = tableColumn.identifier;
-	
 	if([ID isEqualToString:@"markerChannelColumn"]) {
 		if([view.imageView respondsToSelector:@selector(imageArray)]) {
 			((IndexImageView *)view.imageView).imageArray = channelColorImages;
@@ -115,6 +164,7 @@ static NSArray *channelColorImages;
 	
 	return view;
 }
+
 
 # pragma mark - dragging markers
 
@@ -234,7 +284,7 @@ static NSArray *channelColorImages;
 	if(!error) {
 		panel = [MOC existingObjectWithID:panel.objectID error:&error];
 		if(error) {
-			error = [NSError errorWithDescription:@"The marker could not be created because an error occurred in the database." suggestion:@"You may quit the application and try again."];
+			error = [NSError errorWithDescription:@"The marker could not be created because an error occurred in the database." suggestion:@"You may restart the application and try again."];
 		}
 	}
 
@@ -247,7 +297,8 @@ static NSArray *channelColorImages;
 
 	Mmarker *newMarker = [[Mmarker alloc] initWithStart:newMarkerPopover.markerStart end:newMarkerPopover.markerEnd channel:newMarkerPopover.markerChannel panel:panel];
 	newMarker.name = newMarkerPopover.markerName;
-	newMarker.ploidy = newMarkerPopover.diploid +1; /// since segment 0 represents an haploid marker, hence a ploidy of 1
+	newMarker.ploidy = newMarkerPopover.diploid +1; /// Segment 0 represents an haploid marker.
+	newMarker.motiveLength = newMarkerPopover.motiveLength;
 	
 	[newMarker validateForUpdate:&error];
 	if(error) {
