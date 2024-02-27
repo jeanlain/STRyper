@@ -345,9 +345,9 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 		if(peak.parentPeak < 0) {
 			/// The peak has no parent (hence it could represent an allele)
 			float diffSize = peak.size - lastRetained.size;
-			if(annotateSuppPeaks && ((diffSize < 0 && ratio < leftMaxDropOut) || (diffSize > 0 && ratio < rightMaxDropOut && ratio * diffSize < 4))) {
+			if((diffSize < 0 && ratio < leftMaxDropOut) || (diffSize > 0 && ratio < rightMaxDropOut && ratio * diffSize < 4)) {
 				/// The peak is too short.
-				if(ratio > 0.2 || (peak.nChildPeaks >= 1 && ratio > 0.12)) {
+				if(annotateSuppPeaks && (ratio > 0.2 || (peak.nChildPeaks >= 1 && ratio > 0.12))) {
 					/// We consider it as an additional peak if it is not too short or has several child peaks
 					/// This is to avoid considering insignificant peaks
 					additionalPeaks[nAdditional++] = peak;
@@ -405,7 +405,7 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 	
 	if(remainingFragments.count > 0) {
 		/// We remove remaining additional fragments, but we use a non-mutable set because apparently,
-		/// deleting  alleles may mutate the set (I had an exception thrown). I don't understand how.
+		/// deleting alleles may mutate the set (I had an exception thrown). I don't understand how.
 		NSSet *fragmentsToRemove = [NSSet setWithSet:remainingFragments];
 		for(Allele *fragmentToRemove in fragmentsToRemove) {
 			[fragmentToRemove removeFromGenotypeAndDelete];

@@ -681,7 +681,7 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 		[label findOverlapsWithLabels:fragmentLabels];
 	}
 	
-	float ceiling = NSMaxY(view.bounds) - topMargin; /// The maximum position of a top edge of a label.
+	float ceiling = NSMaxY(view.bounds) - (view.trace.isLadder? 0 : topMargin); /// The maximum position of a top edge of a label.
 	for(FragmentLabel *label in fragmentLabels) {
 		NSMutableSet *overlappingLabels = label.overlappingLabels;
 		NSUInteger count = overlappingLabels.count;

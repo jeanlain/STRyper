@@ -948,9 +948,8 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	/// We reiterate this by incrementing the first peak and decrementing the last peak, in case they were wrong (very common for first peaks, due to artifact at the start of the trace).
 	/// We also decrement the last size to assign, which may be missing (electrophoresis might have stopped too soon and the longer fragments may be missing).
 	
-	int minNSizes = 0; 					/// minimum number of assigned sizes to consider the results
+	int minNSizes = 2; 					/// minimum number of assigned sizes to consider the results
 	const float threshold = 100; 		/// threshold for good quality score (see how we compute it below)
-	
 	
 	LadderPeak assignedPeaks[nSizes];											/// the LadderPeaks that are assigned to ladder sizes in the current iteration
 	NSData *assignments[nSizes +1];												/// the above array will be copied in an NSData and stored in this array at an index corresponding to the number assigned sizes.
@@ -962,7 +961,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 		for (int lastSize = nSizes-1; lastSize+1 >= minNSizes; lastSize--) {  	/// decrementing last size index
 			LadderPeak *lastPeakPTR = ladderPeakPTRs[last];
 			lastPeakPTR->size = ladderSizes[lastSize].size;
-			for (int first = 0; last - first +1 >= minNSizes; first++) {	  	/// incrementing first peak index
+			for (int first = 0;  first <= last - minNSizes + 1; first++) {	  	/// incrementing first peak index
 				LadderPeak *firstPeakPTR = ladderPeakPTRs[first];
 				/// we compute the slope and intercept of the line passing through the first and last peak (x = scan number, y = size)
 				float slope = (lastPeakPTR->size - firstPeakPTR->size) / (lastPeakPTR->scan - firstPeakPTR->scan);
