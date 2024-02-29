@@ -14,7 +14,7 @@ It lets you define size standards, marker and bins for genotyping.
 See https://doi.org/10.32942/X2X01C.
 
 ## Requirements
-STRyper requires a Mac running macOS 10.13 or higher, as this OS is the development target. However, recent versions have only been tested on macOS 13.
+STRyper requires a Mac running macOS 10.13 or higher, as this OS is the development target. However, recent versions have only been tested on macOS 13 and 14.
 
 ## Installation
 Download the latest [release](https://github.com/jeanlain/STRyper/releases), unzip the file an put STRyper.app anywhere you like on your Mac.

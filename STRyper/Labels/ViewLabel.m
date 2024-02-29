@@ -34,7 +34,7 @@
     self = [super init];
     if (self) {
 		_animated = YES;
-        _enabled = YES;
+		_enabled = YES;
     }
     return self;
 }
@@ -171,12 +171,16 @@
 
 
 - (void)mouseEntered:(NSEvent *)theEvent {
-	self.hovered = YES;
+	if (theEvent.trackingArea == trackingArea) {
+		self.hovered = YES;
+	}
 }
 
 
 - (void)mouseExited:(NSEvent *)theEvent {
-	self.hovered = NO;
+	if (theEvent.trackingArea == trackingArea) {
+		self.hovered = NO;
+	}
 }
 
 
