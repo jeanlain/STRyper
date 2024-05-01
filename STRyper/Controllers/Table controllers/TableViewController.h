@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// An abstract class that implements methods used by several singleton subclasses managing tableviews in  ``STRyper``.
 ///
 /// This class provides common methods for controller objects that are delegate/datasource of `NSTableView` objects.
-///	Objects that compose the rows of these tables inherit from ``CodingObject``.
+/// Objects that compose the rows of these tables inherit from ``CodingObject``.
 ///
 /// This class implements methods for the deletion of items representing table rows and to record/restore the selected items in/from the user defaults
 ///
@@ -40,7 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This dictionary is useful for tables that have too many columns to all be designed in a nib.
 ///
 /// This class implements `-copy` (to the paste board) of the text content of selected rows, for subclasses that provide a ``columnDescription``
-///	and for the items shown in the table if they implement the `NSPasteBoardWriting` protocol.
+/// and for the items shown in the table if they implement the `NSPasteBoardWriting` protocol.
 ///
 /// This class also provides  a menu for the table header view, to allow hiding/showing columns and sorting via a popover of class ``TableSortPopover``.
 @interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSPopoverDelegate> {
@@ -107,7 +107,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 
 /// The column identifiers for the column to generate, in the default column order from left to right.
 ///
-///	These identifiers must be among the keys of the ``columnDescription`` dictionary.
+/// These identifiers must be among the keys of the ``columnDescription`` dictionary.
 ///
 /// This is only relevant if columns are generated programmatically.
 @property (readonly, nonatomic, nullable) NSArray<NSString *> *orderedColumnIDs;
@@ -205,7 +205,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 
 /// An appropriate action title for the removal of items.
 ///
-///	The returned value will be used for the title a menu item whose action is ``remove:`` and the target is the receiver.
+/// The returned value will be used for the title a menu item whose action is ``remove:`` and the target is the receiver.
 /// The default value is "Delete " followed by the the value returned by ``nameForItem:``.
 /// If this returns `nil`, the menu is hidden out and removal is prevented.
 ///
@@ -266,7 +266,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 ///
 /// The method does nothing if the item is not found in the ``tableContent``'s `arrangedObjects`,
 /// neither does it change the selection.
-- (void)revealItem:(id)item;
+- (void)flashItem:(id)item;
 
 
 /// The action sent to the receiver by the ``tableView`` when it is when clicked.
@@ -296,6 +296,15 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /// - Parameter sender: The object that sent this message. The default implementation ignores this parameter.
 -(IBAction)copy:(id)sender;
 
+
+/// Copies items from an array to the pasteboard.
+///
+/// Subclass can override the method to add specific data to the pasteboard
+/// - Parameters:
+///   - items: The items to be copied.
+///   - pasteboard: The pasteboard to copy the items to.
+-(void) copyItems:(NSArray *) items ToPasteBoard:(NSPasteboard *)pasteboard;
+
 /// Returns a string representing the values that a given object may show at the visible columns of the ``tableView``.
 ///
 /// This method relies on ``stringCorrespondingToColumn:forObject:``:
@@ -313,14 +322,6 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 ///   - object: The object for which the string should be returned.
 - (NSString *)stringCorrespondingToColumn:(NSTableColumn *)column forObject:(id) object;
 				
-/// Returns a pasteboard type for elements written to a single `NSPasteboardItem` object during ``copy:``.
-///
-/// If not `nil` (the default), the returned value will be attributed to a pasteboard item for a string concatenating the object IDs of copied elements, separated by newline characters.
-/// If `nil`, each copied element will be represented by its own pasteboard item if it implements `NSPasteboardWriting`.
-///
-/// Using a single pasteboard item allows much faster reading of the pasteboard upon paste.
-- (nullable NSPasteboardType)pasteboardTypeForCombinedItems;
-
 
 /******recording and restoring selection ****/
 
@@ -392,7 +393,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 
 /// Applies a filter predicate to ``tableContent``.
 ///
-///	This method is called when the user applies the predicate configure in the popover, using a validation button.
+/// This method is called when the user applies the predicate configure in the popover, using a validation button.
 /// If the predicate is the same as already applied the method calls `rearrangeObject` on ``tableContent``.
 /// Subclasses can override this method and perform additional actions.
 /// - Parameter filterPredicate: The filter predicate to apply.

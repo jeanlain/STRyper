@@ -464,6 +464,11 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
+- (void)importPanels:(id)sender {
+	[PanelListController.sharedController importPanels:sender];
+}
+
+
 -(void) activateTab:(id)sender {
 	if([sender respondsToSelector:@selector(tag)]) {
 		[self activateTabNumber:[sender tag]];

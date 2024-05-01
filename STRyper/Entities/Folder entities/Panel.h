@@ -28,12 +28,12 @@
 NS_ASSUME_NONNULL_BEGIN
 
 
-///	A container of molecular markers that may be analyzed for a sample.
+/// A container of molecular markers that may be analyzed for a sample.
 ///
 /// A panel is applied to a sample (``Chromatogram``) to signify that it can be genotyped for molecular ``markers`` composing the panel.
 /// This means that the sample should have a ``Genotype`` object for each of these markers.
 ///
-/// Although it inherits from ``Folder`` for practical reasons, a panel should not have ``Folder/subfolders``.
+/// Although it inherits from ``Folder`` for practical reasons, a panel must not have ``Folder/subfolders``.
 /// Its ``Folder/parent`` should be a ``PanelFolder`` object.
 ///
 /// Note: ``CodingObject/encodeWithCoder:``  and ``CodingObject/initWithCoder:``  are currently implement in the context of a ``SampleFolder`` unarchiving/archiving,
@@ -70,6 +70,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// The reverse relationship is ``Chromatogram/panel`` .
 @property (nonatomic) NSSet <Chromatogram *> *samples;
 
+/// Returns the receiver in an array.
+///
+/// This getter is similar to ``PanelFolder/panels`` to simplify code using ``PanelFolder`` and ``Panel`` objects
+- (NSArray *)panels;
 
 
 /************************Panel import / export *************/
@@ -77,16 +81,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// A string representation of the panel, which can be used to export it to a text file.
 ///
 /// See the``STRyper`` user guide for details about the format of this string.
--(NSString *)stringRepresentation;
+-(NSString *)exportString;
 
-/// Returns a panel decoded from a text file.
-///
-/// This method returns `nil` and sets the `error` argument if there was a error preventing decoding, or a validation error.
-/// - Parameters:
-///   - path: The path of the file to import. Its format is described in the ``STRyper`` user guide.
-///   - managedObjectContext: The context in which the imported panel will be materialized.
-///   - error: On output, any error that prevented the import.
-+ (nullable instancetype) panelFromTextFile:(NSString *)path insertInContext:(NSManagedObjectContext *)managedObjectContext error:(NSError *__autoreleasing  _Nullable *)error;
+
+- (void)takeBinSetFromGenemapperFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
+
 
 /***************************/
 

@@ -35,8 +35,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// The alleles may comprise additional fragments which have caused peaks in the marker range.
 /// A new genotype comes with "blank" alleles that have a ``LadderFragment/scan`` of 0 and no ``LadderFragment/name``.
 ///
-/// The ``callAllelesAndSupplementaryPeak:`` method can be used to identify the genotype's ``alleles`` in terms of size and name, given the ``Trace/peaks``  found in its sample's trace in the range of its marker.
-@interface Genotype : CodingObject
+/// The ``callAllelesAndAdditionalPeak:`` method can be used to identify the genotype's ``alleles`` in terms of size and name, given the ``Trace/peaks``  found in its sample's trace in the range of its marker.
+@interface Genotype : CodingObject <NSPasteboardWriting>;
 
 
 /// Inits an returns a genotype for a sample and a marker, giving it the necessary alleles.
@@ -92,8 +92,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// It gives each allele the ``LadderFragment/scan`` of a suitable peak, and calls ``Allele/findNameFromBins``.
 /// 
 /// If no suitable peak is found, any assigned allele is given a scan of 0.
-/// - Parameter annotateSuppPeaks: Whether supplementary peaks should be annotated, creating ``additionalFragments``.
-- (void)callAllelesAndSupplementaryPeak:(BOOL)annotateSuppPeaks;
+/// - Parameter annotateSuppPeaks: Whether additional peaks should be annotated, creating ``additionalFragments``.
+- (void)callAllelesAndAdditionalPeak:(BOOL)annotateSuppPeaks;
 
 /// Makes the genotype name its ``alleles`` based on the bins of its marker.
 ///
@@ -116,7 +116,7 @@ typedef enum GenotypeStatus : int32_t {
 	/// Denotes that not peak has been detected in allele call.
 	genotypeStatusNoPeak,
 	
-	/// Denotes that alleles have been called automatically (and found) using the `callAllelesAndSupplementaryPeak` method.
+	/// Denotes that alleles have been called automatically (and found) using the `callAllelesAndAdditionalPeak` method.
 	genotypeStatusAutomatic,
 	
 	/// Denotes that the sample sizing has changed.
@@ -151,10 +151,10 @@ typedef enum GenotypeStatus : int32_t {
 ///
 /// A marker offset addresses the fact that the same allele may migrate differently (hence appear at different sizes) between sequencing runs.
 ///
-///	This offset can be used to multiply an allele size by the `slope` and adding the `intercept`  member.
-///	This results in a new size that may match the size obtained in reference runs.
+/// This offset can be used to multiply an allele size by the `slope` and adding the `intercept`  member.
+/// This results in a new size that may match the size obtained in reference runs.
 ///
-///	See ``STRyper`` user guide for more explanations.
+/// See ``STRyper`` user guide for more explanations.
 typedef struct MarkerOffset {
 	
 	/// The intercept of the offset.
@@ -175,9 +175,6 @@ extern const MarkerOffset MarkerOffsetNone;
 ///
 /// The `MarkerOffset` struct is placed in an `NSData` object for compatibility with core data.
 @property (nonatomic, nullable) NSData *offsetData;
-
-/// When the `offsetData` attribute of the genotype changes, the genotype posts a notification with this name to the default notification center.
-extern NSNotificationName _Nonnull const GenotypeDidChangeOffsetCoefsNotification;
 
 /// The marker offset derived from the ``offsetData`` attribute.
 ///

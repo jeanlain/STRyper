@@ -207,6 +207,31 @@
 }
 
 
+- (void)outlineView:(NSOutlineView *)outlineView didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
+	/// We add a tooltip rectangle for a row representing a folder, to show the numbers of samples in the folder.
+	if(![rowView isKindOfClass:HoveredTableRowView.class]) {
+		[rowView removeAllToolTips];
+		NSRect bounds = rowView.bounds;
+		bounds.size.width = 1000; /// We make the rectangle wide enough to make sure the tooltip shows even after the outline view is widened.
+		[rowView addToolTipRect:bounds owner:self userData:nil];
+	}
+}
+
+
+- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
+	NSInteger row = [outlineView rowForView:view];
+	if(row >= 0) {
+		SampleFolder *folder = [outlineView itemAtRow:row];
+		if([folder respondsToSelector:@selector(samples)]) {
+			NSInteger nSamples = folder.samples.count;
+			return nSamples > 1? [NSString stringWithFormat:@"%ld samples", nSamples] :
+			[NSString stringWithFormat:@"%ld sample", nSamples];
+		}
+	}
+	return nil;
+}
+
+
 - (void)outlineViewSelectionDidChange:(NSNotification *)notification {
 	[SampleTableController.sharedController recordSelectedItems];
 	[GenotypeTableController.sharedController recordSelectedItems];
@@ -312,7 +337,7 @@
 	if(menuItem.action == @selector(paste:)) {
 		NSPasteboard *pboard = NSPasteboard.generalPasteboard;
 		return self.canImportSamples &&
-		([pboard.types containsObject:ChromatogramPasteboardType] || [pboard.types containsObject:ChromatogramCombinedPasteboardType]);
+		([pboard.types containsObject:ChromatogramObjectIDPasteboardType] || [pboard.types containsObject:ChromatogramCombinedPasteboardType]);
 	}
 	
 	return YES;
@@ -395,7 +420,7 @@
 				[self.undoManager setActionName:@"Import Folder"];
 				[((AppDelegate *)NSApp.delegate) saveAction:self];
 			} else {
-				error = [NSError errorWithDescription:@"The imported folder could not be retrieved because of an unexpected error." suggestion:@""];
+				error = [NSError errorWithDescription:@"The folder could not be imported because of an unexpected error." suggestion:@""];
 			}
 		}
 		

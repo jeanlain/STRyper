@@ -21,8 +21,6 @@
 
 
 #import "RulerView.h"
-#import "TraceScrollView.h"
-#import "FittingView.h"
 #import "RegionLabel.h"
 
 const float ruleThickness = 14.0;			/// the thickness of the ruler
@@ -207,7 +205,9 @@ static NSColor *rulerLabelColor;
 
 - (void)setNeedsUpdateOffsets:(BOOL)needsUpdateOffsets {
 	_needsUpdateOffsets = needsUpdateOffsets;
-	self.needsDisplay = YES;
+	if(needsUpdateOffsets) {
+		self.needsDisplay = YES;
+	}
 }
 
 
@@ -218,24 +218,23 @@ static NSColor *rulerLabelColor;
 	for(RegionLabel *markerLabel in traceView.markerLabels) {
 		float intercept = markerLabel.offset.intercept;
 		float slope = markerLabel.offset.slope;
-		if(slope == 1.0 && intercept == 0.0) {
-			continue;
-		}
-		int start = (int)(markerLabel.start + 0.9);
-		if(start < 0) {
-			start = 0;
-		}
-		int end =  (int)(markerLabel.end);
-		if(end > MAX_TRACE_LENGTH) {
-			end = MAX_TRACE_LENGTH;
-		}
-		for (int i = start; i < end; i++) {
-			float newI = (float)i * slope + intercept;
-			if(newI < start || newI > end) {
-				offsets[i] = -1000.0;		/// this will denote that size label at index i should not be drawn, to avoid overlap
-				continue;
+		if((slope != 1.0 || intercept != 0.0) && markerLabel.editState != editStateBinSet) {
+			int start = (int)(markerLabel.start + 0.9);
+			if(start < 0) {
+				start = 0;
 			}
-			offsets[i] = newI - (float)i;
+			int end =  (int)(markerLabel.end);
+			if(end > MAX_TRACE_LENGTH) {
+				end = MAX_TRACE_LENGTH;
+			}
+			for (int i = start; i < end; i++) {
+				float newI = i * slope + intercept;
+				if(newI < start || newI > end) {
+					offsets[i] = -1000.0;		/// this will denote that size label at index i should not be drawn, to avoid overlap
+					continue;
+				}
+				offsets[i] = newI - (float)i;
+			}
 		}
 	}
 }

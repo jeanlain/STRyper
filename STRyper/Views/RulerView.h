@@ -25,13 +25,13 @@
 
 /// A view that indicates the horizontal scale of a ``TraceView`` in base pairs.
 ///
-///	A `RulerView` is the horizontal ruler of a scrollview whose document view is a ``TraceView``. It may have a ``MarkerView`` as its accessory view.
+/// A `RulerView` is the horizontal ruler of a scrollview whose document view is a ``TraceView``. It may have a ``MarkerView`` as its accessory view.
 ///
-///	The ruler view shows tick-marks and text labels indicating sizes in base pairs, which constitute the X-axis of the plot containing the curves shown by the ``TraceView``,
-///	or the range of markers shown by the ``MarkerView``.
+/// The ruler view shows tick-marks and text labels indicating sizes in base pairs, which constitute the X-axis of the plot containing the curves shown by the ``TraceView``,
+/// or the range of markers shown by the ``MarkerView``.
 ///
-///	If the trace(s) shown by the trace view belong to a sample that has no suitable sizing data (no size standard was, or could be, applied),
-///	the view signifies that with some text instead of showing size labels.
+/// If the trace(s) shown by the trace view belong to a sample that has no suitable sizing data (no size standard was, or could be, applied),
+/// the view signifies that with some text instead of showing size labels.
 ///
 /// IMPORTANT: a view of this class must be a horizontal ruler, and will not work as a vertical ruler.
 /// The scrollview's document view must be a ``TraceView``.
@@ -64,7 +64,7 @@
 /// As a ruler view use core animation layers, it must change their colors explicitly.
 /// Setting this property to `YES` sets `needsDisplay` to `YES`.
 ///
-///	This property is set as appropriate and avoids setting the colors of `CALayer` objects at each redisplay.
+/// This property is set as appropriate and avoids setting the colors of `CALayer` objects at each redisplay.
 @property (nonatomic) BOOL needsChangeAppearance;
 
 /// Tells that view that it needs to the update the offsets of size labels to show within marker ranges.

@@ -49,9 +49,15 @@ NS_ASSUME_NONNULL_BEGIN
 /// The last action name set by this method before this notification is the one that will be used,  regardless of when this method was called.
 ///
 /// If the ``managedObjectContext`` is `nil`, the superclass implementation is used.
-/// - Parameter actionName: The name of the undo action.
+/// - Parameter actionName: The name of the action.
 - (void)setActionName:(NSString *)actionName;
 
+
+/// Forces setting the action name of the receiver.
+///
+/// This can be used to action that do not modify the ``managedObjectContext``.
+/// - Parameter actionName: The name of the action.
+-(void)forceActionName:(NSString *)actionName;
 
 @end
 

@@ -1149,7 +1149,7 @@ static const float maxTraceRowHeight = 1000.0;
 		MainWindowController *mainWindowController = MainWindowController.sharedController;
 		TableViewController *controller = mainWindowController.sourceController;
 		mainWindowController.sourceController = controller; /// this makes sure that the genotype list is shown if needed
-		[controller revealItem:itemToReveal];
+		[controller flashItem:itemToReveal];
 	}
 }
 

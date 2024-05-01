@@ -70,4 +70,16 @@ NSString *const STRyperErrorDomain = @"jpeccoud.STRyper";
 }
 
 
+
++(instancetype)fileReadErrorWithFileName:(NSString *)fileName Errors:(NSArray <NSError *> *)errors {
+	NSString *errorDescription = [NSString stringWithFormat:@"File '%@' could not be imported due to errors.", fileName.lastPathComponent];
+	NSString *suggestion = @"Please, check the expected file format in the application user guide.";
+	
+	NSDictionary *userInfo = @{NSLocalizedDescriptionKey : errorDescription,
+							   NSLocalizedRecoverySuggestionErrorKey : suggestion,
+							   NSDetailedErrorsKey : errors};
+	
+	return [self errorWithDomain:STRyperErrorDomain code:NSFileReadUnsupportedSchemeError userInfo:userInfo];
+}
+
 @end

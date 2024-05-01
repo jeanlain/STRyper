@@ -23,6 +23,7 @@
 @import Cocoa;
 
 #import "NSError+NSErrorAdditions.h"
+#import "CDUndoManager.h"
 
 /// The delegate of the application.
 ///
@@ -159,8 +160,8 @@ DubiousAlleleName,
 /// The name (string) given to missing alleles (those that have a scan of 0).
 MissingAlleleName,
 
-/// Whether supplementary peaks should be annotated during genotyping.
-AnnotateSupplementaryPeaks,
+/// Whether additional peaks should be annotated during genotyping.
+AnnotateAdditionalPeaks,
 
 /// The default polynomial order used for sizing (see ``Chromatogram/polynomialOrder``).
 DefaultSizingOrder,

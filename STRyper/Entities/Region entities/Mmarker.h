@@ -28,19 +28,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An entity that defines the size range that alleles of the same genetic locus (molecular marker) can take.
 ///
-///	The range of a marker is used do determine if a `Peak` detected in a trace indicates the presence of an allele at a given locus.
-///	A marker also has ``bins`` that define the expected range of each allele of the locus.
+/// The range of a marker is used do determine if a `Peak` detected in a trace indicates the presence of an allele at a given locus.
+/// A marker also has ``bins`` that define the expected range of each allele of the locus.
 ///
 /// Marker are organized in panels (``Panel`` objects).
-///	A marker also has a ``channel`` that represents the fluorescent dye used to amplify the locus.
+/// A marker also has a ``channel`` that represents the fluorescent dye used to amplify the locus.
 ///
 /// A marker must not overlap other markers of the same ``panel`` and ``channel``.
 ///
-///	A marker can be copied to the paste board and accessed with in `MarkerPasteboardType` key.
-///	It is copied as an archive that can be decoded with an NSKeyedUnarchiver.
-///	Its ``stringRepresentation`` can also be accessed with the `NSPasteboardTypeString` key.
+/// A marker can be copied to the paste board and accessed with in `MarkerPasteboardType` key.
+/// It is copied as an archive that can be decoded with an NSKeyedUnarchiver.
+/// Its ``stringRepresentation`` can also be accessed with the `NSPasteboardTypeString` key.
 ///
-/// An "m" was added to the class name to avoid collision with a structure.
+/// An "m" was added to the class name to avoid collision with a structure named "Marker".
 @interface Mmarker : Region <NSPasteboardWriting>
 
 /// Inits a marker with the mandatory attributes.
@@ -80,7 +80,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The genotypes that samples have for the marker.
 ///
-///	This comprises the genotypes of all samples whose ``Chromatogram/panel`` contains the marker.
+/// This comprises the genotypes of all samples whose ``Chromatogram/panel`` contains the marker.
 ///
 /// The reverse relationship is ``Genotype/marker``.
 @property (nonatomic, readonly) NSSet <Genotype *> *genotypes;

@@ -43,10 +43,15 @@
 
 - (void)setActionName:(NSString *)actionName {
 	if(_managedObjectContext) {
-		currentActionName = actionName;
+		currentActionName = actionName.copy;
 	} else {
 		[super setActionName:actionName];
 	}
+}
+
+
+- (void)forceActionName:(NSString *)actionName {
+	[super setActionName:actionName];
 }
 
 

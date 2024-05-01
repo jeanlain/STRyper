@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -72,14 +72,22 @@
                                     <action selector="addSampleOrSmartFolder:" target="-1" id="cey-th-2wH"/>
                                 </connections>
                             </menuItem>
+                            <menuItem isSeparatorItem="YES" id="TrD-Y2-uEy"/>
                             <menuItem title="Import Samples…" keyEquivalent="i" id="Bw7-FT-i3A">
                                 <connections>
                                     <action selector="showImportSamplePanel:" target="-1" id="mLT-mI-uXE"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Import Archived Folder…" keyEquivalent="I" id="478-fi-5u6">
+                            <menuItem title="Import Archived Folder…" id="478-fi-5u6">
+                                <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <action selector="importFolder:" target="-1" id="cit-hT-3Br"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Import Marker Panel(s)…" id="jYa-5B-Mmn">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="importPanels:" target="-1" id="TpF-MK-fvR"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Export…" keyEquivalent="E" id="jJu-22-Ckd">
@@ -343,7 +351,7 @@ CA
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.ShowOffScale" id="Uht-eP-Sef"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Paint Crosstalk Peaks" state="on" alternate="YES" id="vqE-nB-0Xz">
+                            <menuItem title="Outline Crosstalk Peaks" state="on" alternate="YES" id="vqE-nB-0Xz">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.PaintCrosstalkPeaks" id="Y0T-kK-zU3"/>

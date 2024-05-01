@@ -21,7 +21,6 @@
 
 #import "ViewLabel.h"
 #import "TraceView.h"
-#import "AppDelegate.h"
 
 
 
@@ -50,20 +49,11 @@
 }
 
 
-
-- (void)setView:(TraceView *)aView {
-	if(_view) {
-		[self removeFromView];
-	}
-	_view = aView;
-}
-
-
 - (void)removeFromView {
 	if(_view) {
 		[self removeTrackingArea];
 		self.hovered = NO;
-		_view = nil;
+		self.view = nil;
 	}
 	if(layer.superlayer) {
 		[layer removeFromSuperlayer];
@@ -87,8 +77,9 @@
 			}
 			self.clicked = YES;
 		} else {
+			self.hovered = NO;
 			self.highlighted = NO;
-			self.clicked = NO;
+			self.clicked = NO; ///may not be needed as this is also set to no on mouseUp.
 		}
 	}
 }
@@ -231,7 +222,9 @@
 			[self updateAppearance];
 		}
 		if(!hidden) {
-			self.animated = NO;		/// when it becomes visible, the label will repositioned (below), which we don't want to animate
+			/// A label may not be repositioned when it is hidden so we reposition it when it becomes visible
+			/// which we don't want to animate. 
+			self.animated = NO;
 			[self reposition];
 			self.animated = YES;
 		} else {

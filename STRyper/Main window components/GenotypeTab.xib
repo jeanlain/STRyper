@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
@@ -69,26 +69,26 @@
                         <autoresizingMask key="autoresizingMask"/>
                     </tableHeaderView>
                 </scrollView>
-                <button toolTip="Automatic genotyping" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="ajc-U1-atz" userLabel="bin alleles">
+                <button toolTip="Find alleles" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="ajc-U1-atz" userLabel="Find alleles">
                     <rect key="frame" x="10" y="5" width="25" height="20"/>
-                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="bin alleles" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="bGL-Ca-ObV">
-                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="systemBold" size="12"/>
-                    </buttonCell>
-                    <connections>
-                        <action selector="autoGenotype:" target="-2" id="8Z7-mC-pry"/>
-                        <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="JmQ-Zx-fyz"/>
-                    </connections>
-                </button>
-                <button toolTip="Find alleles" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="HUG-HJ-2n8" userLabel="call genotypes">
-                    <rect key="frame" x="40" y="5" width="25" height="20"/>
-                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="call genotypes" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5wo-h7-G60">
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="call genotypes" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="bGL-Ca-ObV">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                         <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <color key="contentTintColor" name="AccentColor"/>
                     <connections>
-                        <action selector="callAlleles:" target="-2" id="fkX-me-bKk"/>
+                        <action selector="callAlleles:" target="-2" id="2OU-VI-6gO"/>
+                        <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="JmQ-Zx-fyz"/>
+                    </connections>
+                </button>
+                <button toolTip="Bin alleles" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="HUG-HJ-2n8" userLabel="Bin alleles">
+                    <rect key="frame" x="40" y="5" width="25" height="20"/>
+                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="bin alleles" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="5wo-h7-G60">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="systemBold" size="12"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="binAlleles:" target="-2" id="jdI-hQ-hFH"/>
                         <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="GIu-hi-que"/>
                     </connections>
                 </button>
@@ -146,28 +146,28 @@
                         <action selector="selectSamples:" target="-2" id="e55-wK-ZgY"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Call Genotype(s)" offStateImage="bin alleles badge" id="GDe-kb-xmu">
-                    <modifierMask key="keyEquivalentModifierMask"/>
-                    <connections>
-                        <action selector="autoGenotype:" target="-2" id="3Hb-Ty-dtJ"/>
-                    </connections>
-                </menuItem>
                 <menuItem title="Find Alleles" offStateImage="callAllelesBadge" id="8Qs-Zp-pFu">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
-                        <action selector="callAlleles:" target="-2" id="AHG-1e-yc5"/>
+                        <action selector="callAlleles:" target="-2" id="YgG-dJ-EMu"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Remove supplementary peaks" offStateImage="removeAdditionalFragmentsBadge" id="boL-bF-Chx">
+                <menuItem title="Bin Alleles" offStateImage="bin alleles badge" id="GDe-kb-xmu">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="binAlleles:" target="-2" id="3Hb-Ty-dtJ"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Remove additional peaks" offStateImage="removeAdditionalFragmentsBadge" id="boL-bF-Chx">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="removeAdditionalFragments:" target="-2" id="NBT-dW-rFM"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Reset Offset(s)" offStateImage="reset" id="Ef6-hr-YRw">
+                <menuItem title="Remove Offset(s)" offStateImage="close" id="Ef6-hr-YRw">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
-                        <action selector="resetOffsets:" target="-2" id="LBe-Cb-VjF"/>
+                        <action selector="removeOffsets:" target="-2" id="LBe-Cb-VjF"/>
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="gtQ-cy-wxo"/>
@@ -175,6 +175,12 @@
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="copy:" target="-2" id="gYo-GI-8sL"/>
+                    </connections>
+                </menuItem>
+                <menuItem title="Paste Marker Offset" offStateImage="paste offset" identifier="pasteOffsets" id="ZhD-0H-nhv">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="pasteOffset:" target="-2" id="yDV-HJ-m71"/>
                     </connections>
                 </menuItem>
                 <menuItem title="Export to Text File…" offStateImage="export" id="EcG-k0-wtA">
@@ -197,12 +203,13 @@
         <image name="callAllelesBadge" width="15" height="15"/>
         <image name="circle arrow up" width="15" height="15"/>
         <image name="circle arrow up badge" width="15" height="15"/>
+        <image name="close" width="15" height="15"/>
         <image name="copy" width="15" height="14"/>
         <image name="export" width="15" height="17"/>
         <image name="filterButton" width="25" height="25"/>
         <image name="filterButton On" width="25" height="25"/>
+        <image name="paste offset" width="14" height="14"/>
         <image name="removeAdditionalFragmentsBadge" width="16" height="15"/>
-        <image name="reset" width="14" height="14"/>
         <namedColor name="AccentColor">
             <color red="0.0" green="0.46000000000000002" blue="0.89000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

@@ -460,27 +460,9 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 		[item setString:pasteboardString forType:NSPasteboardTypeString];
 		[pasteboard writeObjects:@[item]];
 		
-		/// We also write a combined string containing the object IDs of selected elements, if we support it.
-		/// Using a single pasteboard item is much faster than using one per copied element, when we paste.
-		NSPasteboardType pasteboardType = self.pasteboardTypeForCombinedItems;
-		if(pasteboardType) {
-			[self.tableContent.managedObjectContext obtainPermanentIDsForObjects:items error:nil];
-			NSArray *URIStrings = [items valueForKeyPath:@"@unionOfObjects.objectID.URIRepresentation.absoluteString"];
-			NSString *concat = [URIStrings componentsJoinedByString:@"\n"];
-			[item setString:concat forType:pasteboardType];
-		} else {
-			/// if we don't support this, we copy each item to the pasteboard
-			if([items.firstObject conformsToProtocol:@protocol(NSPasteboardWriting)]) {
-				[pasteboard writeObjects:items];
-			}
-		}
 	}
 }
 
-
-- (NSPasteboardType)pasteboardTypeForCombinedItems {
-	return nil;
-}
 
 # pragma mark - renaming, adding and removing items
 
@@ -565,7 +547,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 	if(alert) {
 		[alert beginSheetModalForWindow: self.view.window completionHandler:^(NSModalResponse returnCode) {
 			if(returnCode == NSAlertFirstButtonReturn) {
-				///	[self removeSelectedObjects:objects];  // before we remove the objects, we remove them from the selection. This is because the detailed view shows selected samples, which are somehow not removed from the selection after being deleted (although they get removed from the selection at some point).
+				/// [self removeSelectedObjects:objects];  // before we remove the objects, we remove them from the selection. This is because the detailed view shows selected samples, which are somehow not removed from the selection after being deleted (although they get removed from the selection at some point).
 				[self removeItems:items];
 				[self.undoManager setActionName:actionName];
 			}
@@ -814,7 +796,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 #pragma mark - other
 
 
-- (void)revealItem:(id)item {
+- (void)flashItem:(id)item {
 	NSInteger row = [self.tableContent.arrangedObjects indexOfObjectIdenticalTo:item];
 	if(row != NSNotFound) {
 		NSTableView *tableView = self.tableView;
@@ -1099,6 +1081,8 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 - (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor {
 	if(self.filterUsingPopover) {
 		/// we remove the background of the editor, which is defined by a visual effect view in macOS 14.
+		/// This view has been located by looking as the subview tree fo the editor via the debugger.
+		/// It would be better to find it by scanning all subviews, but more cumbersome.
 		NSView *view = predicateEditor.subviews.firstObject;
 		view = view.subviews.firstObject;
 		view = view.subviews.firstObject;
@@ -1142,10 +1126,10 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 		cancelButton.action = @selector(close);
 		cancelButton.target = filterPopover;
 		
-		NSButton *clearFilterButton = [contentView viewWithTag:5];
-		clearFilterButton.action = @selector(clearFilter:);
-		clearFilterButton.target = self;
-		[clearFilterButton bind:NSEnabledBinding
+		NSButton *removeFilterButton = [contentView viewWithTag:5];
+		removeFilterButton.action = @selector(removeFilter:);
+		removeFilterButton.target = self;
+		[removeFilterButton bind:NSEnabledBinding
 					   toObject:self.tableContent 
 					withKeyPath:NSStringFromSelector(@selector(filterPredicate))
 						options:@{NSValueTransformerNameBindingOption: NSIsNotNilTransformerName}];
@@ -1225,7 +1209,7 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 
 
 /// Removes the current filter of the table.
--(void)clearFilter:(id)sender {
+-(void)removeFilter:(id)sender {
 	[filterPopover close];
 	[self applyFilterPredicate:nil];
 }

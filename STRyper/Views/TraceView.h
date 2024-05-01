@@ -197,7 +197,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Whether off-scale regions of the ``trace``'s ``Trace/chromatogram`` are shown (as colored rectangles).
 ///
-///	See ``Chromatogram/offscaleRegions``for more information.
+/// See ``Chromatogram/offscaleRegions``for more information.
 ///
 /// The default value is `YES`.
 @property (nonatomic) BOOL showOffscaleRegions;
@@ -413,7 +413,7 @@ ShowPeakTooltipsBinding;
 /// Returns the point, in the view coordinate system, corresponding to a given scan of the the view's ``trace``.
 ///
 /// The returned value is the point composing the fluorescence curve representing the trace, for its fluorescence data at the `scan`.
-///	If the scan is out or range and if the view shows no trace, the components of the point will be 0.
+/// If the scan is out or range and if the view shows no trace, the components of the point will be 0.
 ///
 /// The fluorescence data used is determined by the ``showRawData`` property.
 ///

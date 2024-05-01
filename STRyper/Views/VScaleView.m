@@ -21,7 +21,6 @@
 
 
 #import "VScaleView.h"
-#import "DetailedViewController.h"
 
 
 @implementation VScaleView  {

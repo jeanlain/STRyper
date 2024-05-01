@@ -33,6 +33,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// This class has internal methods that allows the user to create markers and to drag them between panels.
 @interface MarkerTableController : TableViewController
 
+/// An array of images that represent the color of the possible channels that markers can take.
+///
+/// See ``Mmarker/channel``.
++ (NSArray<NSImage *>*) channelColorImages;
 
 @end
 

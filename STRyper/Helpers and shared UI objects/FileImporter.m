@@ -166,7 +166,8 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 			
 			if(error) {
 				error = [NSError errorWithDescription:@"The sample(s) could not be imported because an error occurred saving the database." suggestion:@"Some sample(s) may contain invalid data."];
-				/// hopefully, this kind of error will not happen if the checks made during import are rigorous enough. Because the error reported during save does not allow finding which samples caused problems
+				/// hopefully, this kind of error will not happen if the checks made during import are rigorous enough. 
+				/// Because the error reported during save does not allow finding which samples caused problems
 			}
 		}
 		
@@ -219,7 +220,6 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 	if (fetchedSizeStandard.count > 0) {
 		sample.sizeStandard = fetchedSizeStandard.firstObject;
 	}
-	
 }
 
 

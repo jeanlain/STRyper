@@ -77,7 +77,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Imports a folder from an archive.
 ///
-///	The archive file must conform to `org.jpeccoud.stryper.folderarchive`.
+/// The archive file must conform to `org.jpeccoud.stryper.folderarchive`.
 ///
 /// The imported folder and its content are materialized in a ``AppDelegate/newChildContext``, which is saved at the end of the import.
 /// The imported folder is accessible in `callbackBlock` with any error that has occurred (in this case `importedFolder` is `nil`).

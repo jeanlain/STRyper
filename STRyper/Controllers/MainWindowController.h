@@ -82,6 +82,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter error: The error to show in the alert.
 -(void)showAlertForError:(NSError *)error;
 
+/// Activates the tab at index `number` from the tabview of the bottom tab
+- (void)activateTabNumber:(NSInteger)number;
+
 /// Actions sent by controls to the first responder and that only have one possible receiver.
 /// As a window controller, this object may receives them and relay them to their target.
 
@@ -98,6 +101,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (IBAction)toggleBottomPane:(id)sender;
 
 /// Activates a particular tab from the tabview of the bottom tab.
+///
+///	The method calls ``activateTabNumber:``.
+/// The tab number to activate is obtained from the sender `tag`.
 - (IBAction)activateTab:(id)sender;
 
 /// Calls ``SampleTableController/showImportSamplePanel:``.
@@ -105,6 +111,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Calls ``FolderListController/importFolder:``.
 - (IBAction)importFolder:(id)sender;
+
+/// Calls ``PanelListController/importPanels:``.
+- (IBAction)importPanels:(id)sender;
 
 /// Calls ``SourceListController/addFolder:`` to the ``FolderListController``.
 - (IBAction)addSampleOrSmartFolder:(id)sender;

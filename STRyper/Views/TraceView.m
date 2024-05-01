@@ -237,8 +237,6 @@ static NSColor *traceViewBackgroundColor;
 	[self addObserver:self forKeyPath:@"trace.peaks" options:NSKeyValueObservingOptionNew context:peakChangedContext];
 	[self addObserver:self forKeyPath:@"trace.fragments" options:NSKeyValueObservingOptionNew context:fragmentsChangedContext];
 	[self addObserver:self forKeyPath:@"panel.markers" options:NSKeyValueObservingOptionNew context:panelMarkersChangedContext];
-
-	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(genotypeOffsetDidChange:) name:GenotypeDidChangeOffsetCoefsNotification object:nil];
 	
 	needsUpdateAppearance = YES; /// Sets the correct colors according to the theme when the view is first shown.
 	self.needsUpdateLabelAppearance = YES;
@@ -383,21 +381,12 @@ static NSColor *traceViewBackgroundColor;
 	/// this because the marker we highlight may be different (even if from the same panel and channel) and the way we show the panel also depends on whether we show traces
 	if(showMarkerOnly || traces.count == 0 || previousChannel != self.channel || self.panel != refPanel || refPanel == nil) {
 		self.panel = refPanel;
-	} else {
-		/// if we keep the panel (and all the associated labels), we need to update the label offset to the new genotypes shown.
-		[self updateLabelOffsets];
-		RegionLabel *enabledMarkerLabel = self.enabledMarkerLabel;
-		if(enabledMarkerLabel.highlighted && enabledMarkerLabel.editState == editStateOffset) {
-			enabledMarkerLabel.editState = editStateNil;		/// if the user was editing an offset, we disable it.
-													/// We must end the edition of the offset if the view's content has changed, because this edition may affect the sample(s) shown
-		}
-	}
+	} 
 	
 	Trace *ourTrace = self.trace;
 	self.markerView.hidden = (ourTrace && self.channel < 0) || ourTrace.isLadder;
 	[self getRangeAndScale];
 	self.needsLayoutLabels = YES;
-	self.rulerView.needsUpdateOffsets = YES;
 	self.needsDisplayTraces = YES;
 
 	showMarkerOnly = traces.count == 0;
@@ -527,9 +516,6 @@ static NSColor *traceViewBackgroundColor;
 
 - (void)prepareForReuse {
 	[super prepareForReuse];
-	[self willChangeValueForKey:@"trace"];
-	_trace = nil;
-	[self didChangeValueForKey:@"trace"];
 	self.loadedTraces = nil;
 	_marker = nil;
 	_genotype = nil;
@@ -544,40 +530,12 @@ static NSColor *traceViewBackgroundColor;
 }
 
 
--(void)updateLabelOffsets {
-	if(self.markerLabels.count  > 0 && self.trace.chromatogram.genotypes.count > 0) {
-		NSSet *genotypes = [self.trace.chromatogram genotypesForChannel:self.channel];
-		for(Genotype *genotype in genotypes) {
-			MarkerOffset offset = genotype.offset;
-			Mmarker *marker = genotype.marker;
-			for(RegionLabel *markerLabel in self.markerLabels) {
-				if(markerLabel.region == marker) {
-					markerLabel.offset = offset;
-					break;
-				}
-			}
-		}
-	}
-}
-
-
-
 - (void)updateMarkerLabels {
 	NSArray *markers = [self.panel markersForChannel:self.channel];
 	NSArray *markerLabels = [self regionLabelsForRegions:markers reuseLabels:self.markerLabels];
 
 	if(markers.count > 0) {
 		self.needsLayoutLabels = YES;
-	}
-	
-	Chromatogram *sample = self.trace.chromatogram;
-	if(sample) {
-		for(RegionLabel *markerLabel in markerLabels) {
-			Genotype *genotype = [sample genotypeForMarker:markerLabel.region];
-			if(genotype.offsetData) {
-				markerLabel.offset = genotype.offset;
-			}
-		}
 	}
 	
 	self.markerLabels = markerLabels;
@@ -637,30 +595,6 @@ static NSColor *traceViewBackgroundColor;
 		
 		self.needsUpdateLabelAppearance = NO;
 	}
-}
-
-
--(void)genotypeOffsetDidChange:(NSNotification *)notification {
-	Genotype *genotype = notification.object;
-	if(!genotype.sample || genotype.sample != self.trace.chromatogram) {
-		return;
-	}
-	
-	Mmarker *marker = genotype.marker;
-	MarkerOffset offset = genotype.offset;
-	
-	for(RegionLabel *markerLabel in self.markerLabels) {
-		if(markerLabel.region == marker) {
-			markerLabel.offset = offset;
-			[markerLabel reposition];
-			for(RegionLabel *binLabel in markerLabel.binLabels) {
-				[binLabel reposition];
-			}
-			break;
-		}
-	}
-	
-	self.rulerView.needsUpdateOffsets = YES;
 }
 
 
@@ -879,6 +813,20 @@ static NSColor *traceViewBackgroundColor;
 }
 
 
+- (void)labelNeedsRepositioning:(ViewLabel *)viewLabel {
+	[super labelNeedsRepositioning:viewLabel];
+	RulerView *rulerView = self.rulerView;
+	if(!rulerView.needsUpdateOffsets) {
+		if([viewLabel isKindOfClass:RegionLabel.class]) {
+			RegionLabel *regionLabel = (RegionLabel *)viewLabel;
+			if(regionLabel.isMarkerLabel) {
+				rulerView.needsUpdateOffsets = YES;
+			}
+		}
+	}
+}
+
+
 -(void)positionVerticalLineLayer {
 	if(!hoveredPeakLabel) {
 		verticalLineLayer.hidden = YES;
@@ -939,8 +887,8 @@ static NSColor *traceViewBackgroundColor;
 		[self repositionTraceLayer];
 		self.needsLayoutTraceLayer = NO;
 	}
-	BOOL needsLayoutLabels = self.needsLayoutLabels;
-	if(self.needsLayoutFragmentLabels && !needsLayoutLabels && self.hScale >=0) {
+	BOOL avoidCollisions = self.needsLayoutLabels;
+	if(_needsLayoutFragmentLabels && !avoidCollisions && self.hScale >=0) {
 		/// we reposition fragment labels here unless all labels are repositioned (in super, below)
 		/// This should be the case when the vertical scale has changed by the view geometry has not or when a fragment label has been dragged
 		for(FragmentLabel *label in self.fragmentLabels) {
@@ -948,16 +896,13 @@ static NSColor *traceViewBackgroundColor;
 			[label reposition];
 			label.animated = YES;
 		}
-		[FragmentLabel avoidCollisionsInView:self allowAnimation:!_needsDisplayTraces];
+		avoidCollisions = YES;
 	}
 	[super layout];
+	if(avoidCollisions) {
+		[FragmentLabel avoidCollisionsInView:self allowAnimation:NO];
+	}
 	self.needsLayoutFragmentLabels = NO;
-}
-
-
-- (void)repositionLabels:(NSArray *)labels allowAnimation:(BOOL)allowAnimate {
-	[super repositionLabels:labels allowAnimation:allowAnimate];
-	[FragmentLabel avoidCollisionsInView:self allowAnimation:allowAnimate];
 }
 
 
@@ -2211,7 +2156,7 @@ static NSColor *traceViewBackgroundColor;
 			label.hidden = !showBins;
 		}
 		if(showBins) {
-			[markerLabel reposition]; /// required to avoid overlap in bin names
+			[self labelNeedsRepositioning:markerLabel]; /// required to avoid overlap in bin names
 		}
 	}
 }
@@ -2866,7 +2811,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 
 - (void)updateTrackingAreas {
 	/// For performance, we avoid updating tracking areas too frequently, in particular during scrolling or zooming.
-	/// In particular since macOS 13, this method is called at every step during scrolling
+	/// Since macOS 13, this method is called at every step during scrolling
 	/// But we need a timer to update the tracking areas when scrolling/zooming if finished
 	if(updateTrackingAreasTimer.valid) {
 		[updateTrackingAreasTimer invalidate];

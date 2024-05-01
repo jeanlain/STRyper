@@ -69,6 +69,9 @@ NS_ASSUME_NONNULL_BEGIN
 	/// The label that is being dragged
 	ViewLabel *draggedLabel;
 	
+	/// The labels that need to be repositioned in -layout
+	NSMutableSet *labelsToReposition;
+	
 	/// Whether the mouse has entered the view and not yet exited.
 	///
 	/// This ivar is used internally to avoid computations that should not be performed if the mouse is not in the view.
@@ -138,27 +141,41 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter label: the label that sent this message.
 -(void)labelEdgeDidChangeHoveredState:(RegionLabel *)label;
 
-/// Called by a label that had its ``ViewLabel/highlighted`` property changed.
+/// Notifies the view that a label had its `highlighted` property changed.
 ///
+///	By default, a ``ViewLabel`` calls this method on its view.
 /// The default implementation does nothing, this method is overridden.
-/// - Parameter label: the label that sent this message.
+/// - Parameter label: The label that had its ``ViewLabel/highlighted`` changed .
 -(void)labelDidChangeHighlightedState:(ViewLabel *)label;
 
-/// Called by a label that had its ``ViewLabel/highlighted`` property changed.
+/// Notifies the view that a label had its `enabled` property changed.
 ///
-/// - Parameter label: the label that sent this message.
+///	By default, a ``ViewLabel`` calls this method on its ``ViewLabel/view``.
+/// - Parameter label: The label whose ``ViewLabel/enabled`` property has changed.
 -(void)labelDidChangeEnabledState:(ViewLabel *)label;
 
-/// Called by a label that had its ``RegionLabel/editState`` property changed.
+/// Notifies the view that a `RegionLabel` had its `editState` property changed.
 ///
+///	By default, a ``RegionLabel`` calls this method on its ``ViewLabel/view``.
 /// The default implementation does nothing.
-/// - Parameter label: the label that sent this message.
+/// - Parameter label: The label that had its ``RegionLabel/editState`` changed.
 -(void)labelDidChangeEditState:(RegionLabel *)label;
 
 
-/// Called by a ``RegionLabel`` that has added a new ``Region`` (via click & drag)
+/// Notifies the view that a ``RegionLabel``  has added a new ``Region`` (via click & drag).
+///
+///	By default, a ``ViewLabel`` calls this method on its ``ViewLabel/view``.
 /// - Parameter label: The label that added the region.
 -(void)labelDidUpdateNewRegion:(RegionLabel *)label;
+
+
+/// Notifies the view that a ``ViewLabel``  needs to be repositioned.
+///
+/// This method may be called by a label to defer its repositioning in its  ``ViewLabel/view``'s  `-layout` method,
+/// and to avoid redundant repositioning in the same cycle.
+/// - Parameter viewLabel: The label that needs to be repositioned.
+- (void)labelNeedsRepositioning:(ViewLabel *)viewLabel;
+
 
 /// This property is used internally it to avoid doing certain calculations.
 /// This pertains to internal implementation, but the markerView may query the traceView for this property.

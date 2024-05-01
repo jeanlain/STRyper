@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -252,13 +252,13 @@
                         </connections>
                     </button>
                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="66q-69-92X" userLabel="Annotate supp peaks">
-                        <rect key="frame" x="19" y="140" width="184" height="16"/>
-                        <buttonCell key="cell" type="check" title="Annotate supplementary peaks" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="ysz-Xy-BPu">
+                        <rect key="frame" x="19" y="140" width="158" height="16"/>
+                        <buttonCell key="cell" type="check" title="Annotate additional peaks" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="ysz-Xy-BPu">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                             <font key="font" metaFont="smallSystem"/>
                         </buttonCell>
                         <connections>
-                            <binding destination="oXY-Ga-9dS" name="value" keyPath="values.AnnotateSupplementaryPeaks" id="yDE-1Y-Wrr">
+                            <binding destination="oXY-Ga-9dS" name="value" keyPath="values.AnnotateAdditionalPeaks" id="1Y7-D2-EWP">
                                 <dictionary key="options">
                                     <bool key="NSValidatesImmediately" value="YES"/>
                                 </dictionary>

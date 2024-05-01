@@ -56,7 +56,7 @@
 @property (readonly, nonatomic) NSString *string;
 
 
-/// Whether the fragment represents an additional ("supplementary") peak.
+/// Whether the fragment represents an additional peak.
 ///
 /// Objects of this class return `NO`. 
 @property (nonatomic, readonly) BOOL additional;

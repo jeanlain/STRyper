@@ -57,17 +57,17 @@ NS_ASSUME_NONNULL_BEGIN
 /// The size of the allele in base pairs.
 ///
 /// The size is computed when the ``LadderFragment/scan`` property it set and should not normally be set independently,
-/// although it is writable by inheritance.
+/// although it is settable by inheritance.
 @property (nonatomic) float size;
 
 /// Makes the allele compute its size.
 ///
 /// The allele computes its ``LadderFragment/size`` from its ``LadderFragment/scan``, given the sizing properties of the ``Genotype/sample`` and  ``Genotype/offset`` of its ``genotype``.
 ///
-///	This method is called when the allele's ``LadderFragment/scan`` is set
-///	and can be called if the sizing property of the sample change.
+/// This method is called when the allele's ``LadderFragment/scan`` is set
+/// and can be called if the sizing property of the sample change.
 ///
-///	If ``LadderFragment/scan`` returns a value that is ≤ 0, a size of 0 is set.
+/// If ``LadderFragment/scan`` returns a value that is ≤ 0, a size of 0 is set.
 -(void)computeSize;
 
 
@@ -77,8 +77,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Finds a bin spanning the allele ``LadderFragment/size`` and names the allele after this bin.
 ///
-///	The method searches among bins contained in the  ``genotype``'s ``Genotype/marker``.
-///	If no bin is found, the "out of bin" allele name is set.
+/// The method searches among bins contained in the  ``genotype``'s ``Genotype/marker``.
+/// If no bin is found, the "out of bin" allele name is set.
 -(void)findNameFromBins;
 
 /// Convenience method to delete an allele considered as ``LadderFragment/additional``.

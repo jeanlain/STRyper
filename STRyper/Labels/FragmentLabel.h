@@ -26,9 +26,9 @@
 
 /// A  draggable label that indicates the size or name of a DNA fragment (ladder fragment or allele) on a trace view.
 ///
-///	A fragment label represents a ``LadderFragment`` entity, which can be an ``Allele``.
+/// A fragment label represents a ``LadderFragment`` entity, which can be an ``Allele``.
 ///
-///	This label shows a rectangular text box that indicates the ``LadderFragment/size`` of the fragment or its ``LadderFragment/name`` if the fragment is an ``Allele``.
+/// This label shows a rectangular text box that indicates the ``LadderFragment/size`` of the fragment or its ``LadderFragment/name`` if the fragment is an ``Allele``.
 @interface FragmentLabel : ViewLabel <NSControlTextEditingDelegate, NSTextFieldDelegate>
 
 /// Returns a label that is initialized given a fragment.
@@ -42,7 +42,7 @@
 /// The allele or ladder fragment that the label represents.
 ///
 /// ``ViewLabel/representedObject`` also returns this object.
-@property (weak, nonatomic) __kindof LadderFragment *fragment;
+@property (nonatomic) __kindof LadderFragment *fragment;
 
 /// Repositions the ``TraceView/fragmentLabels`` of a ``TraceView`` to avoid collisions.
 ///
@@ -62,7 +62,7 @@
 
 /// Implements the ``ViewLabel/reposition`` method.
 ///
-///	When not ``ViewLabel/dragged``, the label positioned itself slightly above the fluorescence curve at the location of its ``fragment`` in base pairs.
+/// When not ``ViewLabel/dragged``, the label positioned itself slightly above the fluorescence curve at the location of its ``fragment`` in base pairs.
 /// If the fragment  has a ``LadderFragment/scan`` ≤ 0 and is a ladder fragment, the label places itself against the top edge of its ``ViewLabel/view``, at a horizontal position corresponding to the fragment's ``LadderFragment/size``.
 ///
 /// If the fragment is an allele and has a scan ≤ 0 (i.e., it is a missing allele), the label positions itself beyond the top edge of the view, at a position corresponding to the midpoint of the ``Genotype/marker``.
@@ -70,11 +70,11 @@
 
 /// Implements the ``ViewLabel/drag`` method.
 ///
-///	The method automatically repositions the label according to the ``LabelView/mouseLocation``.
-///	If the label is dragged close to a peak that is a suitable destination (which the method determines),
-///	the peak label takes its ``ViewLabel/hovered`` state and some magnetism locks the horizontal position of the dragged label, with haptic feedback.
+/// The method automatically repositions the label according to the ``LabelView/mouseLocation``.
+/// If the label is dragged close to a peak that is a suitable destination (which the method determines),
+/// the peak label takes its ``ViewLabel/hovered`` state and some magnetism locks the horizontal position of the dragged label, with haptic feedback.
 ///
-///	If the label is dragged above the top edge of the view, it stops moving and pops  a `disappearingItemCursor` .
+/// If the label is dragged above the top edge of the view, it stops moving and pops  a `disappearingItemCursor` .
 ///
 /// At the end of dragging, the ``fragment`` represented by the dragged label will take its ``LadderFragment/scan`` from the destination peak at the end of the dragging session.
 /// For an label representing an ``Allele``,  the ``fragment`` will also get the name of the ``Bin`` comprising the new peak, if any.

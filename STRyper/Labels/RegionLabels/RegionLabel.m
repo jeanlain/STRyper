@@ -23,8 +23,6 @@
 #import "Mmarker.h"
 #import "TraceView.h"
 #import "Genotype.h"
-#import "SampleFolder.h"
-#import "FolderListController.h"
 #import "MarkerLabel.h"
 #import "BinLabel.h"
 #import "TraceViewMarkerLabel.h"
@@ -46,18 +44,16 @@
 #pragma mark - initialization and base attributes setting
 
 /// We observe some keys of our region to update when they change
-static NSArray<NSString *> const *observedKeyPaths;
+static NSString * const startKey = @"start";
+static NSString * const endKey = @"end";
+static NSString * const nameKey = @"name";
+static NSString * const editStateKey = @"editState";
+
+
 static void * const regionStartChangedContext = (void*)&regionStartChangedContext;
 static void * const regionEndChangedContext = (void*)&regionEndChangedContext;
 static void * const regionEditStateChangedContext = (void*)&regionEditStateChangedContext;
 static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
-
-
-+ (void)initialize {
-	if (self == [RegionLabel class]) {
-		observedKeyPaths = @[@"region.start", @"region.end", @"region.editState"];
-	}
-}
 
 
 + (nullable __kindof RegionLabel*)regionLabelWithRegion:(Region *)region view:(__kindof LabelView *)view {
@@ -72,19 +68,45 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 		label = [[BinLabel alloc] init];
 	}
 	if(label) {
-		
-		[label addObserver:label forKeyPath:observedKeyPaths.firstObject options:NSKeyValueObservingOptionNew context:regionStartChangedContext];
-		[label addObserver:label forKeyPath:observedKeyPaths[1] options:NSKeyValueObservingOptionNew context:regionEndChangedContext];
-		[label addObserver:label forKeyPath:observedKeyPaths.lastObject options:NSKeyValueObservingOptionNew context:regionEditStateChangedContext];
-		if(![label isKindOfClass:TraceViewMarkerLabel.class]) {
-			/// This class of label doesn't show the name of the region.
-			[label addObserver:label forKeyPath:@"region.name" options:NSKeyValueObservingOptionNew context:regionNameChangedContext];
-		}
 		label.view = view;
 		label.region = region;
 	}
 	
 	return label;
+}
+
+- (void)setRegion:(__kindof Region *)region {
+	Region *previousRegion = self.region;
+	if(previousRegion) {
+		[previousRegion removeObserver:self forKeyPath:startKey];
+		[previousRegion removeObserver:self forKeyPath:endKey];
+		if(!self.isBinLabel) {
+			[previousRegion removeObserver:self forKeyPath:editStateKey];
+		}
+		if(![self isKindOfClass:TraceViewMarkerLabel.class]) {
+			[previousRegion removeObserver:self forKeyPath:nameKey];
+		}
+	}
+	_region = region;
+	if(region) {
+		[region addObserver:self forKeyPath:startKey
+					options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+					context:regionStartChangedContext];
+		[region addObserver:self forKeyPath:endKey
+					options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+					context:regionEndChangedContext];
+		if(![region isKindOfClass: Bin.class]) {
+			[region addObserver:self forKeyPath:editStateKey
+						options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+						context:regionEditStateChangedContext];
+		}
+		if(![self isKindOfClass:TraceViewMarkerLabel.class]) {
+			/// This class of label doesn't show the name of the region.
+			[region addObserver:self forKeyPath:nameKey
+						options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+						context:regionNameChangedContext];
+		}
+	}
 }
 
 
@@ -203,7 +225,7 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 		/// when we get highlighted (the user has clicked our frame), we get "edges" ready for resizing. Hence the user cannot resize before clicking us.
 		/// This ensure that even if we are very close from the adjacent region,the user should always be able to grab the correct edge (and this may avoid unwanted resizing)
 		/// We therefore need to reposition and get/remove tracking areas for our edges
-		[self reposition];
+		[self.view labelNeedsRepositioning:self];
 	}
 }
 
@@ -213,9 +235,7 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 - (void)setStart:(float)pos {
 	if(_start != pos) {
 		_start = pos;
-		if(!self.view.needsLayoutLabels && (self.dragged || _end == self.region.end)) { /// TESTING
-			[self reposition];
-		}
+		[self.view labelNeedsRepositioning:self];
 	}
 }
 
@@ -223,9 +243,7 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 - (void)setEnd:(float)pos {
 	if(_end != pos) {
 		_end = pos;
-		if(!self.view.needsLayoutLabels && (self.dragged || _start == self.region.start)) { /// TESTING
-			[self reposition];
-		}
+		[self.view labelNeedsRepositioning:self];
 	}
 }
 
@@ -666,12 +684,7 @@ enum controlTag : NSInteger {
 
 
 - (void)dealloc {
-	for(NSString *keyPath in observedKeyPaths) {
-		[self removeObserver:self forKeyPath:keyPath];
-	}
-	if(![self isKindOfClass:TraceViewMarkerLabel.class]) {
-		[self removeObserver:self forKeyPath:@"region.name"];
-	}
+	self.region = nil;
 }
 
 @end

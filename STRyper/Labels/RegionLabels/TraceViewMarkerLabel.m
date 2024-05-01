@@ -20,8 +20,6 @@
 
 #import "TraceViewMarkerLabel.h"
 #import "TraceView.h"
-#import "MarkerView.h"
-#import "RulerView.h"
 #import "Bin.h"
 #import "BinLabel.h"
 #import "Mmarker.h"
@@ -50,7 +48,7 @@
 	
 	CALayer *anchorLayer;			/// This represent the anchorPos as a vertical line
 	CALayer *anchorSymbolLayer;		/// Additional symbol that convey the notion that this line won't move during resizing
-	
+	Genotype *observedGenotype; 	/// The genotype we observe to react to a change of its offset
 }
 
 # pragma mark - attributes and appearance
@@ -72,6 +70,11 @@ static NSImage *anchorImage;
 
 static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 
+/// To be notified when the offset of the marker we represent changes.
+static void * const viewTraceChangedContext = (void*)&viewTraceChangedContext;
+static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChangedContext;
+
+
 - (instancetype)init {
 	self = [super init];
 	if (self) {
@@ -88,35 +91,94 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 		
 		/// This type is disabled by default
 		_enabled = NO;
-		
-		[self addObserver:self forKeyPath:@"region.bins" options:NSKeyValueObservingOptionNew context:markerBinsChangedContext];
 	}
 	return self;
 }
 
 
 - (void)setView:(TraceView *)view {
+	if(self.view) {
+		[self.view removeObserver:self forKeyPath:@"trace"];
+	}
 	super.view = view;
 	if(layer && view) {
+		if(view) {
+			/// We get notified if the view has loaded a new trace, as the offset of our marker depends on the sample shown.
+			[view addObserver:self forKeyPath:@"trace"
+					  options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+					  context:viewTraceChangedContext];
+		}
 		layer.borderColor = view.regionLabelEdgeColor;
 		[view.backgroundLayer addSublayer:layer];
+		for(BinLabel *binLabel in self.binLabels) {
+			binLabel.view = view;
+			[layer addSublayer:binLabel._layer];
+		}
 	}
+}
+
+
+- (void)setRegion:(__kindof Region *)region {
+	if(self.region) {
+		[self.region removeObserver:self forKeyPath:@"bins"];
+	}
+	super.region = region;
+	if(region) {
+		[region addObserver:self forKeyPath:@"bins"
+					options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+					context:markerBinsChangedContext];
+	}
+	[self observeGenotype];
 }
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
 	if (context == markerBinsChangedContext) {
 		[self updateBinLabels];
+	} else if(context == viewTraceChangedContext) {
+		[self observeGenotype];
+	} else if(context == genotypeOffsetChangedContext) {
+		if(self.editState != editStateBinSet) {
+			self.offset = observedGenotype.offset;
+		}
 	} else {
 		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 	}
 }
 
 
+- (void)observeGenotype {
+	Chromatogram *sample = self.view.trace.chromatogram;
+	Genotype *genotype = [sample genotypeForMarker:self.region]; /// nil if there is no sample shown
+	if(genotype != observedGenotype) {
+		if(self.editState == editStateOffset) {
+			self.animated = NO;
+			self.editState = editStateNil;
+			self.animated = YES;
+		}
+		if(observedGenotype) {
+			[observedGenotype removeObserver:self forKeyPath:@"offsetData"];
+		}
+		observedGenotype = genotype;
+		if(observedGenotype) {
+			[observedGenotype addObserver:self forKeyPath:@"offsetData"
+								  options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+								  context:genotypeOffsetChangedContext];
+		} else {
+			self.offset = MarkerOffsetNone;
+		}
+	}
+}
+
+
+
 -(void) removeFromView {
 	[anchorLayer removeFromSuperlayer];
 	[innerLayer removeFromSuperlayer];
 	[outerLayer removeFromSuperlayer];
+	for(BinLabel *binLabel in self.binLabels) {
+		[binLabel removeFromView];
+	}
 	[super removeFromView];
 }
 
@@ -201,19 +263,6 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 }
 
 
-- (void)setHighlighted:(BOOL)highlighted {
-	if(highlighted != self.highlighted) {
-		EditState editState = self.editState;
-		if((highlighted && (editState == editStateBinSet || editState == editStateOffset)) ||
-		   /// If we get highlighted, the user must be moving the bin set or adjusting an offset
-		   (!highlighted && editState != editStateBinSet && editState != editStateOffset)) {
-			/// if we get de-highlighted, the user is not moving a bing set or adjusting an offset
-			super.highlighted = highlighted;
-		}
-	}
-}
-
-
 - (void)setClicked:(BOOL)clicked {
 	/// overridden to show our anchorLayer when appropriate
 	if(clicked != self.clicked) {
@@ -238,7 +287,7 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 					self.view.needsUpdateLabelAppearance = YES;
 				}
 				anchorLayer.hidden = NO;
-				[self reposition];
+				[self.view labelNeedsRepositioning:self];
 			} else {
 				anchorLayer.hidden = YES;
 				anchorPos = -1;
@@ -272,8 +321,25 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 		if(!NSPointInRect(self.view.clickedPoint, self.frame)) {
 			/// if the user has clicked outside our frame on the view, we end the editing of all labels showing our marker
 			self.region.editState = editStateNil;
+			self.clicked = NO;
+		} else {
+			self.clicked = YES;
 		}
-		[super mouseDownInView];
+	}
+}
+
+
+
+- (void)rightMouseDownInView {
+	/// We don't react to these events
+}
+
+
+- (void)mouseUpInView {
+	/// We don't get highlighted by clicks
+	if(self.enabled) {
+		self.clicked = NO;
+		self.dragged = NO;
 	}
 }
 
@@ -284,39 +350,26 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 		return;
 	}
 	
-	super.editState = editState;
-	
-	/// if we enter the "binset" editing state, we temporarily reset our offset (otherwise, moving bins would not be intuitive).
-	MarkerOffset offset = self.offset;
-	MarkerOffset desiredOffset = MarkerOffsetNone;
-	BOOL reposition = NO;
 	if(editState == editStateBinSet) {
-		if (offset.intercept != 0 || offset.slope != 1.0) {
-			reposition = YES;
-		}
-	} else {
-		/// if we enter in another state, we reestablish our offset if needed
-		Genotype *genotype = [self.view.trace.chromatogram genotypeForMarker:self.region];
-		if(genotype) {
-			MarkerOffset genotypeOffset = genotype.offset;
-			if(genotypeOffset.intercept != offset.intercept || genotypeOffset.slope != offset.slope) {
-				desiredOffset = genotypeOffset;
-				reposition = YES;
-			}
+		/// if we enter this edit state, we make as if the marker had no offset (otherwise, moving bins would not be intuitive).
+		self.offset = MarkerOffsetNone;
+	} 
+	
+	if(self.editState == editStateBinSet) {
+		/// if we exit the "binset" edit stage, we get back the offset of the genotype at our marker
+		if(observedGenotype) {
+			self.offset = observedGenotype.offset;
 		}
 	}
-	if(reposition) {
-		self.offset = desiredOffset;
-		[self reposition];
-		self.view.rulerView.needsUpdateOffsets = YES;
-	}
+	
+	super.editState = editState;
 	
 	BOOL binEnabledState = NO;
 	if(editState == editStateNil) {
 		self.enabled = NO;
 	} else if(editState == editStateBins) {
 		self.enabled = YES;
-		self.highlighted = NO;		/// when the user edits bins individually, the marker label behind bins (us) is not highlighted
+		self.highlighted = NO;		/// When the user edits bins individually, the marker label behind bins (us) is not highlighted
 									/// it should not show its border and should not be resizable nor draggable
 									/// it's only purpose is to show where bins can be added and to set a cursor when hovered to denote that
 		binEnabledState = YES;
@@ -476,20 +529,12 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 	}
 		
 	MarkerOffset offset = MakeMarkerOffset(intercept, slope);
-	
 	self.offset = offset;
-	[self reposition];
-	
-	if(self.editState != editStateBinSet) {
-		self.view.rulerView.needsUpdateOffsets = YES;
-	}
-	
 }
 
 
 - (void)setDragged:(BOOL)dragged {
 	if(dragged != self.dragged) {
-		_dragged = dragged;
 		if(!dragged) {
 			if(self.editState == editStateBinSet) {
 				/// we move the bin set at the end of a drag
@@ -505,6 +550,7 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 			[self updateTrackingArea];
 			[self performSelector:@selector(_updateHoveredState) withObject:nil afterDelay:0.05];
 		}
+		_dragged = dragged;
 		[self updateAppearance];	/// because our inner and outer layers show depending on dragged state
 	}
 }
@@ -525,10 +571,6 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 		if(startSize < start || endSize > end) {
 			NSLog(@"bin '%@' edge position is out or marker '%@' range! Not applying move.", binLabel.region.name, self.region.name);
 			self.offset = MarkerOffsetNone;
-			for(BinLabel *label in self.binLabels) {
-				[label reposition];
-			}
-			[self reposition];
 			return;
 		}
 	}
@@ -547,32 +589,12 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 		}
 	}
 	self.offset = MarkerOffsetNone;
-	[self reposition];
 	if(binUpdated) {
 		[self.view.undoManager setActionName:@"Move Bin Set"];
 	}
 }
 
 #pragma mark - geometry
-
-- (void)setStart:(float)pos {
-	if(self.start != pos) {
-		_start = pos;
-		[self reposition];
-		self.view.rulerView.needsUpdateOffsets = YES;
-	}
-}
-
-
-- (void)setEnd:(float)pos {
-	if(self.end != pos) {
-		_end = pos;
-		[self reposition];
-		if(self.offset.intercept != 0.0 || self.offset.slope != 1.0) {
-			self.view.rulerView.needsUpdateOffsets = YES;
-		}
-	}
-}
 
 
 - (void)reposition {
@@ -725,18 +747,19 @@ static void * const markerBinsChangedContext = (void*)&markerBinsChangedContext;
 
 
 - (void)setOffset:(MarkerOffset)offset {
-	super.offset = offset;
-	if(_binLabels) {
-		for(BinLabel *binLabel in self.binLabels) {
-			binLabel.offset = offset;
+	MarkerOffset currentOffset = self.offset;
+	if(currentOffset.intercept != offset.intercept || currentOffset.slope != offset.slope) {
+		super.offset = offset;
+		if(_binLabels) {
+			for(BinLabel *binLabel in self.binLabels) {
+				binLabel.offset = offset;
+			}
 		}
+		
+		[self.view labelNeedsRepositioning:self];
 	}
 }
 
-
-- (void)dealloc {
-	[self removeObserver:self forKeyPath:@"region.bins"];
-}
 
 
 @end

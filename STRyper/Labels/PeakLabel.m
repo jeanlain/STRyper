@@ -140,7 +140,7 @@
 			item.target = self;
 			[menu addItem:item];
 		} else {
-			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Add Supplementary Peak" action:@selector(attachAdditionalFragment:) keyEquivalent:@""];
+			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Add Additional Peak" action:@selector(attachAdditionalFragment:) keyEquivalent:@""];
 			item.target = self;
 			[menu addItem:item];
 			return menu;
@@ -529,7 +529,7 @@ static CALayer *dragLineLayer;
 				newFragment.scan = self.scan;
 				[newFragment findNameFromBins];
 				genotype.status = genotypeStatusManual;
-				[self.view.undoManager setActionName:@"Add Supplementary Peak"];
+				[self.view.undoManager setActionName:@"Add Additional Peak"];
 			}
 		}
 	}

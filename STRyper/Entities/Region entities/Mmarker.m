@@ -120,7 +120,7 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	NSString *name = *value;
 	if(name.length == 0) {
 		if (error != NULL) {
-			*error = [NSError managedObjectValidationErrorWithDescription:@"The marker has no name."
+			*error = [NSError managedObjectValidationErrorWithDescription:@"The marker must have a name."
 															   suggestion:@""
 																   object:self
 																   reason:@"The marker has no name."];
@@ -390,7 +390,7 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 
 
 - (NSString *)stringRepresentation {
-	return [NSString stringWithFormat:@"marker\t%@\t%g\t%g\t%@\t%d\t%d\n", self.name, self.start, self.end, self.channelName, self.ploidy, self.motiveLength];
+	return [NSString stringWithFormat:@"marker\t%@\t%.2f\t%.2f\t%@\t%d\t%d", self.name, self.start, self.end, self.channelName, self.ploidy, self.motiveLength];
 }
 
 

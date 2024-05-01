@@ -183,29 +183,32 @@
 	if(menuItem.topMenu == outlineView.menu) {
 		/// a menu item belonging to the outline view's contextual menu.
 		if(targetItem.isPanel) {					/// a panel is clicked.
-			if(menuItem.action == @selector(addFolder:) || menuItem.action == @selector(importPanel:)) {
+			if(menuItem.action == @selector(addFolder:) || menuItem.action == @selector(importPanels:)) {
 				/// we can't add a folder or import a panel into a panel
 				menuItem.hidden = YES;
 				return NO;
 			}
-		} else if(menuItem.action == @selector(exportSelection:)) {
-			/// we can't add a folder or import a panel into a panel
-			menuItem.hidden = YES;
-			return NO;
 		}
-		return YES;
 	}
 	
 	
 	if(menuItem.action == @selector(exportSelection:)) {
-		if(targetItem.isPanel) {
-			menuItem.title = @"Export Panel…";
-			return YES;
+		if(targetItem.panels.count == 1) {
+			menuItem.title = @"Export Panel to File…";
+		} else if(targetItem.panels.count > 1) {
+			menuItem.title = @"Export Panels to File…";
 		} else {
+			menuItem.hidden = YES;
+			return NO;
+		}
+	} else if(menuItem.action == @selector(importBinSet:)) {
+		if(!targetItem.isPanel || ((Panel *)targetItem).markers.count == 0) {
+			menuItem.hidden = YES;
 			return NO;
 		}
 	}
 	
+	menuItem.hidden = NO;
 	return YES;
 }
 
@@ -239,8 +242,8 @@
 
 
 - (IBAction)exportSelection:(id)sender {
-	Folder *folder = [self _targetFolderOfSender:sender];
-	if(folder.isPanel) {
+	PanelFolder *folder = [self _targetFolderOfSender:sender];
+	if(folder.panels.count > 0) {
 		[self exportPanel:(Panel *)folder];
 	}
 }
@@ -249,13 +252,13 @@
 - (void)exportPanel:(Panel *)panel {
 	NSSavePanel* savePanel = NSSavePanel.savePanel;
 	savePanel.prompt = @"Export panel";
-	savePanel.message = @"Export panel to a tab-delimited text file";
+	savePanel.message = panel.isPanel? @"Export panel to a tab-delimited text file" : @"Export panel(s) to a tab-delimited text file";
 	savePanel.nameFieldStringValue = panel.name;
 	savePanel.allowedFileTypes = @[@"public.plain-text"];
 	[savePanel beginSheetModalForWindow:outlineView.window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
 			NSURL* theFile = savePanel.URL;
-			NSString *exportString = panel.stringRepresentation;
+			NSString *exportString = panel.exportString;
 			NSError *error = nil;
 			[exportString writeToURL:theFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
 			if(error) {
@@ -268,73 +271,149 @@
 }
 
 
-- (IBAction)importPanel:(id)sender {
+- (IBAction)importPanels:(id)sender {
 	PanelFolder *folder = [[self targetItemsOfSender:sender] firstObject];
 	if(folder.class != PanelFolder.class) {
-		folder = (PanelFolder *)self.rootFolder;
+		folder = (PanelFolder *)folder.parent;
 	}
+	
+	if(!folder) {
+		folder = self.rootFolder;
+	}
+	
 	NSOpenPanel* openPanel = NSOpenPanel.openPanel;
 	openPanel.prompt = @"Import";
 	openPanel.canChooseDirectories = NO;
 	openPanel.allowsMultipleSelection = NO;
-	openPanel.message = @"Import panel from a text file";
+	openPanel.message = @"Import panels from a text file";
 	openPanel.allowedFileTypes = @[@"public.plain-text"];
 	[openPanel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
 			NSURL* url = openPanel.URLs.firstObject;
-			[self importPanelFromURL:url ToFolder:folder];
+			[self importPanelsFromURL:url ToFolder:folder];
 		}
 	}];
 }
 
 
-- (void)importPanelFromURL:(NSURL *) url ToFolder:(PanelFolder *)folder {
+- (void)importPanelsFromURL:(NSURL *) url ToFolder:(PanelFolder *)folder {
 	NSError *error;
 	NSWindow *window = self.view.window;
 	
 	AppDelegate *delegate = (AppDelegate *)NSApp.delegate;
-	/// we import the panel in a temporary context on the main queue.
+	/// we import the panels in a temporary context on the main queue.
 	NSManagedObjectContext *temporaryContext = delegate.newChildContextOnMainQueue;
-
-	Panel *newPanel = [Panel panelFromTextFile:url.path insertInContext:temporaryContext error:&error];
-	
-	if(error) {
-		[MainWindowController.sharedController showAlertForError:error];
-		return;
+	if(folder.objectID.isTemporaryID) {
+		[folder.managedObjectContext obtainPermanentIDsForObjects:@[folder] error:&error];
 	}
-	
-	[temporaryContext obtainPermanentIDsForObjects:@[newPanel] error:nil];
-		
-	if(temporaryContext.hasChanges){
-		[temporaryContext save:&error];
-	}
-	
+	folder = [temporaryContext existingObjectWithID:folder.objectID error:&error];
 	if(error) {
-		NSAlert *alert = [NSAlert alertWithError:error];
-		[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
-		}];
-		return;
-	}
-	
-	newPanel = [self.managedObjectContext existingObjectWithID:newPanel.objectID error:&error];
-	
-	if(error) {
-		error = [NSError errorWithDescription:@"The panel could not be imported because an error occurred when saving it to the database."
+		error = [NSError errorWithDescription:@"The panel(s) could not be imported because an error occurred in the database."
 								   suggestion:@"You may quit the application and try again."];
 		NSAlert *alert = [NSAlert alertWithError:error];
 		[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
 		}];
 		return;
 	}
+	
+	[folder addPanelsFromTextFile:url.path error:&error];
+		
+	if(error) {
+		[MainWindowController.sharedController showAlertForError:error];
+		return;
+	}
+			
+	if(temporaryContext.hasChanges){
+		[temporaryContext save:&error];
+		if(error) {
+			error = [NSError errorWithDescription:@"The panel(s) could not be imported because an error occurred saving the database."
+									   suggestion:@"You may quit the application and try again."];
+			NSAlert *alert = [NSAlert alertWithError:error];
+			[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
+			}];
+			return;
+		}
+		
+		[self.undoManager setActionName:@"Import Panels"];
+		
+		[(AppDelegate *)NSApp.delegate saveAction:self];
+		
+		/// We make sure that the tab showing or view is displayed if a folder is added.
+		[MainWindowController.sharedController activateTabNumber:2];
+	}
+}
 
-	newPanel.parent = folder;
-	[newPanel autoName];
-	[self _addFolderToTable:newPanel];
-	[self selectFolder:newPanel];
-	[self.undoManager setActionName:@"Import Panel"];
 
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+- (void)_addFolderToTable:(Folder *)folder {
+	/// We make sure that the tab showing or view is displayed if a folder is added.
+	[MainWindowController.sharedController activateTabNumber:2];
+	[super _addFolderToTable:folder];
+}
 
+
+
+- (IBAction)importBinSet:(id)sender {
+	Panel *panel = [[self targetItemsOfSender:sender] firstObject];
+	if(panel.isPanel && panel.markers.count > 0) {
+		NSOpenPanel* openPanel = NSOpenPanel.openPanel;
+		openPanel.prompt = @"Import";
+		openPanel.canChooseDirectories = NO;
+		openPanel.allowsMultipleSelection = NO;
+		openPanel.message = @"Import bin set from a Genemapper file";
+		openPanel.allowedFileTypes = @[@"public.plain-text"];
+		[openPanel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
+			if (result == NSModalResponseOK) {
+				NSURL* url = openPanel.URLs.firstObject;
+				[self addBinSetFromURL:url toPanel:panel];
+			}
+		}];
+	}
+}
+
+
+- (void) addBinSetFromURL:(NSURL *)url toPanel:(Panel *)panel {
+	NSError *error;
+	NSWindow *window = self.view.window;
+	
+	AppDelegate *delegate = (AppDelegate *)NSApp.delegate;
+	/// we import the bin set in a temporary context on the main queue.
+	NSManagedObjectContext *temporaryContext = delegate.newChildContextOnMainQueue;
+	
+	if(panel.objectID.isTemporaryID) {
+		[panel.managedObjectContext obtainPermanentIDsForObjects:@[panel] error:&error];
+	}
+	
+	panel = [temporaryContext existingObjectWithID:panel.objectID error:&error];
+	if(error) {
+		error = [NSError errorWithDescription:@"The bin set could not be imported because an error in the database."
+								   suggestion:@"You may quit the application and try again."];
+		NSAlert *alert = [NSAlert alertWithError:error];
+		[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
+		}];
+		return;
+	}
+	
+	[panel takeBinSetFromGenemapperFile:url.path error:&error];
+	
+	if(error) {
+		[MainWindowController.sharedController showAlertForError:error];
+		return;
+	}
+	
+	if(temporaryContext.hasChanges){
+		[temporaryContext save:&error];
+		if(error) {
+			error = [NSError errorWithDescription:@"The bin set could not be imported because an error saving the database."
+									   suggestion:@"You may quit the application and try again."];
+			NSAlert *alert = [NSAlert alertWithError:error];
+			[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
+			}];
+			return;
+		}
+		[self.undoManager setActionName:@"Import Bin Set"];
+
+		[(AppDelegate *)NSApp.delegate saveAction:self];
+	}
 }
 
 

@@ -57,13 +57,16 @@
 /// To represent the channel of a marker by an image in the cell of the table
 static NSArray *channelColorImages;
 
-+(void)initialize {
-	
-	channelColorImages = @[[NSImage imageNamed:@"showBlueDye"],
-						  [NSImage imageNamed:@"showGreenDye"],
-						  [NSImage imageNamed:@"showBlackDye"],
-						  [NSImage imageNamed:@"showRedDye"],
-	];
+
++ (NSArray *)channelColorImages {
+	if(!channelColorImages) {
+		channelColorImages = @[[NSImage imageNamed:@"showBlueDye"],
+							  [NSImage imageNamed:@"showGreenDye"],
+							  [NSImage imageNamed:@"showBlackDye"],
+							  [NSImage imageNamed:@"showRedDye"],
+		];
+	}
+	return channelColorImages;
 }
 
 
@@ -158,7 +161,7 @@ static NSArray *channelColorImages;
 
 	if([ID isEqualToString:@"markerChannelColumn"]) {
 		if([view.imageView respondsToSelector:@selector(imageArray)]) {
-			((IndexImageView *)view.imageView).imageArray = channelColorImages;
+			((IndexImageView *)view.imageView).imageArray = self.class.channelColorImages;
 		}
 	}
 	

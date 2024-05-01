@@ -27,7 +27,6 @@
 #import "SampleTableController.h"
 #import "GenotypeTableController.h"
 #import "DetailedViewController.h"
-#import "CDUndoManager.h"
 
 @implementation AppDelegate {
 	
@@ -66,7 +65,7 @@ AutoDetectSizeStandard = @"AutoDetectSizeStandard",
 DubiousAlleleName = @"DubiousAlleleName",
 MissingAlleleName = @"MissingAlleleName",
 DefaultSizingOrder = @"DefaultSizingOrder",
-AnnotateSupplementaryPeaks = @"AnnotateSupplementaryPeaks",
+AnnotateAdditionalPeaks = @"AnnotateAdditionalPeaks",
 BottomTab = @"BottomTab",
 CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
@@ -100,7 +99,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   AutoDetectSizeStandard:@NO,
 							   DubiousAlleleName:@"?",
 							   MissingAlleleName:@"",
-							   AnnotateSupplementaryPeaks:@YES,
+							   AnnotateAdditionalPeaks:@YES,
 							   DefaultSizingOrder: @2,
 							   @"NSOutlineView Items sampleInspector":@[@"Sample information", @"Sizing"],
 							   @"log": @NO,						

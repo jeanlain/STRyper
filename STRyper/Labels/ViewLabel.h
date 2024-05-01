@@ -28,8 +28,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An abstract class for "labels" that show on views and represent items with which the user can interact.
 ///
-///	A `ViewLabel` is an object that draws itself on a ``LabelView`` and which is interactive.
-///	A label generally represents an object that has a position or range in base pairs: a peak, a DNA fragment, a marker, a bin.
+/// A `ViewLabel` is an object that can draw itself on a ``LabelView`` and which is interactive.
+/// A label generally represents an object that has a position or range in base pairs: a peak, a DNA fragment, a marker, a bin.
 @interface ViewLabel : NSObject <CALayerDelegate>
 {
 	/// The base layer that can be used to display the label.
@@ -65,14 +65,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The view hosting the label.
 ///
-/// While possible, it may not make sense to move a label to a new view, as a label generally represents an entity that is associated to a specific view.
+/// This property is settable so that subclasses can override the setter, but one should avoid setting this property.
 ///
 /// The view class is ``TraceView`` rather than ``LabelView`` because the former has specific properties that some labels use.
 /// Implementing these properties in `LabelView` doesn't seem very relevant, but it would make this property more consistent.
 @property (weak, nonatomic) TraceView *view;
 
 /// The object that the label represents.
-@property (weak, nonatomic, nullable, readonly) id representedObject;
+@property (nonatomic, nullable, readonly) id representedObject;
 
 /// The rectangle, in the view coordinate system, in which which the mouse can interact with the label.
 ///
@@ -207,7 +207,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default value is `nil`.
 @property (nonatomic, nullable) NSMenu *menu;
 
-/// The message sent by a ``LabelView`` to its ``LabelView/activeLabel`` when the user hist the delete key.
+/// The message sent by a ``LabelView`` to its ``LabelView/activeLabel`` when the user hits the delete key.
 ///
 /// The default implementation does nothing. Subclasses are expected to override this method.
 /// - Parameter sender: The object that sent this message.

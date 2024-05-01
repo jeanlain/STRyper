@@ -21,6 +21,7 @@
 
 #import "GenotypeTableController.h"
 #import "MainWindowController.h"
+#import "Chromatogram.h"
 #import "Genotype.h"
 #import "Mmarker.h"
 #import "Panel.h"
@@ -136,7 +137,7 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 			@"genotypeAllele1Column":	@{KeyPathToBind: @"allele1.name",ColumnTitle: @"Allele1", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
 			@"genotypeAllele2Column":	@{KeyPathToBind: @"allele2.name",ColumnTitle: @"Allele2", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
 			@"genotypeOffsetColumn":	@{KeyPathToBind: @"offsetString",ColumnTitle: @"Offset", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"additionalFragmentsColumn":	@{KeyPathToBind: @"additionalFragmentString",ColumnTitle: @"Supplementary Peaks", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO},
+			@"additionalFragmentsColumn":	@{KeyPathToBind: @"additionalFragmentString",ColumnTitle: @"Additional Peaks", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO},
 			@"genotypeNotesColumn":	@{KeyPathToBind: @"notes",ColumnTitle: @"Notes", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES}
 		};
 	}
@@ -286,7 +287,7 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 #pragma mark - user actions on genotypes
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	if(menuItem.action == @selector(resetOffsets:)) {
+	if(menuItem.action == @selector(removeOffsets:)) {
 		/// we hide and disable this item if no target genotype has an offset
 		NSArray *genotypes = [self targetItemsOfSender:menuItem];
 		for(Genotype *genotype in genotypes) {
@@ -294,6 +295,23 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 			if(offset.intercept != 0.0 || offset.slope != 1.0) {
 				menuItem.hidden = NO;
 				return YES;
+			}
+		}
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(pasteOffset:)) {
+		NSDictionary *dic = Chromatogram.markerOffsetDictionaryFromGeneralPasteBoard;
+		if(dic) {
+			NSArray *URIs = dic.allKeys;
+			NSArray *genotypes = [self targetItemsOfSender:menuItem];
+			for(Genotype *genotype in genotypes) {
+				NSString *URI = genotype.marker.objectID.URIRepresentation.absoluteString;
+				if([URIs containsObject:URI]) {
+					menuItem.hidden = NO;
+					return YES;
+				}
 			}
 		}
 		menuItem.hidden = YES;
@@ -332,19 +350,19 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 }
 
 
-- (IBAction)autoGenotype:(id)sender {
+- (IBAction)binAlleles:(id)sender {
 	/// if the message is sent by the tableView's menu, we call all target genotypes
 	/// else, we will ignore manually edited genotypes
 	BOOL doAll = [sender isKindOfClass:NSMenuItem.class] && [sender topMenu] == self.tableView.menu;
 	
 	NSArray *genotypes = doAll? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
 	
-	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateSupplementaryPeaks];
+	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateAdditionalPeaks];
 	
 	for (Genotype *genotype in genotypes) {
 		GenotypeStatus status = genotype.status;
 		if(status == genotypeStatusNotCalled || status == genotypeStatusNoPeak) {
-			[genotype callAllelesAndSupplementaryPeak:annotateSuppPeaks];
+			[genotype callAllelesAndAdditionalPeak:annotateSuppPeaks];
 		} else if((doAll || status != genotypeStatusManual)) {
 			/// if genotypeStatusAutomatic, the action should have no effect either (automatic binning is already done) 
 			/// but we do it again as a safety measure.
@@ -352,7 +370,7 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 		}
 	}
 	
-	[self.undoManager setActionName:@"Automatic Genotyping"];
+	[self.undoManager setActionName:@"Bin Alleles"];
 	[(AppDelegate *)NSApp.delegate saveAction:self];
 }
 
@@ -366,11 +384,11 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	/// else, we will call alleles only for genotypes that have not been called or edited
 	
 	NSArray *genotypes = doAll? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
-	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateSupplementaryPeaks];
+	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateAdditionalPeaks];
 
 	for (Genotype *genotype in genotypes) {
 		if(doAll || (genotype.status != genotypeStatusAutomatic && genotype.status != genotypeStatusManual)) {
-			[genotype callAllelesAndSupplementaryPeak:annotateSuppPeaks];
+			[genotype callAllelesAndAdditionalPeak:annotateSuppPeaks];
 		}
 	}
 	
@@ -425,7 +443,7 @@ static NSInteger genotypeIndex = 0;
 		}
 	}
 	
-	[self.undoManager setActionName:@"Remove Supplementary Peaks"];
+	[self.undoManager setActionName:@"Remove Additional Peaks"];
 	[(AppDelegate *)NSApp.delegate saveAction:self];
 }
 
@@ -444,7 +462,7 @@ static NSInteger genotypeIndex = 0;
 }
 
 
-- (void)resetOffsets:(id)sender {
+- (void)removeOffsets:(id)sender {
 	NSArray *genotypes = [self targetItemsOfSender:sender];
 	for(Genotype *genotype in genotypes) {
 		genotype.offsetData = nil;
@@ -493,25 +511,23 @@ static NSInteger genotypeIndex = 0;
 /// creates a string from an array of genotypes based on the table columns
 - (NSString *) stringFromGenotypes:(NSArray *)genotypes withSampleInfo: (BOOL)addSampleInfo {
 	
-	NSMutableArray<NSString *> *fields = NSMutableArray.new; /// the fields in each rows
 	NSMutableArray<NSString *> *rows = NSMutableArray.new; /// The strings for all rows
 
-	/// The first row is the column headers.
-	for(NSTableColumn *column in self.visibleColumns) {
-		[fields addObject: column.headerCell.stringValue];
-	}
-	
-	/// We record the genotype table column titles to avoid adding redundant columns if sample info is included.
-	/// The "Sample" column is equivalent to the "Name"' column of the sample table.
-	NSArray *columnTitles = [[NSArray arrayWithArray:fields] arrayByAddingObject:@"Name"];
+	/// The fields at each row will be added to an array, the first row being the column titles.
+	NSMutableArray *fields = [NSMutableArray arrayWithArray:[self.visibleColumns valueForKeyPath:@"@unionOfObjects.title"]];
 	
 	SampleTableController *sampleTableController = SampleTableController.sharedController;
 	NSMutableArray *sampleTableColumns = NSMutableArray.new;
 	
 	if(addSampleInfo) {
+		/// If sample info is added, we avoid redundant columns, like the panel and sample name, which may already be visible in the genotype table.
+		/// The "Sample" column is equivalent to the "Name"' column of the sample table.
+		NSArray *includedColumnTitles = [fields arrayByAddingObject:@"Name"];
+		
 		for(NSTableColumn *column in sampleTableController.visibleColumns) {
-			if(![columnTitles containsObject:column.title]) {
-				[fields addObject: column.headerCell.stringValue];
+			NSString *title = column.title;
+			if(![includedColumnTitles containsObject:title]) {
+				[fields addObject: title];
 				[sampleTableColumns addObject:column];
 			}
 		}
@@ -534,6 +550,39 @@ static NSInteger genotypeIndex = 0;
 }
 
 
+- (void)copyItems:(NSArray *)items ToPasteBoard:(NSPasteboard *)pasteboard {
+	[super copyItems:items ToPasteBoard:pasteboard];
+		
+	if(items.count == 1) {
+		/// We copy a genotype (its offset) to the pasteboard if only one genotype is copied
+		Genotype *genotype = items.firstObject;
+		[pasteboard writeObjects: @[genotype]];
+	}
+}
+
+
+- (IBAction)pasteOffset:(id)sender {
+	NSArray *targetGenotypes = [self targetItemsOfSender:sender];
+	NSDictionary *dic = Chromatogram.markerOffsetDictionaryFromGeneralPasteBoard;
+	if(!dic || targetGenotypes.count < 1) {
+		return;
+	}
+	BOOL pasted = NO;
+	for(Genotype *genotype in targetGenotypes) {
+		NSString *URI = genotype.marker.objectID.URIRepresentation.absoluteString;
+		NSData *offsetData = dic[URI];
+		if([offsetData isKindOfClass:NSData.class] && offsetData.length == sizeof(MarkerOffset)) {
+			genotype.offsetData = offsetData;
+			pasted = YES;
+		}
+	}
+	
+	if(pasted) {
+		[self.undoManager setActionName:@"Paste Marker Offset"];
+	}
+}
+
+
 #pragma mark - genotype filtering
 
 UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
@@ -553,7 +602,7 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 	
 	NSArray *keyPaths = @[@"marker.name", @"marker.panel.name", @"notes"];
 	
-	NSArray *rowTemplates = [NSPredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Genotype.entity];
+	NSArray<NSPredicateEditorRowTemplate *> *rowTemplates = [NSPredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Genotype.entity];
 	
 	/// To filter according to genotype status, we prepare right expressions for the predicate row template.
 	NSMutableArray *expressions = [NSMutableArray arrayWithCapacity:6];
@@ -567,7 +616,6 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 	}
 	
 	/// We add row templates to filter according to allele properties, which are to-many relationships
-	NSPredicateEditorRowTemplate *markerTemplate = rowTemplates.firstObject;
 	
 	NSPredicateEditorRowTemplate *statusTemplate = [[NSPredicateEditorRowTemplate alloc]
 													initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"status"]]
@@ -580,7 +628,7 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 														initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"assignedAlleles.name"]]
 														rightExpressionAttributeType:NSStringAttributeType
 														modifier:NSAnyPredicateModifier
-														operators:markerTemplate.operators
+														operators:rowTemplates.firstObject.operators
 														options:0];
 	
 	NSPredicateEditorRowTemplate *alleleSizeTemplate = [[AggregatePredicateEditorRowTemplate alloc]

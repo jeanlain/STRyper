@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A trace contains fluorescence data obtained from a given ``channel``, as well as information related to peaks found in the data.
 ///
-/// This class implements a method that find peaks that corresponds to ``SizeStandard/sizes`` of a size standard.
+/// This class implements a method that finds peaks that corresponds to ``SizeStandard/sizes`` of a size standard.
 @interface Trace : CodingObject
 
 /// An integer from 0 to 4 that represents the channel (wavelength) of the fluorescence data.
@@ -129,7 +129,7 @@ Peak MakePeak(int32_t startScan, int32_t scansToTip, int32_t scansFromTip, int32
 /// - Parameter peakPTR: Pointer to the peak.
 int32_t peakEndScan(const Peak *peakPTR);
 
-/// The array peaks (``Peak`` structs) that were detected in the fluorescence data, in ascending scan order.
+/// The array of peaks (``Peak`` structs) that were detected in the fluorescence data, in ascending scan order.
 @property (nonatomic, readonly) NSData *peaks;
 
 /// Makes the trace set its ``peaks`` attribute by analyzing its fluorescence data.
@@ -137,7 +137,7 @@ int32_t peakEndScan(const Peak *peakPTR);
 
 /// Makes the trace determine whether each if its peak results from crosstalk.
 ///
-///	The method sets the `crossTalk` member of each peak in ``peaks``.
+/// The method sets the `crossTalk` member of each peak in ``peaks``.
 ///
 /// **IMPORTANT:** the method relies on ``peaks`` found in the other ``Chromatogram/traces`` of the ``chromatogram``.
 - (void)findCrossTalk;
@@ -170,12 +170,12 @@ int32_t peakEndScan(const Peak *peakPTR);
 
 /// Whether the trace represents the molecular ladder of its ``chromatogram``.
 ///
-/// The molecular ladder is the trace whose ``channel`` is the fifth  channel, or the fourth channel if the sample only has four.
+/// The molecular ladder is the trace whose ``channel`` is the fifth  channel, or the fourth channel if the sample has only four.
 @property (nonatomic) BOOL isLadder;
 
 /// The DNA fragments that were identified in the fluorescence data of the trace.
 ///
-/// If the trace returns `YES` to ``isLadder``  these fragment must be ``LadderFragment`` objects. Otherwise, they must be alleles (``Allele`` objects).
+/// If the trace returns `YES` to ``isLadder``  these fragment must be ``LadderFragment`` objects. Otherwise, they must be ``Allele`` objects.
 /// Methods implemented by this class do not check this condition.
 ///
 /// The reverse relationship is ``LadderFragment/trace`` from ``LadderFragment``.

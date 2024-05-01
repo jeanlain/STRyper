@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -16,7 +16,7 @@
         <customView clipsToBounds="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Kvm-1M-tEL">
             <rect key="frame" x="0.0" y="0.0" width="474" height="159"/>
             <subviews>
-                <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="faV-ce-Irz">
+                <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="faV-ce-Irz">
                     <rect key="frame" x="106" y="133" width="263" height="16"/>
                     <textFieldCell key="cell" lineBreakMode="clipping" title="Show only items meeting these conditions:" id="zku-Tg-YwD">
                         <font key="font" usesAppearanceFont="YES"/>
@@ -109,7 +109,7 @@
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                 </button>
-                <textField hidden="YES" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" tag="7" translatesAutoresizingMaskIntoConstraints="NO" id="Pcx-Tp-Ao2">
+                <textField hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="750" tag="7" translatesAutoresizingMaskIntoConstraints="NO" id="Pcx-Tp-Ao2">
                     <rect key="frame" x="176" y="37" width="123" height="16"/>
                     <textFieldCell key="cell" lineBreakMode="clipping" title="Please, fill all fields." id="aGy-1R-GXt">
                         <font key="font" metaFont="system"/>

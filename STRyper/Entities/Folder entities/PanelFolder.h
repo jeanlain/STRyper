@@ -25,11 +25,30 @@
 NS_ASSUME_NONNULL_BEGIN
 
 
-/// A folder containing marker panels or subfolders of its own class.
+/// A folder containing marker panels (class ``Panel``) or subfolders of its own class.
 ///
+/// A `PanelFolder` allows users to organise marker panels.
 /// Note: ``CodingObject/encodeWithCoder:``  and ``CodingObject/initWithCoder:``  are currently implement in the context of a ``SampleFolder`` unarchiving/archiving,
 /// in that the ``Folder/parent`` of the receiver is encoded/decoded, not its ``Folder/subfolders``.
 @interface PanelFolder : Folder
+
+/// Returns the receiver's ``Folder/subfolders``  that return `YES` to ``Folder/isPanel``.
+-(NSArray *) panels;
+
+/// A string representation of the receiver's ``panels``, which can be used to export it to a text file.
+///
+/// If the receiver contains at least one panel, the method calls ``Panel/exportString``. Otherwise it returns `nil`.
+-(nullable NSString *)exportString;
+
+
+/// Adds panels decoded from a text file to the receiver's subfolders.
+///
+/// This method sets the `error` argument if there was a error preventing importing the panels, or a validation error.
+/// - Parameters:
+///   - path: The path of the file to import. Its format is described in the ``STRyper`` user guide.
+///   - error: On output, any error that occurred.
+- (void) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
+
 
 /// When its ``Folder/subfolders`` change, a panel folder posts a notification with this name to the default notification center.
 extern NSNotificationName const _Nonnull PanelFolderSubfoldersDidChangeNotification;

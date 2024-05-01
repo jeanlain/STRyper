@@ -27,11 +27,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-///	A label that represents a ``Region``, either a molecular marker or a bin and allows editing its attributes.
+/// A label that represents a ``Region``, either a molecular marker or a bin and allows editing its attributes.
 ///
-///	A region label represents the range of a molecular marker (``Mmarker`` object) or a bin (``Bin``) on a ``LabelView``.
-///	If shows as a rectangle taking the whole height of its host ``ViewLabel/view``.
-///	It is horizontally positioned in its ``ViewLabel/view`` according to its ``start`` and ``end`` properties, but also according to its ``offset``.
+/// A region label represents the range of a molecular marker (``Mmarker`` object) or a bin (``Bin``) on a ``LabelView``.
+/// If shows as a rectangle taking the whole height of its host ``ViewLabel/view``.
+/// It is horizontally positioned in its ``ViewLabel/view`` according to its ``start`` and ``end`` properties, but also according to its ``offset``.
 ///
 /// The ``RegionLabel`` class is the superclass of three concrete subclasses composing a "class cluster": ``MarkerLabel``, ``BinLabel`` and ``TraceViewMarkerLabel``.
 /// These classes are not private, this design pattern only signifies that the ``RegionLabel`` class may not be adequate to design any subclass.
@@ -79,13 +79,11 @@ NS_ASSUME_NONNULL_BEGIN
 	
 }
 
-/// Returns a label representing a region.
-///
-/// This methods sets the appropriate attributes for the returned label, given the `region` that it represents.
+/// Returns a label representing a region, added to a view.
 ///
 /// The subclass of the label is determined by the class of the `region`, and of the `view`.
 ///
-/// IMPORTANT: if the view is a ``MarkerView``, the region must not be a ``Bin``.
+/// IMPORTANT: if the view is a ``MarkerView``, the region must be a ``Mmarker``.
 ///
 /// This method does not check if the `region` belongs to the ``LabelView/panel`` that the `view` shows.
 /// - Parameters:
@@ -104,8 +102,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// ``ViewLabel/representedObject`` returns the same object.
 ///
-/// IMPORTANT: one must not set a region of a different class from the one used in ``regionLabelWithRegion:view:``.
-@property (weak, nonatomic) __kindof Region *region;
+/// IMPORTANT: the region must be of the class used in ``regionLabelWithRegion:view:``.
+@property (nullable, nonatomic) __kindof Region *region;
 
 
 /// An integer that denotes the "state" of a `RegionLabel`object.
@@ -121,10 +119,8 @@ typedef enum EditState : NSUInteger {
 	
 	/// Denotes that the label is being used to allow the edition of individual bins.
 	editStateBins,
-
-	/// the tags below pertain to actions that change the offset of genotypes and allow to record which samples are affected
 	
-	/// Denotes that an action on the label will affect samples shown by its view.
+	/// Denotes that the label is being used to allow editing the offset of genotypes at the marker.
 	editStateOffset
 } EditState;
 
@@ -176,7 +172,7 @@ typedef enum EditState : NSUInteger {
 /// The method resizes the label if an edge has been clicked.
 /// If the clicked occurred between edges and the label represents a bin, the method move the whole label.
 ///
-///	The resizing/moving is only horizontal and avoid collision with other region labels (or moving outside the marker's range for a bin).
+/// The resizing/moving is only horizontal and avoid collision with other region labels (or moving outside the marker's range for a bin).
 /// At the end of the drag session, the ``region``'s ``Region/start`` and ``Region/end`` attributes
 /// are updated to reflect those of the label.
 - (void)drag;

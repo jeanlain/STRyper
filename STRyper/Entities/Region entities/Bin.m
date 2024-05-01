@@ -96,7 +96,7 @@
 	NSString *name = *value;
 	if(name.length == 0) {
 		if (error != NULL) {
-			*error = [NSError managedObjectValidationErrorWithDescription:@"The bin has no name."
+			*error = [NSError managedObjectValidationErrorWithDescription:@"The bin must have a name."
 															   suggestion:@""
 																   object:self
 																   reason:@"The bin has no name."];
@@ -210,7 +210,7 @@
 }
 
 - (NSString *)stringRepresentation {
-	return [NSString stringWithFormat:@"bin\t%@\t%g\t%g\n", self.name, self.start, self.end];
+	return [NSString stringWithFormat:@"bin\t%@\t%.2f\t%.2f", self.name, self.start, self.end];
 }
 
 

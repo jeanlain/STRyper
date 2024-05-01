@@ -33,8 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// These search criteria are defined in a predicate associated with the smart folder.
 ///
 /// A smart folder has no ``Folder/subfolders``, but it must have a ``Folder/parent`` of the ``SampleFolder`` class.
-@interface SmartFolder : Folder {
-}
+@interface SmartFolder : Folder
 
 /// Inits a smart folder given a parent folder an a search predicate.
 ///
@@ -64,10 +63,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Returns samples found using the search predicate.
 ///
-///	This getter triggers a core data fetch if the managed object context of the receiver differs from that of the ``SampleSearchHelper``.
+/// This getter triggers a core data fetch if the managed object context of the receiver differs from that of the ``SampleSearchHelper``.
 ///
-///	If the contexts are the same, a new fetch may not be executed if it has been executed before.
-///	Communicating with the ``SampleSearchHelper`` instance reduces the separation between the model and the UI.
+/// If the contexts are the same, a new fetch may not be executed if it has been executed before.
+/// Communicating with the ``SampleSearchHelper`` instance reduces the separation between the model and the UI.
 @property (nullable, nonatomic, readonly) NSSet *samples;
 																
 /// Refreshes the content of the smart folder.

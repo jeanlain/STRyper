@@ -209,22 +209,10 @@ static NSString *const Title = @"title";
 # pragma mark - adding, removing or reordering criteria
 
 
-/// Returns the index of the row to which the button belongs. We need it to determine which row to insert or remove.
-/// We determine the row indirectly as the index of its represented object.
-/// This assumes that the tableview and the model are sync'ed. If they are not, the returned value may be incorrect (we would be in trouble regardless).
--(NSUInteger) rowForButton:(NSButton *)button {
-	NSTableCellView *cellView = (NSTableCellView *)button.superview;
-	if(cellView.objectValue) {
-		return [sortDictionaries indexOfObjectIdenticalTo:cellView.objectValue];
-	}
-	return NSNotFound;
-}
-
-
 /// Inserts a new row (sort criterion) to the table. Only sent by the "+" button.
 - (IBAction)insertRow:(NSButton *)sender {
-	NSInteger clickedRow = [self rowForButton:sender];
-	if(clickedRow == NSNotFound) {
+	NSInteger clickedRow = [sortCriteriaTable rowForView:sender];
+	if(clickedRow < 0 || clickedRow >= sortDictionaries.count) {
 		return;
 	}
 	/// we choose a title among those not already used for sorting.
@@ -262,8 +250,8 @@ static NSString *const Title = @"title";
 		return;
 	}
 	
-	NSInteger clickedRow = [self rowForButton:sender];
-	if(clickedRow == NSNotFound) {
+	NSInteger clickedRow = [sortCriteriaTable rowForView:sender];
+	if(clickedRow < 0 || clickedRow >= sortDictionaries.count) {
 		return;
 	}
 		
@@ -279,7 +267,6 @@ static NSString *const Title = @"title";
 	/// we makes sure that the "add" buttons have their correct state
 	[sortCriteriaTable reloadDataForRowIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, sortCriteriaTable.numberOfRows)] columnIndexes:[NSIndexSet indexSetWithIndex:3]];
 
-	
 	if([self.delegate respondsToSelector:@selector(editor:didRemoveRowAtIndex:)]) {
 		[self.delegate editor:self didRemoveRowAtIndex:clickedRow];
 	}

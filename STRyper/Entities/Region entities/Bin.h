@@ -28,9 +28,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An entity that defines the size range that an allele may have.
 ///
-///	A bin is principally used during allele calling, to name alleles whose size fall within its range.
+/// A bin is principally used during allele calling, to name alleles whose size fall within its range.
 ///
-///	A bin is associated with a ``marker``. The set of bins of the marker represent the possible alleles that exist for the corresponding locus.
+/// A bin is associated with a ``marker``. The set of bins of the marker represent the possible alleles that exist for the corresponding locus.
 @interface Bin : Region
 
 /// The marker to which the bin belongs.

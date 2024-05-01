@@ -39,7 +39,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The subfolders of the receiver.
 ///
-///	An ordered set is used to allow ordering the subfolders in an arbitrary older.
+/// An ordered set is used to allow ordering the subfolders in an arbitrary older.
 ///
 /// The reverse relationship is ``parent``.
 @property (nonatomic, nullable) NSOrderedSet <Folder *> *subfolders;

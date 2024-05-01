@@ -162,8 +162,11 @@
 	if(self.isSmartFolder) {
 		prefix = @"Search Results";
 	}
-	if(self.name) {
-		prefix = self.name;
+	
+	NSString *name = [self.name stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet];
+	
+	if(name.length > 0) {
+		prefix = name;
 	}
 	NSString *candidateName = prefix;
 	if (siblings.count) {
@@ -202,6 +205,19 @@
 
 		}
 		return NO;
+	} else {
+		name = [name stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet];
+		if(name.length == 0) {
+			if (error != NULL) {
+				NSString *description = [NSString stringWithFormat:@"The %@ name must contain non blank characters.", self.folderType.lowercaseString];
+				*error = [NSError managedObjectValidationErrorWithDescription:description
+																   suggestion:@""
+																	   object:self
+																	   reason:description];
+				
+			}
+			return NO;
+		}
 	}
 	
 	NSArray *folders = self.siblings;

@@ -98,9 +98,10 @@
 	[super updateAppearance];
 	TraceView *view = self.view;
 	BOOL hovered = self.hovered;
-	layer.backgroundColor = (hovered || self.highlighted)? view.hoveredBinLabelColor : view.binLabelColor;
-	bandLayer.backgroundColor = hovered? view.hoveredBinNameBackgroundColor : view.binNameBackgroundColor;
-	bandLayer.borderWidth = hovered? 1.0 : 0.0;
+	BOOL highlighted = self.highlighted;
+	layer.backgroundColor = (hovered || highlighted)? view.hoveredBinLabelColor : view.binLabelColor;
+	bandLayer.backgroundColor = (hovered || highlighted)? view.hoveredBinNameBackgroundColor : view.binNameBackgroundColor;
+	bandLayer.borderWidth = (hovered || highlighted)? 1.0 : 0.0;
 	if(hovered == bandLayer.isHidden) {
 		/// if a bin label is hovered, its name must show,
 		self.animated = NO;
@@ -217,7 +218,7 @@
 		}
 		[MOC deleteObject:self.region];		/// this triggers the recreation of labels, which will deallocate us
 		[self.view.undoManager setActionName: self.deleteActionTitle];
-		self.view = nil; 									/// this removes us from the view because when our region is removed, we may still exist in the view and interfere.
+		[self removeFromView]; 				/// May not be required, this is a safety masure
 	}
 }
 

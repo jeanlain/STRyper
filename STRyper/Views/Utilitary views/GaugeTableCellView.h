@@ -25,7 +25,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An `NSTableCellView` that represents a number using a horizontal gauge.
 ///
-///	A `GaugeTableCellView` represents a number whose value determines the width of a rectangular gauge (with rounded edges) showing at its bottom edge.
+/// A `GaugeTableCellView` represents a number whose value determines the width of a rectangular gauge (with rounded edges) showing at its bottom edge.
 ///
 /// The gauge starts at the origin of the view frame and its width relative to the width of a view represents the ratio between the view's ``value``  and ``maxValue`` properties.
 /// The color of the gauge also represents this ratio, using a blend of two colors.

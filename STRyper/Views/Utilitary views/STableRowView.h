@@ -28,9 +28,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// This class addresses a very specific situation:
 /// if a tableview scrolls horizontally and if its rows contain scrollviews, the user may have to scroll two views (the one within the row and the tableview) to see the full content of a row.
 ///
-///	To avoid this, an `STableRowView` makes its subview as wide as its visible rectangle (determined by the width of the tableview's clipview).
+/// To avoid this, an `STableRowView` makes its subview as wide as its visible rectangle (determined by the width of the tableview's clipview).
 ///
-///	IMPORTANT: this view does not check which of its subviews is a scrollview. It will resize its first subview regardless of its class.
+/// IMPORTANT: this view does not check which of its subviews is a scrollview. It will resize its first subview regardless of its class.
 ///
 /// ``STRyper`` uses this class for table rows containing ``TraceScrollView`` views.
 @interface STableRowView : NSTableRowView

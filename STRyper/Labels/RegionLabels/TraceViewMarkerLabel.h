@@ -50,7 +50,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The method moves or resizes the label to move/resize its set of ``RegionLabel/binLabels`` if the label's ``RegionLabel/editState`` is `editStateBin`, or to edit the ``Genotype/offset`` of target genotypes if in another state.
 ///
-///	The method prevents excessive resizing and contrains bins within their ``Bin/marker``'s range.
+/// The method prevents excessive resizing and contrains bins within their ``Bin/marker``'s range.
 /// See ``STRyper``'s user guide for a visual representation.
 - (void)drag;
 

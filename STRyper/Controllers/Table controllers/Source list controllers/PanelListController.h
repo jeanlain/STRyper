@@ -29,11 +29,11 @@ NS_ASSUME_NONNULL_BEGIN
 @interface PanelListController : SourceListController 
 
 
-/// Shows an open panel allowing the user to import a ``Panel`` object from a text file.
+/// Shows an open panel allowing the user to import ``Panel`` objects from a text file and add them to a target folder
 ///
-/// The panel is imported if the user validates, and any error that may have occurred is shown.
-/// - Parameter sender: The object that sent this message. It is ignored by the method.
-- (IBAction)importPanel:(id)sender;
+/// The panels are imported if the user validates, and any error that may have occurred is shown.
+/// - Parameter sender: The object that sent this message. It is used to infer the destination folder of the importer panels.
+- (IBAction)importPanels:(id)sender;
 
 @end
 

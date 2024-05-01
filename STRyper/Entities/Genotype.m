@@ -28,7 +28,6 @@
 #import "Panel.h"
 @import Accelerate;
 
-NSNotificationName _Nonnull const GenotypeDidChangeOffsetCoefsNotification = @"GenotypeDidChangeOffsetCoefsNotification";
 static void * const offsetChangedContext = (void*)&offsetChangedContext;
 
 /// Predicates used to fetch alleles that are assigned or additional.
@@ -128,8 +127,6 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 												   name:NSManagedObjectContextObjectsDidChangeNotification
 												 object:MOC];
 		
-		[self addObserver:self forKeyPath:@"offsetData" options:NSKeyValueObservingOptionNew context:offsetChangedContext];
-
 	}
 
 }
@@ -137,7 +134,6 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 
 - (void)awakeFromInsert {
 	[super awakeFromInsert];
-	[self addObserver:self forKeyPath:@"offsetData" options:NSKeyValueObservingOptionNew context:offsetChangedContext];
 	
 	NSManagedObjectContext *MOC = self.managedObjectContext;
 	if(MOC) {
@@ -149,11 +145,6 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 }
 
 
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
-	if(context == offsetChangedContext) {
-		[NSNotificationCenter.defaultCenter postNotificationName:GenotypeDidChangeOffsetCoefsNotification object:self];
-	} else [self observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-}
 
 #pragma mark - allele calling and genotype status
 
@@ -214,7 +205,7 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 }
 
 
-- (void)callAllelesAndSupplementaryPeak:(BOOL)annotateSuppPeaks {
+- (void)callAllelesAndAdditionalPeak:(BOOL)annotateSuppPeaks {
 	Chromatogram *sample = self.sample;
 	if(sample.sizingQuality.floatValue <= 0) {
 		/// we don't call alleles for a samples that is not sized
@@ -468,6 +459,7 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 	/// variables used to manage the fact that peaks can be inspected by increasing or decreasing order.
 	int increment = decreasing? -1 : 1;
 	int maxInspected = decreasing? peakIndex : nPeaks - peakIndex -1;	/// maximum number of peaks to inspect without going out of bounds
+	
 	int inspected = 0;			/// number of peaks currently inspected
 	int leftStutterIndex = 0;	/// The number of stutter peaks inspected at the left.
 	
@@ -553,12 +545,13 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 				//decreasing && ratio < 0.5 && refPeak->size - peakSize < motiveLength - 0.5
 				/// Sometimes, a short peak does not follow a clear pattern.
 				/// It's unclear what causes this, but we don't consider it an allele if it is shorter than the last stutter peak.
-					inspectedPeak->parentPeak = peakIndex;
+				inspectedPeak->parentPeak = peakIndex;
 				refPeak->nChildPeaks++;
 			}
 		}
 	}
 }
+
 
 - (void)binAlleles {
 	BOOL foundAllele = NO;
@@ -813,11 +806,11 @@ const MarkerOffset MarkerOffsetNone = {0.0, 1.0};
 
 - (MarkerOffset)offset {
 	NSData *offsetData = self.offsetData;
+	MarkerOffset offset = MarkerOffsetNone;
 	if(offsetData.length == sizeof(MarkerOffset)) {
-		const MarkerOffset *offset = offsetData.bytes;
-		return *offset;
+		[offsetData getBytes:&offset length:sizeof(MarkerOffset)];
 	}
-	return MarkerOffsetNone;
+	return offset;
 }
 
 
@@ -863,6 +856,27 @@ const MarkerOffset MarkerOffsetNone = {0.0, 1.0};
 }
 
 # pragma mark - copying and archiving
+
+- (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
+	return @[MarkerOffsetPasteboardType];
+}
+
+
+- (NSPasteboardWritingOptions)writingOptionsForType:(NSPasteboardType)type pasteboard:(NSPasteboard *)pasteboard {
+	return 0;
+}
+
+
+- (id)pasteboardPropertyListForType:(NSPasteboardType)type {
+	
+	if([type isEqualToString:MarkerOffsetPasteboardType]) {
+		return [self.sample dictionaryForOffsetsAtMarkers:@[self.marker]];
+	}
+	
+	return nil;
+}
+
+
 
 +(BOOL)supportsSecureCoding {
 	return YES;

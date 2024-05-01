@@ -20,9 +20,7 @@
 
 
 #import "LabelView.h"
-#import "RulerView.h"
-#import "FragmentLabel.h"
-#import "AppDelegate.h"
+#import "Panel.h"
 #import "Mmarker.h"
 
 @implementation LabelView
@@ -31,7 +29,8 @@
 
 - (instancetype)initWithCoder:(NSCoder *)coder {
 	self = [super initWithCoder:coder];
-	if (self && !trackingArea) {
+	if (self) {
+		labelsToReposition = NSMutableSet.new;
 		self.wantsLayer = YES;
 		trackingArea = [[NSTrackingArea alloc] initWithRect:self.visibleRect
 													options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
@@ -46,6 +45,7 @@
 - (instancetype)initWithFrame:(NSRect)frameRect {
 	self = [super initWithFrame:frameRect];
 	if (self) {
+		labelsToReposition = NSMutableSet.new;
 		self.wantsLayer = YES;
 		trackingArea = [[NSTrackingArea alloc] initWithRect:self.visibleRect
 													options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
@@ -193,6 +193,11 @@
 	[super layout];  /// Apple say it is required.
 	if(self.needsLayoutLabels) {
 		[self repositionLabels:self.repositionableLabels allowAnimation:NO];
+	} else {
+		if(labelsToReposition.count > 0) {
+			[self repositionLabels:labelsToReposition.allObjects allowAnimation:YES];
+			[labelsToReposition removeAllObjects];
+		}
 	}
 }
 
@@ -330,6 +335,14 @@
 - (void)setNeedsLayoutLabels:(BOOL)needsLayoutLabels {
 	_needsLayoutLabels = needsLayoutLabels;
 	if(needsLayoutLabels) {
+		self.needsLayout = YES;
+	}
+}
+
+
+- (void)labelNeedsRepositioning:(ViewLabel *)viewLabel {
+	if(!_needsLayoutLabels) {
+		[labelsToReposition addObject:viewLabel];
 		self.needsLayout = YES;
 	}
 }

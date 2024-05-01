@@ -23,8 +23,6 @@
 #import "MarkerView.h"
 #import "Trace.h"
 #import "Mmarker.h"
-#import "DetailedViewController.h"
-#import "AppDelegate.h"
 #import "RulerView.h"
 @class Region;
 

@@ -21,18 +21,17 @@
 
 
 
-#import "Trace.h"
 #import "TraceView.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
 /// A view that shows the vertical (fluorescence) scale of a ``TraceView`` and allows the user to modify this scale by clicking & dragging the mouse.
 ///
-///	A `VScaleView` shows tick-marks and labels. Theses constitute the vertical axis of the plot containing fluorescent curves drawn by the trace view.
-///	The labels represent fluorescent levels of traces.
+/// A `VScaleView` shows tick-marks and labels. Theses constitute the vertical axis of the plot containing fluorescent curves drawn by the trace view.
+/// The labels represent fluorescent levels of traces.
 ///
-///	IMPORTANT: the positioning of the labels assumes that the bottom edge of the `VScaleView` is at the bottom edge of its superview.
-///	To be properly positioned, the `VSCaleView` must be a subview of a ``TraceScrollView``. In fact, this scroll view creates a `VScaleView` when a ``TraceView`` is set as its `documentView`.
+/// IMPORTANT: the positioning of the labels assumes that the bottom edge of the `VScaleView` is at the bottom edge of its superview.
+/// To be properly positioned, the `VSCaleView` must be a subview of a ``TraceScrollView``. In fact, this scroll view creates a `VScaleView` when a ``TraceView`` is set as its `documentView`.
 @interface VScaleView : NSView
 
 /// Note: we don't use a subclass of `NSRulerView` as this view is not a ruler.

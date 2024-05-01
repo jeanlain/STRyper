@@ -111,7 +111,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// See ``STRyper`` documentation for an illustration.
 - (void)drag;
 
-/// A menu allowing to remove an allele or ladder fragment at the peak location, or to add a supplementary peak (additional ``Allele``) 
+/// A menu allowing to remove an allele or ladder fragment at the peak location, or to add a additional peak (additional ``Allele``) 
 /// if the peak is in a marker range and has no allele at is location.
 - (nullable NSMenu *)menu;
 

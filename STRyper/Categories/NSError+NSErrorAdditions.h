@@ -40,6 +40,11 @@ extern NSString *const STRyperErrorDomain;
 /// Convenience method to return a error that describes a managed object validation error (as specified in the error code).
 + (instancetype)managedObjectValidationErrorWithDescription:(NSString *)description suggestion:(NSString *)suggestion object:(id)object reason:(NSString *)reason;
 
+/// Convenience method to return an error contains the errors that occurred when parsing a file whose format is specified in the user guide.
+///
+/// Errors are stored in the int the `userInfo` dictionary at the `NSDetailedErrorsKey`.
++(instancetype)fileReadErrorWithFileName:(NSString *)fileName Errors:(NSArray <NSError *> *)errors;
+
 @end
 
 NS_ASSUME_NONNULL_END

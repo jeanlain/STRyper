@@ -62,7 +62,9 @@ ChromatogramNScansKey = @"nScans",
 ChromatogramOffscaleScansKey = @"offScaleScans",
 ChromatogramOffscaleRegionsKey = @"offscaleRegions";
 
-NSPasteboardType _Nonnull const ChromatogramPasteboardType = @"org.jpeccoud.stryper.chromatogramPasteboardType";
+NSPasteboardType _Nonnull const ChromatogramObjectIDPasteboardType = @"org.jpeccoud.stryper.chromatogramPasteboardType";
+
+NSPasteboardType _Nonnull const MarkerOffsetPasteboardType = @"org.jpeccoud.stryper.MarkerOffsetPasteboardType";
 
 const float DefaultReadLength	= 550.0;
 
@@ -975,7 +977,8 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 	return YES;
 }
 
-- (void)encodeWithCoder:(NSCoder *)coder {		/// we encode all relationships, except the parent folder. This relationship is already covered (in the opposite direction) by the sample folder when it is encoded
+- (void)encodeWithCoder:(NSCoder *)coder {		
+	/// we encode all relationships, except the parent folder. This relationship is already covered (in the opposite direction) by the sample folder when it is encoded
 	NSProgress *currentProgress = NSProgress.currentProgress;
 	if(currentProgress.isCancelled) {
 		return;
@@ -1001,6 +1004,7 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 		NSSet <NSString *>*identifiers = [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, NSString.class, nil]  forKey:@"versionIdentifiers"];
 		
 		if(![identifiers containsObject:@"1.1"]) {
+			/// Crosstalk detection was improved in this version.
 			for (Trace *trace in self.traces) {
 				[trace findCrossTalk];
 			}
@@ -1039,12 +1043,12 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 /// We don't implement the NSPasteboardReading protocol, because we wouldn't know which managed object context to use to init an instance from the paste board
 
 - (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
-	return @[ChromatogramPasteboardType];
+	return @[ChromatogramObjectIDPasteboardType, MarkerOffsetPasteboardType];
 }
 
 
 - (NSPasteboardWritingOptions)writingOptionsForType:(NSPasteboardType)type pasteboard:(NSPasteboard *)pasteboard {
-	if([type isEqualToString:ChromatogramPasteboardType]) {
+	if([type isEqualToString:ChromatogramObjectIDPasteboardType]) {
 		/// we don't write a chromatogram to the pasteboard, we only write it when required (upon paste)
 		return NSPasteboardWritingPromised;
 	}
@@ -1054,7 +1058,7 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 
 - (id)pasteboardPropertyListForType:(NSPasteboardType)type {
 		
-	if([type isEqualToString:ChromatogramPasteboardType]) {
+	if([type isEqualToString:ChromatogramObjectIDPasteboardType]) {
 		if(self.isDeleted || !self.traces) {
 			/// in case the user tries to paste a sample that is deleted (which currently can only happen after undoing a sample import)
 			return nil;
@@ -1070,8 +1074,46 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 		
 		return self.objectID.URIRepresentation.absoluteString;
 	}
+	
+	if([type isEqualToString:MarkerOffsetPasteboardType]) {
+		return [self dictionaryForOffsetsAtMarkers:nil];
+	}
+	
 	return nil;
 }
 
+
+- (nullable NSDictionary *)dictionaryForOffsetsAtMarkers:(nullable NSArray<Mmarker *> *)markers {
+	NSSet *genotypes = self.genotypes;
+	if(genotypes.count > 0) {
+		NSMutableDictionary *dic = [NSMutableDictionary dictionaryWithCapacity:genotypes.count];
+		for(Genotype *genotype in genotypes) {
+			Mmarker *marker = genotype.marker;
+			if(markers == nil || [markers indexOfObjectIdenticalTo:marker] != NSNotFound) {
+				MarkerOffset offset = genotype.offset;
+				if(offset.intercept != 0.0 || offset.slope != 1.0) {
+					NSString *URI = marker.objectID.URIRepresentation.absoluteString;
+					if(URI) {
+						dic[URI] = genotype.offsetData;
+					}
+				}
+			}
+		}
+		return dic;
+	}
+	return nil;
+}
+
+
++(nullable NSDictionary *)markerOffsetDictionaryFromGeneralPasteBoard {
+	NSPasteboard *pboard = NSPasteboard.generalPasteboard;
+	if([pboard.types containsObject:MarkerOffsetPasteboardType]) {
+		NSDictionary *dic = [pboard propertyListForType:MarkerOffsetPasteboardType];
+		if([dic isKindOfClass:NSDictionary.class]) {
+			return dic;
+		}
+	}
+	return nil;
+}
 
 @end

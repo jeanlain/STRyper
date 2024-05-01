@@ -22,7 +22,6 @@
 #import "TraceView.h"
 #import "MarkerView.h"
 #import "Mmarker.h"
-#import "RulerView.h"
 #import "Bin.h"
 #import "NewMarkerPopover.h"
 
@@ -374,8 +373,12 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		[_menu addItemWithTitle:@"Adjust Offset" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
 		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"marker offset"]];
 		[_menu.itemArray.lastObject setTag:editStateOffset];
-		[_menu addItemWithTitle:@"Reset Offset" action:@selector(resetOffset:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"reset"]];
+		[_menu addItemWithTitle:@"Copy Offset" action:@selector(copyOffset:) keyEquivalent:@""];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"copy"]];
+		[_menu addItemWithTitle:@"Paste Offset" action:@selector(pasteOffset:) keyEquivalent:@""];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"paste offset"]];
+		[_menu addItemWithTitle:@"Remove Offset" action:@selector(removeOffset:) keyEquivalent:@""];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"close"]];
 	
 		for(NSMenuItem *item in self.menu.itemArray) {
 			if(!item.submenu) {
@@ -388,6 +391,38 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	if(menuItem.action == @selector(copyOffset:) || menuItem.action == @selector(removeOffset:)) {
+		/// We only copy or reset an offset that is not equal to `MarkerOffsetNone`.
+		Chromatogram *sample = traceView.trace.chromatogram;
+		for(Genotype *genotype in sample.genotypes) {
+			if(genotype.marker == self.region) {
+				MarkerOffset offset = genotype.offset;
+				if(offset.intercept != 0.0 && offset.intercept != 1.0) {
+					menuItem.hidden = NO;
+					return YES;
+				}
+			}
+		}
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(pasteOffset:)) {
+		NSDictionary *dic = Chromatogram.markerOffsetDictionaryFromGeneralPasteBoard;
+		if(dic && traceView.trace) {
+			NSString *URI = self.region.objectID.URIRepresentation.absoluteString;
+			NSData *offsetData = dic[URI];
+			if([offsetData isKindOfClass:NSData.class] && offsetData.length == sizeof(MarkerOffset)) {
+				menuItem.hidden = NO;
+				menuItem.representedObject = offsetData;
+				return YES;
+			}
+		}
+		menuItem.representedObject = nil;
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
 	BOOL valid = YES;
 	NSInteger tag = menuItem.tag;
 	if(tag != editStateNil && self.editState != editStateNil) {
@@ -397,7 +432,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		/// if the target is the bin set, we check if the marker indeed has bins
 		Mmarker *marker = self.region;
 		valid = marker.bins.count > 0;		/// if there is no bin set, we disable the menu that allows to move it
-	} else if(tag == editStateOffset || menuItem.action == @selector(resetOffset:)) {
+	} else if(tag == editStateOffset || menuItem.action == @selector(removeOffset:)) {
 		Mmarker *marker = self.region;
 		valid = marker.bins.count > 0 && self.view.trace;		/// if there is no bin set, we disable the menu that allows to move it
 	}
@@ -413,9 +448,34 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 }
 
 
--(void)resetOffset:(NSMenuItem *)sender {
+-(void)removeOffset:(NSMenuItem *)sender {
 	[self _updateOffset:MarkerOffsetNone];
 }
+
+
+-(void)copyOffset:(id) sender {
+	Chromatogram *sample = traceView.trace.chromatogram;
+	for(Genotype *genotype in sample.genotypes) {
+		if(genotype.marker == self.region) {
+			NSPasteboard *pasteBoard = NSPasteboard.generalPasteboard;
+			[pasteBoard clearContents];
+			[pasteBoard writeObjects:@[genotype]];
+			return;
+		}
+	}
+}
+
+
+-(void)pasteOffset:(NSMenuItem *) sender {
+	NSData *offsetData = sender.representedObject;
+	if(offsetData) {
+		MarkerOffset offset = MarkerOffsetNone;
+		[offsetData getBytes:&offset length:sizeof(MarkerOffset)];
+		[self _updateOffset:offset];
+		[self.view.undoManager setActionName:@"Paste Marker Offset"];
+	}
+}
+
 
 /// Sets our edit state depending on the tag of the menu item sending this message
 -(void)setEditStateFromMenuItem:(NSMenuItem *)sender {

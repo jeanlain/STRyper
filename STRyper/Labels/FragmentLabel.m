@@ -444,7 +444,7 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 		Mmarker *marker = allele.genotype.marker;
 		float peakPos = label.size;
 		if(peakPos > marker.end || peakPos < marker.start) {
-			/// The peak cannot take the label if is not in our marker range.
+			/// The peak cannot take the label if is not in the marker range.
 			return NO;
 		}
 		Allele *destinationAllele = label.fragment;
@@ -534,7 +534,7 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 	LadderFragment *fragment = self.fragment;
 	
 	if (self.hidden || view.hScale <= 0.0 || !fragment.trace || !view.trace)  {
-		/// we may still be present after our ladder peak is removed from a trace
+		/// These are safety measures that may no longer be required. TO CHECK.
 		return;
 	}
 	
@@ -938,7 +938,7 @@ static NSTextField *alleleNameTextField;	/// the text field allowing the user to
 			self.highlighted = NO;
 		}
 		alleleNameTextField.hidden = YES;
-		NSString *actionName = type == alleleLabel? @"Rename Allele" : @"Rename Supplementary Peak";
+		NSString *actionName = type == alleleLabel? @"Rename Allele" : @"Rename Additional Peak";
 		[view.undoManager setActionName:actionName];
 	}
 }
