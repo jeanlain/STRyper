@@ -228,7 +228,7 @@
 			[NSString stringWithFormat:@"%ld sample", nSamples];
 		}
 	}
-	return nil;
+	return @"";
 }
 
 

@@ -84,7 +84,13 @@ NS_ASSUME_NONNULL_BEGIN
 -(NSString *)exportString;
 
 
-- (void)takeBinSetFromGenemapperFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
+/// Adds a bins to markers of the panel, using descriptions in a text file.
+///
+/// The method returns `NO` if an error occurred, otherwise it returns `YES`.
+/// - Parameters:
+///   - path: The path of the file describing the bins.
+///   - error: On output, points to any error that occurred.
+- (BOOL)takeBinSetFromGenemapperFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
 
 
 /***************************/

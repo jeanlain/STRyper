@@ -2321,7 +2321,7 @@ static NSColor *traceViewBackgroundColor;
 	if(channel >= 0 && channel < colors.count) {
 		_alleleLabelBackgroundColor = CGColorCreateCopyWithAlpha(colors[channel].CGColor, 0.7);
 	} else {
-		_alleleLabelBackgroundColor = nil;
+		_alleleLabelBackgroundColor = CGColorRetain(NSColor.systemGrayColor.CGColor);
 	}
 }
 

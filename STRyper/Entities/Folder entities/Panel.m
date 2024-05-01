@@ -87,7 +87,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 }
 
 
-- (void)takeBinSetFromGenemapperFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
+- (BOOL)takeBinSetFromGenemapperFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
 	
 	NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath: path error:nil];
 	if( attributes.fileSize > 1e6) {
@@ -102,7 +102,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 			}];
 		}
 		
-		return ;
+		return NO;
 	}
 	
 	NSError *readError = nil;
@@ -111,7 +111,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 		if (error != NULL) {
 			*error = readError;
 		}
-		return ;
+		return NO;
 	}
 	
 	binSetString = [binSetString stringByReplacingOccurrencesOfString:@"\r\n" withString:@"\n"];
@@ -156,7 +156,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 														  filePath:path
 															reason:reason];
 				}
-				return;
+				return NO;
 			}
 			panelFound = YES;
 		}
@@ -179,20 +179,21 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 			
 			if(!currentMarker) {
 				unknownMarkerErrors++;
+				NSError *anError;
 				if(markerName.length > 0) {
 					NSString *reason = [NSString stringWithFormat:@"Line %d: marker '%@' is not in panel '%@'.", line, markerName, self.name];
-					*error = [NSError fileReadErrorWithDescription:reason
+					anError = [NSError fileReadErrorWithDescription:reason
 														suggestion:@"Please check the marker name."
 														  filePath:path
 															reason:reason];
 				} else {
 					NSString *reason = [NSString stringWithFormat:@"Line %d: marker name is missing.", line];
-					*error = [NSError fileReadErrorWithDescription:reason
+					anError = [NSError fileReadErrorWithDescription:reason
 														suggestion:@"Please specify the marker name in the second column"
 														  filePath:path
 															reason:reason];
 				}
-				[errors addObject:*error];
+				[errors addObject:anError];
 			}
 		} else {
 			if(currentMarker) {
@@ -247,27 +248,31 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 											  filePath:path
 												reason:reason];
 	}
-	
+	return errors.count == 0;
 }
 
 
 - (Bin *)binWithGenemapperFields:(NSArray<NSString *> *)fields atLine:(int) line ofFile:(NSString *)path error:(NSError **)error {
 	if(fields.count < 4) {
 		NSString *reason = [NSString stringWithFormat:@"Line %d: insufficient number of fields", line];
-		*error = [NSError fileReadErrorWithDescription:reason
-											suggestion:@"A bin description requires ≥4 columns, as per Genemapper format."
-											  filePath:path
-												reason:reason];
+		if(error != NULL) {
+			*error = [NSError fileReadErrorWithDescription:reason
+												suggestion:@"A bin description requires ≥4 columns, as per Genemapper format."
+												  filePath:path
+													reason:reason];
+		}
 		return nil;
 	}
 	
 	NSString *binName = [fields.firstObject stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet];
 	if(binName.length == 0) {
-		NSString *reason = [NSString stringWithFormat:@"Line %d: bin name is missing.", line];
-		*error = [NSError fileReadErrorWithDescription:reason
-											suggestion:@"Please specify the bin name in the first column"
-											  filePath:path
-												reason:reason];
+		if(error != NULL) {
+			NSString *reason = [NSString stringWithFormat:@"Line %d: bin name is missing.", line];
+			*error = [NSError fileReadErrorWithDescription:reason
+												suggestion:@"Please specify the bin name in the first column"
+												  filePath:path
+													reason:reason];
+		}
 		return nil;
 	}
 	
@@ -279,11 +284,13 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 		NSString *field = fields[i];
 		NSNumber *num = [numberFormatter numberFromString:field];
 		if(num == nil) {
-			NSString *reason = [NSString stringWithFormat:@"Line %d, column %d: a number was expected.", line, i+1];
-			*error = [NSError fileReadErrorWithDescription:reason
-												suggestion:@"Check this value. Note that decimal separators must be periods '.'"
-												  filePath:path
-													reason:reason];
+			if(error != NULL) {
+				NSString *reason = [NSString stringWithFormat:@"Line %d, column %d: a number was expected.", line, i+1];
+				*error = [NSError fileReadErrorWithDescription:reason
+													suggestion:@"Check this value. Note that decimal separators must be periods '.'"
+													  filePath:path
+														reason:reason];
+			}
 			return nil;
 		}
 		[numbers addObject:num];

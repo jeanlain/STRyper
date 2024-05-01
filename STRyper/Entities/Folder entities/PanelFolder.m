@@ -99,7 +99,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 
 
-- (void) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
+- (BOOL) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
 	
 	NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath: path error:nil];
 	if( attributes.fileSize > 1e6) {
@@ -113,7 +113,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 				NSFilePathErrorKey: path
 			}];
 		}
-		return;
+		return NO;
 	}
 	
 	NSError *readError = nil;
@@ -122,7 +122,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 		if (error != NULL) {
 			*error = readError;
 		}
-		return;
+		return NO;
 	}
 	
 	/// Will contain errors founds, to report as many as possible to the user, so they can correct all without retrying.
@@ -172,7 +172,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 				if(error != NULL) {
 					*error = [NSError fileReadErrorWithFileName:path Errors:errors];
 				}
-				return;
+				return NO;
 			}
 			continue;
 		}
@@ -284,7 +284,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 															   reason:reason];
 
 		}
-		return;
+		return NO;
 	}
 	
 	if(errors.count > 0) {
@@ -296,6 +296,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 			}
 		}
 	}
+	return errors.count == 0;
 }
 
 /// Returns an array of fields component from a string that should represent a panel.
