@@ -27,8 +27,15 @@
 #import "Chromatogram.h"
 #import "NSArray+NSArrayAdditions.h"
 
+CodingObjectKey regionStartKey = @"start",
+regionEndKey = @"end",
+regionNameKey = @"name",
+regionEditStateKey = @"editState";
 
-@implementation Region
+@implementation Region {
+	BOOL globalValidation; /// Tells whether the object validates all changed attributes.
+						   /// We use to determine if we correct a invalid value or not.
+}
 
 @dynamic name, start, end;
 @synthesize editState = _editState;
@@ -49,19 +56,17 @@
 
 -(BaseRange)allowedRangeForEdge:(RegionEdge)edge {
 	/// min and max allowed positions for the edge, the margin we have for collision with another edge
-	float min = 0, max = 0, margin = 0, leftLimit = 0, rightLimit = 0;
+	float min = 0, max = 0, margin = self.minimumWidth/2, leftLimit = 0, rightLimit = 0;
 	NSArray *siblings;
 	if(self.class == Mmarker.class) {
 		min = 0;
 		max = MAX_TRACE_LENGTH;
-		margin = 1;
 		Mmarker *marker = (Mmarker *)self;
 		siblings = [[marker.panel markersForChannel:marker.channel] sortedArrayUsingKey:@"start" ascending:YES];
 	} else {
 		Mmarker *marker = ((Bin *)self).marker;
 		min = marker.start;           						/// if we are a bin, the min and max position are defined by the range of our marker
 		max = marker.end;
-		margin = 0.05;
 		siblings = [self.siblings sortedArrayUsingKey:@"start" ascending:YES];
 	}
 	
@@ -89,11 +94,11 @@
 	if(self.class == Mmarker.class) {       			/// if we are a marker, our range must also consider all our bins
 		NSSet *bins = ((Mmarker *)self).bins;
 		if(bins.count > 0)  {
-			NSArray *sortedBins = [bins.allObjects sortedArrayUsingKey:@"start" ascending:YES];
+			NSArray <Region *>*sortedBins = [bins.allObjects sortedArrayUsingKey:@"start" ascending:YES];
 			if(edge == leftEdge) {
-				rightLimit = ((Region *)sortedBins.firstObject).start;
+				rightLimit = sortedBins.firstObject.start;
 			} else {
-				leftLimit = ((Region *)sortedBins.lastObject).end;
+				leftLimit = sortedBins.lastObject.end;
 			}
 		}
 	}
@@ -106,26 +111,110 @@
 }
 
 
+- (void)setName:(NSString *)name {
+	if(![name isEqualToString:self.name]) {
+		[self managedObjectOriginal_setName:name];
+	}
+}
+
 - (NSArray *)siblings {
 	/// overridden
 	return NSArray.new;
 }
 
 
+- (float)minimumWidth {
+	return 0;
+}
+
+
+- (BOOL)validateForUpdate:(NSError *__autoreleasing  _Nullable *)error {
+	globalValidation = YES;
+	BOOL response = [super validateForUpdate:error];
+	globalValidation = NO;
+	return response;
+}
+
+
+- (BOOL)validateForInsert:(NSError *__autoreleasing  _Nullable *)error {
+	globalValidation = YES;
+	BOOL response = [super validateForInsert:error];
+	globalValidation = NO;
+	return response;
+}
+
+
 - (BOOL)validateStart:(id *)valueRef error:(NSError **)error {
-	float start = [*valueRef floatValue];
-	return [self validateCoordinate:start isStart:YES error:error];
+	return [self validateCoordinate:valueRef isStart:YES error:error];
 }
 
 
 - (BOOL)validateEnd:(id *)valueRef error:(NSError **)error {
-	float end = [*valueRef floatValue];
-	return [self validateCoordinate:end isStart:NO error:error];
+	return [self validateCoordinate:valueRef isStart:NO error:error];
 }
 
 
-- (BOOL)validateCoordinate:(float) value isStart:(bool)isStart error:(NSError **)error {
-	return YES; /// overridden
+- (BOOL)validateCoordinate:(id _Nullable *)valueRef isStart:(BOOL)isStart error:(NSError * _Nullable*)error {
+	NSNumber *coord = *valueRef;
+	if(coord == nil) {
+		/// A coordinate is required.
+		if(!globalValidation) {
+			/// If none is provided and the coordinate is validated separately from other attributes, we try to use the previous one.
+			NSNumber *previousCoord = isStart? @(self.start) : @(self.end);
+			if([self validateCoordinate:&previousCoord isStart:isStart error:nil]) {
+				*valueRef = previousCoord;
+				return YES;
+			}
+		}
+		
+		if (error != NULL) {
+			NSString *string = isStart? @"start" : @"end";
+			NSString *description = [NSString stringWithFormat: @"A coordinate for the %@ %@ must be specified.", self.entity.name, string];
+			*error = [NSError managedObjectValidationErrorWithDescription:description suggestion:@"" object:self reason:@""];
+		}
+		return NO;
+	}
+	
+	/// Then we check of the coordinate is within the allowed range.
+	float coordinate = coord.floatValue;	/// Possible corrected value.
+	
+	BaseRange allowedRange = isStart? [self allowedRangeForEdge:leftEdge] : [self allowedRangeForEdge:rightEdge];
+	float rangeStart = allowedRange.start;
+	float rangeEnd = rangeStart + allowedRange.len;
+	float newCoordinate = coordinate;
+	if(coordinate < rangeStart) {
+		newCoordinate = rangeStart;
+	} else if(coordinate > rangeEnd) {
+		newCoordinate = rangeEnd;
+	}
+	
+	if(newCoordinate != coordinate) {
+		if(!globalValidation) {
+			/// We may replace the coordinate if the object is not validating attributes globally.
+			/// We check that the corrected coordinate still maintains the region minimum width.
+			float start = isStart? newCoordinate : self.start;
+			float end = isStart? self.end : newCoordinate;
+			
+			if(end - start < self.minimumWidth) {
+				if (error != NULL) {
+					NSString *description = [NSString stringWithFormat: @"There is no room for the %@.", self.entity.name]; /// Subclasses can provided a more detailed error.
+					*error = [NSError managedObjectValidationErrorWithDescription:description suggestion:@"" object:self reason:@""];
+				}
+				return NO;
+			}
+			*valueRef = @(newCoordinate);
+			return YES;
+		}
+		if (error != NULL) {
+			NSString *string = isStart? @"start" : @"end";
+			NSString *description = [NSString stringWithFormat: @"Value %0.01f for the %@ %@ is invalid.", coordinate, self.entity.name, string];  /// Subclasses can provided a more detailed error.
+			*error = [NSError managedObjectValidationErrorWithDescription:description suggestion:@"" object:self reason:@""];
+		}
+		return NO;
+	}
+	
+	
+	return YES;
 }
 
 @end

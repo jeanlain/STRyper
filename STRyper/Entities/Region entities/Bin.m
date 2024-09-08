@@ -95,6 +95,13 @@
 	/// the bin must have a name
 	NSString *name = *value;
 	if(name.length == 0) {
+		NSString *previousName = self.name;
+		if(previousName.length > 0) {
+			if([self validateName:&previousName error:nil]) {
+				*value = previousName;
+				return YES;
+			}
+		}
 		if (error != NULL) {
 			*error = [NSError managedObjectValidationErrorWithDescription:@"The bin must have a name."
 															   suggestion:@""
@@ -119,8 +126,8 @@
 				genotype.status = genotypeStatusMarkerChanged;
 			}
 		}
+		[self managedObjectOriginal_setStart:start];
 	}
-	[self managedObjectOriginal_setStart:start];
 }
 
 
@@ -132,13 +139,14 @@
 				genotype.status = genotypeStatusMarkerChanged;
 			}
 		}
+		[self managedObjectOriginal_setEnd:end];
 	}
-	[self managedObjectOriginal_setEnd:end];
 }
 
 
 - (void)setName:(NSString *)name {
-	if(name != self.name) {
+	if(![name isEqualToString:self.name]) {
+		[self managedObjectOriginal_setName:name];
 		for(Genotype *genotype in self.marker.genotypes) {
 			GenotypeStatus status = genotype.status;
 			if(status != genotypeStatusNotCalled) {
@@ -146,7 +154,6 @@
 			}
 		}
 	}
-	[self managedObjectOriginal_setName:name];
 }
 
 
@@ -160,7 +167,26 @@
 }
 
 
-- (BOOL)validateCoordinate:(float) coordinate isStart:(bool)isStart error:(NSError **)error {
+- (float)minimumWidth {
+	return 0.1;
+}
+
+
+- (BOOL)validateCoordinate:(id *) valueRef isStart:(BOOL)isStart error:(NSError * _Nullable *)error {
+	
+	if([super validateCoordinate:valueRef isStart:isStart error:error]) {
+		return YES;
+	}
+	if(*valueRef == nil) {
+		/// When the value was not specified, the error is explicit enough.
+		return NO;
+	}
+	
+	float coordinate = [*valueRef floatValue];
+		
+	/// If we're here, we couldn't find a valid coordinate despite corrections.
+	/// So we try to specify the error (which may not be fixable if there is no room).
+	
 	NSString *coord = isStart? @"start" : @"end";
 	Mmarker *marker = self.marker;
 	if(self.marker && (coordinate < marker.start || coordinate > marker.end)) {
@@ -170,17 +196,9 @@
 		}
 		return NO;
 	}
-		
-	float start = 0, end = 0;
-	if(isStart) {
-		start = coordinate;
-		end = self.end;
-	} else {
-		start = self.start;
-		end = coordinate;
 
-	}
-	
+	float start = isStart? coordinate : self.start;
+	float end = isStart? self.end : coordinate;
 	if(end - start < 0.1) {
 		if (error != NULL) {
 			NSString *description = [NSString stringWithFormat: @"Bin '%@' range is too short.", self.name];

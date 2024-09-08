@@ -57,6 +57,7 @@ static NSPredicate *additionalFragmentPredicate;
 @synthesize topFluoLevel = _topFluoLevel, assignedAlleles = _assignedAlleles, 
 allele1 = _allele1, allele2 = _allele2, additionalFragmentString = _additionalFragmentString,
 additionalFragments = _additionalFragments, sortedAlleles = _sortedAlleles,
+leftAdenylationRatio = _leftAdenylationRatio, rightAdenylationRatio = _rightAdenylationRatio, scanOfPossibleAllele = _scanOfPossibleAllele,
 sortedAdditionalFragments = _sortedAdditionalFragments;
 
 
@@ -149,9 +150,10 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 #pragma mark - allele calling and genotype status
 
 /// A structure for allele calling, which describe a peak found in a marker range
-typedef  struct MarkerPeak {
+typedef struct MarkerPeak {
 	int32_t scan;					/// the scan corresponding to the peak tip
 	float height;					/// its height in RFU
+	float relativeHeight;			/// The peak height with baseline fluorescence subtracted
 	float size;						/// the size in base pairs that corresponds to the scan
 	int32_t crossTalk;				/// see equivalent property in Peak struct (not currently used, as we ignore crosstalk peaks)
 	
@@ -166,11 +168,12 @@ typedef  struct MarkerPeak {
 } MarkerPeak;
 
 
-MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes, MarkerOffset offset) {
+MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adjustedFluo, const float *sizes, MarkerOffset offset) {
 	MarkerPeak markerPeak;
 	int scan = peak.startScan + peak.scansToTip;
 	markerPeak.scan = scan;
 	markerPeak.height = fluo[scan];
+	markerPeak.relativeHeight = adjustedFluo[scan];
 	markerPeak.crossTalk = peak.crossTalk;
 	markerPeak.size = (sizes[scan] - offset.intercept)/offset.slope;
 	markerPeak.stutterRatio = 0;
@@ -206,6 +209,9 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 
 
 - (void)callAllelesAndAdditionalPeak:(BOOL)annotateSuppPeaks {
+	_leftAdenylationRatio = 0;
+	_rightAdenylationRatio = 0;
+	_scanOfPossibleAllele = 0;
 	Chromatogram *sample = self.sample;
 	if(sample.sizingQuality.floatValue <= 0) {
 		/// we don't call alleles for a samples that is not sized
@@ -238,7 +244,9 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 	
 	/// we access the fluo levels of the trace
 	NSData *rawData = trace.rawData;
+	NSData *adjustedData = [trace adjustedDataMaintainingPeakHeights:NO];
 	const int16_t *fluo = rawData.bytes;
+	const int16_t *adjustedFluo = adjustedData.bytes;
 	long nScans = rawData.length/sizeof(int16_t);
 	
 	/// we select peaks in the range. We will first store their height and their indices as we will examine them by decreasing height
@@ -288,7 +296,7 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 	const float *sizes = sizeData.bytes;
 	for(int i = 0; i < nPeaks; i++) {
 		int index = peakIndices[i];
-		markerPeaks[i] = MarkerPeakFromPeak(peaks[index], fluo, sizes, offset);
+		markerPeaks[i] = MarkerPeakFromPeak(peaks[index], fluo, adjustedFluo, sizes, offset);
 	}
 	
 	/// as we will inspect the peak by decreasing height, we sort the peak indices according to this criterion
@@ -318,46 +326,70 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 		characterizeNeighbors(markerPeaks, nPeaks, index, rightMaxDropOut, motiveLength, false);
 	}
 	
-	/// an array to store the peaks considered as alleles
-	MarkerPeak retainedPeaks[nPeaks];
-	MarkerPeak additionalPeaks[nPeaks];
+	/// arrays to store pointers to peaks considered as alleles, and additional peaks
+	MarkerPeak *retainedPeaks[nPeaks];
+	MarkerPeak *additionalPeaks[nPeaks];
 	int nRetained = 1;					/// number of peaks considered as alleles
 	int nAdditional = 0;
 	int16_t ploidy = marker.ploidy;
 	/// We consider the tallest peak as retained
-	MarkerPeak lastRetained = markerPeaks[markerPeakIndices[0]];
-	retainedPeaks[0] = lastRetained;
+	MarkerPeak *lastRetainedPeakPTR = &markerPeaks[markerPeakIndices[0]];
+	retainedPeaks[0] = lastRetainedPeakPTR;
 		
 	for (int i = 1; i < nPeaks; i++) {
 		/// We evaluate peaks by decreasing height
 		long index = markerPeakIndices[i];
-		MarkerPeak peak = markerPeaks[index];
-		float ratio = peak.height / lastRetained.height;
-		if(peak.parentPeak < 0) {
+		MarkerPeak *peakPTR = &markerPeaks[index];
+		float ratio = peakPTR->relativeHeight / lastRetainedPeakPTR->relativeHeight;
+		/// We use relative height as the baseline can be quite high sometimes, which would increase the ratio for peaks amounting to noise.
+		
+		int16_t parentPeak = peakPTR->parentPeak;
+		if(parentPeak < 0) {
 			/// The peak has no parent (hence it could represent an allele)
-			float diffSize = peak.size - lastRetained.size;
+			float diffSize = peakPTR->size - lastRetainedPeakPTR->size;
 			if((diffSize < 0 && ratio < leftMaxDropOut) || (diffSize > 0 && ratio < rightMaxDropOut && ratio * diffSize < 4)) {
 				/// The peak is too short.
-				if(annotateSuppPeaks && (ratio > 0.2 || (peak.nChildPeaks >= 1 && ratio > 0.12))) {
+				if(annotateSuppPeaks && (ratio > 0.2 || (peakPTR->nChildPeaks >= 1 && ratio > 0.12))) {
 					/// We consider it as an additional peak if it is not too short or has several child peaks
 					/// This is to avoid considering insignificant peaks
-					additionalPeaks[nAdditional++] = peak;
+					additionalPeaks[nAdditional++] = peakPTR;
 					continue;
 				}
 			} else if(nRetained < ploidy) {
 				/// We retain the peak
-				lastRetained = peak;
-				retainedPeaks[nRetained++] = peak;
+				lastRetainedPeakPTR = peakPTR;
+				retainedPeaks[nRetained++] = peakPTR;
 			} else if(annotateSuppPeaks) {
 				/// If there are more peaks than possible alleles of the locus, we may consider this peak as additional
-				if(ratio > 0.2 || (peak.nChildPeaks > 0 && ratio > 0.12)) {
-					additionalPeaks[nAdditional++] = peak;
+				if(ratio > 0.2 || (peakPTR->nChildPeaks > 0 && ratio > 0.12)) {
+					additionalPeaks[nAdditional++] = peakPTR;
 					continue;
 				}
 			}
-		} else if(annotateSuppPeaks && peak.stutterRatio > 2 && ratio > 0.2) {
-			/// For child peaks, we consider additional those that are abnormally high
-			additionalPeaks[nAdditional++] = peak;
+		} else {
+			float stutterRatio = peakPTR->stutterRatio;
+			if(stutterRatio > 0.5 && ratio > 0.5) {
+				/// We determine if the peak results from adenylation
+				MarkerPeak *parentPeakPTR = &markerPeaks[parentPeak];
+				float diffSize = parentPeakPTR->size - peakPTR->size;
+				if(fabs(diffSize) < 1.5) {
+					if(diffSize > 0) {
+						if(stutterRatio > _leftAdenylationRatio) {
+							_leftAdenylationRatio = stutterRatio;
+						}
+					} else {
+						if(stutterRatio > _rightAdenylationRatio) {
+							_rightAdenylationRatio = stutterRatio;
+						}
+					}
+					_scanOfPossibleAllele = peakPTR->scan;
+				}
+				
+				if(annotateSuppPeaks && peakPTR->stutterRatio > 2 && ratio > 0.2) {
+					/// For child peaks, we consider additional those that are abnormally high
+					additionalPeaks[nAdditional++] = peakPTR;
+				}
+			}
 		}
 	}
 
@@ -367,11 +399,11 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 	
 	if(nAdditional > 0) {
 		for (int i = 0; i < nAdditional; i++) {
-			MarkerPeak peak = additionalPeaks[i];
+			MarkerPeak *peak = additionalPeaks[i];
 			Allele *closestFragment;	/// We reuse fragments that are the closest to the peak to avoid unnecessary movements of labels if the genotype is shown.
 			int closestDistance = INT_MAX;
 			for(Allele *fragment in remainingFragments) {
-				int distance = abs(fragment.scan - peak.scan);
+				int distance = abs(fragment.scan - peak->scan);
 				if(distance < closestDistance) {
 					closestDistance = distance;
 					closestFragment = fragment;
@@ -388,8 +420,8 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 			}
 			/// Setting the scan also makes the allele compute its size, but since we already know the peak size,
 			/// we can make things faster by avoiding using the normal setter.
-			[closestFragment managedObjectOriginal_setScan:peak.scan];
-			[closestFragment managedObjectOriginal_setSize:peak.size];
+			[closestFragment managedObjectOriginal_setScan:peak->scan];
+			[closestFragment managedObjectOriginal_setSize:peak->size];
 			[closestFragment findNameFromBins];
 		}
 	}
@@ -407,11 +439,12 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const float *sizes
 	if(nRetained > 0) {
 		for(Allele *allele in self.assignedAlleles) {
 			/// By default, the first marker peak will take the allele. If there is more alleles than peaks, this creates homozygotes.
-			MarkerPeak *closestPeak = &retainedPeaks[0];
+			MarkerPeak *closestPeak = retainedPeaks[0];
 			if(nRetained > 1) {
+				_scanOfPossibleAllele = -1;
 				int closestDistance = INT_MAX;
 				for (int i = 0; i < nRetained; i++) {
-					MarkerPeak *peak = &retainedPeaks[i];
+					MarkerPeak *peak = retainedPeaks[i];
 					if(peak->height >= 0) {
 						/// Peaks that are already assigned to alleles have a negative height (see below).
 						int distance = abs(allele.scan - peak->scan);
@@ -568,7 +601,7 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 
 
 -(void)contextDidChange:(NSNotification *)notification {
-	NSSet *changedObjects = [notification.userInfo valueForKey:NSUpdatedObjectsKey];
+	NSSet *changedObjects = notification.userInfo[NSUpdatedObjectsKey];
 	NSArray *alleles = self.alleles.allObjects;
 	for(id object in changedObjects) {
 		if(object == self || [alleles indexOfObject:object] != NSNotFound) {
@@ -659,6 +692,8 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 
 - (Allele *)allele1 {
 	if(!_allele1) {
+		/// We need the ivar for KVO compliance. Simply returning the first allele without setting the ivar won't work with bindings
+		/// Though I don't like the idea of setting the ivar in the getter.
 		_allele1 = self.sortedAlleles.firstObject;
 	}
 	return _allele1;
@@ -681,6 +716,14 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 	return _additionalFragmentString;
 }
 
+
+- (BOOL)heterozygous {
+	Allele *allele1 = self.allele1;
+	Allele *allele2 = self.allele2;
+	int scan1 = allele1.scan;
+	int scan2 = allele2.scan;
+	return(scan1 > 0 && scan2 > 0 && scan1 != scan2);
+}
 
 #pragma mark - validation methods
 
@@ -741,7 +784,6 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 	
 	for (Allele *allele in alleles) {
 		if(allele.trace.channel != self.marker.channel) {
-			NSLog(@"trace: %d, marker: %d", allele.trace.channel, self.marker.channel);
 			if (error != NULL) {
 				NSString *reason = [NSString stringWithFormat:@"An allele of a genotype from sample '%@' is associated with a trace that doesn't have the channel of marker '%@'", self.sample.sampleName, self.marker.name];
 				*error = [NSError managedObjectValidationErrorWithDescription:reason suggestion:@"" object:self reason:reason];

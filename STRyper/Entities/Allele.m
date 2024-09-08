@@ -49,7 +49,7 @@
 
 @interface Allele ()
 
-/// The allele size as it can be shown in a table. This allows returning nil if the allele has a scan of 0 (to avoid showing a size of 0).
+/// The allele size as it can be shown in a table. This allows returning `nil` if the allele has a scan of 0 (to avoid showing a size of 0).
 @property (nonatomic, readonly) NSNumber *visibleSize;
 
 @end

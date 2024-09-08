@@ -38,7 +38,7 @@
 }
 
 
-- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column {
+- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
 	return @"Change Fragment Size";
 }
 
@@ -65,6 +65,7 @@
 		newSize = 20;
 	}
 	
+	[self.undoManager setActionName:@"New Size"];
 	SizeStandardSize *newFragment = [[SizeStandardSize alloc] initWithContext:self.tableContent.managedObjectContext];
 	newFragment.size = newSize;
 	
@@ -76,7 +77,6 @@
 	[newFragment autoSize];		/// to avoid duplicated or illegal sizes
 	[self selectItemName:newFragment];
 	
-	[self.undoManager setActionName:@"New Size"];
 }
 
 

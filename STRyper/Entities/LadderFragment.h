@@ -36,7 +36,7 @@
 /// The name of the fragment.
 ///
 /// This property is not meaningful for a ladder fragment, but it can be for subclasses.
-@property (nonatomic) NSString *name;
+@property (nonatomic, copy) NSString *name;
 
 /// The scan (fluorescence data point) at the tip of the peak caused by the fragment.
 @property (nonatomic) int32_t scan;

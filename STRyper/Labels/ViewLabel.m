@@ -32,7 +32,7 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-		_animated = YES;
+		_allowsAnimations = YES;
 		_enabled = YES;
     }
     return self;
@@ -41,11 +41,6 @@
 
 - (BOOL)tracksMouse {
 	return self.enabled;
-}
-
-
-- (BOOL)highlightedOnMouseUp {
-	return NO;
 }
 
 
@@ -140,8 +135,10 @@
 	NSRect areaFrame = NSIntersectionRect(rect, NSInsetRect(view.visibleRect, 1, 1));
 	if(areaFrame.size.width > 0) {
 		NSTrackingArea *area = [[NSTrackingArea alloc] initWithRect:areaFrame 
-															options:(NSTrackingMouseEnteredAndExited | NSTrackingActiveInKeyWindow ) owner:self userInfo:nil];
-		/// we're not using the NSTrackingActiveCursorUpdate option to set the cursor as it doesn't appear helpful (especially in comparison to NSTrackingMouseEnteredAndExited). We can't reliably tell if the event correspond to the mouse entering or exiting the area
+															options:(NSTrackingMouseEnteredAndExited | NSTrackingActiveInKeyWindow) owner:self userInfo:nil];
+		/// we're not using the NSTrackingActiveCursorUpdate option to set the cursor as it doesn't appear helpful 
+		/// (especially in comparison to NSTrackingMouseEnteredAndExited)
+		/// because it doesn't tell if the event corresponds to the mouse entering or exiting the area
 		[view addTrackingArea:area];
 		return area;
 	}
@@ -150,9 +147,9 @@
 
 
 - (void)updateTrackingArea {
+	[self removeTrackingArea];
 	TraceView *view = self.view;
 	if(self.tracksMouse && view) {
-		[self removeTrackingArea];
 		/// when our tracking area updates, we check if we should show as hovered
 		trackingArea = [self addTrackingAreaForRect:self.frame];
 
@@ -177,10 +174,11 @@
 
 
 - (void)removeTrackingArea {
-	TraceView *view = self.view;
-	if(view && trackingArea) {
-		[view removeTrackingArea:trackingArea];
-		trackingArea = nil;
+	if(trackingArea) {
+		TraceView *view = self.view;
+		if(view) {
+			[view removeTrackingArea:trackingArea];
+		}
 	}
 }
 
@@ -198,7 +196,8 @@
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
 	/// by default, we don't animate basic geometry for a layer when the label is dragged
-	if(!_animated || (_dragged && ([event isEqualToString:@"bounds"] || [event isEqualToString:@"position"]))) {
+	if(!_allowsAnimations || _view.needsRepositionLabels || _view.hScale < 0 ||
+	   (_dragged && ([event isEqualToString:@"bounds"] || [event isEqualToString:@"position"]))) {
 		return NSNull.null;
 	}
 	return nil;
@@ -214,19 +213,17 @@
 
 
 - (void)setHidden:(BOOL)hidden {
-	if(self.hidden != hidden) {
+	if(_hidden != hidden) {
 		_hidden = hidden;
 		if(layer) {
 			layer.hidden = hidden;
-		} else {
-			[self updateAppearance];
 		}
 		if(!hidden) {
 			/// A label may not be repositioned when it is hidden so we reposition it when it becomes visible
 			/// which we don't want to animate. 
-			self.animated = NO;
+			self.allowsAnimations = NO;
 			[self reposition];
-			self.animated = YES;
+			self.allowsAnimations = YES;
 		} else {
 			self.enabled = NO;
 		}
@@ -235,7 +232,7 @@
 
 
 - (void)setEnabled:(BOOL)enabled {
-	if (self.enabled != enabled) {
+	if (_enabled != enabled) {
 		_enabled = enabled;
 		TraceView *view = self.view;
 		if(!enabled) {
@@ -247,19 +244,22 @@
 			self.hidden = NO;
 			[self updateTrackingArea];
 		}
+		if(layer) {
+			self.needsUpdateAppearance = YES;
+		}
 		[view labelDidChangeEnabledState:self];
 	}
 }
 
 
 - (void)setHighlighted:(BOOL)highlighted {
-    if (self.highlighted != highlighted) {
+    if (_highlighted != highlighted) {
         _highlighted = highlighted;
 		if(highlighted) {
 			self.hidden = NO;
 			self.enabled = YES;			/// NOT SURE IF APPROPRIATE   TO REMOVE ?
 		}
-		[self updateAppearance];
+		self.needsUpdateAppearance = YES;
 		[self.view labelDidChangeHighlightedState:self];
 	}
 }
@@ -268,9 +268,31 @@
 - (void)setHovered:(BOOL)hovered {
     if (_hovered != hovered) {
 		_hovered = hovered;
-		[self updateAppearance];
+		self.needsUpdateAppearance = YES;
 		[self.view labelDidChangeHoveredState:self];
     }
+}
+
+
+- (void)setNeedsUpdateAppearance:(BOOL)needsUpdateAppearance {
+	if(_needsUpdateAppearance != needsUpdateAppearance) {
+		_needsUpdateAppearance = needsUpdateAppearance;
+		if(needsUpdateAppearance && layer) {
+			/// We use the `layoutSublayersOfLayer:` method to update the label appearance.
+			/// This seems appropriate to avoid redundant changes in appearance in the same cycle.
+			[layer setNeedsLayout];
+		}
+	}
+}
+
+
+- (void)layoutSublayersOfLayer:(CALayer *)layer {
+	if(layer == self->layer) {
+		if(_needsUpdateAppearance) {
+			[self updateAppearance];
+			_needsUpdateAppearance = NO;
+		} 
+	}
 }
 
 

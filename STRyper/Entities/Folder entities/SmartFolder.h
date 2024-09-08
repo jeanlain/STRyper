@@ -37,7 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Inits a smart folder given a parent folder an a search predicate.
 ///
-/// This method does not check if the predicate searches for ``Chromatogram`` objects.
+/// This method assumes that the predicate searches for ``Chromatogram`` objects.
 /// - Parameters:
 ///   - parent: The parent folder of the new instance.
 ///   - searchPredicate: The predicate used to find samples.

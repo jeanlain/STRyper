@@ -26,9 +26,16 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// An `AggregatePredicateEditorRowTemplate` adds a segmented control that allows to specify wether the predicate
 /// compares all entries of the destination of the to-many relationship (`NSAllPredicateModifier`) or matches any entry (`NSAnyPredicateModifier`).
-/// This control is added to the template views (at the right of the first popup button) only if the object's `modifier` is one of the above modifiers.
+/// This control is added to the template views only if the object's `modifier` is one of the above modifiers.
 /// The predicate to set must be an `NSComparisonPredicate` containing a left expression, a right expression and a comparison modifier.
-@interface AggregatePredicateEditorRowTemplate : NSPredicateEditorRowTemplate <NSMenuDelegate>
+///
+/// - Important: By default, the segmented control is positioned at the right of the left popup button of the template.
+/// To place it at the left, the key of the predicate editor formatting dictionary should look like `%[keypath]@ %@ %@ %@`
+/// and the value should look like `%2$@ %1$[Menu Item Title ]@ %3$@ %4$@`
+///
+/// An `AggregatePredicateEditorRowTemplate` also brings improvement when using a predicate based on a float value:
+/// it adds a number formatter to the text field, which it makes wider (by default, it is too narrow).
+@interface AggregatePredicateEditorRowTemplate : NSPredicateEditorRowTemplate
 
 
 @end

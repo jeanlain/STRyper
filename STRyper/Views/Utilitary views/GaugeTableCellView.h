@@ -47,6 +47,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) float value;
 
 /// The value of the ``value`` property for which the gauge takes the whole view width.
+///
+/// - Important: This value *must not* be zero. The default is 1.0.
 @property (nonatomic) float maxValue;
 
 /// The color of the gauge when ``value`` equals ``maxValue``.

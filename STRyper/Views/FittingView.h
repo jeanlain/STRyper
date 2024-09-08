@@ -38,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// denoting the Y position (in baise pairs) of the mouse cursor.
 ///
 /// The view has a tex field that is centered horizontally and vertically, which shows a message if the curve cannot be shown.
-@interface FittingView : NSView  
+@interface FittingView : NSView <CALayerDelegate>
 
 													
 /// The samples for which the view shows the fitting curve.
@@ -49,7 +49,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The array can contain several samples because the fitting view can be part of an inspector of selected samples (``SampleInspectorController`` class).
 ///
-/// IMPORTANT: this property can be set and bound, but the getter returns `nil` as there is no ivar backing it.
+/// - Important: This property can be set and bound, but the getter returns `nil` as there is no ivar backing it.
 @property (nullable, nonatomic) NSArray<Chromatogram *>* samples;
 
 

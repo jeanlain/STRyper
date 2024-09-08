@@ -33,7 +33,7 @@
 
 /// Returns a label that is initialized given a fragment.
 ///
-/// The method does not check if the `fragment` is among the ``Trace/fragments`` of the ``TraceView/trace`` the `view` shows.
+/// The method assumes that the `fragment` is among the ``Trace/fragments`` of the ``TraceView/trace`` the `view` shows.
 /// - Parameters:
 ///   - fragment: The fragment that the label will represent.
 ///   - view: The view on which the label will show.
@@ -50,10 +50,19 @@
 /// It moves labels vertically, never horizontally.
 /// - Parameters:
 ///   - view: The view in which labels should be repositioned.
-///   - animate: Whether labels are repositioned with animation.
-+(void) avoidCollisionsInView:(TraceView *)view allowAnimation:(BOOL)animate;
++(void) avoidCollisionsInView:(TraceView *)view;
 
 /**************** implementations of methods defined in the superclass *****************/
+
+
+/// Implements the ``ViewLabel/updateAppearance`` method.
+///
+/// When ``ViewLabel/highlighted``, the label gets a light blue border. 
+/// Its background color reflects the ``TraceView/channel`` of its ``ViewLabel/view``, if the label represents an allele
+/// or it takes the view background color (with partial opacity) otherwise.
+/// It the label is disabled, it takes a light gray background.
+/// It the label represents a  ladder fragment of  ``LadderFragment/scan`` 0 (an unused fragment), it's background becomes grey.
+- (void)updateAppearance;
 
 /// Returns `NO`.
 ///
@@ -70,7 +79,7 @@
 
 /// Implements the ``ViewLabel/drag`` method.
 ///
-/// The method automatically repositions the label according to the ``LabelView/mouseLocation``.
+/// The method repositions the label according to the ``LabelView/mouseLocation`` without calling ``LabelView/labelNeedsRepositioning:``.
 /// If the label is dragged close to a peak that is a suitable destination (which the method determines),
 /// the peak label takes its ``ViewLabel/hovered`` state and some magnetism locks the horizontal position of the dragged label, with haptic feedback.
 ///

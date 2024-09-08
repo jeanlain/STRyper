@@ -27,7 +27,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A view that allows the user to define criteria for sorting objects.
 ///
 /// A `SortCriteriaEditor` can be used to display or generate an array of sort descriptors (`NSSortDescriptor` objects).
-/// It represents each sort descriptor as a row, which includes a popup button to selected among attributes (key paths) that are available for sorting objects,
+/// It represents each sort descriptor as a row, which includes a popup button to select among attributes (key paths) that are available for sorting objects,
 /// a segmented control defining the sort order, and buttons to add or remove a sort descriptor (row).
 ///
 /// The order of rows represents the order of the sort criteria by decreasing priority, and can be changed by click & drag.
@@ -45,7 +45,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///   The array must contain at least two elements, each of which must be unique.
 ///   - keypaths: The key paths used for sorting. Each key path corresponds to an element of the `titles` argument at the same index, and must be unique.
 ///   - selectorNames: Names of selectors used for sorting the corresponding `keypaths`.
-///   These names can me produced with `NSStringFromSelector`. If `nil`, the default selector `compare:` will be used to generated the ``sortDescriptors``.
+///   These names can be produced with `NSStringFromSelector`. If `nil`, the default selector `compare:` will be used to generated the ``sortDescriptors``.
 ///   If not `nil`, the count of the array must be the same as the `keypaths` array.
 -(void)configureWithKeyPaths:(NSArray<NSString *>*)keypaths 
 			   selectorNames:(nullable NSArray<NSString *>*)selectorNames
@@ -53,9 +53,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The sort descriptors that the receiver shows.
 ///
-/// The `selector` of each sort descriptor is ignored, but its `key` must belong to the `keypaths` specified in ``configureWithKeyPaths:selectorNames:titles:``,
-/// otherwise the method throws an exception.
-@property (nonatomic) NSArray <NSSortDescriptor *>* sortDescriptors;
+/// The `selector` of each sort descriptor is ignored.
+///
+/// - Important: The `key` of each sort descriptor must belong to the `keypaths` specified in ``configureWithKeyPaths:selectorNames:titles:``.
+@property (nonatomic, copy) NSArray<NSSortDescriptor *>* sortDescriptors;
 
 /// The table view that contains the rows representing sort descriptors.
 ///

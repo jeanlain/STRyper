@@ -42,8 +42,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameters:
 ///   - peak: The peak that the label will represent.
 ///   - view: The view on which the label will show. It must return a ``Trace`` object for its ``TraceView/trace`` property.
-/// The method does not check if the `peak` is among the ``Trace/peaks`` of the trace.
-- (instancetype)initWithPeak:(Peak)peak view:(TraceView *)view NS_DESIGNATED_INITIALIZER;
+/// The method assumes that the `peak` is among the ``Trace/peaks`` of the trace.
+- (instancetype)initWithPeak:(Peak)peak view:(nullable TraceView *)view NS_DESIGNATED_INITIALIZER;
 
 
 /// The ``LadderFragment`` object (possibly an ``Allele``) at the peak that the label represents,
@@ -74,7 +74,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Set the label's properties to that of a peak.
 ///
-/// The method does not check if the `peak` is among the ``Trace/peaks`` of the ``TraceView/trace`` that the ``ViewLabel/view`` shows.
+/// The method assumes that the `peak` is among the ``Trace/peaks`` of the ``TraceView/trace`` that the ``ViewLabel/view`` shows.
 /// - Parameter peak: The peak that the label will represent.
 - (void)setPeak:(Peak)peak;
 
@@ -93,7 +93,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Calls ``ViewLabel/reposition`` on the receiver, then ``ViewLabel/updateTrackingArea`` on `super`.
 ///
-/// Because a peak label that is not dragged affects the UI only through its``ViewLabel/trackingArea``,
+/// Because a peak label that is not dragged affects the UI only through its ``ViewLabel/trackingArea``,
 /// it need repositioning only when its tracking area is updated.
 -(void)updateTrackingArea;
 

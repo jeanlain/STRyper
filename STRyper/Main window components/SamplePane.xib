@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -18,18 +18,18 @@
         <arrayController mode="entity" entityName="" fetchPredicateFormat="" automaticallyPreparesContent="YES" avoidsEmptySelection="NO" id="0dN-zh-7AK" userLabel="Samples"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <customView misplaced="YES" id="Hkk-O4-Va6" userLabel="Top Pane">
-            <rect key="frame" x="0.0" y="0.0" width="584" height="282"/>
+            <rect key="frame" x="0.0" y="0.0" width="584" height="254"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
-                <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="10" id="l1C-Y4-jv5">
-                    <rect key="frame" x="0.0" y="30" width="584" height="252"/>
+                <scrollView clipsToBounds="YES" borderType="none" autohidesScrollers="YES" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="10" id="l1C-Y4-jv5">
+                    <rect key="frame" x="0.0" y="30" width="584" height="224"/>
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     <clipView key="contentView" id="tYv-Hh-kQD">
-                        <rect key="frame" x="0.0" y="0.0" width="584" height="252"/>
-                        <autoresizingMask key="autoresizingMask"/>
+                        <rect key="frame" x="0.0" y="0.0" width="584" height="224"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <tableView identifier="sampleTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" alternatingRowBackgroundColors="YES" autosaveColumns="NO" rowHeight="16" rowSizeStyle="automatic" headerView="yhO-Rg-Mgn" viewBased="YES" floatsGroupRows="NO" id="KUu-Te-JeL" userLabel="sample table">
-                                <rect key="frame" x="0.0" y="0.0" width="584" height="224"/>
+                                <rect key="frame" x="0.0" y="0.0" width="584" height="196"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <size key="intercellSpacing" width="3" height="0.0"/>
                                 <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -48,11 +48,11 @@
                                         <sortDescriptor key="sortDescriptorPrototype" selector="localizedCaseInsensitiveCompare:" sortKey="sampleName"/>
                                         <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                         <prototypeCellViews>
-                                            <tableCellView identifier="textFieldCellView" id="pPF-h2-2tk" userLabel="textFieldCellView">
+                                            <tableCellView identifier="textFieldCellView" clipsToBounds="YES" id="pPF-h2-2tk" userLabel="textFieldCellView">
                                                 <rect key="frame" x="1" y="0.0" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="p3Q-Tm-2TA" userLabel="Text">
+                                                    <textField clipsToBounds="YES" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="p3Q-Tm-2TA" userLabel="Text">
                                                         <rect key="frame" x="0.0" y="1" width="119" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="Text field" id="Sdu-GK-t4S" userLabel="tex cell">
                                                             <font key="font" metaFont="smallSystem"/>
@@ -77,11 +77,11 @@
                                                     <outlet property="textField" destination="p3Q-Tm-2TA" id="zCk-Si-0h0"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="dateCellView" id="VXB-Zo-VVH" userLabel="dateCellView">
+                                            <tableCellView identifier="dateCellView" clipsToBounds="YES" id="VXB-Zo-VVH" userLabel="dateCellView">
                                                 <rect key="frame" x="1" y="16" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="VT1-Ib-DhN" userLabel="date">
+                                                    <textField clipsToBounds="YES" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="VT1-Ib-DhN" userLabel="date">
                                                         <rect key="frame" x="0.0" y="1" width="119" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="date" id="fhA-nf-Zde" userLabel="tex cell">
                                                             <dateFormatter key="formatter" dateStyle="short" timeStyle="short" id="Gm8-2B-3zA"/>
@@ -103,7 +103,7 @@
                                                     <outlet property="textField" destination="VT1-Ib-DhN" id="Csh-YV-8Bl"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="popupCellView" id="AeA-Ni-gMS" userLabel="popupCellView">
+                                            <tableCellView identifier="popupCellView" clipsToBounds="YES" id="AeA-Ni-gMS" userLabel="popupCellView">
                                                 <rect key="frame" x="1" y="32" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
@@ -128,11 +128,11 @@
                                                     <constraint firstItem="5yx-v7-O7C" firstAttribute="leading" secondItem="AeA-Ni-gMS" secondAttribute="leading" constant="3" id="pOt-lh-VHX"/>
                                                 </constraints>
                                             </tableCellView>
-                                            <tableCellView identifier="numberFieldCellView" id="qjq-WL-R3r" userLabel="number table cell view">
+                                            <tableCellView identifier="numberFieldCellView" clipsToBounds="YES" id="qjq-WL-R3r" userLabel="number table cell view">
                                                 <rect key="frame" x="1" y="48" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES" flexibleMaxY="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="YQD-2P-jKR">
+                                                    <textField clipsToBounds="YES" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="YQD-2P-jKR">
                                                         <rect key="frame" x="0.0" y="1" width="119" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="size" id="uX0-cH-I0w">
                                                             <numberFormatter key="formatter" formatterBehavior="custom10_4" usesGroupingSeparator="NO" formatWidth="-1" groupingSize="0" minimumIntegerDigits="1" maximumIntegerDigits="42" maximumFractionDigits="1" id="xA0-zB-J7s"/>
@@ -151,7 +151,7 @@
                                                     <outlet property="textField" destination="YQD-2P-jKR" id="aZs-gW-iGk"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="compositeCellView" id="eNw-T2-oHM" userLabel="compositeCellView">
+                                            <tableCellView identifier="compositeCellView" clipsToBounds="YES" id="eNw-T2-oHM" userLabel="compositeCellView">
                                                 <rect key="frame" x="1" y="64" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
@@ -163,7 +163,7 @@
                                                         </constraints>
                                                         <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="NSActionTemplate" id="M1J-Nu-XNT"/>
                                                     </imageView>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="251" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="tf2-gt-EcX">
+                                                    <textField clipsToBounds="YES" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="251" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="tf2-gt-EcX">
                                                         <rect key="frame" x="24" y="1" width="84" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Table View Cell" id="qyV-DW-6Ve">
                                                             <numberFormatter key="formatter" formatterBehavior="custom10_4" numberStyle="percent" formatWidth="-1" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="1" id="JPg-OB-B3h">
@@ -187,20 +187,20 @@
                                                     <outlet property="textField" destination="tf2-gt-EcX" id="kDf-vs-Fxf"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="compositeCellViewText" id="jdd-Dk-6li" userLabel="compositeCellViewText">
+                                            <tableCellView identifier="compositeCellViewText" clipsToBounds="YES" id="jdd-Dk-6li" userLabel="compositeCellViewText">
                                                 <rect key="frame" x="1" y="80" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
                                                     <imageView horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="5SU-zS-Oqs" customClass="IndexImageView">
-                                                        <rect key="frame" x="3" y="-5" width="16" height="27"/>
+                                                        <rect key="frame" x="1" y="-5" width="16" height="27"/>
                                                         <constraints>
                                                             <constraint firstAttribute="width" secondItem="5SU-zS-Oqs" secondAttribute="height" multiplier="1:1" id="NfW-gf-zfI"/>
                                                             <constraint firstAttribute="width" constant="16" id="dls-DU-Ixb"/>
                                                         </constraints>
                                                         <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="NSActionTemplate" id="Ctc-DY-LCJ"/>
                                                     </imageView>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="251" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="0xc-EW-0SW">
-                                                        <rect key="frame" x="24" y="1" width="84" height="14"/>
+                                                    <textField clipsToBounds="YES" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="251" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="0xc-EW-0SW">
+                                                        <rect key="frame" x="18" y="1" width="101" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Table View Cell" id="UwL-K3-YaA">
                                                             <font key="font" metaFont="smallSystem"/>
                                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
@@ -210,17 +210,17 @@
                                                 </subviews>
                                                 <constraints>
                                                     <constraint firstItem="5SU-zS-Oqs" firstAttribute="centerY" secondItem="jdd-Dk-6li" secondAttribute="centerY" id="372-Oz-lOJ"/>
-                                                    <constraint firstAttribute="trailing" secondItem="0xc-EW-0SW" secondAttribute="trailing" priority="250" constant="5" id="5E4-wM-QSj"/>
-                                                    <constraint firstItem="5SU-zS-Oqs" firstAttribute="leading" secondItem="jdd-Dk-6li" secondAttribute="leading" constant="3" id="RKY-r2-hgC"/>
+                                                    <constraint firstAttribute="trailing" secondItem="0xc-EW-0SW" secondAttribute="trailing" constant="2" id="5E4-wM-QSj"/>
+                                                    <constraint firstItem="5SU-zS-Oqs" firstAttribute="leading" secondItem="jdd-Dk-6li" secondAttribute="leading" constant="1" id="RKY-r2-hgC"/>
                                                     <constraint firstItem="0xc-EW-0SW" firstAttribute="centerY" secondItem="jdd-Dk-6li" secondAttribute="centerY" id="kks-Hb-3kv"/>
-                                                    <constraint firstItem="0xc-EW-0SW" firstAttribute="leading" secondItem="5SU-zS-Oqs" secondAttribute="trailing" constant="7" id="yt3-Qd-q5U"/>
+                                                    <constraint firstItem="0xc-EW-0SW" firstAttribute="leading" secondItem="5SU-zS-Oqs" secondAttribute="trailing" constant="3" id="yt3-Qd-q5U"/>
                                                 </constraints>
                                                 <connections>
                                                     <outlet property="imageView" destination="5SU-zS-Oqs" id="pxF-w1-F6L"/>
                                                     <outlet property="textField" destination="0xc-EW-0SW" id="HPr-mG-00p"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="imageCellView" id="yru-rY-MGS" userLabel="ImageCellView">
+                                            <tableCellView identifier="imageCellView" clipsToBounds="YES" id="yru-rY-MGS" userLabel="ImageCellView">
                                                 <rect key="frame" x="1" y="96" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
@@ -241,11 +241,11 @@
                                                     <outlet property="imageView" destination="SkR-P3-Tft" id="PFt-XA-cOr"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="gaugeCellView" id="K0l-JL-W8K" userLabel="gaugeCellView" customClass="GaugeTableCellView">
+                                            <tableCellView identifier="gaugeCellView" clipsToBounds="YES" id="K0l-JL-W8K" userLabel="gaugeCellView" customClass="GaugeTableCellView">
                                                 <rect key="frame" x="1" y="112" width="119" height="16"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="DUg-s1-E1W" userLabel="Text">
+                                                    <textField clipsToBounds="YES" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="DUg-s1-E1W" userLabel="Text">
                                                         <rect key="frame" x="0.0" y="1" width="119" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="gauge value" id="gJo-B1-Zof" userLabel="tex cell">
                                                             <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="percent" formatWidth="-1" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" id="Q4k-9M-dr6">
@@ -269,18 +269,18 @@
                                                     <outlet property="textField" destination="DUg-s1-E1W" id="7v8-ka-HSX"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="leftButtonCellView" id="UJK-N8-7q7" userLabel="left button cell view">
+                                            <tableCellView identifier="leftButtonCellView" clipsToBounds="YES" id="UJK-N8-7q7" userLabel="left button cell view">
                                                 <rect key="frame" x="1" y="128" width="119" height="17"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <button toolTip="Reveal in source table" translatesAutoresizingMaskIntoConstraints="NO" id="ZeA-cx-xZt">
+                                                    <button toolTip="HighLight in source table" translatesAutoresizingMaskIntoConstraints="NO" id="ZeA-cx-xZt">
                                                         <rect key="frame" x="3" y="1" width="15" height="15"/>
                                                         <buttonCell key="cell" type="recessed" title="Recessed" bezelStyle="recessed" image="looking left" imagePosition="only" alignment="center" state="on" inset="2" id="fYW-7S-Tgg">
                                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                             <font key="font" metaFont="systemBold" size="12"/>
                                                         </buttonCell>
                                                     </button>
-                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="OxV-cJ-f1r" userLabel="Text field">
+                                                    <textField clipsToBounds="YES" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="OxV-cJ-f1r" userLabel="Text field">
                                                         <rect key="frame" x="21" y="1" width="88" height="16"/>
                                                         <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Sample Name" id="zBB-SW-FpQ">
                                                             <font key="font" usesAppearanceFont="YES"/>

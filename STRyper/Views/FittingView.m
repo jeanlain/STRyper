@@ -90,7 +90,7 @@
 		dashedLineLayer.strokeColor = NSColor.grayColor.CGColor;
 		dashedLineLayer.lineWidth = 1.0;
 		dashedLineLayer.lineDashPattern = @[@(1.0), @(2.0)];
-		dashedLineLayer.actions = @{@"position":NSNull.null, @"bounds": NSNull.null, @"strokeStart": NSNull.null};
+		dashedLineLayer.delegate = self;
 		dashedLineLayer.bounds = CGRectMake(0, 0, self.bounds.size.width, 1);
 		
 		sizeLayer = CATextLayer.new;
@@ -99,7 +99,7 @@
 		sizeLayer.contentsScale = 2.0;
 		sizeLayer.bounds = CGRectMake(0, 0, 45, 12);
 		sizeLayer.anchorPoint = CGPointMake(1, 0);
-		sizeLayer.actions = @{@"string": NSNull.null, @"position": NSNull.null};
+		sizeLayer.delegate = self;
 		[dashedLineLayer addSublayer:sizeLayer];
 		[self.layer addSublayer:dashedLineLayer];
 		
@@ -114,6 +114,14 @@
 		[self addTrackingArea:trackingArea];
 		traceColor = NSColor.orangeColor;
 	}
+}
+
+
+- (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
+	if(layer == sizeLayer || layer == dashedLineLayer) {
+		return NSNull.null;
+	}
+	return nil;
 }
 
 

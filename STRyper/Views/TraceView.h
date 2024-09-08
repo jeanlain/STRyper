@@ -42,8 +42,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// A trace view can show several traces at once. These could be all traces of a given  ``Trace/chromatogram`` ("sample"), or of several samples.
 /// Alternatively, this view can show a marker only (no trace).
 ///
-/// IMPORTANT: a trace view must be a document view of an `NSScrollView` (subclass). It will not work otherwise.
-/// It is designed to scroll only horizontally. It resizes itself to fit its clipview vertically, and has methods to show a particular range in base pairs.
+/// - Important: A trace view must be a document view of an `NSScrollView` (subclass). It will not work otherwise.
+/// It is designed to scroll only horizontally. It resizes itself to fit its clipview vertically.
 ///
 /// A trace view interacts with a ``MarkerView`` to show the range of molecular markers of its ``LabelView/panel``, a ``RulerView`` to indicate the horizontal scale it base pairs,
 /// and a ``VScaleView`` to show the vertical scale in fluorescence units.
@@ -104,7 +104,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// In most cases, the view shows a single trace, so having a direct pointer it is useful.
 /// This property helps the implementation even if the view shows several traces.
-@property (nonatomic, readonly, nullable) Trace *trace;
+@property (nonatomic, readonly, nullable, weak) Trace *trace;
 
 /// The genotype the view has loaded .
 @property (nonatomic, readonly, nullable) Genotype *genotype;
@@ -119,6 +119,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The ``Trace/channel`` of the trace(s) or marker shown by the view, from 0 to 4.
 ///
 /// The returned value is -1 if the view shows traces from different channels (i.e., if a ``Chromatogram`` was loaded).
+/// This property may not reflect the ``displayedChannels`` property.
 @property (nonatomic, readonly) ChannelNumber channel;
 
 
@@ -138,7 +139,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The view updates these properties within its `updateLayer` method after a change of appearance.
 /// Hence, view labels can set them for their layers outside of `drawRect:` or `updateLayer` calls
-/// (they don't have to call `setNeedsDisplay:` on their view whenever the need to apply a color).
+/// (they don't have to call `setNeedsDisplay:` on their view whenever they need to apply a color).
 /// The colors are retained and released by the view.
 /// Do not release them unless you retain them first (which would be unnecessary).
 
@@ -179,7 +180,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This method accounts for the fact that the position of a ``FragmentLabel`` depends on the vertical scale and peak height, as opposed to other labels.
 /// Hence, only these labels may need to be repositioned in certain conditions.
-@property (nonatomic) BOOL needsLayoutFragmentLabels;
+@property (nonatomic) BOOL needsRepositionFragmentLabels;
 
 
 /// Action that can be sent by a control to rename an item represented by a label.
@@ -248,7 +249,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The channels the view displays if it has loaded a sample with ``loadContent:``.
 ///
-/// The value of this property is meaningless if the view has not loaded a sample.
+/// The value of this property has an effect on the traces shown by the view only if the view has loaded a sample.
 @property (nonatomic, copy) NSArray<NSNumber *>* displayedChannels;
 
 /// strings used for binding the properties defined above
@@ -341,7 +342,7 @@ ShowPeakTooltipsBinding;
 
 /// Zooms the view to the range of a marker label, with animation
 ///
-/// This method does not check if `label` is among the ``LabelView/markerLabels`` that the view shows.
+/// This method assumes that the label` is among the ``LabelView/markerLabels`` that the view shows.
 /// - Parameter label: The label whose range should occupy the whole visible width of the view.
 - (void)zoomToMarkerLabel:(RegionLabel *)label;
 
@@ -352,7 +353,7 @@ ShowPeakTooltipsBinding;
 
 /// Returns `YES` if the view has just had its size changed.
 ///
-/// This property is used internally to avoid unwanted scrolling.
+/// This property is used by ``TraceScrollView`` to avoid unwanted scrolling.
 @property (nonatomic, readonly) BOOL isResizing;
 
 

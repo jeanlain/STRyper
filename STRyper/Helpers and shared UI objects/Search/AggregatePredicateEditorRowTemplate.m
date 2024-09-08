@@ -30,10 +30,10 @@
 @end
 
 
-enum SelectedSegmentIndex : NSUInteger {
+NS_ENUM(NSUInteger, SelectedSegmentIndex) {
 	AnyPredicateModifierIndex = 0,
 	AllPredicateModifierIndex = 1,
-} SelectedSegmentIndex;
+} ;
 
 
 @implementation AggregatePredicateEditorRowTemplate
@@ -55,7 +55,9 @@ enum SelectedSegmentIndex : NSUInteger {
 - (NSNumberFormatter *)formatter {
 	if(!_formatter) {
 		_formatter = NSNumberFormatter.new;
-		_formatter.allowsFloats = YES;
+		_formatter.numberStyle = NSNumberFormatterDecimalStyle;
+		_formatter.roundingMode = NSNumberFormatterRoundHalfDown;
+		_formatter.maximumFractionDigits = 3;
 	}
 	return _formatter;
 }
@@ -68,7 +70,10 @@ enum SelectedSegmentIndex : NSUInteger {
 			if([view isKindOfClass:NSTextField.class]) {
 				NSTextField *textField = (NSTextField *)view;
 				if(textField.isEditable) {
-					textField.formatter = self.formatter;
+					if(!textField.formatter) {
+						textField.formatter = self.formatter;
+						textField.tag = -666;
+					}
 					NSSize frameSize = textField.frame.size;
 					if(frameSize.width < 100) {
 						frameSize.width = 100;

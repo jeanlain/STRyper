@@ -121,7 +121,7 @@ static const float maxTraceRowHeight = 1000.0;
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-		controller = [[self alloc] init];
+		controller = self.new;
 	});
 	return controller;
 }
@@ -254,8 +254,12 @@ static const float maxTraceRowHeight = 1000.0;
 - (void)viewDidAppear {
 	[super viewDidAppear];
 	/// We restore the selection now. If we did it earlier, the outline view would not show at its final size,
-	/// which may cause issue with trace rows
-	[MainWindowController.sharedController restoreSelection];
+	/// which may cause issue with trace rows.
+	if(!self.contentArray) {
+		/// The view may also appear when it is unhidden, this check should avoid restoring the selection
+		/// more than once. TO IMPROVE.
+		[MainWindowController.sharedController restoreSelection];
+	}
 }
 
 
@@ -311,7 +315,7 @@ static const float maxTraceRowHeight = 1000.0;
 		if(count == 0 || self.contentArray.firstObject == NSNull.null) {
 			return 0;
 		}
-		return (self.stackMode == stackModeSamples && !self.showGenotypes && !self.showMarkers)? self.displayedChannels.count : count;  /// if we stack sample curves, the number of rows is the number of channels to show
+		return (self.stackMode == stackModeSamples && count > 1 && !self.showGenotypes && !self.showMarkers)? self.displayedChannels.count : count;  /// if we stack sample curves, the number of rows is the number of channels to show
 	}
 	if([item isKindOfClass: Genotype.class]) {
 		return 1;	/// a genotype has one child, which is the trace corresponding to the marker's channel for the chromatogram
@@ -326,8 +330,9 @@ static const float maxTraceRowHeight = 1000.0;
 
 
 - (id) outlineView:(id)outlineView child:(NSInteger)index ofItem:(id)item {
+	NSInteger count = self.contentArray.count;
 	if (item == nil) {  /// the top-level rows
-		if (self.stackMode == stackModeSamples && !self.showGenotypes && !self.showMarkers) {
+		if (self.stackMode == stackModeSamples && count > 1 && !self.showGenotypes && !self.showMarkers) {
 			/// here, samples are stacked
 			/// if the child index, which should correspond to the channel to show, exceeds the displayedChannels array, we return a null object
 			/// (but this would mean there is a bug somewhere)
@@ -338,7 +343,7 @@ static const float maxTraceRowHeight = 1000.0;
 		}
 		/// here, we don't stack samples, so we simply return the item at the corresponding index from the content array
 		/// This could be a chromatogram, a marker, or a genotype
-		if(self.contentArray.count < index+1) {
+		if(count < index+1) {
 			return NSNull.null;
 			/// this also prevents a crash. But if it we return a null object, it means there's a bug somewhere
 		}
@@ -441,17 +446,7 @@ static const float maxTraceRowHeight = 1000.0;
 	[traceView loadContent:item];
 	[traceViews addObject:traceView];
 
-	Panel *panel = traceView.panel;
-	NSString *ID = @"traceRowView";
-	if(panel && traceView.trace) {
-		/// We give the row view an identifier that represents the panel and the channel of the trace view.
-		/// If needed we can retrieve a view that has loaded a particular panel for a channel (see ``rowViewForItem:``).
-		/// This allows the trace view (and marker view) to reuse labels for bins and markers, improving load time.
-		ID = [NSString stringWithFormat:@"%@ %@ %d", panel.name, panel.parent.name, traceView.channel];
-	}
-	rowView.identifier = ID;
 	return  rowView;
-	
 }
 
 
@@ -474,6 +469,12 @@ static const float maxTraceRowHeight = 1000.0;
 		Mmarker *marker = ((Genotype *)item).marker;
 		panelToShow = marker.panel;
 		channelToShow = marker.channel;
+	} else if([item isKindOfClass:Chromatogram.class] && self.displayedChannels.count == 1) {
+		channelToShow = self.displayedChannels.firstObject.shortValue;
+		if(channelToShow < orangeChannelNumber) {
+			Chromatogram *sample = (Chromatogram *)item;
+			panelToShow = sample.panel;
+		}
 	}
 	if(panelToShow) {
 		NSString *ID = [NSString stringWithFormat:@"%@ %@ %d", panelToShow.name, panelToShow.parent.name, channelToShow];
@@ -498,6 +499,15 @@ static const float maxTraceRowHeight = 1000.0;
 	if ([rowView isKindOfClass:STableRowView.class]) {
 		TraceView* traceView = [rowView viewWithTag:1];
 		if(traceView) {
+			Panel *panel = traceView.panel;
+			NSString *ID = @"traceRowView";
+			if(panel && traceView.trace) {
+				/// We give the row view an identifier that represents the panel and the channel of the trace view.
+				/// If needed we can retrieve a view that has loaded a particular panel for a channel (see ``rowViewForItem:``).
+				/// This allows the trace view (and marker view) to reuse labels for bins and markers, improving load time.
+				ID = [NSString stringWithFormat:@"%@ %@ %d", panel.name, panel.parent.name, traceView.channel];
+			}
+			rowView.identifier = ID;
 			[traceView prepareForReuse];
 			[traceViews removeObject:traceView];
 		}
@@ -677,7 +687,7 @@ static const float maxTraceRowHeight = 1000.0;
 	int diffCount = abs((int)previousContent.count - (int)content.count);
 	if ((self.stackMode != stackModeSamples || self.showGenotypes || self.showMarkers) && diffCount <= 10 && diffCount > 0) {
 		NSIndexSet *rowsToInsert = [content indexesOfObjectsPassingTest:^BOOL(id obj, NSUInteger idx, BOOL *stop) {
-			return [previousContent indexOfObjectIdenticalTo:obj] == NSNotFound;  // gets the index of samples/genotypes that were not shown previously
+			return [previousContent indexOfObjectIdenticalTo:obj] == NSNotFound;  /// gets the index of samples/genotypes that were not shown previously
 		}];
 		
 		NSIndexSet *rowsToRemove = [previousContent indexesOfObjectsPassingTest:^BOOL(id obj, NSUInteger idx, BOOL *stop) {
@@ -716,8 +726,8 @@ static const float maxTraceRowHeight = 1000.0;
 /// Updates the header of the outline view as appropriate
 -(void) updateHeader {
 	/// we hide the header if we don't show individual (non-stacked) samples, as the normal row views (those will columns) are not shown)
-	traceOutlineView.headerView.hidden = self.showMarkers || (self.stackMode == stackModeSamples && !self.showGenotypes);
 	NSInteger count = self.contentArray.count;
+	traceOutlineView.headerView.hidden = self.showMarkers || (self.stackMode == stackModeSamples && !self.showGenotypes && count > 1);
 	self.stackedSampleTextfield.hidden = self.stackMode != stackModeSamples || self.showMarkers || self.showGenotypes || count < 2;
 	if(!self.stackedSampleTextfield.hidden) {
 		NSString *stringToShow = [NSString stringWithFormat:@"%ld samples stacked", count];
@@ -795,10 +805,10 @@ static const float maxTraceRowHeight = 1000.0;
 	}
 	NSInteger numOtherRows = 0;					/// we compute the number of non-trace rows that should be visible
 												///
-	if(self.showGenotypes || self.stackMode == stackModeChannels ) {
+	if(self.showGenotypes || self.stackMode == stackModeChannels) {
 		/// if we show genotypes (which have just one trace) or if we stack channels, the are as numerous as trace views
 		numOtherRows = traceRowsPerWindow;
-	} else if(self.stackMode == stackModeSamples || self.showMarkers) {
+	} else if((self.stackMode == stackModeSamples && self.contentArray.count > 1) || self.showMarkers) {
 		numOtherRows = 0;
 	} else {
 		if(self.displayedChannels.count >= traceRowsPerWindow) {
@@ -902,10 +912,10 @@ static const float maxTraceRowHeight = 1000.0;
 		return;
 	}
 	
-	BOOL stacksSamples = self.stackMode == stackModeSamples;
+	BOOL stacksSamples = self.stackMode == stackModeSamples && contentCount > 1;
 	if(stacksSamples || contentCount == 1) {
 		/// We animate the hiding of channels when there is only one row per channel (one sample or stacked samples).
-		/// If there are more, the animation often doesn't work well (which for me is an appkit issue) : rows move over others and no not follow the specified animation,
+		/// If there are more, the animation may not work well (which for me is an appkit issue) : rows move over others and do not follow the specified animation,
 		/// and more importantly, some rows may have incorrect height. This is irrespective of whether the height or rows also changes and I have not found a solution.
 		/// Using an NSTableView instead of an NSOutlineView doesn't solve the issue.
 		[traceOutlineView beginUpdates];
@@ -952,16 +962,15 @@ static const float maxTraceRowHeight = 1000.0;
 
 
 - (void)setStackMode:(StackMode)stackMode {
-	if(self.stackMode == stackMode) {
-		return;
-	}
-	StackMode previous = self.stackMode;
-	_stackMode = stackMode;
-	if(!self.showGenotypes && !self.showMarkers) {
-		if(previous == stackModeSamples || stackMode == stackModeSamples) {
-			[self reload];
-		} else {
-			[self stackChannels];
+	if(self.stackMode != stackMode) {
+		StackMode previous = self.stackMode;
+		_stackMode = stackMode;
+		if(self.contentArray && !self.showGenotypes && !self.showMarkers) {
+			if(previous == stackModeSamples || stackMode == stackModeSamples || self.displayedChannels.count <= 1) {
+				[self reload];
+			} else {
+				[self stackChannels];
+			}
 		}
 	}
 }
@@ -1044,8 +1053,9 @@ static const float maxTraceRowHeight = 1000.0;
 
 
 - (void)stackChannels { /// this stacks the visible channels of each sample in a single row or does the reverse
-						/// we should never stack channels when samples are stacked, genotypes or markers are shown (the menus or buttons for that should be disabled in this case, but this is a safety measure).
 	if(self.stackMode == stackModeSamples || self.showGenotypes || self.showMarkers) {
+		/// we should never stack channels when samples are stacked, genotypes or markers are shown
+		/// (the menus or buttons for that should be disabled in this case, but this is a safety measure).
 		return;
 	}
 	
@@ -1063,7 +1073,7 @@ static const float maxTraceRowHeight = 1000.0;
 		/// even if colorsToHide:colorsToReveal: calls beginUpdates, we must wrap all updates,
 		/// otherwise the outline view may spawn a row view for a row that becomes visible during animation,
 		/// even though this row is among those that should be removed, which creates a bug.
-										/// We do it before removing other rows for better visual result
+		/// We do it before removing other rows for better visual result
 		[self hideChannels:rowsForSeparateChannels showChannels:NSIndexSet.new]; /// we remove the rows for separate channels with animation
 		if(self.contentArray.count == 1) {
 			[self refreshFirstRows];		/// we refresh the rows showing the stacked trace for each sample.
@@ -1146,11 +1156,16 @@ static const float maxTraceRowHeight = 1000.0;
 	}
 	
 	if(itemToReveal) {
-		MainWindowController *mainWindowController = MainWindowController.sharedController;
-		TableViewController *controller = mainWindowController.sourceController;
-		mainWindowController.sourceController = controller; /// this makes sure that the genotype list is shown if needed
-		[controller flashItem:itemToReveal];
+		[self revealItemInSourceTable:itemToReveal];
 	}
+}
+
+
+-(void)revealItemInSourceTable:(id)itemToReveal {
+	MainWindowController *mainWindowController = MainWindowController.sharedController;
+	TableViewController *controller = mainWindowController.sourceController;
+	mainWindowController.sourceController = controller; /// this makes sure that the genotype list is shown if needed
+	[controller flashItem:itemToReveal];
 }
 
 
@@ -1242,6 +1257,25 @@ static const float maxTraceRowHeight = 1000.0;
 			}
 		}
 	}
+}
+
+
+- (void)traceView:(TraceView *)traceView didClickTrace:(Trace *)trace {
+	id itemToReveal = nil;
+	if(self.showGenotypes) {
+		itemToReveal = [trace.chromatogram genotypeForMarker:traceView.marker];
+	} else {
+		itemToReveal = trace.chromatogram;
+	}
+	if(itemToReveal) {
+		[self revealItemInSourceTable:itemToReveal];
+	}
+}
+
+
+-(BOOL)validateDefaultStartSize:(id *)defaultStartSize error:(NSError **)error {
+	
+	return YES;
 }
 
 

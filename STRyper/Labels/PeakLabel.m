@@ -61,16 +61,16 @@
 
 
 - (instancetype)init {
-	return [self initWithPeak:MakePeak(0, 0, 0, 0) view:TraceView.new];
+	return [self initWithPeak:MakePeak(0, 0, 0, 0) view:nil];
 }
 
 
 
-- (instancetype)initWithPeak:(Peak)peak view:(nonnull TraceView *)view {
+- (instancetype)initWithPeak:(Peak)peak view:(TraceView *)view {
 	self = [super init];
 	if (self) {
 		self.view = view;
-		[self setPeak:peak];
+		self.peak = peak;
 	}
 	return self;
 }
@@ -86,7 +86,9 @@
 	_scan = peak.scansToTip + peak.startScan;
 	_endScan = _scan + peak.scansFromTip;
 	_crossTalk = peak.crossTalk;	
-	trace = self.view.trace;
+	trace = self.view.trace;  /// if the label is asiigned another peak  it is safer to update the trace as well.
+							  /// We could do it via KVO, but it's faster this way.
+							  /// It the view gets a new trace, it has to assign labels to new peaks anyway (or create new labels).
 }
 
 
@@ -155,7 +157,6 @@
 - (void)updateTrackingArea {
 	[self reposition];			/// our view doesn't reposition us during geometry change, so we reposition here.
 	[super updateTrackingArea];
-	/// This is the appropriate method to update the tooltip rect (doing it every time we reposition is unnecessary)
 }
 
 
@@ -342,7 +343,7 @@ static CALayer *dragLineLayer;
 			handlePosition.x = mouseLocation.x;
 		}
 		
-		/// we prepare the layer that draws the connection line.
+		/// we prepare the layer that draws the handle.
 		/// This layer goes from the start point of the drag to the end point, and takes the whole view height
 		/// We could make it larger, but performance is better when the layer is not larger than needed
 		float distX = ceil(startPoint.x - handlePosition.x);
@@ -351,7 +352,7 @@ static CALayer *dragLineLayer;
 		dragLineLayer.position = frame.origin;
 		dragLineLayer.bounds = frame; /// so the layer coordinates match those of its super layer (hence the trace view).
 		[dragLineLayer setNeedsDisplay];
-		[self.view scrollRectToVisible:frame];
+		[view scrollRectToVisible:frame];
 	}
 }
 

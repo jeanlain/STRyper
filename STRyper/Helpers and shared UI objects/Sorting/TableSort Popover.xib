@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -18,12 +18,6 @@
             <rect key="frame" x="0.0" y="0.0" width="315" height="192"/>
             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
             <subviews>
-                <customView horizontalCompressionResistancePriority="250" verticalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="RZM-3z-hzf" customClass="SortCriteriaEditor">
-                    <rect key="frame" x="0.0" y="23" width="315" height="166"/>
-                    <connections>
-                        <outlet property="delegate" destination="-2" id="2LG-eV-JMp"/>
-                    </connections>
-                </customView>
                 <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="zFA-1D-CMK">
                     <rect key="frame" x="157" y="-2" width="159" height="27"/>
                     <buttonCell key="cell" type="smallSquare" title="Sort Table" bezelStyle="smallSquare" alignment="center" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="p2z-l5-Mbf">
@@ -50,6 +44,12 @@ Gw
                         <action selector="performClose:" target="-2" id="t4f-3y-zu0"/>
                     </connections>
                 </button>
+                <customView horizontalCompressionResistancePriority="250" verticalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="RZM-3z-hzf" customClass="SortCriteriaEditor">
+                    <rect key="frame" x="0.0" y="23" width="315" height="166"/>
+                    <connections>
+                        <outlet property="delegate" destination="-2" id="2LG-eV-JMp"/>
+                    </connections>
+                </customView>
             </subviews>
             <constraints>
                 <constraint firstItem="zFA-1D-CMK" firstAttribute="leading" secondItem="nkI-tP-V8c" secondAttribute="trailing" constant="-1" id="BtL-cS-Ljq"/>

@@ -52,7 +52,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This yields a number of scan-size paired observations, which is used to fit a polynomial of the nth degree.
 /// The coefficients of this polynomial are used to derive a size in base pairs for any a scan number and for other any trace of the sample.
 ///
-/// **IMPORTANT:** If the ``sizingQuality`` attribute of the chromatogram returns 0 or `nil`, the sizing parameters are arbitrary and must not be relied on for genotyping.
+/// - Important: If the ``sizingQuality`` attribute of the chromatogram returns 0 or `nil`, the sizing parameters are arbitrary and must not be relied on for genotyping.
 @interface Chromatogram : CodingObject <NSPasteboardWriting>
 
 /// Returns a complete chromatogram object based on the content of a file and places it in a folder.
@@ -80,7 +80,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) NSDate *importDate;
 
 /// The path o the ABIF file from which the receiver was imported.
-@property (nonatomic, readonly) NSString *sourceFile;
+@property (nonatomic, readonly, copy) NSString *sourceFile;
 
 
 ///Dynamically returns the top ancestor of the folder to which the sample belongs.
@@ -90,41 +90,41 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark - sample-related core data attributes encoded in the ABIF file
 
 /// The name of the sample.
-@property (nonatomic) NSString *sampleName;
+@property (nonatomic, copy) NSString *sampleName;
 
 /// The type of the sample.
-@property (nonatomic) NSString *sampleType;
+@property (nonatomic, nullable, copy) NSString *sampleType;
 
 ///Any comment that the user has added/can add to the sample.
-@property (nonatomic, nullable) NSString *comment;
+@property (nonatomic, nullable, copy) NSString *comment;
 
 /// The name of the plate containing the sample.
-@property (nonatomic, readonly, nullable) NSString *plate;
+@property (nonatomic, nullable, copy) NSString *plate;
 
 /// The position of the sample in the plate (e.g. "B5")
-@property (nonatomic, readonly, nullable) NSString *well;
+@property (nonatomic, readonly, nullable, copy) NSString *well;
 
 /// The owner of the sample.
-@property (nonatomic, readonly, nullable) NSString *owner;
+@property (nonatomic, nullable, copy) NSString *owner;
 
 /// The name of the results group to which the sample belong.
-@property (nonatomic, readonly, nullable) NSString *resultsGroup;
+@property (nonatomic, nullable, copy) NSString *resultsGroup;
 
 /// Name of the panel of markers, as extracted from the ABIF file.
 ///
 /// NOTE: this is not the same as the ``Folder/name`` of the sample's ``panel``.
-@property (nonatomic, readonly, nullable) NSString *panelName;
+@property (nonatomic, nullable, copy) NSString *panelName;
 
 /***** Electrophoresis-related attributes **/
 
 /// Type of gel used for the electrophoresis (e.g. "POP7").
-@property (nonatomic, readonly, nullable) NSString *gelType;
+@property (nonatomic, readonly, nullable, copy) NSString *gelType;
 
 /// Name of the electrophoresis protocol used.
-@property (nonatomic, readonly, nullable) NSString *protocol;
+@property (nonatomic, readonly, nullable, copy) NSString *protocol;
 
 /// The name of run (generally, the folder where the ABIF file was saved).
-@property (nonatomic, readonly, nullable) NSString *runName;
+@property (nonatomic, nullable, copy) NSString *runName;
 
 /// The time of the end of the run that generated the chromatogram.
 @property (nonatomic, readonly, nullable) NSDate *runStopTime;
@@ -149,7 +149,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This method will return nil if none of the chromatogram's ``traces`` has a ``Trace/channel`` that matches the argument, which would be an error.
 ///
-/// Note : a chromatogram must only have one trace per channel.
+/// - Important: A `Chromatogram` must only have one trace per channel.
 /// - Parameter channel: The channel of the trace to retrieve.
 - (nullable Trace*)traceForChannel:(ChannelNumber)channel;
 
@@ -195,7 +195,7 @@ typedef struct OffscaleRegion {
 /// The name of the dye (molecule) that emitted fluorescence for the first ``Trace/channel``.
 ///
 /// This property points to the ``Trace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
-@property (nonatomic, readonly, nullable) NSString *dye1,
+@property (nonatomic, readonly, nullable, copy) NSString *dye1,
 
 /// The name of the dye (molecule) that emitted fluorescence for the second ``Trace/channel``.
 ///
@@ -217,6 +217,14 @@ typedef struct OffscaleRegion {
 /// This property points to the ``Trace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
 *dye5;
 
+
+/// Sets ``sizes`` to `nil`.
+///
+/// This method is intended to reduce the memory footprint of the receiver, as the ``size`` property
+/// is by far the one that takes the most memory.
+/// Size will be recomputed the next time ``sizes`` is sent to the receiver.
+-(void)refreshSizeData;
+
 #pragma mark - sizing-related attributes and methods
 
 /// The trace that contains data from the molecular ladder.
@@ -229,17 +237,17 @@ typedef struct OffscaleRegion {
 ///
 /// The reverse relationship is ``SizeStandard/samples``.
 ///
-/// IMPORTANT: setting this relationship automatically makes the chromatogram size itself with the new size standard.
+/// - Note: Setting this relationship automatically makes the chromatogram size itself with the new size standard.
 @property (nonatomic, nullable) SizeStandard *sizeStandard;
 
 /// The name of  the size standard applied to the sample, as coded in the ABIF file.
 ///
 /// This is not the same as the ``SizeStandard/name`` of the sample's ``sizeStandard``.
-@property (nonatomic, readonly) NSString *standardName;
+@property (nonatomic, readonly, copy) NSString *standardName;
 
 
 /// The order of the polynomial used to compute the relationship between scan number (x) and size in base pairs (y) for a `Chromatogram`.
-typedef enum PolynomialOrder : int16_t {
+typedef NS_ENUM(int16_t, PolynomialOrder) {
 	/// Signifies that no polynomial is applied.
 	NoFittingMethod = 0,
 	
@@ -251,7 +259,7 @@ typedef enum PolynomialOrder : int16_t {
 	
 	/// Denotes a polynomial of the third order.
 	ThirdOrderPolynomial = 3,
-} PolynomialOrder;
+} ;
 
 /// The order of the polynomial equation used to size the sample.
 @property (nonatomic) PolynomialOrder polynomialOrder;
@@ -360,6 +368,9 @@ extern const float DefaultReadLength;
 /// The panel of markers used for genotyping the sample.
 ///
 /// The reverse relationship is ``Panel/samples``.
+///
+/// Setting this property does not change the receiver's ``genotypes`` to reflect the ``Panel/markers`` of the `panel`.
+/// To do so, use the ``applyPanelWithAlleleName:`` method.
 @property (nonatomic, nullable) Panel *panel;
 
 /// The genotypes at the markers of the panel that is applied to the sample.
@@ -393,7 +404,7 @@ extern const float DefaultReadLength;
 /// Makes the chromatogram (re)generate its  set of ``genotypes`` given its ``panel``.
 ///
 /// If the sample has no panel, its genotypes will be deleted.
-/// Note: alleles are not called by this method, hence their ``LadderFragment/scan`` number remains 0.
+/// - Note: Alleles are not called by this method, hence their ``LadderFragment/scan`` number remains 0.
 /// - Parameter alleleName: The ``LadderFragment/name`` to give to the ``Genotype/alleles`` of each generated genotype.
 -(void)applyPanelWithAlleleName:(NSString *)alleleName;
 																

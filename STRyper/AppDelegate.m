@@ -28,13 +28,25 @@
 #import "GenotypeTableController.h"
 #import "DetailedViewController.h"
 
+@interface AppDelegate ()
+
+/// Properties bound to equivalent user default keys, which we implement here to provide validation methods.
+/// Validation is invoked by text fields bound to these keys in the setting window (bindings are specified in the nib).
+@property (nonatomic) NSString *dubiousAlleleName;
+@property (nonatomic) NSString *missingAlleleName;
+@property (nonatomic) float defaultStartSize;
+@property (nonatomic) float defaultEndSize;
+
+@end
+
+
 @implementation AppDelegate {
 	
 	/// The application preference window.
 	__weak IBOutlet NSWindow *settingWindow;
 	NSTimer *saveTimer;			/// A timer that we use to save at time intervals.
 	BOOL quitWithoutCleaning;	/// whether we should terminate the application without emptying the trash.
-
+	
 }
 
 
@@ -73,7 +85,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
 
 + (void)initialize {
-
+	
 	/// We set the default settings.
 	NSDictionary *defaults = @{ShowOffScale: @YES,
 							   OutlinePeaks: @NO,
@@ -102,11 +114,17 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   AnnotateAdditionalPeaks:@YES,
 							   DefaultSizingOrder: @2,
 							   @"NSOutlineView Items sampleInspector":@[@"Sample information", @"Sizing"],
-							   @"log": @NO,						
+							   @"log": @NO,
 							   CaseSensitiveSampleSearch: @NO
 							   
 	};
 	[NSUserDefaults.standardUserDefaults registerDefaults:defaults];
+}
+
+
+
++ (instancetype)sharedInstance {
+	return (AppDelegate *)NSApp.delegate;
 }
 
 
@@ -117,15 +135,15 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		NSLog(@"Failed to load the database.");
 		abort();
 	}
-
+	
 	/// We check the version of the persistent store to improve the detection of crosstalk in traces if necessary.
 	/// Earlier versions of the app did not detect crosstalk in a way that allows showing it in trace views.
 	NSURL *url = [MOC.persistentStoreCoordinator URLForPersistentStore: MOC.persistentStoreCoordinator.persistentStores.firstObject];
 	if(url) {
 		NSDictionary *data = [NSPersistentStoreCoordinator metadataForPersistentStoreOfType:NSSQLiteStoreType URL:url options:nil error:nil];
 		if(data) {
-			NSArray *identifiers = [data valueForKey:NSStoreModelVersionIdentifiersKey];
-			if(identifiers && ![identifiers containsObject:@"1.1"]) {
+			NSArray *identifiers = data[NSStoreModelVersionIdentifiersKey];
+			if(identifiers && ![identifiers containsObject:@"1.2"]) {
 				NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:Chromatogram.entity.name];
 				NSArray *samples = [MOC executeFetchRequest:request error:nil];
 				for(Chromatogram *sample in samples) {
@@ -144,6 +162,11 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		NSLog(@"Failed to load the main window.");
 		abort();
 	}
+	
+	[self bind:NSStringFromSelector(@selector(dubiousAlleleName)) toObject:NSUserDefaults.standardUserDefaults withKeyPath:DubiousAlleleName options:nil];
+	[self bind:NSStringFromSelector(@selector(missingAlleleName)) toObject:NSUserDefaults.standardUserDefaults withKeyPath:MissingAlleleName options:nil];
+	[self bind:NSStringFromSelector(@selector(defaultStartSize)) toObject:NSUserDefaults.standardUserDefaults withKeyPath:DefaultStartSize options:nil];
+	[self bind:NSStringFromSelector(@selector(defaultEndSize)) toObject:NSUserDefaults.standardUserDefaults withKeyPath:DefaultEndSize options:nil];
 	
 	/// When the app quits, the trash is normally emptied. But if the app has crashed or was killed (or perhaps for other reasons), the trash may contain items.
 	/// We propose to restore them		(MOVE THAT to FolderListController.m ? TO TEST)
@@ -172,19 +195,19 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	}
 	
 	[mainWindow.undoManager removeAllActions];		/// Loading the application may generate some undo actions. We remove them.
-											
-	saveTimer = [NSTimer timerWithTimeInterval:30 target:self selector:@selector(saveAction:) userInfo:nil repeats:NO];
-	[[NSRunLoop mainRunLoop] addTimer:saveTimer forMode:NSRunLoopCommonModes];
+	
+	saveTimer = [NSTimer scheduledTimerWithTimeInterval:30 target:self selector:@selector(saveAction:) userInfo:nil repeats:NO];
 }
 
 
 /// Puts the content found in the trash folder (if not emptied) into a folder called "recovered items".
 -(void)restoreTrash {
-	Folder *rootFolder = FolderListController.sharedController.rootFolder;
+	FolderListController *folderListController = FolderListController.sharedController;
+	Folder *rootFolder = folderListController.rootFolder;
 	if(!rootFolder) {
 		return;
 	}
-	SampleFolder *trashFolder = FolderListController.sharedController.trashFolder;
+	SampleFolder *trashFolder = folderListController.trashFolder;
 	if(trashFolder.subfolders.count > 0 || trashFolder.samples > 0) {
 		SampleFolder *restored = [[SampleFolder alloc] initWithParentFolder: rootFolder];
 		restored.name = @"Recovered items";
@@ -200,75 +223,89 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
 
 /*
-/// Returns the directory the application uses to store the Core Data store file.
-- (NSURL *)applicationFilesDirectory
-{
-	NSFileManager *fileManager = [NSFileManager defaultManager];
-	NSURL *appSupportURL = [fileManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].lastObject;
-	return [appSupportURL URLByAppendingPathComponent:@"jpeccoud.STRyper"];
-//	return [NSURL fileURLWithPath:@"/Users/test/Documents"];
-}  */
+ /// Returns the directory the application uses to store the Core Data store file.
+ - (NSURL *)applicationFilesDirectory
+ {
+ NSFileManager *fileManager = [NSFileManager defaultManager];
+ NSURL *appSupportURL = [fileManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].lastObject;
+ return [appSupportURL URLByAppendingPathComponent:@"jpeccoud.STRyper"];
+ //	return [NSURL fileURLWithPath:@"/Users/test/Documents"];
+ }  */
 
 
 #pragma mark - preferences management/others
 
+-(BOOL)validateDubiousAlleleName:(id *)ioValue error:(NSError **)error {
+	NSString *name = *ioValue;
+	if(!name || name.length < 1) {
+		if(_dubiousAlleleName.length > 0) {
+			*ioValue = _dubiousAlleleName;
+			return YES;
+		}
+		if(error != NULL) {
+			*error = [NSError errorWithDescription:@"The name for non-binned alleles cannot be empty." suggestion:@"Please provide a name."];
+		}
+		return NO;
+	}
+	if(name.length > 10) {
+		*ioValue = [name substringToIndex:10];
+	}
+	return YES;
+}
 
-/// The tags attributed to controls of the newMarkerPopover, set in a nib.
-enum TextFieldTag: NSInteger {
-	startFieldTag = 2,
-	endFieldTag = 3,
-};
+
+-(BOOL)validateMissingAlleleName:(id *)ioValue error:(NSError **)error {
+	NSString *name = *ioValue;
+	/// We permit no value for the missing allele name, but we truncate strings that are too long.
+	if(name.length > 10) {
+		*ioValue = [name substringToIndex:10];
+	}
+	return YES;
+}
+
+
+-(BOOL)validateDefaultStartSize:(id *)ioValue error:(NSError **)error {
+	NSNumber *start = *ioValue;
+	if(start == nil) {
+		*ioValue = @(_defaultStartSize);
+		return YES;
+	}
+	
+	float startValue = start.floatValue;
+	if(startValue < 0) {
+		startValue = 0;
+	} else if(startValue > _defaultEndSize - 2) {
+		startValue = _defaultEndSize - 2;
+	}
+	*ioValue = @(startValue);
+	return YES;
+}
+
+
+-(BOOL)validateDefaultEndSize:(id *)ioValue error:(NSError **)error {
+	NSNumber *end = *ioValue;
+	if(end == nil) {
+		*ioValue = @(_defaultEndSize);
+		return YES;
+	}
+	
+	float endValue = end.floatValue;
+	if(endValue > 1200) {
+		endValue = 1200;
+	} else if(endValue < _defaultStartSize + 2) {
+		endValue = _defaultStartSize + 2;
+	}
+	*ioValue = @(endValue);
+	return YES;
+}
+
 
 /// Shows the settings (preferences) window
 - (IBAction)showSettings:(id)sender {
 	if(!settingWindow) {
 		[NSBundle.mainBundle loadNibNamed:@"Settings" owner:self topLevelObjects:nil];
-		if(settingWindow.contentView) {
-			NSTextField *textField = [settingWindow.contentView viewWithTag:startFieldTag];
-			textField.delegate = (id)self;
-			textField = [settingWindow.contentView viewWithTag:endFieldTag];
-			textField.delegate = (id)self;
-		}
 	}
 	[settingWindow makeKeyAndOrderFront:sender];
-	
-}
-
-
-
-- (void)controlTextDidEndEditing:(NSNotification *)obj {
-	/// We check if the values entered in the settings window for the start and end of the default visible range of traces are consistent.
-	/// We change them otherwise.
-	NSTextField *textField = obj.object;
-	NSView *view = textField.superview;
-	NSTextField *startTextField = [view viewWithTag:startFieldTag];
-	NSTextField *endTextField = [view viewWithTag:endFieldTag];
-	if(!startTextField || !endTextField) {
-		return;
-	}
-	float end = endTextField.floatValue;
-	float start = startTextField.floatValue;
-
-	if(textField == startTextField) {
-		if(start < 0) {
-			start = 0;
-		} else if(start >= end-2) {
-			start = end-2;
-		}
-		/// As the text field is bound to the user default, we modify that directly. Changing the text field floatValue would affect the user defaults.
-		[NSUserDefaults.standardUserDefaults setFloat:start forKey:DefaultStartSize];
-		return;
-	}
-	
-	if(textField == endTextField) {
-		if(end < start + 2) {
-			end = start+2;
-		} else if(end > 1200) {
-			end = 1200;
-		}
-		[NSUserDefaults.standardUserDefaults setFloat:end forKey:DefaultEndSize];
-	}
-	
 }
 
 
@@ -462,8 +499,7 @@ enum TextFieldTag: NSInteger {
 	
 	if(!context.hasChanges) {
 		[saveTimer invalidate];
-		saveTimer = [NSTimer timerWithTimeInterval:30 target:self selector:@selector(saveAction:) userInfo:nil repeats:NO];
-		[[NSRunLoop mainRunLoop] addTimer:saveTimer forMode:NSRunLoopCommonModes];
+		saveTimer = [NSTimer scheduledTimerWithTimeInterval:30 target:self selector:@selector(saveAction:) userInfo:nil repeats:NO];
 	}
 }
 

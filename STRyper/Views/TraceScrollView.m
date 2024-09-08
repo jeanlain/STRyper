@@ -28,7 +28,7 @@
 @implementation TraceScrollView
 
 {
-	VScaleView *vScaleView;   		/// the vertical scale view is created by us and added as a subview
+	VScaleView *vScaleView;   		/// the vertical scale view is created by the scroll view and added as a subview
 	__weak TraceView *traceView;	/// A shortcut to the document view (if a traceView)
 	
 	
@@ -92,7 +92,7 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 
 - (void)setScrollerStyle:(NSScrollerStyle)scrollerStyle {
 	/// We enforce the legacy scroller style
-	///  (if we didn't and if the user connects a magic mouse or trackpad after the app launch, the legacy scroller style could change)
+	/// (if we didn't and if the user connects a magic mouse or trackpad after the app launch, the legacy scroller style could change)
 	if(scrollerStyle == NSScrollerStyleLegacy) {
 		[super setScrollerStyle:scrollerStyle];
 	}
@@ -144,22 +144,33 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 	NSScrollerPart hitPart = self.horizontalScroller.hitPart;
 	float hScale = traceView.hScale;
 	aPoint.x += traceView.leftInset;
+	
+	if(traceView.isResizing || hScale <= 0) {
+		return;
+	}
 
-	if(hScale <= 0 || traceView.isResizing || targetLabel ||
+	if(targetLabel ||
 	   (previousDeltaX == 0 && (hitPart == NSScrollerNoPart || hitPart == NSScrollerKnobSlot))) {
-		/// the view being resized tends to trigger this method which messes with the scrolling. So we don't scroll in this situation.
-		/// We also check the presence of a scroll event, because appkits tends to call this method inappropriately, in particular after a swipe between markers.
-		/// The swipe requires ignoring some scrollWheel messages that occur after the fingers have left the trackpad (inertial scrolling events after the swipe).
-		/// Appkit apparently buffers these events and sees fit to call this method when the mouse exists our frame,
-		/// to make us scroll the document view where it should have scrolled if we did not ignore the scrollWheel messages
+		/// Scrolling is ignored if the trace view is already moving to a marker label or there was no scroll event initiated by the user.
+		/// Because the method may have been called inappropriately, which appkit does when the trace view is resized of after a swipe between markers.
+		/// The swipe requires ignoring some scrollWheel messages (inertial scrolling events after the swipe).
+		/// Appkit apparently buffers these events and sees fit to call this method when the mouse exists the scrollview frame,
+		/// to (apparently) make the document view scroll to where it should have scrolled if we did not ignore the scrollWheel messages.
 		/// This causes a jump in scroll position.
-		if(aPoint.x >= 0) {
+		
+		///But the scroll event can be also triggered without direct user input to allow the rubber band effect.
+		///We must allow scrolling in this case.
+		float traceViewWidth = traceView.bounds.size.width;
+		float clipViewFrameWidth = self.contentView.frame.size.width;
+		float currentPointX = aClipView.bounds.origin.x;
+		if(currentPointX >= 0 && currentPointX <= traceViewWidth - clipViewFrameWidth) {
+			/// Here the scroll point is within the traceView bounds, so there is no rubber band effect
+			/// We ignore the scrolling.
 			return;
 		}
 	}
 	
 	[traceView scrollPoint:aPoint animate:hitPart == NSScrollerIncrementPage || hitPart == NSScrollerDecrementPage];
-
 }
 
 
@@ -174,7 +185,6 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 			NSPoint mouseLocation = [self.documentView convertPoint:theEvent.locationInWindow fromView:nil];
 			float zoomPoint = mouseLocation.x;
 			float zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
-			mouseLocation.x = zoomPoint*zoomFactor;
 			[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:NO];
 		}
 	} else {
@@ -182,15 +192,15 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 			targetLabel = nil;
 		} else {
 			if(targetLabel) {
-				/// If we are moving to the target label, we ignore scrollWheel event.
+				/// If we are moving to the target label, we ignore scrollWheel events.
 				return; /// this will not prevent appkit from calling scrollClipView: on us.
 			}
 		}
 		
 		NSEventPhase phase = theEvent.phase;
-		/// if the user started to scrolls vertically, we pass the event up in the hierarchy as we don't scroll vertically
 		if (phase <= NSEventPhaseBegan && vertical) {
-			/// After doing so, no scrollWheel: message will be sent to us for the current scroll gesture. The next responder will "consume" the scrolling.
+			/// if the user started to scrolls vertically, we pass the event up in the hierarchy as we don't scroll vertically
+			/// After doing so, no scrollWheel: message will be sent to us for the current scroll gesture. The next responder will "consume" the scrolling session.
 			[self.nextResponder scrollWheel:theEvent];
 		} else {
 			if(phase == NSEventPhaseEnded && fabs(previousDeltaX) >= 5 && self.allowSwipeBetweenMarkers && traceView.markerView.markerLabels.count > 0) {
@@ -204,7 +214,8 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 						targetLabel = [traceView.markerView moveToPreviousMarker:self];
 					}
 					if(targetLabel) {
-						previousDeltaX = 0;  /// which we use to prevent scrolling in -scrollClipView: toPoint:, as the trace view has started moving to the marker independently of the scrollWheel events
+						previousDeltaX = 0;  /// which we use to prevent scrolling in -scrollClipView: toPoint:, 
+											 /// as the trace view has started moving to the marker independently of the scrollWheel events
 						return;
 					}
 				}

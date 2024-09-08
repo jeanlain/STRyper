@@ -33,7 +33,7 @@
 /// If the trace(s) shown by the trace view belong to a sample that has no suitable sizing data (no size standard was, or could be, applied),
 /// the view signifies that with some text instead of showing size labels.
 ///
-/// IMPORTANT: a view of this class must be a horizontal ruler, and will not work as a vertical ruler.
+/// - Important: A view of this class must be a horizontal ruler, and will not work as a vertical ruler.
 /// The scrollview's document view must be a ``TraceView``.
 ///
 /// This class does not override methods of `NSRulerView` to display the size labels, hence these methods have no effect on what the view shows.
@@ -41,7 +41,7 @@
 ///
 /// A `RulerView` can show a mobile label indicating a particular size, typically the position of the cursor on its client view.
 /// It implements methods that allow the user to zoom the trace view to a given range, and interprets `-scrollWheel:` events to make the trace view zoom to the next/previous marker.
-@interface RulerView : NSRulerView 
+@interface RulerView : NSRulerView <CALayerDelegate>
 
 /// A position, in base pairs, to show on the ruler.
 ///
@@ -67,13 +67,13 @@
 /// This property is set as appropriate and avoids setting the colors of `CALayer` objects at each redisplay.
 @property (nonatomic) BOOL needsChangeAppearance;
 
-/// Tells that view that it needs to the update the offsets of size labels to show within marker ranges.
+/// Tells that view that it needs to update the offsets of size labels to show within marker ranges.
 ///
 /// Offset are updated at the beginning of `-drawRect`.
 /// This property should return `YES` if the offset of one or several marker(s) shown by the trace view has/have changed.
 @property (nonatomic) BOOL needsUpdateOffsets;
 
-/// The thickness of the ruler view
+/// The thickness of the ruler view = 14 pts.
 extern const float ruleThickness;
 
 @end

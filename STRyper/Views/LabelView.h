@@ -36,8 +36,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// The horizontal dimension of a label view represents positions/sizes in base pairs.
 ///
 /// This superclass is tailored for the ``MarkerView`` and ``TraceView`` concrete subclasses and might not be suitable for all possible subclasses showing ``ViewLabel`` objects.
-/// Instances of this class disable menu items that target them while a label is being dragged, to avoid unwanted effect (for instance, deleting a label being dragged).
-@interface LabelView : NSView <NSViewLayerContentScaleDelegate> {
+/// Instances of this class disable menu items and don't react to key-pressed events while a label is being dragged
+/// to avoid unwanted effect (for instance, deleting a label being dragged).
+@interface LabelView : NSView <NSViewLayerContentScaleDelegate, CALayerDelegate> {
 	
 	/// A tracking area covering the visible rectangle of the view, so it can react to mouse movement and enter/exit events.
 	NSTrackingArea *trackingArea;
@@ -196,7 +197,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///   - regions: The region that should be represented by labels.
 ///   - labels: Labels that can be reused.
 - (NSArray<RegionLabel *> *) regionLabelsForRegions:(NSArray<Region *> *)regions
-										reuseLabels:(nullable NSArray <RegionLabel *> *)labels;
+										reuseLabels:(nullable NSArray<RegionLabel *> *)labels;
 
 /// The layer that hosts the layer of the view's ``markerLabels``.
 @property (readonly, nonatomic) CALayer *backgroundLayer;
@@ -210,19 +211,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// All the view labels that the view shows.
 @property (nonatomic, readonly) NSArray<ViewLabel *> *viewLabels;
 
-/// All view labels that may need to be repositioned in ``repositionLabels:allowAnimation:``.
-///
-/// ``MarkerView`` and ``TraceView`` return labels that use core animation layers.
-@property (nonatomic, readonly) NSArray<ViewLabel *> *repositionableLabels;
-
 
 /// Repositions labels according to the view geometry.
 ///
-/// This method call ``ViewLabel/reposition`` on each of the `labels`.
+/// This method call ``ViewLabel/reposition`` on each of the `labels` and is called by the view appropriately.
 /// - Parameters:
 ///   - labels: The labels to be repositioned.
-///   - allowAnimate: Whether the repositioning should be animated.
-- (void)repositionLabels:(NSArray *)labels allowAnimation:(BOOL) allowAnimate;
+- (void)repositionLabels:(NSArray<ViewLabel *> *)labels;
 
 
 /// The label that is the target of actions in the view.
@@ -232,15 +227,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Notifies the view that it needs to reposition its labels.
 ///
-/// Setting this property to `YES` sets `needsLayout` to `YES`.
-/// Labels are repositioned once in `-layout`.
-///
-/// This property is set to `YES` when the frame size of the view changes. 
-@property (nonatomic) BOOL needsLayoutLabels;
+/// Setting this property to `YES` sets `needsDisplay` to `YES`.
+/// Labels are repositioned in `-updateLayer`.
+@property (nonatomic) BOOL needsRepositionLabels;
 															
 /// Updates the tracking areas of labels.
 ///
 /// The default implementation calls ``ViewLabel/updateTrackingArea`` on the labels.
+///
+/// For performance reasons, labels don't reposition their tracking areas themselves,
+/// as tracking areas need not be updated at each step of an animation.
 /// - Parameter labels: The labels whose tracking areas will be updated.
 - (void)updateTrackingAreasOf:(NSArray <ViewLabel *> *)labels;
 	
@@ -257,7 +253,6 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// As some labels use core animation layers, the colors of these layers must be set during `-drawRect` or `-updateLayer` to take effect.
 /// Hence setting this property to `YES` also sets `-needsDisplay` to `YES`.
-///
 ///
 /// Subclasses can use this property to avoid setting `CALayer` colors every time the view must redisplay.
 @property (nonatomic) BOOL needsUpdateLabelAppearance;

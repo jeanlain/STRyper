@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -15,12 +15,12 @@
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <userDefaultsController representsSharedInstance="YES" id="KQm-tu-aY2"/>
         <customView misplaced="YES" translatesAutoresizingMaskIntoConstraints="NO" id="TaJ-5Y-vS7" userLabel="Right Pane">
-            <rect key="frame" x="0.0" y="0.0" width="652" height="331"/>
+            <rect key="frame" x="0.0" y="0.0" width="652" height="301"/>
             <subviews>
                 <scrollView borderType="none" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="0.0" translatesAutoresizingMaskIntoConstraints="NO" id="MzI-yj-wFf">
-                    <rect key="frame" x="0.0" y="30" width="652" height="92"/>
+                    <rect key="frame" x="0.0" y="30" width="652" height="156"/>
                     <clipView key="contentView" id="odp-jd-7as">
-                        <rect key="frame" x="0.0" y="0.0" width="652" height="92"/>
+                        <rect key="frame" x="0.0" y="0.0" width="652" height="156"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <outlineView identifier="traceOutlineView" verticalHuggingPriority="750" tag="3" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" selectionHighlightStyle="none" multipleSelection="NO" autosaveColumns="NO" typeSelect="NO" rowHeight="16" headerView="c1B-BF-T33" viewBased="YES" floatsGroupRows="NO" outlineTableColumn="zpk-aZ-Se7" id="0qS-ci-Tr3">
@@ -47,7 +47,7 @@
                                                 <rect key="frame" x="1" y="0.0" width="181" height="96"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
-                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="AuF-mM-PES">
+                                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="AuF-mM-PES">
                                                         <rect key="frame" x="14" y="40" width="153" height="16"/>
                                                         <textFieldCell key="cell" alignment="center" title="No data for this channel" id="3Zi-IZ-n5W">
                                                             <font key="font" metaFont="system"/>
@@ -74,14 +74,14 @@
                                                 <rect key="frame" x="1" y="118" width="181" height="17"/>
                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                 <subviews>
-                                                    <button toolTip="Reveal in source table" tag="1" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="6ZE-Qy-8Fo">
+                                                    <button toolTip="Highlight in source table" tag="1" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="6ZE-Qy-8Fo">
                                                         <rect key="frame" x="0.0" y="-1" width="25" height="19"/>
                                                         <buttonCell key="cell" type="recessed" title="Recessed" bezelStyle="recessed" image="looking left" imagePosition="only" alignment="center" state="on" borderStyle="border" inset="2" id="14W-rD-1G4">
                                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                             <font key="font" metaFont="systemBold" size="12"/>
                                                         </buttonCell>
                                                     </button>
-                                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="xdN-5r-fEv" userLabel="Text field">
+                                                    <textField clipsToBounds="YES" focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="xdN-5r-fEv" userLabel="Text field">
                                                         <rect key="frame" x="23" y="1" width="160" height="16"/>
                                                         <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" title="Sample Name" id="ogg-Z7-NRw">
                                                             <font key="font" usesAppearanceFont="YES"/>
@@ -111,11 +111,11 @@
                         </subviews>
                     </clipView>
                     <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="7Jw-gM-kpN">
-                        <rect key="frame" x="0.0" y="76" width="652" height="16"/>
+                        <rect key="frame" x="0.0" y="140" width="652" height="16"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </scroller>
                     <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="NO" id="6JR-Nv-5mi">
-                        <rect key="frame" x="636" y="28" width="16" height="64"/>
+                        <rect key="frame" x="636" y="28" width="16" height="128"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </scroller>
                     <tableHeaderView key="headerView" wantsLayer="YES" id="c1B-BF-T33" customClass="TableHeaderView">

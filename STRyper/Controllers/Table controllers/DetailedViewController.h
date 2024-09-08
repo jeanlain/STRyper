@@ -50,7 +50,7 @@
 -(IBAction)loadContent:(NSButton *)sender;
 															
 /// An integer that specifies how the detailed view displays traces when its show samples.
-typedef enum StackMode : NSUInteger {
+typedef NS_ENUM(NSUInteger, StackMode) {
 	
 	/// Each trace is shown in a separate row.
 	/// Sample metadata are shown in "regular" rows above traces (for each sample).
@@ -64,7 +64,7 @@ typedef enum StackMode : NSUInteger {
 	/// In this mode, there are no "regular" row showing sample information, and as many rows as visible channels.
 	/// Hence, column headers are replaced by a text indicated how many samples are stacked per row.
 	stackModeSamples = 2,
-} StackMode;
+} ;
 
 
 /// The mode of stacking traces in rows of the detailed view.
@@ -85,7 +85,7 @@ typedef enum StackMode : NSUInteger {
 -(void)recordReferenceRange;
 
 /// An integer that specifies how the vertical scale of trace views is managed.
-typedef enum TopFluoMode : NSUInteger {
+typedef NS_ENUM(NSUInteger, TopFluoMode) {
 	
 	/// The  ``TraceView/topFluoLevel`` property of traces views is synchronized.
 	topFluoModeSynced = 0,
@@ -95,7 +95,7 @@ typedef enum TopFluoMode : NSUInteger {
 	
 	/// The ``TraceView/autoScaleToHighestPeak`` property of trace views is set to `YES`.
 	topFluoModeHighestPeak = 2,
-} TopFluoMode;
+};
 
 /// The mode by which the vertical scale of trace views is managed.
 @property (nonatomic) TopFluoMode topFluoMode;

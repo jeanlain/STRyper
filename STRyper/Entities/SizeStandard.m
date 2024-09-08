@@ -88,8 +88,18 @@ CodingObjectKey SizeStandardNameKey = @"name";
 
 
 
-- (BOOL)validateName:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {		/// raises an error if several standards have the same name
-    NSString *name = *value;
+- (BOOL)validateName:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {
+	NSString *name = *value;
+	if(name.length == 0) {
+		NSString *previousName = self.name;
+		if(previousName.length > 0) {
+			if([self validateName:&previousName error:nil]) {
+				*value = previousName;
+				return YES;
+			}
+		}
+	}
+	/// we verify is the name is not already used by another size standard.
     NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:SizeStandard.entity.name];
     NSArray *standards = [self.managedObjectContext executeFetchRequest:request error:nil];
     if(standards) {

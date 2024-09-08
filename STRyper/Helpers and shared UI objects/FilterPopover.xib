@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -109,14 +109,6 @@
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                 </button>
-                <textField hidden="YES" horizontalHuggingPriority="251" verticalHuggingPriority="750" tag="7" translatesAutoresizingMaskIntoConstraints="NO" id="Pcx-Tp-Ao2">
-                    <rect key="frame" x="176" y="37" width="123" height="16"/>
-                    <textFieldCell key="cell" lineBreakMode="clipping" title="Please, fill all fields." id="aGy-1R-GXt">
-                        <font key="font" metaFont="system"/>
-                        <color key="textColor" red="0.79177749159999999" green="0.28309270739999998" blue="0.2351639569" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
-                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                    </textFieldCell>
-                </textField>
                 <button tag="4" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="5IM-f9-o6x">
                     <rect key="frame" x="-1" y="-2" width="159" height="32"/>
                     <buttonCell key="cell" type="smallSquare" title="Cancel" bezelStyle="smallSquare" alignment="center" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="TPh-yt-gfl">
@@ -155,7 +147,6 @@ DQ
             <constraints>
                 <constraint firstAttribute="trailing" secondItem="eev-6B-uhp" secondAttribute="trailing" constant="20" symbolic="YES" id="3j3-Du-1qc"/>
                 <constraint firstItem="U6w-BN-9sw" firstAttribute="leading" secondItem="n8f-HW-m3y" secondAttribute="trailing" constant="-1" id="8cn-FL-zUs"/>
-                <constraint firstItem="Pcx-Tp-Ao2" firstAttribute="centerY" secondItem="KEX-Nx-8PB" secondAttribute="centerY" id="B6v-Gx-tM8"/>
                 <constraint firstItem="5IM-f9-o6x" firstAttribute="top" secondItem="KEX-Nx-8PB" secondAttribute="bottom" constant="8" symbolic="YES" id="Ban-ph-KNb"/>
                 <constraint firstItem="KEX-Nx-8PB" firstAttribute="top" secondItem="eev-6B-uhp" secondAttribute="bottom" constant="8" symbolic="YES" id="Fzj-gM-tTc"/>
                 <constraint firstAttribute="bottom" secondItem="5IM-f9-o6x" secondAttribute="bottom" constant="-1" id="H7H-c5-QYV"/>
@@ -169,9 +160,7 @@ DQ
                 <constraint firstItem="U6w-BN-9sw" firstAttribute="width" secondItem="n8f-HW-m3y" secondAttribute="width" id="e2Y-03-fYb"/>
                 <constraint firstAttribute="trailing" secondItem="U6w-BN-9sw" secondAttribute="trailing" constant="-1" id="ezH-Oz-uXg"/>
                 <constraint firstItem="5IM-f9-o6x" firstAttribute="bottom" secondItem="n8f-HW-m3y" secondAttribute="bottom" id="ijO-6n-iX7"/>
-                <constraint firstItem="Pcx-Tp-Ao2" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="KEX-Nx-8PB" secondAttribute="trailing" constant="8" symbolic="YES" id="isD-x8-mEk"/>
                 <constraint firstItem="5IM-f9-o6x" firstAttribute="bottom" secondItem="U6w-BN-9sw" secondAttribute="bottom" id="m3M-LV-ae1"/>
-                <constraint firstItem="Pcx-Tp-Ao2" firstAttribute="centerX" secondItem="Kvm-1M-tEL" secondAttribute="centerX" id="nBs-do-g38"/>
                 <constraint firstItem="n8f-HW-m3y" firstAttribute="width" secondItem="5IM-f9-o6x" secondAttribute="width" id="nX6-Qf-IbD"/>
                 <constraint firstItem="n8f-HW-m3y" firstAttribute="leading" secondItem="5IM-f9-o6x" secondAttribute="trailing" constant="-1" id="v4i-RA-TOm"/>
             </constraints>

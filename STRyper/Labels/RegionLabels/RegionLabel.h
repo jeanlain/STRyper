@@ -61,10 +61,7 @@ NS_ASSUME_NONNULL_BEGIN
 	
 	/// The layer showing the label's name, not used by ``TraceViewMarkerLabel``.
 	CATextLayer *stringLayer;
-	
-	/// The position in base pairs of the clicked point in the view, which is recorded to avoid recomputing it during a ``ViewLabel/drag``.
-	float clickedPosition;
-	
+		
 	/// Backs the readonly ``start`` property, and allows it to be set by subclasses.
 	float _start;
 	
@@ -77,15 +74,18 @@ NS_ASSUME_NONNULL_BEGIN
 	/// Backs the readonly ``binLabels`` property, and allows it to be set by subclasses.
 	NSArray *_binLabels;
 	
+	/// Whether the label needs to adapt the ``stringLayer`` to a new name.
+	BOOL needsUpdateString;
+	
+	BOOL needsUpdateTrackingAreas;
 }
 
 /// Returns a label representing a region, added to a view.
 ///
 /// The subclass of the label is determined by the class of the `region`, and of the `view`.
 ///
-/// IMPORTANT: if the view is a ``MarkerView``, the region must be a ``Mmarker``.
-///
-/// This method does not check if the `region` belongs to the ``LabelView/panel`` that the `view` shows.
+/// - Important: If the `view` is a ``MarkerView``, the `region` must be a ``Mmarker``.
+/// This method assumes that the `region` belongs to the ``LabelView/panel`` that the `view` shows.
 /// - Parameters:
 ///   - region: The region that the label will represent. It must be either be a ``Bin`` or a ``Mmarker`` object.
 ///   - view: The view on which the label will show. It must be either a ``TraceView`` or a ``MarkerView`` object.
@@ -102,27 +102,27 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// ``ViewLabel/representedObject`` returns the same object.
 ///
-/// IMPORTANT: the region must be of the class used in ``regionLabelWithRegion:view:``.
+/// - Important: The region must be of the class used in ``regionLabelWithRegion:view:``.
 @property (nullable, nonatomic) __kindof Region *region;
 
 
 /// An integer that denotes the "state" of a `RegionLabel`object.
 ///
 /// A state determines how the label reacts to user actions, and/or the targets of these actions.
-typedef enum EditState : NSUInteger {
+typedef NS_ENUM(NSUInteger, EditState) {
 	
 	/// Denotes that the label is not being used to modify any entity (other than its region).
 	editStateNil = 0,
 	
 	/// Denotes that the label is being used to modify (move) the whole bin set of a marker.
-	editStateBinSet,
+	editStateBinSet = 1,
 	
 	/// Denotes that the label is being used to allow the edition of individual bins.
-	editStateBins,
+	editStateBins = 2,
 	
 	/// Denotes that the label is being used to allow editing the offset of genotypes at the marker.
-	editStateOffset
-} EditState;
+	editStateOffset = 3
+};
 
 
 /// The state of the label (and, depending on its value, the objects that will be affected by an action on the label).
@@ -139,15 +139,19 @@ typedef enum EditState : NSUInteger {
 @property (nonatomic) MarkerOffset offset;
 
 /// The position (in base pairs) of the left edge of the label, without considering its ``offset``.
+///
+/// This property reflects the ``Region/start`` position of the ``region``.
 @property (nonatomic, readonly) float start;
 
 /// The position (in base pairs) of the right edge of the label, without considering its ``offset``.
+///
+/// This property reflects the ``Region/start`` position of the ``region``.
 @property (nonatomic, readonly) float end;
 
-/// The position (in base pairs) of the left edge of the label considering its ``offset``.
+/// The position (in base pairs) of the left edge of the label considering its ``offset``, i.e., as it appears in the ``ViewLabel/view``.
 @property (nonatomic, readonly) float startSize;
 
-/// The position (in base pairs) of the right edge of the label, considering its ``offset``.
+/// The position (in base pairs) of the right edge of the label, considering its ``offset``, i.e., as it appears in the ``ViewLabel/view``.
 @property (nonatomic, readonly) float endSize;
 																
 /// The edge of the label that is clicked (the mouse button still being pressed).
@@ -177,28 +181,40 @@ typedef enum EditState : NSUInteger {
 /// are updated to reflect those of the label.
 - (void)drag;
 
+/// Layout the internal core animations layers of the labels.
+/// The default implementation only adapts the ``stringLayer`` of the receiver to a new name
+/// if ``needsUpdateString`` is `YES`.
+/// Subclasses may perform additional modifications.
+-(void)layoutInternalLayers;
+
 /// Sets the ``RegionLabel/editState`` of the label to `editStateNil`.
 - (void)cancelOperation:(id)sender;
 
 /// The popover that is attached to the label and is shown.
-@property (weak, readonly) NSPopover *attachedPopover;
+@property (weak, readonly, nonatomic) NSPopover *attachedPopover;
 
 
 /// For a label representing a marker on a ``TraceView``, this returns region labels for the marker's ``Mmarker/bins``.
 ///
 /// Other types of labels return `nil`.
 /// Bin labels are sorted by ascending ``RegionLabel/start``.
-@property (nonatomic, nullable, readonly) NSArray <__kindof RegionLabel *> *binLabels;
+@property (nonatomic, nullable, readonly) NSArray<__kindof RegionLabel *> *binLabels;
 
-/// Return a label representing a bin, and adds it to the  receiver's ``binLabels`` array.
+/// Returns a label representing a bin, and adds it to the  receiver's ``binLabels`` array.
 ///
-/// If the receiver does not represent a marker on a ``TraceView``, the method returns `nil`.
-/// The method does not check if a bin already has a label or if it belongs to the ``Bin/marker`` that the receiver represents.
+///	The returned label is configured to be displayed on the ``ViewLabel/view`` hosting the receiver.
+///	If the receiver does not represent a marker on a ``TraceView``, the method returns `nil` and does nothing else.
+///
+///	This method can be used to represent a new bin that has need not been (yet) added to the set of ``Mmarker/bins``
+///	of a maker object (as identified by its pointer) represented by the receiver.
+/// The method does not check that the bin position is consistent with the range of the marker represented by the receiver and existing bins.
 /// - Parameter bin: The bin that should be represented by the label.
 -(nullable RegionLabel *)addLabelForBin:(Bin *)bin;
 
 /// Internal method that updates the ``Genotype/offset`` of the target genotypes to reflect the ``offset`` of the label.
--(void)_updateOffset:(MarkerOffset)offset;
+///
+/// Returns whether offsets were updated.
+-(BOOL)_updateOffset:(MarkerOffset)offset;
 
 /// internal method used by subclasses to update the label hovered states given the current mouse location
 -(void)_updateHoveredState;

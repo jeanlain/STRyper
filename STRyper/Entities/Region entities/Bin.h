@@ -43,7 +43,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// The bin name is set automatically with ``Region/autoName``.
 ///
 /// This method returns `nil` if the start and end parameters are inconsistent (negative, too large, or `start` ≥  `end`),
-/// if the `channel` value is invalid, but it does not check if the  overlaps with other markers of the `panel`.
+/// but it does not check if the bin overlaps with others or is outside the `marker`'s range.
+/// Improper parameters will results in validation errors upon saving the object.
 /// - Parameters:
 ///   - start: The ``Region/start`` position of the bin.
 ///   - end: The ``Region/end`` position the bin.
@@ -59,7 +60,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 @interface Bin (DynamicAccessors)
-/// the marker of a bin should not be changed by other objects after its creation, except during folder import from an archive if the imported panel may be replaced.
+/// The marker of a bin should not be changed by other objects after its creation,
+/// but when it does, this method can be used.
 -(void)managedObjectOriginal_setMarker:(nullable Mmarker *)marker;
 
 @end

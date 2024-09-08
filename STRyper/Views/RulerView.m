@@ -121,7 +121,6 @@ static NSColor *rulerLabelColor;
 	currentPositionLayer.opaque = YES;
 	currentPositionMarkerLayer.anchorPoint = CGPointMake(1, 1);
 	currentPositionMarkerLayer.opaque = YES;
-	currentPositionMarkerLayer.actions = @{@"position": NSNull.null, @"contents": NSNull.null};
 	currentPositionMarkerLayer.bounds = CGRectMake(0, 0, 1, ruleThickness-1);
 
 	currentPositionLayer = CATextLayer.new;
@@ -131,7 +130,6 @@ static NSColor *rulerLabelColor;
 	currentPositionLayer.font = (__bridge CFTypeRef _Nullable)(labelFontStyle[NSFontAttributeName]);
 	currentPositionLayer.fontSize = 8.0;
 	currentPositionLayer.allowsFontSubpixelQuantization = YES;
-	currentPositionLayer.actions = @{@"position": NSNull.null, @"string": NSNull.null, @"bounds": NSNull.null};
 	
 	[currentPositionMarkerLayer addSublayer:currentPositionLayer];
 	currentPositionLayer.position = CGPointMake(1, 1.8);		/// this places this layer 1 pixel to the right of the vertical line of the currentPositionMarkerLayer
@@ -182,6 +180,14 @@ static NSColor *rulerLabelColor;
 }
 
 
+- (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
+	if(layer == currentPositionMarkerLayer || layer == self.layer) {
+		return NSNull.null;
+	}
+	return nil;
+}
+
+
 - (void)setHidden:(BOOL)hidden {
 	super.hidden = hidden;
 	[traceView fitVertically];
@@ -218,7 +224,7 @@ static NSColor *rulerLabelColor;
 	for(RegionLabel *markerLabel in traceView.markerLabels) {
 		float intercept = markerLabel.offset.intercept;
 		float slope = markerLabel.offset.slope;
-		if((slope != 1.0 || intercept != 0.0) && markerLabel.editState != editStateBinSet) {
+		if(slope != 1.0 || intercept != 0.0) {
 			int start = (int)(markerLabel.start + 0.9);
 			if(start < 0) {
 				start = 0;
@@ -270,7 +276,8 @@ static NSColor *rulerLabelColor;
 		}
 		/// a single layer is used for all instances, so we need to make it ours
 		[self.layer addSublayer:currentPositionMarkerLayer];
-			
+		currentPositionMarkerLayer.delegate = self;
+		
 		/// maybe it's because the layer is moved between views, but its text sometimes becomes white and cannot be read in light mode.
 		/// Setting the label's color when we acquire it appears to eliminate the issue
 		self.needsChangeAppearance = YES;
@@ -296,6 +303,9 @@ int rulerLabelIncrementForHScale(float hScale) {
 	}
 	if (hScale > 10) {
 		return 5;
+	}
+	if (hScale > 5) {
+		return 10;
 	}
 	if (hScale > 2) {
 		return 25;
@@ -324,7 +334,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 	
 	/// We draw a thin line at the bottom of the view
 	[rulerLabelColor setFill];
-	NSRectFill(NSMakeRect(traceView.leftInset, topY-1, dirtyRect.size.width, 1));
+	NSRectFill(NSMakeRect(dirtyRect.origin.x, topY-1, dirtyRect.size.width, 1));
 
 	/* // to possibly show offscale regions on the ruler (test)
 	Chromatogram *sample = traceView.trace.chromatogram;
@@ -347,7 +357,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 		}
 	}  */
 
-	if (isDraggingForZoom) {
+	if (isDraggingForZoom && !traceView.isMoving) {
 		/// draws dragging selection as a grey rectangle (for zooming)
 		[NSColor.secondaryLabelColor setFill];
 		float startSizeX = [self xForSize:startSize];
@@ -382,7 +392,8 @@ int rulerLabelIncrementForHScale(float hScale) {
 		endSize = MAX_TRACE_LENGTH;
 	}
 	
-	for (int size=0; size <= endSize; size+=labelIncrement) {
+	float previousX = traceView.leftInset - 1;
+	for (int size = 0; size <= endSize; size+=labelIncrement) {
 		/// we cannot start at startSize since it's a float and size must be an index, and we need to start at a given increment
 		float offset= offsets[size];
 		if(offset <= -1000.0) {
@@ -390,13 +401,14 @@ int rulerLabelIncrementForHScale(float hScale) {
 		}
 		float x = [self xForSize:size + offset];
 		
-		if(x >= traceView.leftInset - 1) {
+		if(x >= previousX) { /// To avoid overlap between size labels at the edge of a marker with an offset.
 			/// We draw only if the label is in the visible area of the trace view
 			NSAttributedString *rulerLabel =  offset == 0? sizeArray[size] : sizeArrayRed[size];
 			NSPoint origin = NSMakePoint(x- labelWidth[size]/2, topY - labelHeight[size] -2);
 			
 			[rulerLabel drawAtPoint:origin];
 			[NSBezierPath strokeLineFromPoint:NSMakePoint(x, topY-3) toPoint:NSMakePoint(x, topY)]; /// little tick-mark
+			previousX = x + labelWidth[size];
 		}
 	}
 	
@@ -494,12 +506,12 @@ int rulerLabelIncrementForHScale(float hScale) {
 		[self zoomToFit:self];
 	} else if (isDraggingForZoom) {               				
 		/// if the mouse has been dragged, we may zoom to the selected region
-		isDraggingForZoom = NO;
 		if((theEvent.timestamp - timeStamp > 0.2 && fabs(startPoint - mouseLocation.x) > 3) || fabs(startPoint - mouseLocation.x) > 10) { /// we do not zoom if this appears to be a simple click (of a double click sequence)
 			[traceView zoomFromSize:startSize toSize:[self sizeForX:mouseLocation.x]];
 		}
 		self.needsDisplay = YES;  	/// even if the zoom did not occur (which tiggers a redisplay) we need to clear the selection rectangle
 	}
+	isDraggingForZoom = NO;
 }
 
 

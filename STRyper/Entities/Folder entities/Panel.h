@@ -28,15 +28,16 @@
 NS_ASSUME_NONNULL_BEGIN
 
 
-/// A container of molecular markers that may be analyzed for a sample.
+/// A set of molecular markers that are analyzed conjointly.
 ///
-/// A panel is applied to a sample (``Chromatogram``) to signify that it can be genotyped for molecular ``markers`` composing the panel.
-/// This means that the sample should have a ``Genotype`` object for each of these markers.
+///	A `Panel` allows analyzing chromatograms that represent the migration of amplicons from one or several molecular markers.
+/// When a panel is applied to a sample (``Chromatogram``), a genotype is generated for each of the ``markers`` composing the panel.
+/// This means that the sample has a ``Genotype`` object for each of these markers.
 ///
-/// Although it inherits from ``Folder`` for practical reasons, a panel must not have ``Folder/subfolders``.
+/// Although the `Panel` class inherits from ``Folder`` for practical reasons, a panel must not have ``Folder/subfolders``.
 /// Its ``Folder/parent`` should be a ``PanelFolder`` object.
 ///
-/// Note: ``CodingObject/encodeWithCoder:``  and ``CodingObject/initWithCoder:``  are currently implement in the context of a ``SampleFolder`` unarchiving/archiving,
+/// - Note: ``CodingObject/encodeWithCoder:``  and ``CodingObject/initWithCoder:``  are currently implement in the context of a ``SampleFolder`` unarchiving/archiving,
 /// in that the ``Folder/parent`` of the receiver is encoded/decoded.
 @interface Panel : Folder {
 }
@@ -56,7 +57,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The markers returned are those  whose ``Mmarker/channel`` correspond to `channel`,  among the receiver's ``markers``.
 /// - Parameter channel: The channel of the marker to be returned.
-- (NSArray *)markersForChannel:(ChannelNumber)channel;
+- (NSArray<Mmarker *> *)markersForChannel:(ChannelNumber)channel;
 
 /// Returns a name that avoid duplicated names among the receiver's ``markers``.
 ///
@@ -73,7 +74,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Returns the receiver in an array.
 ///
 /// This getter is similar to ``PanelFolder/panels`` to simplify code using ``PanelFolder`` and ``Panel`` objects
-- (NSArray *)panels;
+- (NSArray<Panel *> *)panels;
 
 
 /************************Panel import / export *************/

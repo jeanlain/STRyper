@@ -34,7 +34,7 @@
 @property (nonatomic) BOOL editable;
 
 /// The name of the size standard.
-@property (nonatomic) NSString *name;
+@property (nonatomic, copy) NSString *name;
 
 extern CodingObjectKey SizeStandardNameKey;
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -125,11 +125,8 @@
                         <constraint firstAttribute="width" constant="120" id="Ahd-zm-0PV"/>
                     </constraints>
                     <sliderCell key="cell" controlSize="small" continuous="YES" state="on" alignment="left" minValue="0.5" maxValue="1.5" doubleValue="1" tickMarkPosition="above" numberOfTickMarks="11" allowsTickMarkValuesOnly="YES" sliderType="linear" id="eR3-JS-z9Z"/>
-                    <connections>
-                        <action selector="takeDoubleValueFrom:" target="7Tm-JL-aq2" id="oPL-hL-Fki"/>
-                    </connections>
                 </slider>
-                <textField focusRingType="none" horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="rXk-Dl-jWh">
+                <textField focusRingType="none" horizontalHuggingPriority="750" verticalHuggingPriority="750" tag="11" translatesAutoresizingMaskIntoConstraints="NO" id="rXk-Dl-jWh">
                     <rect key="frame" x="313" y="62" width="22" height="16"/>
                     <textFieldCell key="cell" lineBreakMode="clipping" title="1.0" id="7Tm-JL-aq2">
                         <numberFormatter key="formatter" formatterBehavior="custom10_4" usesGroupingSeparator="NO" formatWidth="-1" groupingSize="0" minimumIntegerDigits="1" maximumIntegerDigits="4" minimumFractionDigits="1" maximumFractionDigits="1" id="hUx-kV-hHr"/>

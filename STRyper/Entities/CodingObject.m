@@ -21,16 +21,29 @@
 
 #import "CodingObject.h"
 
+@interface CodingObject ()
+
+@property (nonatomic) BOOL willBeDeleted;
+
+@end
+
+
 @implementation CodingObject
+
+@synthesize willBeDeleted;
 
 +(BOOL)supportsSecureCoding {
 	return YES;
 }
 
 - (void)encodeWithCoder:(NSCoder *)coder {
-	for (NSString * attributeName in self.entity.attributesByName.allKeys) {
-		[coder encodeObject:[self valueForKey:attributeName] forKey:attributeName];
-	}
+	NSDictionary<NSString *, NSAttributeDescription*> *attributeDescriptions = self.entity.attributesByName;
+	[attributeDescriptions enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSAttributeDescription* desc, BOOL * _Nonnull stop) {
+		if(!desc.isTransient) {
+			[coder encodeObject:[self valueForKey:key] forKey:key];
+		}
+	}];
+
 	/// we also encode the version identifier of the model, for future uses.
 	[coder encodeObject:self.entity.managedObjectModel.versionIdentifiers forKey:@"versionIdentifiers"];
 }
@@ -59,11 +72,12 @@
 	
 	self = [self initWithEntity:self.entity insertIntoManagedObjectContext:MOC];
 	if(self) {
-		[self.entity.attributesByName enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull obj, BOOL * _Nonnull stop) {
-			NSAttributeDescription *desc = (NSAttributeDescription *)obj;
-			id value = [coder decodeObjectOfClass:NSClassFromString(desc.attributeValueClassName) forKey:key];
-			if(value != nil) {
-				[self setPrimitiveValue:value forKey:key];
+		[self.entity.attributesByName enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSAttributeDescription *desc, BOOL * _Nonnull stop) {
+			if(!desc.isTransient) {
+				id value = [coder decodeObjectOfClass:NSClassFromString(desc.attributeValueClassName) forKey:key];
+				if(value != nil) {
+					[self setPrimitiveValue:value forKey:key];
+				}
 			}
 		}];
 	}
@@ -122,6 +136,12 @@
 	return result;
 }
 
+
+CodingObjectKey willBeDeletedKey = @"willBeDeleted";
+
+- (void)prepareForDeletion {
+	self.willBeDeleted = YES;
+}
 
 
 - (nullable id)copy {

@@ -27,37 +27,50 @@ NSBindingName const ImageIndexBinding = @"imageIndex";
 
 - (void)setImageArray:(NSArray<NSImage *> *)imageArray {
 	_imageArray = [NSArray arrayWithArray:imageArray];
-	NSInteger index = self.imageIndex;
+	NSUInteger index = self.imageIndex;
 	if(index >= 0 && index < _imageArray.count) {
 		NSImage *image = _imageArray[index];
 		if([image isKindOfClass:NSImage.class]) {
-			self.image = image;
+			super.image = image;
 		} else {
-			self.image = nil;
+			NSLog(@"%@ %@ element %ld of the image array is not an NSImage instance", self.description, NSStringFromSelector(_cmd), index);
+			super.image = nil;
 		}
 	} else {
-		self.image = nil;
+		NSLog(@"%@ %@ image index %ld exceeds the receiver's imageArray count (%ld)", self.description, NSStringFromSelector(_cmd), index, _imageArray.count);
+		super.image = nil;
 	}
 }
 
 
-- (void)setImageIndex:(NSInteger) imageIndex {
+- (void)setImageIndex:(NSUInteger) imageIndex {
 	_imageIndex = imageIndex;
 	NSArray *imageArray = self.imageArray;
-	if(imageIndex < 0 || imageIndex >= imageArray.count) {
-		self.image = nil;
-	} else {
-		NSImage *image = imageArray[imageIndex];
-		if([image isKindOfClass:NSImage.class]) {
-			self.image = image;
+	if(imageArray) {
+		if(imageIndex >= imageArray.count) {
+			NSLog(@"%@ %@ image index %ld exceeds the receiver's imageArray count (%ld)", self.description, NSStringFromSelector(_cmd), imageIndex, _imageArray.count);
+			super.image = nil;
 		} else {
-			self.image = nil;
+			NSImage *image = imageArray[imageIndex];
+			if([image isKindOfClass:NSImage.class]) {
+				super.image = image;
+			} else {
+				NSLog(@"%@ %@ element %ld of the image array is not an NSImage instance", self.description, NSStringFromSelector(_cmd), imageIndex);
+				super.image = nil;
+			}
 		}
 	}
 }
 
 
-
+- (void)setImage:(NSImage *)image {
+	NSUInteger index = [_imageArray indexOfObjectIdenticalTo:image];
+	if(!_imageArray || index == NSNotFound) {
+		NSLog(@"%@ %@ image is not part of the receiver's imageArray", self.description, NSStringFromSelector(_cmd));
+	} else {
+		self.imageIndex = index;
+	}
+}
 
 
 @end

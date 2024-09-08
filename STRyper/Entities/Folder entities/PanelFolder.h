@@ -21,6 +21,7 @@
 
 
 #import "Folder.h"
+@class Panel;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -28,17 +29,17 @@ NS_ASSUME_NONNULL_BEGIN
 /// A folder containing marker panels (class ``Panel``) or subfolders of its own class.
 ///
 /// A `PanelFolder` allows users to organise marker panels.
-/// Note: ``CodingObject/encodeWithCoder:``  and ``CodingObject/initWithCoder:``  are currently implement in the context of a ``SampleFolder`` unarchiving/archiving,
+/// - Note: ``CodingObject/encodeWithCoder:``  and ``CodingObject/initWithCoder:``  are currently implement in the context of a ``SampleFolder`` unarchiving/archiving,
 /// in that the ``Folder/parent`` of the receiver is encoded/decoded, not its ``Folder/subfolders``.
 @interface PanelFolder : Folder
 
 /// Returns the receiver's ``Folder/subfolders``  that return `YES` to ``Folder/isPanel``.
--(NSArray *) panels;
+- (NSArray<Panel *> *) panels;
 
 /// A string representation of the receiver's ``panels``, which can be used to export it to a text file.
 ///
 /// If the receiver contains at least one panel, the method calls ``Panel/exportString``. Otherwise it returns `nil`.
--(nullable NSString *)exportString;
+- (nullable NSString *)exportString;
 
 
 /// Adds panels decoded from a text file to the receiver's subfolders and returns `YES` if no error occurred.

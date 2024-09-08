@@ -54,7 +54,7 @@
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-		controller = [[self alloc] init];
+		controller = self.new;
 	});
 	return controller;
 }
@@ -63,7 +63,7 @@
 - (instancetype)init {
 	self = [super init];
 	if(self) {
-		NSManagedObjectContext *MOC = ((AppDelegate *)NSApp.delegate).managedObjectContext;
+		NSManagedObjectContext *MOC = AppDelegate.sharedInstance.managedObjectContext;
 		if(!MOC) {
 			return self;
 		}
@@ -190,6 +190,47 @@
 
 - (NSManagedObjectContext *)managedObjectContext {
 	return fetchedResultsController.managedObjectContext;
+}
+
+
+# pragma mark - validation of editor
+
++ (nullable NSError *)errorInFieldsOfEditor:(NSView *)editor {
+	/// I haven't found a better way to validate text fields of an `NSPredicateEditor` (which is the delegate of its text fields).
+	/// Subclassing the `NSPredicateEditor` would not have made things easier, and I don't want validation to be performed each time
+	/// a field is edited (using for instance `controlTextDidEnEditing:`).
+	NSArray *subViews = [self allSubviewsOf:editor];
+	for(NSTextField *textField in subViews) {
+		if([textField isKindOfClass:NSTextField.class] && textField.isEditable) {
+			NSString *string = textField.stringValue;
+			if(string.length == 0) {
+				return [NSError errorWithDescription:@"At least one field is empty." suggestion:@"Please, fill all fields."];
+			}
+			if([textField.formatter isKindOfClass:NSNumberFormatter.class]) {
+				NSNumberFormatter *formatter = textField.formatter;
+				if([formatter numberFromString:string] == nil) {
+					/// In practice, the formatter may have emptied the text field if the string was incorrect before this method is called;
+					NSString *description = [NSString stringWithFormat:@"'%@' is not recognized as a number.", string];
+					return [NSError errorWithDescription:description suggestion:@"Please, specify a number."];
+				}
+			}
+		}
+	}
+	
+	return nil;
+}
+
+
+/// Returns all subviews of a view, recursively.
+/// - Parameter view: a view.
++ (NSArray *)allSubviewsOf:(NSView *)view {
+	/// We could have made this a category of `NSView`, but this method is only used here.
+	NSMutableArray *allSubviews = [NSMutableArray arrayWithObject:view];
+	NSArray *subviews = view.subviews;
+	for (NSView *view in subviews) {
+		[allSubviews addObjectsFromArray:[self allSubviewsOf:view]];
+	}
+	return allSubviews;
 }
 
 

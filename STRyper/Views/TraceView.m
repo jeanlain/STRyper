@@ -35,24 +35,24 @@
 
 @interface TraceView ()
 
-/// redefinition of properties that are readonly by other objects
+/// redefinition of properties that are readonly in the header
 @property (nonatomic) ChannelNumber channel;
+@property (nonatomic, weak, nullable) Trace *trace;
 @property (nonatomic, nullable) NSArray *peakLabels;
 @property (nonatomic, nullable) NSArray *fragmentLabels;
-@property (nonatomic) BOOL isResizing;
+
+/// The trace that has been clicked, if any.
+@property (nonatomic, weak, nullable) Trace *clickedTrace;
 
 
 /// the label of the marker whose offset or bins are being edited.
-@property (nonatomic, weak) RegionLabel *enabledMarkerLabel;
+@property (nonatomic, weak, nullable) RegionLabel *enabledMarkerLabel;
 																		
 /// Used to animate a change in visibleRange. We use NSSize rather than BaseRange because the animator doesn't recognize the BaseRange struct.
 @property (nonatomic) NSSize animatableRange;
 
 /// Whether the traces should be redrawn (upon geometry change of change of other attributes).
 @property (nonatomic) BOOL needsDisplayTraces;
-
-/// Whether the layer(s) showing traces need to be laid out.
-@property (nonatomic) BOOL needsLayoutTraceLayer;
 
 /// The rectangle that is clipped by our superview (in our coordinates), subtracting the region masked by the vscale view.
 @property (readonly, nonatomic) NSRect clipRect;
@@ -66,9 +66,8 @@
 @end
 
 /// pointers giving context to KVO notifications
-static void * const displaySettingsChangedContext = (void*)&displaySettingsChangedContext;
 static void * const sampleSizingChangedContext = (void*)&sampleSizingChangedContext;
-static void * const panelChangedContext = (void*)&panelChangedContext;
+static void * const samplePanelChangedContext = (void*)&samplePanelChangedContext;
 static void * const endSizeChangedContext = (void*)&endSizeChangedContext;
 static void * const peakChangedContext = (void*)&peakChangedContext;
 static void * const fragmentsChangedContext = (void*)&fragmentsChangedContext;
@@ -94,29 +93,25 @@ static const float maxHScale = 500.0; 	/// the maximum hScale (pts per base pair
 
 static const int threshold = 1;   	/// height (in points) below which we do not add points to the fluorescence curve and just draw a straight line (optimization)
 
-static NSMenu *addPeakMenu;			/// a menu that allows adding a peak that hasn't been automatically detected (mostly because it's too faint)
 
 static BOOL appleSilicon;			/// whether the Mac running the application has an Apple SoC.
 									/// We use it for drawing optimisations.
 
 @implementation TraceView {
 	
-	float height;					/// a shortcut to the view's height, to avoid recomputing it.
-	float maxReadLength;			/// the length (in base pairs) of the longest trace the view shows
-	float viewLength;				/// It is either the maxReadLength or the max end size the user as set in the preferences, whichever is longer
+	float viewHeight;					/// a shortcut to the view's height, to avoid recomputing it.
+	float viewLength;				/// the horizontal length of the view in base pairs
 	
 	NSTimer *updateTrackingAreasTimer;			/// A timer that triggers to update tracking areas, and avoid updating them when the view is moving or resized
 	
-	CAShapeLayer *dashedLineLayer;	/// a layer showing a vertical dashed line at the mouse location that helps the user insert bins (note: we could use a single instance in a global variable for this layer, since only one dashed line should show at a time)
+	CAShapeLayer *dashedLineLayer;	/// a layer showing a vertical dashed line at the mouse location that helps the user insert bins
+									/// (note: we could use a single instance in a global variable for this layer, since only one dashed line should show at a time)
 	
-	CALayer *verticalLineLayer;
-	
-	float startPoint; 						/// (for dragging... not used)
+	CALayer *verticalLineLayer;		/// A vertical line at the location of peaks that are hovered by the mouse.
 	
 	NSArray<Trace *> *visibleTraces;		/// the traces that are actually visible, depending on the channel to show
 	
-	NSArray *observedSamples;				/// The chromatograms we observe for certain keypaths.
-	NSArray *observedSamplesForPanel;
+	NSArray *observedSamples;				/// The chromatograms observed for certain keypaths.
 	
 	__weak RegionLabel *hoveredBinLabel;	/// the bin label being hovered, which we use to determine the cursor
 	__weak PeakLabel *hoveredPeakLabel;		/// the peak label being hovered, which we may need to reposition
@@ -127,9 +122,9 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	/// We don't draw traces in the backing layer as we need to show bin and marker labels (which use layers) behind traces.
 	/// A single layer cannot hold the whole traces. If it's too large, drawing is slow or doesn't work (even if constrained to a small rectangle of the layer).
 	/// A CATiledLayer can be very large, but doesn't appear suited to this task.
-	/// We instead position and draw contiguous layers during scrolling (similar to "responsive scrolling, which appears disabled in macOS 14).
+	/// We instead position and draw contiguous layers during scrolling (similar to "responsive scrolling).
 	
-	BOOL showsTraces; 			/// A shortcut to indicate where we show traces.
+	BOOL showsTraces; 			/// A shortcut to indicate whether the view shows traces.
 	CALayer *traceLayerParent; 		/// The parent layer of the trace layers, sorted from left to right along the X axis in its sublayers array
 	__weak CALayer *traceLayerFillingClipRect;		/// The trace layer that fits in the `clipRect`, if any.
 													/// We use this information to avoid repositioning this layer when not required
@@ -138,18 +133,27 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	
 	float drawnRangeStart;		/// The position of the leading edge of the leftmost trace layer (in view coordinates), which we store to avoid computations
 	float drawnRangeEnd;		/// The position of the trailing edge of the rightmost trace layer
-		
+	
+	NSMutableSet *fragmentLabelsToReposition; /// Used to determine wether we should reposition Fragment labels during -layout.
+	
 	BOOL resizedWithAnimation;	/// Whether the view is being resized in a context allowing implicit animation.
 								/// We use this info to determine how to reposition layers.
-								
+	
 	BOOL needsUpdateAppearance; /// To determine whether we need to update colors (background layer, others) to adapt to the current appearance.
 								/// This ivar avoid doing these changes during updateLayer when not necessary
 								/// (as the method is also called to update label colors, which is required more often).
+	
+	/// ivars used to denote if view labels needs to be updated, and to avoid redundant updates in the same cycle.
+	BOOL needsUpdateFragmentLabels;
+	BOOL needsUpdateMarkerLabels;
+	BOOL needsUpdatePeakLabels;
+	
+	BOOL needsLayoutTraceLayer;
 }
 
-static float defaultTraceLayerWidth = 512; /// Default width of a trace layer in points
+static const float defaultTraceLayerWidth = 512; /// Default width of a trace layer in points
 
-@synthesize markerLabels = _markerLabels, backgroundLayer = _backgroundLayer, rulerView = _rulerView, markerView = _markerView, colorsForOffScaleRegions = _colorsForOffScaleRegions, fragmentLabelBackgroundColor = _fragmentLabelBackgroundColor, alleleLabelBackgroundColor = _alleleLabelBackgroundColor, fragmentLabelStringColor = _fragmentLabelStringColor, binLabelColor = _binLabelColor, hoveredBinLabelColor = _hoveredBinLabelColor, regionLabelEdgeColor = _regionLabelEdgeColor, binNameBackgroundColor = _binNameBackgroundColor, hoveredBinNameBackgroundColor = _hoveredBinNameBackgroundColor, traceViewMarkerLabelBackgroundColor = _traceViewMarkerLabelBackgroundColor, traceViewMarkerLabelAllowedRangeColor = _traceViewMarkerLabelAllowedRangeColor;
+@synthesize markerLabels = _markerLabels, backgroundLayer = _backgroundLayer, rulerView = _rulerView, markerView = _markerView, colorsForOffScaleRegions = _colorsForOffScaleRegions, fragmentLabelBackgroundColor = _fragmentLabelBackgroundColor, alleleLabelBackgroundColor = _alleleLabelBackgroundColor, fragmentLabelStringColor = _fragmentLabelStringColor, binLabelColor = _binLabelColor, hoveredBinLabelColor = _hoveredBinLabelColor, regionLabelEdgeColor = _regionLabelEdgeColor, binNameBackgroundColor = _binNameBackgroundColor, hoveredBinNameBackgroundColor = _hoveredBinNameBackgroundColor, traceViewMarkerLabelBackgroundColor = _traceViewMarkerLabelBackgroundColor, traceViewMarkerLabelAllowedRangeColor = _traceViewMarkerLabelAllowedRangeColor, isResizing = _isResizing;
 
 #pragma mark - initialization methods
 
@@ -160,15 +164,15 @@ static NSColor *traceViewBackgroundColor;
 	animatableKeys = @[NSStringFromSelector(@selector(topFluoLevel)),
 					   NSStringFromSelector(@selector(animatableRange)),
 					   NSStringFromSelector(@selector(vScale))];
-
+	
 	/// We determine if the SoC is from Apple by reading the CPU brand.
 	/// There may be a better way by reading the architecture.
 	size_t size = 100;		/// To make sure that we can read the whole CPU name.
 	char string[size];
 	sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
 	appleSilicon = strncmp(string, "Apple", 5) == 0;
-	traceViewBackgroundColor = [NSColor colorNamed: @"traceViewBackgroundColor"];
 	
+	traceViewBackgroundColor = [NSColor colorNamed: @"traceViewBackgroundColor"];
 }
 
 
@@ -202,7 +206,7 @@ static NSColor *traceViewBackgroundColor;
 	
 	self.layer.opaque = YES;
 	
-	/// we update the layer only to update the view for the current appearance
+	/// we update what the view shows "manually".
 	self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawOnSetNeedsDisplay;
 	
 	[self setBoundsOrigin:NSMakePoint(0, -0.5)];
@@ -223,21 +227,22 @@ static NSColor *traceViewBackgroundColor;
 	verticalLineLayer.delegate = self;
 	verticalLineLayer.zPosition = -0.3; /// so that it doesn't show above fragment labels
 	[self.layer addSublayer:verticalLineLayer];
-
+	
 	_showDisabledBins = YES;
 	_showRawData = NO;
 	_showOffscaleRegions = YES;
 	_paintCrosstalkPeaks = YES;
 	_defaultRange = MakeBaseRange(0, 500);
 	_hScale = -1.0;  /// we avoid 0 as some methods divide numbers by this ivar
-	_channel = -1;
+	_channel = noChannelNumber;
 	
 	/************************observations to update view labels **************/
-	///labels must be updated when peaks, fragments of trace we show change, as well as markers
+	///labels must be updated when peaks, fragments of the trace we show change, as well as markers
 	[self addObserver:self forKeyPath:@"trace.peaks" options:NSKeyValueObservingOptionNew context:peakChangedContext];
 	[self addObserver:self forKeyPath:@"trace.fragments" options:NSKeyValueObservingOptionNew context:fragmentsChangedContext];
 	[self addObserver:self forKeyPath:@"panel.markers" options:NSKeyValueObservingOptionNew context:panelMarkersChangedContext];
 	
+	fragmentLabelsToReposition = NSMutableSet.new;
 	needsUpdateAppearance = YES; /// Sets the correct colors according to the theme when the view is first shown.
 	self.needsUpdateLabelAppearance = YES;
 }
@@ -246,10 +251,8 @@ static NSColor *traceViewBackgroundColor;
 - (CALayer *)backgroundLayer {
 	if(!_backgroundLayer) {
 		_backgroundLayer = self.layer;
-		_backgroundLayer.actions = @{kCAOnOrderIn: NSNull.null, kCAOnOrderOut: NSNull.null,
-									 NSStringFromSelector(@selector(sublayers)): NSNull.null,
-									 NSStringFromSelector(@selector(position)): NSNull.null,
-									 NSStringFromSelector(@selector(backgroundColor)): NSNull.null};
+		_backgroundLayer.masksToBounds = NO;  /// This avoid clipping the content during resizing with animation,
+											  /// as we don't animate anything with this layer (see `actionForLayer:forKey:`)
 	}
 	return _backgroundLayer;
 }
@@ -262,11 +265,6 @@ static NSColor *traceViewBackgroundColor;
 
 - (NSInteger)tag {
 	return 1;
-}
-
-
-- (BOOL)wantsUpdateLayer {
-	return YES;
 }
 
 
@@ -307,6 +305,7 @@ static NSColor *traceViewBackgroundColor;
 
 
 - (void)loadContent:(id)object {
+	_genotype = nil;
 	if([object isKindOfClass:NSArray.class]) {
 		NSArray *traces = object;
 		if([traces.firstObject isKindOfClass:Trace.class]) {
@@ -322,7 +321,6 @@ static NSColor *traceViewBackgroundColor;
 			_genotype = genotype;
 			[self loadTraces:@[trace] marker:genotype.marker];
 		} else {
-			_genotype = nil;
 			[self loadTraces:nil marker:nil];
 		}
 	} else if ([object isKindOfClass:Chromatogram.class]) {
@@ -335,7 +333,7 @@ static NSColor *traceViewBackgroundColor;
 	}
 }
 
-/// loads the specified traces and the marker
+/// loads the specified traces and marker
 - (void)loadTraces:(nullable NSArray<Trace *> *)traces marker:(nullable Mmarker *)marker {
 	
 	/// We set the hScale to -1 to signify that our geometry is reset and not final.
@@ -345,56 +343,37 @@ static NSColor *traceViewBackgroundColor;
 	}
 	
 	_marker = marker;
-	
-	NSInteger traceCount = traces.count;
-	if(traceCount == 0 || marker == nil) {
-		_genotype = nil;
-	}
-		
+			
 	/// We determine the channel that we show.
 	/// We record our previous channel to determine if we should load the panel or keep the previous one, as we only show markers associated with a single channel.
 	ChannelNumber previousChannel = self.channel;
 	if(marker) {
 		self.channel = marker.channel;
-	} else {
-		self.channel = traces.firstObject.channel;
-	}
-	
-	if(traceCount == 5 || traceCount == 4) {
-		/// in this situation, the traces may come from the same sample, hence have different channels
-		for(Trace *trace in traces) {
-			if(trace.channel != self.channel) {
-				self.channel = -1;
-				break;
-			}
-		}
 	}
 	
 	self.loadedTraces = traces;
-	
+	NSInteger traceCount = traces.count;
+
 	/// We set the panel of markers (even in case we show a single marker, we need to load others as marker resizing depends on other markers of the same channel)
-	Panel *refPanel = [self panelToShow];
+	Panel *refPanel = self.panelToShow;
 	
 	/// we check if we should set the new panel. We may not if it is the same as before and if the channel hasn't changed
 	/// this increases performance when switching between samples while the user scrolls (avoids hitches)
 	/// but if we don't or didn't show a trace (hence only a marker), we always load the panel.
 	/// this because the marker we highlight may be different (even if from the same panel and channel) and the way we show the panel also depends on whether we show traces
-	if(showMarkerOnly || traces.count == 0 || previousChannel != self.channel || self.panel != refPanel || refPanel == nil) {
+	if(showMarkerOnly || traceCount == 0 || previousChannel != self.channel || self.panel != refPanel || refPanel == nil) {
 		self.panel = refPanel;
-	} 
+	}
 	
-	Trace *ourTrace = self.trace;
-	self.markerView.hidden = (ourTrace && self.channel < 0) || ourTrace.isLadder;
 	[self getRangeAndScale];
-	self.needsLayoutLabels = YES;
-	self.needsDisplayTraces = YES;
-
-	showMarkerOnly = traces.count == 0;
+	self.needsRepositionLabels = YES; /// Probably redundant.
+	
+	showMarkerOnly = traceCount == 0;
 }
 
-/// Returns the panel that we (and our marker view) may show.
+/// Returns the panel of markers that we (and our marker view) may show.
 ///
-/// We show a panel only one channel is shown and if traces don't correspond to samples having different panels.
+/// We show a panel if only one channel is shown and if traces don't correspond to samples having different panels.
 /// We don't show the panel if samples are not sized (no size standard, sizing failed...)
 -(nullable Panel *)panelToShow {
 	if(self.channel < 0 || self.trace.isLadder) {
@@ -406,7 +385,7 @@ static NSColor *traceViewBackgroundColor;
 	}
 	
 	Panel *refPanel = nil;
-	for(Trace *trace in self.loadedTraces) {
+	for(Trace *trace in visibleTraces) {
 		Chromatogram *sample = trace.chromatogram;
 		if(sample.sizingQuality != nil) {				   /// we don't show the panel from a sample that is not sized
 			if(sample.panel != refPanel && refPanel != nil) {
@@ -423,103 +402,98 @@ static NSColor *traceViewBackgroundColor;
 - (void)setChannel:(ChannelNumber)channel {
 	if(_channel != channel) {
 		_channel = channel;
-		 [self updateAlleleLabelBackgroundColor] ;
+		[self updateAlleleLabelBackgroundColor] ;
 	}
 }
 
 
 - (void)setLoadedTraces:(NSArray <Trace *>*)traces {
-	/// as we observe some properties of our samples, we must stop observing previous samples
+	/// as we observe some properties of samples, we must stop observing previous samples
 	[self stopObservingSamples];
-	NSUInteger count = traces.count;
-	showsTraces = count > 0;
-	traceLayerParent.hidden = !showsTraces;
 	
-	if(count > 400) {
+	NSUInteger traceCount = traces.count;
+	if(traceCount > 400) {
 		traces = [traces objectsAtIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, 400)]];
 	}
 	_loadedTraces = traces;
 	visibleTraces = traces;
+	showsTraces = traceCount > 0;
+
+	Trace *referenceTrace; /// The trace that will become self.trace.
 	
-	Trace *referenceTrace = nil; /// The trace that will become self.trace.
-	
-	if(count > 0) {
+	if(showsTraces) {
 		Trace *firstTrace = traces.firstObject;
-		BOOL oneSample = count > 1 && firstTrace.chromatogram == [traces.lastObject chromatogram];
+		BOOL stackedChannels = traceCount > 1 && firstTrace.channel != traces.lastObject.channel;
+		BOOL oneSample = stackedChannels || traceCount == 1; /// We assume that traces from different channels are from the same chromatogram.
 		
-		if(oneSample) {
-			/// Here the traces all come from the same sample
-			/// We determine which can be displayed (as they have different channels)
+		if(stackedChannels) {
 			visibleTraces = [traces filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Trace *trace, NSDictionary<NSString *,id> * _Nullable bindings) {
 				return [self.displayedChannels containsObject: @(trace.channel)];
 			}]];
 		}
 		
-		if(oneSample || count == 1) {
-			observedSamples = @[firstTrace.chromatogram];
-		} else {
+		NSInteger visibleTraceCount = visibleTraces.count;
+		referenceTrace = visibleTraceCount > 0? visibleTraces.firstObject : firstTrace;
+		self.channel = visibleTraceCount == 0? noChannelNumber :
+		(visibleTraceCount > 1 && stackedChannels? multipleChannelNumber : referenceTrace.channel);
+		
+		float maxReadLength = -1; /// Used to pick self.trace in case the view shows several samples.
+		for (Trace *trace in traces) {
+			Chromatogram *sample = trace.chromatogram;
+			if (sample.readLength > maxReadLength && sample.sizingQuality) {
+				maxReadLength = sample.readLength; /// This call potentially updates the sample's `sizes` attribute, which is useful to do now
+												   /// before the sample is observed, to avoid sending unnecessary notification to the view
+				if(!oneSample) {
+					referenceTrace = trace;
+				}
+			}
+			[sample addObserver:self forKeyPath:ChromatogramCoefsKey options:NSKeyValueObservingOptionNew context:sampleSizingChangedContext];
+			[sample addObserver:self forKeyPath:ChromatogramSizingQualityKey options:NSKeyValueObservingOptionNew context:sampleSizingChangedContext];
+			[sample addObserver:self forKeyPath:ChromatogramPanelKey options:NSKeyValueObservingOptionNew context:samplePanelChangedContext];
+			if(oneSample) {
+				observedSamples = @[firstTrace.chromatogram];
+				break;
+			}
+		}
+		
+		if(!oneSample) {
+			/// The instruction below is much faster than incrementing an array.
 			observedSamples = [traces valueForKeyPath:@"@unionOfObjects.chromatogram"];
 		}
-		
-		BOOL ladder = firstTrace.isLadder;
-		if(!ladder && !oneSample) {
-			observedSamplesForPanel = observedSamples;
-		}
-		
-		for(Chromatogram *sample in observedSamples) {
-			[sample addObserver:self forKeyPath:ChromatogramSizesKey options:NSKeyValueObservingOptionNew context:sampleSizingChangedContext];
-			[sample addObserver:self forKeyPath:ChromatogramSizingQualityKey options:NSKeyValueObservingOptionNew context:sampleSizingChangedContext];
-			
-			if(!ladder && !oneSample) {
-				/// if the trace is not a ladder, we observe the panel, as we show bins and communicate changes to the marker view.
-				[sample addObserver:self forKeyPath:ChromatogramPanelKey options:NSKeyValueObservingOptionNew context:panelChangedContext];
-			}
-		}
-		
-		/// we pick our "trace" property among the traces. We take the longest.
-		referenceTrace = firstTrace;
-		float maxReadLength = -1;		/// we don't use the @max operator, as it is much slower than an enumeration.
-		for (Trace *trace in traces) {
-			Chromatogram *chromatogram = trace.chromatogram;
-			if (chromatogram.readLength > maxReadLength && chromatogram.sizingQuality) {
-				maxReadLength = chromatogram.readLength;
-				referenceTrace = trace;
-			}
-		}
 	}
-	
+
 	self.trace = referenceTrace; /// This updates fragment and peak labels via KVO.
-}
-
-
-- (void)setTrace:(Trace *)aTrace {
-	_trace = aTrace;
-	Chromatogram *sample = aTrace.chromatogram;
-	_sampleStartSize = sample != nil? sample.startSize : 0.0;
+	traceLayerParent.hidden = !showsTraces;
+	if(showsTraces) {
+		self.needsDisplayTraces = YES;
+	}
 	[self updateViewLength];
+	self.markerView.hidden = self.channel == multipleChannelNumber || (referenceTrace.isLadder && visibleTraces.count > 0);
 }
 
 
 -(void)stopObservingSamples {
 	for(Chromatogram *sample in observedSamples) {
-		[sample removeObserver:self forKeyPath:ChromatogramSizesKey];
+		[sample removeObserver:self forKeyPath:ChromatogramCoefsKey];
 		[sample removeObserver:self forKeyPath:ChromatogramSizingQualityKey];
-	}
-	observedSamples = nil;
-	
-	for(Chromatogram *sample in observedSamplesForPanel) {
 		[sample removeObserver:self forKeyPath:ChromatogramPanelKey];
 	}
-	observedSamplesForPanel = nil;
+	observedSamples = nil;
 }
 
 
 - (void)prepareForReuse {
-	[super prepareForReuse];
-	self.loadedTraces = nil;
+	[super prepareForReuse]; /// probably not needed but Apple says we should.
+	[self stopObservingSamples];
+	_loadedTraces = nil;	/// We don't use the setter to avoid calling setTrace:, which triggers KVO notifications with unwanted side effects
+							/// since the view is not used at this point (removing labels, hiding the vScaleView, etc.)
+	visibleTraces = nil;
+	showsTraces = NO;
+	self.clickedTrace = nil;
 	_marker = nil;
 	_genotype = nil;
 	_hScale = -1;
+	/// We don't set the panel to nil as we may reuse marker labels.
 }
 
 #pragma mark - managing labels
@@ -533,12 +507,12 @@ static NSColor *traceViewBackgroundColor;
 - (void)updateMarkerLabels {
 	NSArray *markers = [self.panel markersForChannel:self.channel];
 	NSArray *markerLabels = [self regionLabelsForRegions:markers reuseLabels:self.markerLabels];
-
-	if(markers.count > 0) {
-		self.needsLayoutLabels = YES;
-	}
 	
+	if(markers.count > 0) {
+		self.needsRepositionLabels = YES;
+	}
 	self.markerLabels = markerLabels;
+	needsUpdateMarkerLabels = NO;
 }
 
 
@@ -549,16 +523,55 @@ static NSColor *traceViewBackgroundColor;
 		}
 	}
 	_markerLabels = markerLabels;
-	if(self.markerLabels.count > 0) {
-		self.needsLayoutLabels = YES;
-	}
-		
 	[self.markerView updateContent];
 }
 
 
 - (void)updateLayer {
-	/// This method is only used to update the appearance of labels that adapt to the current theme.
+	if(needsUpdateMarkerLabels) {
+		[self updateMarkerLabels];
+	}
+	
+	if(needsUpdateFragmentLabels) {
+		[self updateFragmentLabels];
+	}
+	
+	if(needsUpdatePeakLabels) {
+		[self updatePeakLabels];
+	}
+	
+	NSArray *fragmentLabels = self.fragmentLabels;
+	BOOL needsRepositionLabels = self.needsRepositionLabels;
+	/// We consider fragments to reposition separately to force animations on their repositioning.
+	/// These should be fragments that had their position changed "manually", otherwise `_needsRepositionFragmentLabels` would be `YES`.
+	BOOL fragmentLabelsToRepositionSeparately = fragmentLabelsToReposition.count > 0 && !_needsRepositionFragmentLabels &&
+	!(needsRepositionLabels && !self.trace.isLadder);
+	if(fragmentLabelsToRepositionSeparately) {
+		fragmentLabels = [fragmentLabels arrayByRemovingObjectsInArray:fragmentLabelsToReposition.allObjects];
+	}
+	
+	NSInteger fragmentLabelCount = fragmentLabels.count;
+	if(fragmentLabelCount > 0 &&
+	   (_needsRepositionFragmentLabels || needsRepositionLabels) && self.hScale >=0) {
+		for(FragmentLabel *label in fragmentLabels) {
+			[label reposition];
+		}
+		if(fragmentLabelCount > 1 && !fragmentLabelsToRepositionSeparately) {
+			[FragmentLabel avoidCollisionsInView:self];
+		}
+	}
+
+	[super updateLayer];
+	self.needsRepositionFragmentLabels = NO;
+	if(fragmentLabelsToRepositionSeparately) {
+		for(FragmentLabel *label in self.fragmentLabels) {
+			/// Here, repositioning should be animated, as `needsLayoutFragmentLabels` and `needsRepositionLabels` return `NO`
+			/// We reposition all fragment labels to properly manage the case where a label no longer needs to avoid collisions.
+			[label reposition];
+		}
+		[FragmentLabel avoidCollisionsInView:self];
+	}
+	[fragmentLabelsToReposition removeAllObjects];
 	if(needsUpdateAppearance) {
 		self.layer.backgroundColor = traceViewBackgroundColor.CGColor;
 		self.enclosingScrollView.backgroundColor = traceViewBackgroundColor;
@@ -566,7 +579,7 @@ static NSColor *traceViewBackgroundColor;
 		verticalLineLayer.backgroundColor = dashedLineLayer.strokeColor;
 		
 		_colorsForOffScaleRegions = nil;
-
+		
 		if(self.colorsForOffScaleRegions) {
 			self.needsDisplayTraces = YES;
 		}
@@ -584,7 +597,7 @@ static NSColor *traceViewBackgroundColor;
 		[self updateHoveredBinNameBackgroundColor];
 		[self updateTraceViewMarkerLabelBackgroundColor];
 		[self updateTraceViewMarkerLabelAllowedRangeColor];
-
+		
 		for(RegionLabel *label in self.markerLabels) {
 			[label updateForTheme];
 		}
@@ -633,7 +646,7 @@ static NSColor *traceViewBackgroundColor;
 			label.enabled = YES;
 		}
 	}
-	if(visibleTraces.count == 1 || (self.showOffscaleRegions && self.channel == -1)) {
+	if(visibleTraces.count == 1 || (self.showOffscaleRegions && self.channel < 0)) {
 		/// We redraw as we don't show off-scale regions or crosstalk when a marker label is enabled (to avoid interference with its rectangle and its bins).
 		self.needsDisplayTraces = YES;
 	}
@@ -647,7 +660,7 @@ static NSColor *traceViewBackgroundColor;
 ///   - fragments: The fragments that the labels should represent.
 ///   - fragmentLabels: The fragment labels to reuse.
 -(NSArray <FragmentLabel *>*) fragmentLabelsForFragments:(NSArray <LadderFragment *>*)fragments
-										   reuseLabels:(NSArray <FragmentLabel *>*) fragmentLabels {
+											 reuseLabels:(NSArray <FragmentLabel *>*) fragmentLabels {
 	NSInteger fragmentCount = fragments.count;
 	if(fragmentCount == 0) {
 		return NSArray.new;
@@ -691,12 +704,12 @@ static NSColor *traceViewBackgroundColor;
 				if(reassignedLabelsCount < otherLabelsCount) {
 					fragmentLabel = otherLabels[reassignedLabelsCount];
 					fragmentLabel.fragment = fragment;
+					fragmentLabel.highlighted = NO;
 					reassignedLabelsCount++;
 				} else {
 					fragmentLabel = [[FragmentLabel alloc]initFromFragment:fragment view:self];
 				}
 				fragmentLabel.enabled = enable;
-				fragmentLabel.highlighted = NO;
 				[newLabels addObject:fragmentLabel];
 			}
 		}
@@ -707,11 +720,12 @@ static NSColor *traceViewBackgroundColor;
 
 
 -(void)updateFragmentLabels {
-	if(self.loadedTraces.count == 1) {
+	if(visibleTraces.count == 1) {
 		self.fragmentLabels = [self fragmentLabelsForFragments:self.trace.fragments.allObjects reuseLabels:self.fragmentLabels];
 	} else {
 		self.fragmentLabels = NSArray.new;
 	}
+	needsUpdateFragmentLabels = NO;
 }
 
 
@@ -722,15 +736,12 @@ static NSColor *traceViewBackgroundColor;
 		}
 	}
 	_fragmentLabels = fragmentLabels;
-	if(_fragmentLabels.count > 0) {
-		self.needsLayoutLabels = YES;
-	}
 }
 
 
 - (void)updatePeakLabels {
 	NSData *peakData = self.trace.peaks;
-	if(peakData && self.loadedTraces.count == 1) {
+	if(peakData && visibleTraces.count == 1) {
 		NSMutableArray *temp = NSMutableArray.new;
 		BOOL enable = self.enabledMarkerLabel == nil;
 		const Peak *peaks = peakData.bytes;
@@ -753,6 +764,7 @@ static NSColor *traceViewBackgroundColor;
 	} else {
 		self.peakLabels = NSArray.new;
 	}
+	needsUpdatePeakLabels = NO;
 }
 
 
@@ -766,7 +778,7 @@ static NSColor *traceViewBackgroundColor;
 	if(_peakLabels.count > 0 && self.hScale > 0 && !self.isMoving) {
 		[self updateTrackingAreasOf:_peakLabels];
 	}
-	self.needsDisplayTraces = YES;
+	self.needsDisplayTraces = YES; /// As peaks affect the display of traces (adjusted data)
 }
 
 
@@ -814,10 +826,15 @@ static NSColor *traceViewBackgroundColor;
 
 
 - (void)labelNeedsRepositioning:(ViewLabel *)viewLabel {
-	[super labelNeedsRepositioning:viewLabel];
-	RulerView *rulerView = self.rulerView;
-	if(!rulerView.needsUpdateOffsets) {
-		if([viewLabel isKindOfClass:RegionLabel.class]) {
+	if([viewLabel isKindOfClass:FragmentLabel.class]) {
+		if(!_needsRepositionFragmentLabels) {
+			[fragmentLabelsToReposition addObject:viewLabel];
+			self.needsDisplay = YES;
+		}
+	} else {
+		[super labelNeedsRepositioning:viewLabel];
+		RulerView *rulerView = self.rulerView;
+		if(!rulerView.needsUpdateOffsets && [viewLabel respondsToSelector:@selector(isMarkerLabel)]) {
 			RegionLabel *regionLabel = (RegionLabel *)viewLabel;
 			if(regionLabel.isMarkerLabel) {
 				rulerView.needsUpdateOffsets = YES;
@@ -833,7 +850,7 @@ static NSColor *traceViewBackgroundColor;
 	} else {
 		verticalLineLayer.hidden = NO;
 		float tipPos = [self xForScan:hoveredPeakLabel.scan];
-		verticalLineLayer.frame = CGRectMake(tipPos, 0, 1, height);
+		verticalLineLayer.frame = CGRectMake(tipPos, 0, 1, viewHeight);
 	}
 }
 
@@ -867,42 +884,25 @@ static NSColor *traceViewBackgroundColor;
 }
 
 
-- (NSArray<ViewLabel *> *)repositionableLabels {
-	NSArray *labels = [(NSArray *)self.markerLabels arrayByAddingObjectsFromArray:self.fragmentLabels];
-	return labels;
-}
-
-
-- (void)setNeedsLayoutFragmentLabels:(BOOL)needsLayoutFragmentLabels {
-	_needsLayoutFragmentLabels = needsLayoutFragmentLabels;
+- (void)setNeedsRepositionFragmentLabels:(BOOL)needsLayoutFragmentLabels {
+	_needsRepositionFragmentLabels = needsLayoutFragmentLabels;
 	if(needsLayoutFragmentLabels) {
-		self.needsLayout = YES;
+		self.needsDisplay = YES;
 	}
 }
 
 
 
--(void)layout {
-	if(self.needsLayoutTraceLayer) {
-		[self repositionTraceLayer];
-		self.needsLayoutTraceLayer = NO;
-	}
-	BOOL avoidCollisions = self.needsLayoutLabels;
-	if(_needsLayoutFragmentLabels && !avoidCollisions && self.hScale >=0) {
-		/// we reposition fragment labels here unless all labels are repositioned (in super, below)
-		/// This should be the case when the vertical scale has changed by the view geometry has not or when a fragment label has been dragged
-		for(FragmentLabel *label in self.fragmentLabels) {
-			label.animated = !_needsDisplayTraces;
-			[label reposition];
-			label.animated = YES;
+-(void)layoutSublayersOfLayer:(CALayer *)layer {
+	if(layer == traceLayerParent && needsLayoutTraceLayer) {
+		/// As this method is called whenever the layer bounds change, we check `needsLayoutTraceLayer`
+		/// to avoid doing unnecessary stuff.
+		if(needsUpdatePeakLabels) {
+			[self updatePeakLabels];
 		}
-		avoidCollisions = YES;
+		[self repositionTraceLayer];
+		needsLayoutTraceLayer = NO;
 	}
-	[super layout];
-	if(avoidCollisions) {
-		[FragmentLabel avoidCollisionsInView:self allowAnimation:NO];
-	}
-	self.needsLayoutFragmentLabels = NO;
 }
 
 
@@ -910,43 +910,52 @@ static NSColor *traceViewBackgroundColor;
 	if(context == sampleSizingChangedContext) {
 		Chromatogram *sample = object;
 		if(sample.coefs != nil) {
-			/// we only react if the sizing properties haven't become nil (which may happen)
-			if(sample == self.trace.chromatogram) {
-				if([keyPath isEqualToString:ChromatogramSizesKey]) {
+			/// We only react if the sizing properties haven't become nil (which may happen).
+			if([keyPath isEqualToString:ChromatogramCoefsKey]) {
+				if(sample == self.trace.chromatogram) {
 					[self updateViewLength];
 					[self fitToIntrinsicContentSize];
-					self.needsLayoutLabels = YES;
-				} else if([keyPath isEqualToString:ChromatogramSizingQualityKey]){
-					/// If sizing has changed, sizing may have failed for samples we show or may have become valid instead
-					/// Since we don't show a panel when sizing has failed, we may need to update the panel we show
-					Panel *panel = [self panelToShow];
-					if(panel != self.panel) {
-						self.panel = panel;
+					if(_hScale > 0) {
+						/// We adjust the scale and visible origin to maintain the visible range.
+						self.hScale = self.visibleWidth / _visibleRange.len;
+						self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
 					}
+					self.needsRepositionLabels = YES;
+				}
+			} else if([keyPath isEqualToString:ChromatogramSizingQualityKey]){
+				/// If sizing has changed, sizing may have failed for samples we show or may have become valid instead
+				/// Since we don't show a panel when sizing has failed, we may need to update the panel we show
+				Panel *panel = [self panelToShow];
+				if(panel != self.panel) {
+					self.panel = panel;
 				}
 			}
 			self.needsDisplayTraces = YES;
 			self.rulerView.needsDisplay = YES;
 		}
-	} else if(context == panelChangedContext) {
+	} else if(context == samplePanelChangedContext) {
 		/// we reload the whole panel if it has changed
 		Panel *panel = [self panelToShow];
 		if(panel != self.panel) {
 			self.panel = panel;
 		}
 	} else if(context == panelMarkersChangedContext) {
-		[self updateMarkerLabels];
+		needsUpdateMarkerLabels = YES;
+		self.needsRepositionLabels = YES;
 	} else if(context == fragmentsChangedContext) {
-		[self updateFragmentLabels];
+		needsUpdateFragmentLabels = YES;
+		self.needsRepositionFragmentLabels = YES;
 	} else if(context == peakChangedContext) {
-		[self updatePeakLabels];
+		needsUpdatePeakLabels = YES;
+		/// we update peak labels in layoutSubLayersOfLayer
+		[self setNeedsLayoutTraceLayer];
 	}
 	else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 	
 }
 
 
-# pragma mark - commande related to drawing traces
+# pragma mark - commands related to drawing traces
 
 -(CALayer *)newTraceLayer {
 	CALayer *traceLayer = CALayer.new;
@@ -972,7 +981,7 @@ static NSColor *traceViewBackgroundColor;
 			return nil;
 		}
 		return NSNull.null;
-	} else if(layer == traceLayerParent || layer == dashedLineLayer || layer == verticalLineLayer) {
+	} else if(layer == traceLayerParent || layer == dashedLineLayer || layer == verticalLineLayer || layer == _backgroundLayer) {
 		return NSNull.null;
 	}
 	return nil;
@@ -998,11 +1007,12 @@ static NSColor *traceViewBackgroundColor;
 		if(display) {
 			/// When traces needs to be redrawn, we draw a layer that fits the visible rectangle return by clipRect
 			if(!traceLayerFillingClipRect) {
-				self.needsLayoutTraceLayer = YES;
+				[self setNeedsLayoutTraceLayer];
 			} else {
 				/// If a layer is already in place, we don't need to position it, just mark it for redisplay.
 				[traceLayerFillingClipRect setNeedsDisplay];
 				/// but we need to remove any other trace layer
+				/* DISABLED TO TEST. This code should not be needed as traceLayerFillingClipRect is set by clearing other layers.
 				NSArray *sublayers = traceLayerParent.sublayers;
 				long count = sublayers.count;
 				if(count > 1) {
@@ -1014,22 +1024,17 @@ static NSColor *traceViewBackgroundColor;
 							i--;
 						}
 					}
-				}
+				} */
 			}
 		}
 	}
 }
 
 
-- (void)setNeedsLayoutTraceLayer:(BOOL)needsLayoutTraceLayer {
+- (void)setNeedsLayoutTraceLayer {
 	if(showsTraces) {
-		_needsLayoutTraceLayer = needsLayoutTraceLayer;
-		if(needsLayoutTraceLayer) {
-			/// We layout trace layers in -layout rather than -layoutSublayersOfLayer:
-			/// because the latter is not called at appropriate times wrt changes in view geometry.
-			/// Traces should be adjust perfectly in sync with change in view geometry, in particular during zooming
-			self.needsLayout = YES;
-		}
+		needsLayoutTraceLayer = YES;
+		[traceLayerParent setNeedsLayout];
 	}
 }
 
@@ -1048,7 +1053,7 @@ static NSColor *traceViewBackgroundColor;
 		return;
 	}
 	float xRatio = size.width / oldSize.width;
-
+	
 	float yRatio = (size.height - yOffset) / (oldSize.height - yOffset);
 	drawnRangeStart = INFINITY;
 	drawnRangeEnd = 0;
@@ -1062,7 +1067,7 @@ static NSColor *traceViewBackgroundColor;
 		
 		if(drawnRangeStart > bounds.origin.x) {
 			drawnRangeStart = bounds.origin.x;
-		} 
+		}
 		if(drawnRangeEnd < NSMaxX(bounds)) {
 			drawnRangeEnd = NSMaxX(bounds);
 		}
@@ -1091,7 +1096,7 @@ static NSColor *traceViewBackgroundColor;
 		}
 		[self positionTraceLayerFromStart:layerStart toEnd:drawnRangeStart clipRect:clipRect clearOtherLayers:NO];
 	}
-		
+	
 	if (drawnRangeEnd < visibleEnd) {
 		/// If some area has become visible at the right, we place a layer there.
 		float layerEnd = drawnRangeEnd + defaultTraceLayerWidth;
@@ -1129,7 +1134,7 @@ static NSColor *traceViewBackgroundColor;
 	BOOL placeLeft = NO; /// whether the layer will be placed at the left of the clipRect (scrolling)
 	if(clearOtherLayers) {
 		traceLayer = traceLayerFillingClipRect? traceLayerFillingClipRect : sublayers.firstObject;
-		long count = sublayers.count;
+		NSInteger count = sublayers.count;
 		if(traceLayer && count > 1) {
 			/// We remove other trace layers from the view, which we can't do with fast enumeration
 			/// unless we make a copy of the sublayers array, which may take more time
@@ -1177,7 +1182,7 @@ static NSColor *traceViewBackgroundColor;
 			[traceLayerParent addSublayer:traceLayer];
 		}
 	}
-
+	
 	if(clearOtherLayers) {
 		drawnRangeStart = start;
 		drawnRangeEnd = end;
@@ -1199,7 +1204,7 @@ static NSColor *traceViewBackgroundColor;
 	traceLayer.bounds = layerBounds;
 	traceLayer.position = layerBounds.origin;  /// This ensure that the coordinates in the layer are the same as those in the view
 	[traceLayer setNeedsDisplay]; /// In case the bounds haven't changed, we mark the positioned layer for display
-								  
+	
 	return traceLayer;
 }
 
@@ -1221,7 +1226,7 @@ static NSColor *traceViewBackgroundColor;
 ///   - ctx: The graphics context in which we draw.
 - (void)drawTracesInRect:(NSRect) dirtyRect context:(CGContextRef) ctx {
 	
-	if(visibleTraces.count == 0) {
+	if(_loadedTraces.count == 0) {
 		return;
 	}
 	
@@ -1247,11 +1252,14 @@ static NSColor *traceViewBackgroundColor;
 	}
 	
 	/// We show offscale regions (with vertical rectangles)
-	/// We don't drawn them if we have traces from several samples and if a marker label is enabled, 
+	/// We don't drawn them if we have traces from several samples and if a marker label is enabled,
 	/// as these regions can mask the edges  of this label or its bin labels
 	NSData *offscaleRegions = sample.offscaleRegions;
 	NSColor *currentOffscaleColor;
-	if (self.showOffscaleRegions && offscaleRegions.length > 0 && (visibleTraces.count == 1 || self.channel == -1) && !self.enabledMarkerLabel) {
+	NSArray *offScaleColors = self.colorsForOffScaleRegions;
+	NSInteger colorCount = offScaleColors.count;
+	if (self.showOffscaleRegions && offscaleRegions.length > 0 && (visibleTraces.count == 1 || self.channel < 0) &&
+		!self.enabledMarkerLabel) {
 		/// channel is normally -1 if we show traces for the same sample. In this case, we can draw off-scale regions
 		const OffscaleRegion *regions = offscaleRegions.bytes;
 		for (int i = 0; i < offscaleRegions.length/sizeof(OffscaleRegion); i++) {
@@ -1270,13 +1278,16 @@ static NSColor *traceViewBackgroundColor;
 					float xStart = (regionStart - sampleStartSize) * hScale;
 					float xWidth = (regionEnd - regionStart) * hScale;
 					float scanWidth = xWidth/regionWidth;
-					NSColor *color = self.colorsForOffScaleRegions[region->channel];
-					if(color != currentOffscaleColor) {
-						CGContextSetFillColorWithColor(ctx, color.CGColor);
-						currentOffscaleColor = color;
-					}
+					ChannelNumber channel = region->channel;
+					if(channel >= 0 && channel < colorCount) {
+						NSColor *color = offScaleColors[channel];
+						if(color != currentOffscaleColor) {
+							CGContextSetFillColorWithColor(ctx, color.CGColor);
+							currentOffscaleColor = color;
+						}
 						/// we place the rectangle at half a scan to the left, so that it is centered around the saturated scans
-					CGContextFillRect(ctx, CGRectMake(xStart - scanWidth/2, 0, xWidth, NSMaxY(self.bounds)));
+						CGContextFillRect(ctx, CGRectMake(xStart - scanWidth*0.5, 0, xWidth, NSMaxY(self.bounds)));
+					}
 				} else {
 					break;
 				}
@@ -1292,6 +1303,7 @@ static NSColor *traceViewBackgroundColor;
 	NSPoint pointArray[maxPointsInCurve];          /// points to add to the curve
 	int startScan = 0, maxScan = 0;	/// we will draw traces for scan between these scans.
 	sample = nil;
+	float lineWidth = 1.0;
 	
 	for (Trace *traceToDraw in visibleTraces) {
 		NSData *fluoData = _showRawData? traceToDraw.primitiveRawData : [traceToDraw adjustedDataMaintainingPeakHeights:_maintainPeakHeights];
@@ -1334,9 +1346,9 @@ static NSColor *traceViewBackgroundColor;
 					}
 					int peakStartScan = peakLabel.startScan;
 					float peakStartSize = sizes[peakStartScan];
-					if(peakStartSize <= endSize) {
+					if(peakStartSize <= endSize && peakStartScan < peakEndScan) {
 						int offScaleChannel = -(peakLabel.crossTalk + 1);
-						if(offScaleChannel >= 0 && offScaleChannel <= 4) {
+						if(offScaleChannel >= 0 && offScaleChannel <= colorCount) {
 							float x = (peakStartSize- sampleStartSize)*hScale;
 							float y = -1;
 							CGPoint pointArray[peakEndScan - peakStartScan + 3];
@@ -1354,7 +1366,7 @@ static NSColor *traceViewBackgroundColor;
 							x = (sizes[peakEndScan] - sampleStartSize) * hScale;
 							pointArray[nPointsInPath++] = CGPointMake(x, -1);
 							
-							NSColor *color = self.colorsForOffScaleRegions[offScaleChannel];
+							NSColor *color = offScaleColors[offScaleChannel];
 							if(color !=currentOffscaleColor) {
 								currentOffscaleColor = color;
 								CGContextSetFillColorWithColor(ctx, color.CGColor);
@@ -1372,7 +1384,18 @@ static NSColor *traceViewBackgroundColor;
 		}
 		
 		NSColor *strokeColor = TraceView.colorsForChannels[traceToDraw.channel];
-		CGContextSetStrokeColorWithColor(ctx, strokeColor.CGColor);
+		/// We will stroke the clicked trace with a thicker line.
+		float currentLineWidth = traceToDraw == _clickedTrace? 2.0 : 1.0;
+		if(currentLineWidth != lineWidth) {
+			lineWidth = currentLineWidth;
+			CGContextSetLineWidth(ctx, lineWidth);
+		}
+		if(lineWidth > 1) {
+			/// and a lighter color
+			CGContextSetStrokeColorWithColor(ctx, [strokeColor  blendedColorWithFraction:0.3 ofColor:NSColor.whiteColor].CGColor);
+		} else {
+			CGContextSetStrokeColorWithColor(ctx, strokeColor.CGColor);
+		}
 		
 		/// We add the first point to draw to the array
 		float lastX = (sizes[startScan] - sampleStartSize)*hScale;
@@ -1437,6 +1460,8 @@ static NSColor *traceViewBackgroundColor;
 			scan++;
 		}
 	}
+//	CGContextSetStrokeColorWithColor(ctx, NSColor.blackColor.CGColor);
+//	CGContextStrokeRect(ctx, dirtyRect);
 }
 
 
@@ -1567,20 +1592,25 @@ static NSColor *traceViewBackgroundColor;
 		_vScale = scale;
 		if(!resizedWithAnimation) {
 			self.needsDisplayTraces = YES;
-			self.needsLayoutFragmentLabels = YES;
-		} 
+			self.needsRepositionFragmentLabels = YES;
+		} else {
+			/// If the vertical scale is changed with animation, we reposition fragment labels immediately
+			/// in layout() if would be too late.
+			[self repositionLabels:self.fragmentLabels];
+			[FragmentLabel avoidCollisionsInView:self];
+		}
 		self.vScaleView.needsDisplay = YES;
 	}
 }
 
 
 -(BOOL) scrollRectToVisible:(NSRect)rect {
+	/// overridden because our visible rect is particular and because the trace scroll view filters scroll events
 	return [self scrollRectToVisible:rect animate:NO];
 }
 
 
 -(BOOL)scrollRectToVisible:(NSRect)rect animate:(BOOL)animate {
-	/// overridden because our visible rect is particular and because the trace scroll view filters scroll events
 	float startX = rect.origin.x;
 	if(startX < 0) {
 		return NO;
@@ -1632,9 +1662,9 @@ static NSColor *traceViewBackgroundColor;
 		traceLayerFillingClipRect = nil;  /// The layer showing traces no longer fits the visible rectangle
 		
 		if(!resizedWithAnimation) {
-			self.needsLayoutTraceLayer = YES; /// We need to position trace layers during scrolling.
+			[self setNeedsLayoutTraceLayer]; /// We need to position trace layers during scrolling.
 			///as our markerView doesn't scroll, it needs to reposition its marker labels to reflect our range
-			self.markerView.needsLayoutLabels = YES;
+			self.markerView.needsRepositionLabels = YES;
 		}
 		
 		if(mouseIn) {
@@ -1657,7 +1687,7 @@ static NSColor *traceViewBackgroundColor;
 		_hScale = newScale;
 		[self fitToIntrinsicContentSize];
 		if(!resizedWithAnimation) {
-			self.markerView.needsLayoutLabels = YES;
+			self.markerView.needsRepositionLabels = YES;
 		}
 	}
 }
@@ -1665,11 +1695,11 @@ static NSColor *traceViewBackgroundColor;
 
 /// Makes the view as wide as it needs to be,
 - (void)fitToIntrinsicContentSize {
-	NSSize newSize = self.intrinsicContentSize;
-	if (!NSEqualSizes(newSize, self.frame.size)) {
-		self.isResizing = YES;
-		[self setFrameSize:newSize];
-		self.isResizing = NO;
+	if(self.hScale >= 0) {
+		NSSize newSize = self.intrinsicContentSize;
+		if (!NSEqualSizes(newSize, self.frame.size)) {
+			[self setFrameSize:newSize];
+		}
 	}
 }
 
@@ -1801,7 +1831,7 @@ static NSColor *traceViewBackgroundColor;
 	
 	/// we change ivars related to geometry to signify the the view is not in its final state.
 	/// We don't use the setters as we don't want the view to actually change the geometry of the view to match these dummy values
-	_hScale = -1.0; height = 0; _visibleRange = MakeBaseRange(0, 2.0);
+	_hScale = -1.0; viewHeight = 0; _visibleRange = MakeBaseRange(0, 2.0);
 	_topFluoLevel = -1;
 	self.isMoving = NO;
 	
@@ -1871,14 +1901,14 @@ static NSColor *traceViewBackgroundColor;
 
 
 - (void)setBoundsOrigin:(NSPoint)newOrigin {
-	/// our bounds x origin must be reflected by the top ruler view and the marker view, or else graduation and markers will not show at the correct position relative to the traces
+	/// bounds x origin must be reflected by the top ruler view and the marker view, so that graduations and markers show at the correct position relative to the traces
 	[super setBoundsOrigin:newOrigin];
 	[self.markerView setBoundsOrigin:NSMakePoint(newOrigin.x,0)];
 	[self.rulerView setBoundsOrigin:NSMakePoint(newOrigin.x, 0)];
 	VScaleView *vScaleView = self.vScaleView;
 	NSPoint point = [vScaleView convertPoint:NSMakePoint(0, 0) fromView:self];
 	[vScaleView setBoundsOrigin:NSMakePoint(0, -point.y + vScaleView.bounds.origin.y)];
-	self.needsLayoutLabels = YES;		/// This is because bin labels must span the whole view vertically, regardless of the bounds origin.
+	self.needsRepositionLabels = YES;		/// This is because bin labels must span the whole view vertically, regardless of the bounds origin.
 }
 
 
@@ -1922,14 +1952,14 @@ static NSColor *traceViewBackgroundColor;
 		self.hScale = self.visibleWidth / _visibleRange.len;
 		self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
 		if(resizedWithAnimation) {
-			/// To reposition marker labels in sync with the animation, we need to reposition them now
-			/// We do it here because resizeWithOldSuperviewSize: is not called on the marker view when the context allows implicit animations.
+			/// To reposition marker labels in sync with the animation, we need to reposition them now.
+			/// We do it now because resizeWithOldSuperviewSize: is not called on the marker view when the context allows implicit animations.
 			/// We need to resize the marker view to its final size, otherwise the markers label will not be positioned properly.
 			MarkerView *markerView = self.markerView;
 			NSSize markerViewSize = markerView.frame.size;
 			markerViewSize.width = newSize.width;
 			[markerView setFrameSize:markerViewSize];
-			[markerView repositionLabels:markerView.markerLabels allowAnimation:YES];
+			[markerView repositionLabels:markerView.markerLabels];
 		}
 	}
 	
@@ -1949,35 +1979,33 @@ static NSColor *traceViewBackgroundColor;
 
 
 - (void)fitVertically {
-	/// as we don't scroll vertically, we make sure our height is that of the visible rect in our clipview
-	/// we have to consider the height of the horizontal ruler, which overlaps our clipView. We don't want to show behind that
+	/// as we the view doesn't scroll vertically, we make sure its height is that of the visible rect of the clipview
+	/// we have to consider the height of the horizontal ruler, which overlaps the clipView. We don't want to show behind that
 	float topInset = 0;
 	RulerView *rulerView = self.rulerView;
 	NSRect clipViewFrame = self.superview.frame;
 	if(rulerView && !rulerView.hidden) {
 		topInset = NSIntersectionRect(rulerView.frame, clipViewFrame).size.height;
 	}
-	height = round(clipViewFrame.size.height - topInset);
+	viewHeight = round(clipViewFrame.size.height - topInset);
 	NSRect frame = self.frame;
-	if(height != frame.size.height) {
-		[self setFrameSize:NSMakeSize(frame.size.width, height)];
+	if(viewHeight != frame.size.height) {
+		[self setFrameSize:NSMakeSize(frame.size.width, viewHeight)];
 		float topFluoLevel = self.topFluoLevel;
 		float boundsOrigin = self.bounds.origin.y;
 		if(topFluoLevel > 0) {
 			if(self.autoScaleToHighestPeak) {
 				/// To maintain the 20-point margin above the highest peak, the top fluo level must be updated
-				self.topFluoLevel = (height + boundsOrigin) / (height - 20 + boundsOrigin) * (topFluoLevel - 20/_vScale);
+				self.topFluoLevel = (viewHeight + boundsOrigin) / (viewHeight - 20 + boundsOrigin) * (topFluoLevel - 20/_vScale);
 			} else {
 				/// Otherwise, the topFluoLevel remains the same, but the vScale need to be changed to accommodate the difference in height.
-				self.vScale =  (height + boundsOrigin)/topFluoLevel;
+				self.vScale =  (viewHeight + boundsOrigin)/topFluoLevel;
 			}
 		}
-		if(resizedWithAnimation) {
-			[self repositionLabels:self.fragmentLabels allowAnimation:YES];
-		}
+		
 		if(dashedLineLayer) {
 			/// we make the dashed line layer as tall as the view
-			dashedLineLayer.bounds = CGRectMake(0, 0, 1, height);
+			dashedLineLayer.bounds = CGRectMake(0, 0, 1, viewHeight);
 			CGMutablePathRef path = CGPathCreateMutable();
 			CGPathMoveToPoint(path, NULL, 0.5, NSMaxY(dashedLineLayer.bounds));
 			CGPathAddLineToPoint(path, NULL, 0.5,0);
@@ -1990,17 +2018,20 @@ static NSColor *traceViewBackgroundColor;
 
 - (void)setFrameSize:(NSSize)newSize {
 	NSSize oldSize = self.frame.size;
+	_isResizing = YES;
 	[super setFrameSize:newSize];
+	_isResizing = NO;
 	if(resizedWithAnimation) {
-		/// if the view is resized with animation, we rescale trace layers so that they move in sync with it
-		/// we do it now because in -layout it will be too late.
-		[self repositionLabels:self.repositionableLabels allowAnimation:YES];
+		/// If the size changes (without a change in vScale or hScale), the marker labels need to be repositioned
+		/// to occupy the whole view height. Bins are resized by the marker labels.
+		/// We don't defer that, otherwise labels would not move in sync with the animation.
+		[self repositionLabels:self.markerLabels];
 		[self rescaleTraceLayersWithOldSize:oldSize];
-
 	} else {
-		self.needsLayoutLabels = YES;
+		/// If we don't need to animate, it's safer to reposition the layer filling the visible rectangle.
+		traceLayerFillingClipRect = nil;
+		self.needsRepositionLabels = YES;
 		self.needsDisplayTraces = YES;
-		self.needsLayoutTraceLayer = YES;
 	}
 	[self positionVerticalLineLayer];
 }
@@ -2062,22 +2093,21 @@ static NSColor *traceViewBackgroundColor;
 }
 
 
--(void) scaleToHighestPeakWithAnimation:(BOOL) animate {
-	if(visibleTraces.count == 0) {
-		return;
-	}
-	
-	float fluo = [self topFluoForRange:self.visibleRange];
-	if(fluo != self.topFluoLevel && fluo > 0) {
-		[self setTopFluoLevel:fluo withAnimation:animate];
+- (void)scaleToHighestPeakWithAnimation:(BOOL) animate {
+	if(visibleTraces.count > 0) {
+		float fluo = [self topFluoForRange:self.visibleRange];
+		if(fluo != self.topFluoLevel && fluo > 0) {
+			[self setTopFluoLevel:fluo withAnimation:animate];
+		}
 	}
 }
 
 
 - (void)updateViewLength {
 	float maxEndSize = self.defaultRange.start + self.defaultRange.len;
-	Trace *trace = self.trace;
-	float length = trace == nil? 600.0 : trace.chromatogram.readLength;
+	Chromatogram *sample = self.trace.chromatogram;
+	float length = sample == nil? 600.0 : sample.readLength;
+	_sampleStartSize = sample.startSize;
 	viewLength = (maxEndSize > length) ? maxEndSize - _sampleStartSize : length - _sampleStartSize;
 }
 
@@ -2087,7 +2117,7 @@ static NSColor *traceViewBackgroundColor;
 	if(hScale < 0) {
 		hScale = 0;
 	}
-	return NSMakeSize(viewLength * hScale - self.bounds.origin.x, height);
+	return NSMakeSize(viewLength * hScale - self.bounds.origin.x, viewHeight);
 }
 
 
@@ -2125,7 +2155,7 @@ static NSColor *traceViewBackgroundColor;
 - (void)viewDidMoveToWindow {
 	if(self.effectiveAppearance != NSApp.effectiveAppearance) {
 		/// If the view wasn't visible when the app last changed appearance, it may not have changed appearance.
-		/// If gets its new appearance when it shows, but that will require a short delay to workaround a bug, making the view
+		/// It gets its new appearance when it shows, but that will require a short delay to workaround a bug, making the view
 		/// appear in an incorrect appearance for a short time. So we update it now.
 		[self updateAppearance];
 	}
@@ -2143,8 +2173,8 @@ static NSColor *traceViewBackgroundColor;
 
 - (void)setShowDisabledBins:(BOOL)showBins {
 	_showDisabledBins = showBins;
-	if(!self.trace) {		/// we do not modify bin visibility if we only show a marker
-							/// the bins of the marker we show are always visible
+	if(!self.trace && self.marker) {		/// we do not modify bin visibility if we only show a marker
+											/// the bins of the marker we show are always visible
 		return;
 	}
 	for (RegionLabel *markerLabel in self.markerLabels) {
@@ -2192,17 +2222,18 @@ static NSColor *traceViewBackgroundColor;
 	if(self.autoScaleToHighestPeak) {
 		[self scaleToHighestPeakWithAnimation:YES];
 	}
-	self.needsLayoutFragmentLabels = YES; /// because peak heights may change
+	self.needsRepositionFragmentLabels = YES; /// because peak heights may change
 	self.needsDisplayTraces = YES;
 }
 
 
 - (void)setMaintainPeakHeights:(BOOL)maintainPeakHeights {
 	_maintainPeakHeights = maintainPeakHeights;
+	self.needsDisplayTraces = YES;
 	if(self.autoScaleToHighestPeak) {
 		[self scaleToHighestPeakWithAnimation:YES];
 	}
-	self.needsLayoutFragmentLabels = YES; /// because peak heights may change
+	self.needsRepositionFragmentLabels = YES; /// because peak heights may change
 }
 
 
@@ -2225,21 +2256,25 @@ static NSColor *traceViewBackgroundColor;
 - (void)setDisplayedChannels:(NSArray<NSNumber *> *)displayedChannels  {
 	NSArray *previousTraces = visibleTraces;
 	_displayedChannels = [NSArray arrayWithArray:displayedChannels];
-	if(self.loadedTraces) {
-		visibleTraces = [self.loadedTraces filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Trace *trace, NSDictionary<NSString *,id> * _Nullable bindings) {
+	NSArray<Trace *> *loadedTraces = self.loadedTraces;
+	if(loadedTraces.firstObject.channel != loadedTraces.lastObject.channel) {
+		visibleTraces = [loadedTraces filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Trace *trace, NSDictionary<NSString *,id> * _Nullable bindings) {
 			return [self.displayedChannels containsObject: @(trace.channel)];
 		}]];
+		NSInteger visibleTraceCount = visibleTraces.count;
+		Trace *referenceTrace = visibleTraceCount > 0? visibleTraces.firstObject : loadedTraces.firstObject;
+	
+		self.channel = visibleTraceCount == 0? noChannelNumber :
+		(visibleTraceCount > 1? multipleChannelNumber : referenceTrace.channel);
+		self.needsRepositionLabels = YES;
+		self.trace = referenceTrace;
+		self.markerView.hidden = self.channel == multipleChannelNumber || self.trace.isLadder;
+		self.panel = self.panelToShow;
 		self.needsDisplayTraces = YES;
 		if(self.autoScaleToHighestPeak) {
 			/// when displayed traces change, we may have to rescale to the highest peak
 			/// we animate only if at least one trace was displayed before
-			BOOL animate = NO;
-			for(id obj in visibleTraces) {
-				if([previousTraces indexOfObjectIdenticalTo:obj] != NSNotFound) {
-					animate = YES;
-					break;
-				}
-			}
+			BOOL animate = [visibleTraces sharesObjectsWithArray:previousTraces];
 			[self scaleToHighestPeakWithAnimation:animate];
 		}
 	}
@@ -2278,7 +2313,7 @@ static NSColor *traceViewBackgroundColor;
 		for (NSColor *color in TraceView.colorsForChannels) {		/// the offscale color as derived from the channel color
 			float usedFraction = i == blackChannelNumber && fraction <= 0.3 ? fraction : fraction;
 			_colorsForOffScaleRegions = [_colorsForOffScaleRegions arrayByAddingObject:[color colorWithAlphaComponent:usedFraction]];
-
+			
 			i++;
 		}
 	}
@@ -2441,15 +2476,19 @@ static NSColor *traceViewBackgroundColor;
 
 - (BOOL)resignFirstResponder {
 	self.rulerView.currentPosition = -10000;
-	for (ViewLabel *label in self.viewLabels){
-		if([label respondsToSelector:@selector(attachedPopover)]) {
-			if([(RegionLabel *)label attachedPopover] == nil) {
-				/// if the label has a popover, this method is likely call because the popover is spawn
-				/// in this case we don't de-highlight the label. We only do it if it has no popover attached.
+	self.clickedTrace = nil;
+	for (ViewLabel *label in self.viewLabels) {
+		/// We deselect any highlighted label that is not the enabled marker label.
+		if(label != _enabledMarkerLabel) {
+			if([label respondsToSelector:@selector(attachedPopover)]) {
+				if([(RegionLabel *)label attachedPopover] == nil) {
+					/// if the label has a popover, this method is likely call because the popover is spawn
+					/// in this case we don't de-highlight the label. We only do it if it has no popover attached.
+					label.highlighted = NO;
+				}
+			} else {
 				label.highlighted = NO;
 			}
-		} else {
-			label.highlighted = NO;
 		}
 	}
 	return YES;
@@ -2508,7 +2547,6 @@ static NSColor *traceViewBackgroundColor;
 
 - ( void)mouseExited:(NSEvent *)event {
 	dashedLineLayer.hidden = YES;
-	verticalLineLayer.hidden = YES; /// This is a safety measure, as it should be hidden in labelDidChangeHoveredState
 	hoveredBinLabel = nil;
 	hoveredPeakLabel = nil;
 	hoveredMarkerLabel = nil;
@@ -2525,10 +2563,18 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 		pressure = YES;
 		NSPoint mouseLocation = [self convertPoint:event.locationInWindow fromView:nil];
 		
-		if(self.loadedTraces.count == 1) {
+		for(FragmentLabel *fragmentLabel in self.fragmentLabels) {
+			/// If the click happens to be in a fragment label, we do nothing.
+			if(NSPointInRect(mouseLocation, fragmentLabel.frame)) {
+				return;
+			}
+		}
+		
+		if(visibleTraces.count == 1) {
+			/// The user may be trying to add a peak.
 			int scan = [self scanForX:mouseLocation.x];
 			NSPoint point = [self pointForScan:scan];
-			if(point.y >= mouseLocation.y) {
+			if(point.y >= mouseLocation.y) { /// The user has clicked below the curve.
 				Peak addedPeak = [self.trace missingPeakForScan:scan useRawData:self.showRawData];
 				if(addedPeak.startScan > 0 && [self.trace insertPeak:addedPeak]) {
 					[self.window.undoManager setActionName:@"Add Peak"];
@@ -2537,18 +2583,24 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 			}
 		}
 		
+		if(visibleTraces.count > 1 && self.channel >= 0 && !self.enabledMarkerLabel) {
+			/// The user may be trying to click a curve.
+			Trace *clickedTrace = [self closestTraceToPoint:mouseLocation withinDistance:3];
+			self.clickedTrace = clickedTrace;
+			if(clickedTrace) {
+				[self.delegate traceView:self didClickTrace:clickedTrace];
+				return;
+			}
+		}
+		
+		/// The user may be trying to select a bin.
+		
 		if(NSPointInRect(mouseLocation, self.enabledMarkerLabel.frame)) {
 			Mmarker *marker = self.enabledMarkerLabel.region;
 			if(marker.editState != editStateBinSet) {
 				/// If the click is within the enabled marker label, the user may already be editing individual bins
 				/// in which case a force click isn't need. Or they may be editing the marker offset, in which case no bin should be selectable
 				/// We only allow to proceed if the user is moving the bin set, which pertains to bin editing.
-				return;
-			}
-		}
-		for(FragmentLabel *fragmentLabel in self.fragmentLabels) {
-			/// If the click happens to be in a fragment label, we do nothing. Selecting a bin behind it would look strange.
-			if(NSPointInRect(mouseLocation, fragmentLabel.frame)) {
 				return;
 			}
 		}
@@ -2577,37 +2629,59 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	if(menu) {
 		return menu;
 	}
-	
-	if(self.loadedTraces.count == 1 && !self.enabledMarkerLabel) {
+		
+	if(visibleTraces.count == 1 && !self.enabledMarkerLabel) {
 		/// if  there was no peak label at the clicked point, we present the option to add a peak at the mouse location
 		/// but we first check if the clicked region corresponds to a peak
 		int clickedScan = [self scanForX:self.rightClickedPoint.x];
 		NSPoint point = [self pointForScan:clickedScan];
-		if(point.y < self.rightClickedPoint.y) {
-			/// if the clicked point is not below the curve, we do nothing.
-			return nil;
-		}
-		Peak addedPeak = [self.trace missingPeakForScan:clickedScan useRawData:self.showRawData];
-		if(addedPeak.startScan > 0) {					/// this would be 0 if there there is no peak
-			if(!addPeakMenu) {
-				addPeakMenu = NSMenu.new;
+		if(point.y > self.rightClickedPoint.y) {
+			/// if the clicked point is below the curve, we do nothing, the user may want to add a missing peak
+			Peak addedPeak = [self.trace missingPeakForScan:clickedScan useRawData:self.showRawData];
+			if(addedPeak.startScan > 0) {					/// this would be 0 if there there is no peak
+				NSMenu *addPeakMenu = NSMenu.new;
 				NSMenuItem *item = [[NSMenuItem alloc]initWithTitle:@"Add Peak here"
-															 action:@selector(addPeak:)
+															 action:@selector(addPeakWithMenuItem:)
 													  keyEquivalent:@""];
 				[addPeakMenu addItem:item];
+				/// We add the peak to the menu item.
+				item.representedObject = [NSValue valueWithBytes:&addedPeak objCType:@encode(Peak)];
+				item.target = self;
+				return addPeakMenu;
 			}
-			/// We add the peak to the menu item.
-			NSMenuItem *item = addPeakMenu.itemArray.lastObject;
-			item.representedObject = [NSValue valueWithBytes:&addedPeak objCType:@encode(Peak)];
-			item.target = self;
-			return addPeakMenu;
 		}
+	}
+	/// The user may be trying to right click a curve.
+	Trace *clickedTrace = nil;
+
+	if(visibleTraces.count > 1 && self.channel >= 0) {
+		clickedTrace = [self closestTraceToPoint:self.rightClickedPoint withinDistance:3];
+		self.clickedTrace = clickedTrace;
+	}
+	
+	if(clickedTrace) {
+		NSMenu *menu = NSMenu.new;
+		NSString *title = self.genotype? @"Highlight Source Genotype" : @"Highlight Source Sample";
+		NSMenuItem *item = [[NSMenuItem alloc]initWithTitle:title
+													 action:@selector(highLightSampleWithMenuItem:)
+											  keyEquivalent:@""];
+		[menu addItem:item];
+		item.offStateImage = [NSImage imageNamed:@"looking left"];
+		item.representedObject = clickedTrace;
+		item.target = self;
+		return menu;
 	}
 	return nil;
 }
 
 
-- (void)addPeak:(NSMenuItem *)sender {
+- (void)highLightSampleWithMenuItem:(NSMenuItem *)sender {
+	[self.delegate traceView:self didClickTrace:sender.representedObject];
+	sender.representedObject = nil;
+}
+
+
+- (void)addPeakWithMenuItem:(NSMenuItem *)sender {
 	NSValue *peakValue = sender.representedObject;
 	if(![peakValue isKindOfClass:NSValue.class]) {
 		return;
@@ -2617,6 +2691,17 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	
 	if([self.trace insertPeak:addedPeak]) {
 		[self.window.undoManager setActionName:@"Add Peak"];
+		/// we force the new peak label to be hovered, to help the user know that a peak was added
+		[self updatePeakLabels];
+		self.needsDisplayTraces = YES;
+		int refScan = addedPeak.startScan;
+		for(PeakLabel *label in self.peakLabels) {
+			int scan = label.startScan;
+			if(scan == refScan) {
+				label.hovered = YES;
+				break;
+			}
+		}
 	}
 }
 
@@ -2656,11 +2741,75 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 - (void)mouseDown:(NSEvent *)theEvent   {
 	[self.window makeFirstResponder:self];
 	self.mouseLocation= [self convertPoint:theEvent.locationInWindow fromView:nil];
+	self.clickedTrace = nil;
 	[super mouseDown:theEvent];
 }
 
 
-- (void)cancelOperation:(id)sender {
+/// Return the trace whose (theoretical) curve is closest, and within a distance, to a point.
+///
+/// The trace is picked among the ``visibleTraces``.
+/// The method does not rely on curves drawn by the view.
+/// - Parameter point: A point in view coordinate.
+/// - Parameter maxDist: The maximum distance (in points) between the point and the curve representing the trace..
+- (nullable Trace *)closestTraceToPoint:(NSPoint)point withinDistance:(float)maxDist {
+	Trace *closestTrace = nil;
+	float x = point.x, y = point.y;
+	float sizeAtPoint = [self sizeForX:x];
+	float vScale = self.vScale;
+	BOOL showRawData = self.showRawData;
+	BOOL maintainPeakHeights = self.maintainPeakHeights;
+	
+	float minDist = INFINITY; /// minimum distance between the point and the curve of a trace.
+	/// We compute the distance between the point and the segment linking the scans surrounding the point along the x axis.
+	/// Note: this may not be the segment that is the closest to the point, but most of the time it should be.
+	for(Trace *trace in visibleTraces) {
+		Chromatogram *sample = trace.chromatogram;
+		int scan = [sample scanForSize:sizeAtPoint];
+		if(scan < 1 || scan >= sample.maxScan) {
+			continue;
+		}
+		NSData *sizeData = sample.sizes;
+		long nScans = sizeData.length / sizeof(float);
+		if(nScans <= scan) {
+			continue;
+		}
+		const float *sizes = sizeData.bytes;
+		int leftScan = sizes[scan] > sizeAtPoint? scan-1 : scan;
+		float leftSize = sizes[leftScan];
+		float rightSize = sizes[leftScan+1];
+		
+		int16_t leftFluo = [trace fluoForScan:leftScan useRawData:showRawData maintainPeakHeights:maintainPeakHeights];
+		int16_t rightFluo = [trace fluoForScan:leftScan+1 useRawData:showRawData maintainPeakHeights:maintainPeakHeights];
+		float leftY = leftFluo * vScale;
+		float rightY = rightFluo * vScale;
+		float leftX = [self xForSize:leftSize];
+		float rightX = [self xForSize:rightSize];
+		
+		float dist = fabs((rightY - leftY)*x - (rightX - leftX)*y + rightX*leftY - rightY*leftX) /
+		sqrtf(pow(rightY-leftY,2) + pow(rightX - leftX,2));
+		
+		if(dist < minDist) {
+			minDist = dist;
+			if(minDist <= maxDist) {
+				closestTrace = trace;
+			}
+		}
+	}
+	
+	return closestTrace;
+}
+
+
+- (void)setClickedTrace:(Trace *)clickedTrace {
+	if(clickedTrace != _clickedTrace) {
+		_clickedTrace = clickedTrace;
+		self.needsDisplayTraces = YES;
+	}
+}
+
+
+- (IBAction)cancelOperation:(id)sender {
 	[self.activeLabel cancelOperation:sender];
 	[self.enabledMarkerLabel cancelOperation:sender];
 }
@@ -2699,7 +2848,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	if(!draggedLabel && activeLabel.clicked) {
 		if(NSPointInRect(self.clickedPoint, activeLabel.frame)) {
 			/// We make sure that we should drag the label because this method might not follow a mouseDown: message sent to us
-			/// (which I consider an oversight from appkit), in particular if we were showing a contextual menu before the drag.
+			/// (which I consider an oversight from appkit), in particular if the view was showing a contextual menu before the drag.
 			/// The label may appear clicked after the mouse button was released, when a menu was showing (hence no mouseUp: message was sent to us)
 			/// Because no mouseDown: is sent to us when he user clicks the view while the menu is open, the label still appears clicked.
 			draggedLabel = activeLabel;
@@ -2717,13 +2866,13 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	}
 	
 	RegionLabel *enabledMarkerLabel = self.enabledMarkerLabel;
-	if(NSPointInRect(self.clickedPoint, enabledMarkerLabel.frame) && NSPointInRect(self.mouseLocation, enabledMarkerLabel.frame)) {
+	if(enabledMarkerLabel.editState == editStateBins && NSPointInRect(self.clickedPoint, enabledMarkerLabel.frame) && NSPointInRect(self.mouseLocation, enabledMarkerLabel.frame)) {
 		/// if the mouse is dragged in the enabled marker label, the user may be trying to add a bin
 		/// a bin can be added in the region covered by the unlocked marker label, but it must not overlap an existing bin label
 		if(fabs(self.clickedPoint.x - self.mouseLocation.x) > 3) {
 			for(RegionLabel *binLabel in enabledMarkerLabel.binLabels) {
 				if (binLabel.clicked) {
-					/// The user must have clicked outside a bin.
+					/// The user must click outside a bin.
 					return;
 				}
 			}
@@ -2744,7 +2893,6 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 				}
 			}
 			
-			
 			dashedLineLayer.hidden = YES;											/// it is better to hide the dashed line when the bin is created, to reduce visual clutter.
 			MarkerOffset offset = enabledMarkerLabel.offset;
 			position = (position - offset.intercept) / offset.slope;
@@ -2752,7 +2900,6 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 			
 			float start = (position < clickedPosition) ? position:clickedPosition;	/// we determine the start of the bin, depending on the direction of the drag
 			float end = (position < clickedPosition) ? clickedPosition:position;
-			
 			
 			if(marker.objectID.isTemporaryID) {
 				[marker.managedObjectContext obtainPermanentIDsForObjects:@[marker] error:nil];
@@ -2845,9 +2992,9 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	
 	
 -(void)updateLabelAreas {
-	if (self.enabledMarkerLabel) {
-		[self.enabledMarkerLabel updateTrackingArea];
-		[self updateTrackingAreasOf:self.enabledMarkerLabel.binLabels];
+	RegionLabel *enabledMarkerLabel = self.enabledMarkerLabel;
+	if (enabledMarkerLabel) {
+		[enabledMarkerLabel updateTrackingArea];
 	} else {
 		[self updateTrackingAreasOf:self.peakLabels];
 	}

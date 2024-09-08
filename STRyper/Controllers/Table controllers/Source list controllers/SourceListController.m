@@ -85,25 +85,20 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 /// Folders that may have to be reloaded to the outlineview, as their subfolder content has changed
 @property (nonatomic) NSMutableSet <__kindof Folder *> *foldersToReload;
 
-/// set to YES after the outlineview is updated with a given change. We use it to avoid redundant changes
-@property (nonatomic) BOOL tableUpdated;
-
-/// set to yes after some subfolder are modified, which sometimes nullifies folder names upon saving the context.
-/// They names disappear from the table. We use this property to determine if we should restore the names.
-/// It would be better to fix the root cause, but I haven't found why folder names (and all other attributes) are sometimes nullified during a save. This appears unpredictable.
-@property (nonatomic) BOOL shouldQueryFolderNames;
-																	
-/// YES if the trash content has changed. We use it to update smart folders so that they don't return samples that are in the trash
-@property (nonatomic) BOOL trashContentChanged;
-
-/// to workaround a bug with source list outline views where the indentation level would not be set properly after adding the first subfolder (and a non-group item)
-@property (nonatomic) BOOL hasSubfolders;
-
 @end
 
 
 
-@implementation SourceListController
+@implementation SourceListController {
+	BOOL trashContentChanged; /// Set to `YES` after detecting a change in the trash folder content.
+
+	///set to `YES` after the outline view is updated with a given change. We use it to avoid redundant changes.
+	BOOL folderListUpdated;
+	
+	/// Whether there is at least one subfolder in the source list.
+	/// This is workaround a bug with source list outline views where the indentation level would not be set properly after adding the first subfolder.
+	BOOL hasSubfolders;
+}
 @synthesize rootFolder = _rootFolder;
 
 
@@ -117,12 +112,8 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 - (void)configureTableContent {
 	
-	NSManagedObjectContext *MOC = ((AppDelegate *)NSApp.delegate).managedObjectContext;
-	[self bind:@"managedObjectContext" toObject:NSApp.delegate withKeyPath:@"managedObjectContext" options:nil];
-	
-	/// we react to save of the view context, because a save after subfolders are modified sometimes nullifies some attributes of folders, which removes their names from the table
-	/// I haven't found a way to prevent this (TO FIX)
-	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(contextDidSave) name:NSManagedObjectContextDidSaveNotification object:MOC];
+	NSManagedObjectContext *MOC = AppDelegate.sharedInstance.managedObjectContext;
+	[self bind:@"managedObjectContext" toObject:NSApp.delegate withKeyPath:NSManagedObjectContextBinding options:nil];
 	
 	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(contextDidChange:) name:NSManagedObjectContextObjectsDidChangeNotification object:MOC];
 	
@@ -183,9 +174,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		outlineView = (NSOutlineView *)self.tableView;
 		outlineView.autosaveExpandedItems = YES;
 	}
-	
-	[outlineView reloadData];
-	
+		
 	[self expandFolder:self.rootFolder];
 	
 	[self restoreSelectedFolder];
@@ -215,7 +204,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		if(self.trashFolder.managedObjectContext.hasChanges) {
 			/// The message may be sent when the samples of the trash are accessed at the start of the app
 			/// although no sample was put in the trash
-			self.trashContentChanged = YES;
+			trashContentChanged= YES;
 		}
 	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 }
@@ -250,35 +239,39 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		if(folder != self.trashFolder) { 		/// since we don't show the trash, we don't need to reload it if its content has changed
 			[self.foldersToReload addObject:folder];
 		} else {
-			self.trashContentChanged = YES; 	/// however we note that its content has changed
+			trashContentChanged = YES; 	/// however we note that its content has changed
 		}
 	}
-	self.shouldQueryFolderNames = YES;
 }
 
 
 -(void)contextDidChange:(NSNotification *)notification {
 	/// this is where we update the outline view if needed, mostly during undo/redo or if another class made change to folders
-	if(self.trashContentChanged) {
+	if(trashContentChanged) {
 		/// if the trash content has changed, we refresh the content of the selected smart folder, has it should not show samples that are in the trash
-		if(self.selectedFolder.isSmartFolder) {
-			[(SmartFolder *)self.selectedFolder refresh];
+		Folder *selectedFolder = self.selectedFolder;
+		if(selectedFolder.isSmartFolder) {
+			[(SmartFolder *)selectedFolder refresh];
 		}
-		self.trashContentChanged = NO;
+		trashContentChanged= NO;
 	}
 	
 	/// We clear the foldersToReload and the pendingChange as they are only valid now.
-	NSDictionary *folderChange;
-	if(self.pendingChange) {
-		folderChange = [NSDictionary dictionaryWithDictionary: self.pendingChange];
-		self.pendingChange = nil;
-	}
+	NSDictionary *folderChange = self.pendingChange;
+	self.pendingChange = nil;
+
 	
 	NSSet *foldersToReload = [NSSet setWithSet:self.foldersToReload];
+	for(Folder *folder in foldersToReload) {
+		for(Folder *subfolder in folder.allSubfolders) {
+			subfolder.parent = subfolder.parent; /// this is to avoid a core data bug in which unmodified subfolders are turned into faults in the next save if siblings are inserted or removed.
+		}
+	}
+	
 	[self.foldersToReload removeAllObjects];
 	
-	if(self.tableUpdated) {
-		self.tableUpdated = NO;
+	if(folderListUpdated) {
+		folderListUpdated = NO;
 		return;
 	}
 	
@@ -325,7 +318,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 -(void)reloadFolders:(NSSet *)folders {
 	Folder *selectedFolder = self.selectedFolder;
 	for(Folder *parentFolder in folders){
-		//NSLog(@"reload: %@", parentFolder.name);
 		[outlineView reloadItem:parentFolder reloadChildren:YES];
 		[self expandFolder:parentFolder];
 	}
@@ -352,15 +344,16 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		return NO;
 	}
 	
+	NSOrderedSet *subfolders = source.subfolders;
 	if(folderWasAdded) {
 		/// if a folder was added, we check that it  is be present in the source folder at the specified index
-		if(sourceIndex >= source.subfolders.count || [source.subfolders objectAtIndex:sourceIndex] != target) {
+		if(sourceIndex >= subfolders.count || [subfolders objectAtIndex:sourceIndex] != target) {
 			return NO;
 		}
 	}
 	
 	/// if a folder was deleted from a source at a given index, the source must contain at least as many subfolders as the given index
-	if((folderWasDeleted || folderWasMoved) && sourceIndex >= source.subfolders.count+1) {
+	if((folderWasDeleted || folderWasMoved) && sourceIndex >= subfolders.count+1) {
 		return NO;
 	}
 	
@@ -390,14 +383,13 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	
 	BOOL sourceExpanded = [outlineView isItemExpanded:source];
 	BOOL destinationExpanded = [outlineView isItemExpanded:destination];
-	BOOL hasSubfolders = self.hasSubfolders;
 	
 	NSAnimationContext.currentContext.duration = 0.2;
 	[NSAnimationContext beginGrouping];
 	[outlineView beginUpdates];
 	if(folderWasMoved) {
 		if(sourceExpanded || destinationExpanded) {		
-			/// We only need to move the row of the source and destinations aren't collapsed.
+			/// We only need to move the row if the source and destinations aren't collapsed.
 			[outlineView moveItemAtIndex:sourceIndex inParent:source toIndex:destinationIndex inParent:destination];
 		}
 		[outlineView reloadItem:destination];
@@ -407,7 +399,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	} else if(folderWasDeleted) {
 		/// On macOS 14, removing the row can cause a freeze if its text field is currently edited.
 		/// This can occur if the user undoes the addition of a folder since the name of a new folder is selected on the view.
-		/// To avoid this, we abord editing.
+		/// To avoid this, we abort editing.
 
 		NSUInteger rowToRemove = [outlineView rowForItem:target];
 		NSTableRowView *rowView = [outlineView rowViewAtRow:rowToRemove makeIfNecessary:NO];
@@ -420,11 +412,11 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		}
 		[outlineView removeItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideUp];
 	}
-	if(folderWasAdded && !hasSubfolders && self.hasSubfolders && source.parent) {		
-		/// if this is the first subfolder of a non-group parent (i.e. its parent is not the root folder), we reload its grandparent (which should be the root) and parents. 
-		/// Otherwise, the indentation level may not be set properly
-		/// this is because the source list outline view style does not indent the children of group items if they don't themselves have children.
-		/// This leaves no space for the the outline button (triangle). Adding an item via insertItemsAtIndexes does not correct for the absence of space. We must reload.
+	if(folderWasAdded && !hasSubfolders && source.parent) {
+		/// if the added folder is the first subfolder of any (non-root) parent, we reload its grandparent (which should be the root) and parent.
+		/// because the source list outline view style does not indent the children of group items if they don't themselves have children.
+		/// This leaves no space for the the outline button (triangle). Only reloading corrects that.
+		/// The hasSubfolders ivar avoids doing it more than once, as this breaks the animation.
 		[outlineView reloadItem:source.parent reloadChildren:YES];
 	} else {
 		[outlineView reloadItem:source];
@@ -467,20 +459,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 }
 
 
--(void)contextDidSave {
-	if(self.shouldQueryFolderNames) {
-		///we query the name of folders shown in the view, which thankfully restores their name if they have become nil
-		[outlineView enumerateAvailableRowViewsUsingBlock:^(__kindof NSTableRowView * _Nonnull rowView, NSInteger row) {
-			Folder *folder = [outlineView itemAtRow:row];
-			if([folder respondsToSelector:@selector(name)] && !folder.name) {
-				NSLog(@"no name");		/// which hopefully shouldn't be logged, as accessing the name just above restores the name
-			}
-		}];
-	}
-	self.shouldQueryFolderNames = NO;
-}
-
-
 - (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
 	Folder *folder = [outlineView itemAtRow:row];
 	if(folder) {
@@ -515,7 +493,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	if([item respondsToSelector:@selector(subfolders)]) {
 		NSOrderedSet *subfolders = [item subfolders];
 		if(subfolders.count > index) {
-			return [[item subfolders] objectAtIndex:index];
+			return [subfolders objectAtIndex:index];
 		}
 	}
 	return NSNull.null;		/// which should never happen
@@ -570,8 +548,9 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 - (BOOL)outlineView:(NSOutlineView *)outlineView shouldShowOutlineCellForItem:(id)item {
 	Folder *folder = [self _folderForItem:item];
-	if(folder.parent) {
-		self.hasSubfolders = YES;
+	if(!hasSubfolders && folder.parent.parent) { 
+		/// We take this opportunity to check for the presence of subfolders (ignoring the root, which is a parent that has no parent)
+		hasSubfolders = YES;
 	}
 	return folder != self.rootFolder;		/// we don't allow collapsing the root folder.
 }
@@ -613,6 +592,9 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	if(!folder) {
 		return @"";
 	}
+	if(folder.objectID.isTemporaryID) {
+		[folder.managedObjectContext obtainPermanentIDsForObjects:@[folder] error:nil];
+	}
 	return folder.objectID.URIRepresentation.absoluteString;
 	
 }
@@ -638,6 +620,8 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		if(itemAtRow != self.selectedFolder) {
 			self.selectedFolder = itemAtRow;
 		}
+	} else {
+		self.selectedFolder = nil;
 	}
 }
 
@@ -646,6 +630,9 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 - (void)recordSelectedFolder {
 	Folder *folder = self.selectedFolder;
 	if(folder) {
+		if(folder.objectID.isTemporaryID) {
+			[folder.managedObjectContext obtainPermanentIDsForObjects:@[folder] error:nil];
+		}
 		NSString *uri = folder.objectID.URIRepresentation.absoluteString;
 		[NSUserDefaults.standardUserDefaults setValue:uri forKey: [@"selected" stringByAppendingString:self.entityName]];
 	}
@@ -666,7 +653,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 # pragma mark - drag and drop support
 
 - (id<NSPasteboardWriting>)outlineView:(NSOutlineView *)outlineView pasteboardWriterForItem:(id)item {
-	/// the user can drag folders (including panels and smart folders) into other folders. Other types are managed by subclasses
+	/// the user can drag folders (including panels) into other folders. Other types are managed by subclasses
 	Folder *draggedFolder = [self _folderForItem:item];
 	if(!draggedFolder.parent) {
 		return nil;			/// we don't allow dragging folder sections
@@ -773,15 +760,16 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 			if(index > sourceIndex) {
 				index--;
 			}
-			/// insertObject:inSubfoldersAtIndex: has no effect within the same parent. And core data doesn't appear to provide a method that reorders the elements (only on that can replace elements)
-			/// We could achieve what we want by first removing the folder from the parent and inserting it at another place, but I prefer avoiding that. 
-			NSMutableOrderedSet *subfolders = [NSMutableOrderedSet orderedSetWithOrderedSet:originalParent.subfolders];
-			[subfolders moveObjectsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] toIndex:index];
-			originalParent.subfolders = [NSOrderedSet orderedSetWithOrderedSet:subfolders];
-		} else {
-			[destination insertObject:draggedFolder inSubfoldersAtIndex:index];
+			/// We must also remove it from the parent before inserting it at the new index (otherwise, insertion has no effect)
+			/// I haven't found a coreData method that moves objects within on ordered relationship.
+			[originalParent removeSubfoldersObject:draggedFolder];
+			/// Reordering within the same parent causes temporary nullification of folder attributes upon save, but I haven't found
+			/// a way to prevent this. Moving the dragged folder to another parent, then immediately to the destination doesn't work.
 		}
 		
+		[self.undoManager setActionName:[@"Move " stringByAppendingString: draggedFolder.folderType]];
+		[destination insertObject:draggedFolder inSubfoldersAtIndex:index];
+
 		self.pendingChange = @{FolderChangeTypeKey: FolderChangeTypeMove,
 							   TargetFolderKey: draggedFolder,
 							   SourceParentKey: originalParent,
@@ -791,10 +779,9 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		};
 		/// it is better to update the table now.
 		/// If we do it in contextDidChange, the dragged folder ends up taking two identical rows if the destination is collapsed and already has folders.
-		self.tableUpdated = [self updateOutlineViewWithFolderChange:self.pendingChange];
-																								
+		folderListUpdated = [self updateOutlineViewWithFolderChange:self.pendingChange];
 		
-		[self.undoManager setActionName:[@"Move " stringByAppendingString: draggedFolder.folderType]];
+		[AppDelegate.sharedInstance saveAction:self];
 		return YES;
 	}
 	return NO;
@@ -809,22 +796,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 - (__kindof Folder *)_targetFolderOfSender:(id)sender {
 	return [self targetItemsOfSender:sender].firstObject;
 }
-
-
-- (void)menuNeedsUpdate:(NSMenu *)menu {
-	
-	if(menu == outlineView.menu) {
-		Folder *targetFolder = [self _targetFolderOfSender:menu];
-		BOOL hide = targetFolder.parent == nil;
-		for(NSMenuItem *menuItem in menu.itemArray) {
-			menuItem.hidden = hide;
-		}
-	} else {
-		[super menuNeedsUpdate:menu];
-	}
-	
-}
-
 
 
 - (NSString *)removeActionTitleForItems:(NSArray *)items {
@@ -865,19 +836,23 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		return;
 	}
 
-	Folder *parentFolder = self.rootFolder;
-	
+	Folder *parentFolder; 	/// The folder that will be the parent of the new folder.
 	if([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == outlineView.menu) {
 		parentFolder = [self _targetFolderOfSender:sender];
 	}
 	
-	if(!parentFolder || parentFolder == self.trashFolder) {
+	if(!parentFolder) {
+		/// This may happen if the outline view was right-clicked outside of a row.
+		/// In this case, the new folder should be added at the root.
+		parentFolder = self.rootFolder;
+	} else if(parentFolder == self.trashFolder) {
+		/// The UI should not allow targeting the trash folder, this a a safety measure.
 		return;
 	}
 	
 	Folder *newFolder;
 	if(parentFolder.class == PanelFolder.class) {
-		if([sender respondsToSelector:@selector(tag)] && [sender tag] == 4) {			/// identifies if we must add a marker panel
+		if([sender respondsToSelector:@selector(tag)] && [sender tag] == 4) {			/// identifies that we must add a marker panel
 			newFolder = [[Panel alloc] initWithParentFolder:parentFolder];
 		} else {
 			newFolder = [[PanelFolder alloc] initWithParentFolder:parentFolder];
@@ -920,6 +895,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		[self _addFolderToTable:folder]; /// we add the folder directly as we want to select the item name
 		[self selectItemName:folder];
 		[self.undoManager setActionName:[@"New " stringByAppendingString: folder.folderType]];
+		[AppDelegate.sharedInstance saveAction:self];
 	}
 
 }
@@ -937,14 +913,13 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 -(void)_addFolderToTable:(Folder *)folder {
 	Folder *parent = folder.parent;
-	if(!parent) {
-		return;
+	if(parent) {
+		self.pendingChange = @{FolderChangeTypeKey: FolderChangeTypeAddition,
+							   TargetFolderKey:folder,
+							   SourceParentKey:parent,
+							   SourceIndexKey:@([parent.subfolders indexOfObject:folder])};
+		folderListUpdated = [self updateOutlineViewWithFolderChange:self.pendingChange];
 	}
-	self.pendingChange = @{FolderChangeTypeKey: FolderChangeTypeAddition,
-						   TargetFolderKey:folder,
-						   SourceParentKey:parent,
-						   SourceIndexKey:@([parent.subfolders indexOfObject:folder])};
-	self.tableUpdated = [self updateOutlineViewWithFolderChange:self.pendingChange];
 }
 
 
@@ -958,15 +933,14 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 -(void) _removeFolderFromTable:(Folder *)folder {
 	Folder *parent = folder.parent;
-	if(!parent || folder.managedObjectContext != self.managedObjectContext) {
-		return;
+	if(parent && folder.managedObjectContext == self.managedObjectContext) {
+		NSUInteger index = [parent.subfolders indexOfObject:folder];
+		
+		self.pendingChange = @{FolderChangeTypeKey: FolderChangeTypeDeletion,
+							   TargetFolderKey:folder,
+							   SourceParentKey:parent,
+							   SourceIndexKey:@(index)};
 	}
-	NSUInteger index = [parent.subfolders indexOfObject:folder];
-	
-	self.pendingChange = @{FolderChangeTypeKey: FolderChangeTypeDeletion,
-						   TargetFolderKey:folder,
-						   SourceParentKey:parent,
-						   SourceIndexKey:@(index)};
 }
 
 

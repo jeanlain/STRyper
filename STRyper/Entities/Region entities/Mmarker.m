@@ -47,9 +47,8 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 
 
 
-- (instancetype)initWithStart:(float)start end:(float)end channel:(ChannelNumber)channel panel:(Panel *)panel {
+- (nullable instancetype)initWithStart:(float)start end:(float)end channel:(ChannelNumber)channel panel:(Panel *)panel {
 	if(!panel.managedObjectContext) {
-		NSLog(@"the provided panel has no managed object context!");
 		return nil;
 	}
 	self = [super initWithContext:panel.managedObjectContext];
@@ -71,6 +70,16 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 		return [channelColorNames objectAtIndex:self.channel];
 	}
 	return @"invalid channel";
+}
+
+
+- (NSArray<Bin *> *)sortedBins {
+	return [self.bins.allObjects sortedArrayUsingComparator:^NSComparisonResult(Bin *bin1, Bin *bin2) {
+		if(bin1.start < bin2.start) {
+			return NSOrderedAscending;
+		}
+		return NSOrderedDescending;
+	}];
 }
 
 
@@ -119,6 +128,13 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	/// We avoid duplicate marker names in the panel
 	NSString *name = *value;
 	if(name.length == 0) {
+		NSString *previousName = self.name;
+		if(previousName.length > 0) {
+			if([self validateName:&previousName error:nil]) {
+				*value = previousName;
+				return YES;
+			}
+		}
 		if (error != NULL) {
 			*error = [NSError managedObjectValidationErrorWithDescription:@"The marker must have a name."
 															   suggestion:@""
@@ -144,8 +160,24 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	return YES;
 }
 
+- (float)minimumWidth {
+	return 2.0;
+}
 
-- (BOOL)validateCoordinate:(float) coordinate isStart:(bool)isStart error:(NSError * _Nullable __autoreleasing *)error {
+- (BOOL)validateCoordinate:(id *) valueRef isStart:(BOOL)isStart error:(NSError * _Nullable *)error {
+
+	if([super validateCoordinate:valueRef isStart:isStart error:error]) {
+		return YES;
+	}
+	if(*valueRef == nil) {
+		/// When the value was not specified, the error is explicit enough.
+		return NO;
+	}
+	
+	float coordinate = [*valueRef floatValue];
+	
+	/// If we're here, we couldn't find a valid coordinate despite corrections.
+	/// So we try to specify the error (which may not be fixable if there is no room).
 	NSString *coord = isStart? @"start" : @"end";
 
 	if(coordinate < 0 | coordinate > MAX_TRACE_LENGTH) {
@@ -159,16 +191,8 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 		return NO;
 	}
 		
-	float start = 0, end = 0;
-	if(isStart) {
-		start = coordinate;
-		end = self.end;
-	} else {
-		start = self.start;
-		end = coordinate;
-
-	}
-	
+	float start = isStart? coordinate : self.start;
+	float end = isStart? self.end : coordinate;
 	if(end - start < 2.0) {
 		if (error != NULL) {
 			NSString *reason = [NSString stringWithFormat:@"Marker '%@' range of %g bp is too short (min: 2bp).", self.name, end-start];

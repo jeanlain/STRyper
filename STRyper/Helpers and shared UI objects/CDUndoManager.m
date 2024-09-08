@@ -57,7 +57,11 @@
 
 - (void)contextDidChange:(NSNotification *)notification {
 	if(currentActionName.length > 0) {
-		[super setActionName:currentActionName];
+		if(!self.isUndoing && !self.isRedoing) {
+			/// The context may have changed due to undo/redo, in which case the action
+			/// name should not be changed. 
+			[super setActionName:currentActionName];
+		}
 		currentActionName = nil;
 	}
 }

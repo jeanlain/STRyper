@@ -39,7 +39,7 @@
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-		controller = [[self alloc] init];
+		controller = self.new;
 	});
 	
 	return controller;
@@ -118,6 +118,11 @@
 
 
 
+/// Adds marker retrieved from a paste board to a panel and returns whether at least one marker could be added.
+///
+/// - Parameters:
+///   - pboard: A pasteboard.
+///   - destination: A panel.
 -(BOOL) addMarkersFromPasteBoard:(NSPasteboard *)pboard ToPanel:(Panel *)destination {
 	if(destination == nil || !destination.isPanel) {
 		return NO;
@@ -126,44 +131,66 @@
 	if(destination.objectID.isTemporaryID) {
 		[self.managedObjectContext obtainPermanentIDsForObjects:@[destination] error:nil];
 	}
-	/// we paste in another context that has no undo manager (as we may not validate the transfer of copied markers, hence discard the copies)
-	/// by default, decoded objects are materialized in this context (seen initWithCoder: of CodingObject.m)
-	NSManagedObjectContext *MOC = ((AppDelegate *)NSApp.delegate).childContext;
+	/// We paste in another context that has no undo manager as we validate whether markers can be added to the panel.
+	/// By default, decoded objects are materialized in this context (see `initWithCoder:` of CodingObject.m)
+	NSManagedObjectContext *MOC = AppDelegate.sharedInstance.childContext;
 	[MOC reset];
-	/// we make sure the state of the destination panel in this context reflects its state in the view context
+
 	Panel *panel = [MOC existingObjectWithID:destination.objectID error:&error];
-	NSInteger nCopiedMarkers = 0;
+	NSUInteger nCopiedMarkers = 0;
+	NSMutableArray *validationErrors = NSMutableArray.new;
+	
 	if(error) {
-		error = [NSError errorWithDescription:@"The marker(s) could not be copied." suggestion:@"An error occurred with the database."];
+		error = [NSError errorWithDescription:@"The marker(s) could not be added to the panel." suggestion:@"An error occurred in the database."];
 	} else {
 		for(NSPasteboardItem *item in pboard.pasteboardItems) {
 			NSData *archivedMarker = [item dataForType:MarkerPasteboardType];
 			if(archivedMarker) {
 				Mmarker *marker = [NSKeyedUnarchiver unarchivedObjectOfClass:Mmarker.class fromData:archivedMarker error:&error];
 				if(!error) {
-					[marker validateValue:&panel forKey:@"panel" error:&error];
-					if(!error) {
+					NSError *validationError;
+					[marker validateValue:&panel forKey:@"panel" error:&validationError];
+					if(!validationError) {
 						marker.panel = panel;
 						nCopiedMarkers++;
-						[MOC save:&error];
+					} else {
+						[MOC deleteObject:marker];
+						[validationErrors addObject:validationError];
 					}
 				}
 			}
 		}
 	}
 	
-	if(!error) {
-		[(AppDelegate *)NSApp.delegate saveAction:self];
+	if(nCopiedMarkers > 0) {
 		NSString *action = [pboard.name isEqualToString: NSPasteboardNameDrag]? @"Transfer Marker" : @"Paste Marker";
 		if(nCopiedMarkers > 1) {
 			action = [action stringByAppendingString:@"s"];
 		}
 		[self.undoManager setActionName:action];
-		return YES;
+		[MOC save:&error];
+		[AppDelegate.sharedInstance saveAction:self];
 	}
-	[[NSAlert alertWithError:error] beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
-	}];
-	return NO;
+
+	NSUInteger errorCounts = validationErrors.count;
+	if(errorCounts > 0) {
+		if(errorCounts == 1) {
+			error = validationErrors.firstObject;
+		} else {
+			NSString *description = [NSString stringWithFormat:@"%ld markers could not be added to the panel.", errorCounts];
+			error = [NSError errorWithDomain:STRyperErrorDomain
+										code:NSManagedObjectValidationError
+									userInfo:@{NSDetailedErrorsKey: [NSArray arrayWithArray:validationErrors],
+											   NSLocalizedDescriptionKey: NSLocalizedString(description, nil),
+											   NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(@"See the error log for details.", nil)
+												}];
+		}
+	}
+	if(error) {
+		[MainWindowController.sharedController showAlertForError:error];
+	}
+	
+	return nCopiedMarkers > 0;
 }
 
 
@@ -179,30 +206,35 @@
 		return self.selectedFolder.isPanel && [pboard.types containsObject:MarkerPasteboardType];
 	}
 	
-	PanelFolder *targetItem = [self _targetFolderOfSender:menuItem];
-	if(menuItem.topMenu == outlineView.menu) {
-		/// a menu item belonging to the outline view's contextual menu.
-		if(targetItem.isPanel) {					/// a panel is clicked.
-			if(menuItem.action == @selector(addFolder:) || menuItem.action == @selector(importPanels:)) {
-				/// we can't add a folder or import a panel into a panel
-				menuItem.hidden = YES;
-				return NO;
-			}
+	PanelFolder *targetFolder = [self _targetFolderOfSender:menuItem];
+	if(targetFolder.isPanel) {
+		if(menuItem.action == @selector(addFolder:) || menuItem.action == @selector(importPanels:)) {
+			/// we can't add a folder or import a panel into a panel
+			menuItem.hidden = YES;
+			return NO;
 		}
+	} else if(menuItem.action == @selector(addFolder:)) {
+		menuItem.hidden = NO;
+		if(menuItem.tag == 4) { /// The item to add a panel
+			menuItem.title = targetFolder? @"Add Panel" : @"New Panel";
+		} else {
+			menuItem.title = targetFolder? @"Add Subfolder" : @"New Folder";
+		}
+		return YES;
 	}
 	
 	
 	if(menuItem.action == @selector(exportSelection:)) {
-		if(targetItem.panels.count == 1) {
+		if(targetFolder.panels.count == 1) {
 			menuItem.title = @"Export Panel to File…";
-		} else if(targetItem.panels.count > 1) {
+		} else if(targetFolder.panels.count > 1) {
 			menuItem.title = @"Export Panels to File…";
 		} else {
 			menuItem.hidden = YES;
 			return NO;
 		}
 	} else if(menuItem.action == @selector(importBinSet:)) {
-		if(!targetItem.isPanel || ((Panel *)targetItem).markers.count == 0) {
+		if(!targetFolder.isPanel || ((Panel *)targetFolder).markers.count == 0) {
 			menuItem.hidden = YES;
 			return NO;
 		}
@@ -251,7 +283,8 @@
 
 - (void)exportPanel:(Panel *)panel {
 	NSSavePanel* savePanel = NSSavePanel.savePanel;
-	savePanel.prompt = @"Export panel";
+	savePanel.prompt = panel.panels.count > 1? @"Export Panels" : @"Export Panel";
+
 	savePanel.message = panel.isPanel? @"Export panel to a tab-delimited text file" : @"Export panel(s) to a tab-delimited text file";
 	savePanel.nameFieldStringValue = panel.name;
 	savePanel.allowedFileTypes = @[@"public.plain-text"];
@@ -300,7 +333,7 @@
 	NSError *error;
 	NSWindow *window = self.view.window;
 	
-	AppDelegate *delegate = (AppDelegate *)NSApp.delegate;
+	AppDelegate *delegate = AppDelegate.sharedInstance;
 	/// we import the panels in a temporary context on the main queue.
 	NSManagedObjectContext *temporaryContext = delegate.newChildContextOnMainQueue;
 	if(folder.objectID.isTemporaryID) {
@@ -324,6 +357,7 @@
 	}
 			
 	if(temporaryContext.hasChanges){
+		[self.undoManager setActionName:@"Import Panels"];
 		[temporaryContext save:&error];
 		if(error) {
 			error = [NSError errorWithDescription:@"The panel(s) could not be imported because an error occurred saving the database."
@@ -333,10 +367,8 @@
 			}];
 			return;
 		}
-		
-		[self.undoManager setActionName:@"Import Panels"];
-		
-		[(AppDelegate *)NSApp.delegate saveAction:self];
+				
+		[AppDelegate.sharedInstance saveAction:self];
 		
 		/// We make sure that the tab showing or view is displayed if a folder is added.
 		[MainWindowController.sharedController activateTabNumber:2];
@@ -359,7 +391,7 @@
 		openPanel.prompt = @"Import";
 		openPanel.canChooseDirectories = NO;
 		openPanel.allowsMultipleSelection = NO;
-		openPanel.message = @"Import bin set from a Genemapper file";
+		openPanel.message = @"Import bin sets from a Genemapper file";
 		openPanel.allowedFileTypes = @[@"public.plain-text"];
 		[openPanel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
 			if (result == NSModalResponseOK) {
@@ -375,7 +407,7 @@
 	NSError *error;
 	NSWindow *window = self.view.window;
 	
-	AppDelegate *delegate = (AppDelegate *)NSApp.delegate;
+	AppDelegate *delegate = AppDelegate.sharedInstance;
 	/// we import the bin set in a temporary context on the main queue.
 	NSManagedObjectContext *temporaryContext = delegate.newChildContextOnMainQueue;
 	
@@ -401,6 +433,7 @@
 	}
 	
 	if(temporaryContext.hasChanges){
+		[self.undoManager setActionName:@"Import Bin Set"];
 		[temporaryContext save:&error];
 		if(error) {
 			error = [NSError errorWithDescription:@"The bin set could not be imported because an error saving the database."
@@ -410,9 +443,8 @@
 			}];
 			return;
 		}
-		[self.undoManager setActionName:@"Import Bin Set"];
 
-		[(AppDelegate *)NSApp.delegate saveAction:self];
+		[AppDelegate.sharedInstance saveAction:self];
 	}
 }
 

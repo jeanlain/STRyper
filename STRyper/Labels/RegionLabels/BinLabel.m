@@ -20,6 +20,17 @@
 
 #import "BinLabel.h"
 #import "TraceView.h"
+#import "TraceViewMarkerLabel.h"
+
+@interface BinLabel ()
+
+/// Whether the bin name should be hidden to avoid overlap with others.
+/// `YES` may not mean that the bin name is hidden, as it must show when the label is `hovered` / `highlighted`.
+/// We use this properly to determine if we should hide the bin name when the label is no longer hovered or `highlighted`
+@property (nonatomic) BOOL binNameHidden;
+
+@end
+
 
 @implementation BinLabel
 
@@ -34,42 +45,19 @@
 	self = [super init];
 	if (self) {
 		_enabled = NO;			/// bin labels are disabled by default
-		_offset = MarkerOffsetNone;
 		
-		layer = CALayer.new;
-		layer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
-						  NSStringFromSelector(@selector(borderWidth)):NSNull.null};
-		
-		layer.delegate = self;
 		layer.zPosition = -0.5;
-		
-		bandLayer = CALayer.new;
-		bandLayer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
-							  NSStringFromSelector(@selector(borderWidth)):NSNull.null};
-		bandLayer.delegate = self;
-		stringLayer = CATextLayer.new;
-		stringLayer.delegate = self;
-		
-		/// Because `actionForLayer:` is called some time after the layer's string is changed, it is difficult to know
-		/// whether we should animate the change. So we just never do.
-		stringLayer.actions = @{NSStringFromSelector(@selector(contents)):NSNull.null};
-		
-		stringLayer.drawsAsynchronously = YES;  			/// maybe that helps a bit (not noticeable)
-		stringLayer.font = (__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:10.0]);
-		stringLayer.contentsScale = 2.0;
+		layer.geometryFlipped = YES; /// This helps placing the bandLayer at the top of the layer.
+
+	
+		stringLayer.fontSize = 8.5;
 		stringLayer.alignmentMode = kCAAlignmentCenter;
-		stringLayer.foregroundColor = NSColor.textColor.CGColor;
-		
-		layer.opaque = YES;
-		
+				
 		/// our bandLayer is a thin rectangle behind the bin name, which appears at its center. It is at least as wide as the bin.
 		/// We use two layers instead of just a CATextLayer with kCAAlignmentCenter to center the text. Changing the bounds of a CATextLayer kills performance.
 		/// Instead, we never modify the bounds of the stringLayer (unless the text changes), only those of the bandLayer
-		bandLayer.opaque = YES;
 		bandLayer.anchorPoint = CGPointMake(0.5, 1);		/// this helps to position that layer within its parent (same for the following instruction)
-		bandLayer.zPosition = 1.0;							/// because for some unclear reasons, this layer may sometimes show behind trace
-		stringLayer.fontSize = 8.5;
-		layer.geometryFlipped = YES;
+		bandLayer.zPosition = 1.0;							/// because for some unclear reasons, this layer may sometimes show behind traces
 		[bandLayer addSublayer:stringLayer];
 	}
 	
@@ -84,32 +72,66 @@
 		layer.borderColor = view.regionLabelEdgeColor;
 		bandLayer.backgroundColor = view.binNameBackgroundColor;
 		bandLayer.borderColor = view.hoveredBinLabelColor;
-		[view.layer addSublayer:bandLayer];
+		[view.backgroundLayer addSublayer:bandLayer];
 	}
 }
 
 
-- (CALayer *)_layer {
-	return layer;
+- (void)setParentLabel:(TraceViewMarkerLabel *)parentLabel {
+	if(_parentLabel != parentLabel) {
+		_parentLabel = parentLabel;
+		[parentLabel._layer addSublayer:layer];
+	}
+}
+
+
+- (void)setStart:(float)start {
+	if(start != _start) {
+		_start = start;
+		if(_parentLabel) {
+			[self.view labelNeedsRepositioning:_parentLabel];
+		}
+	}
+}
+
+
+- (void)setEnd:(float)end {
+	if(end != _end) {
+		_end = end;
+		if(_parentLabel) {
+			[self.view labelNeedsRepositioning:_parentLabel];
+		}
+	}
+}
+
+
+- (MarkerOffset)offset {
+	return _parentLabel.offset;
 }
 
 
 - (void)updateAppearance {
-	[super updateAppearance];
 	TraceView *view = self.view;
 	BOOL hovered = self.hovered;
 	BOOL highlighted = self.highlighted;
 	layer.backgroundColor = (hovered || highlighted)? view.hoveredBinLabelColor : view.binLabelColor;
 	bandLayer.backgroundColor = (hovered || highlighted)? view.hoveredBinNameBackgroundColor : view.binNameBackgroundColor;
 	bandLayer.borderWidth = (hovered || highlighted)? 1.0 : 0.0;
-	if(hovered == bandLayer.isHidden) {
-		/// if a bin label is hovered, its name must show,
-		self.animated = NO;
-		bandLayer.hidden = !hovered && _binNameHidden;
-		
-		[self repositionInternalLayers];
-		self.animated = YES;
+	
+	/// We determine of the visibility of the bin name should change. It must be visible if the label became hovered or highlighted.
+	BOOL hideBinName = (hovered || highlighted)? NO : _binNameHidden;
+	if(hideBinName != bandLayer.isHidden) {
+		if(_binNameHidden) {
+			/// Which means the bin name must show.
+			bandLayer.hidden = NO;
+		}
+		/// To avoid overlaps of bin names, we arrange other labels.
+		/// We do it immediately rather than asking the view to reposition the parent label, because the call of this method is already deferred
+		/// and this should be executed only once per cycle (when the user hovers a label or selects/deselects it).
+		[self.class arrangeLabels:_parentLabel.binLabels withRepositioning:NO allowAnimations:NO];
 	}
+	bandLayer.zPosition = self.hovered? 1.11 : self.highlighted? 1.1 : 1.0;
+	[super updateAppearance];
 }
 
 
@@ -134,7 +156,11 @@
 - (void)setBinNameHidden:(BOOL)binNameHidden {
 	if(!self.hidden) {
 		_binNameHidden = binNameHidden;
-		bandLayer.hidden = binNameHidden;
+		if(!binNameHidden) {
+			bandLayer.hidden = NO;
+		} else if(!_hovered && !_highlighted) {
+			bandLayer.hidden = YES;
+		}
 	}
 }
 
@@ -158,25 +184,33 @@
 
 	float startSize = self.startSize;
 	float endSize = self.endSize;
-	float startX = [view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)	
+	float startX = [view xForSize:startSize];
 	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(view.bounds));
 	
-	/// When highlighted, our frame (used by the tracking area) gets a bit wider so that the user can more easily click an edge to resize us
-	self.frame = self.highlighted? NSInsetRect(regionRect, -2, 0) : regionRect;
+	self.frame = regionRect;
 	
-	/// The layer is a bit taller than its host view to  hide the bottom and top edges.
+	/// The layer is a bit taller than its host view to hide the bottom and top edges.
 	layer.frame = CGRectInset(regionRect, 0, -2);
 	
-	[self repositionInternalLayers];
+	[self layoutInternalLayers];
 	
-	if(!view.isMoving && self.enabled && !self.dragged) {
-		[self updateTrackingArea];  
+	/// if we show a popover, we move it in sync with the label (the markerView doesn't scroll).
+	if(self.attachedPopover) {
+		self.attachedPopover.positioningRect = regionRect;
 	}
 }
 
 
-/// Repositions the layers showing the bin name
--(void) repositionInternalLayers {
+- (void)_shiftByOffset:(MarkerOffset)offset {
+	Bin *bin = self.region;
+	float midBinLabelPos = (bin.end + bin.start)/2 * offset.slope + offset.intercept;
+	float halfBinWidth = (bin.end - bin.start)/2;
+	_start = midBinLabelPos - halfBinWidth;
+	_end = midBinLabelPos + halfBinWidth;
+}
+
+
+- (void)layoutInternalLayers {
 	CGRect rect = stringLayer.bounds;
 	if(rect.size.width < regionRect.size.width) {
 		rect.size.width = regionRect.size.width;
@@ -184,8 +218,44 @@
 	bandLayer.bounds = rect;
 	bandLayer.position = CGPointMake(NSMidX(regionRect), NSMaxY(regionRect));
 	stringLayer.position = CGPointMake(NSMidX(rect), NSMidY(rect));
-	if (!bandLayer.hidden) {
-		bandLayer.zPosition = self.hovered? 1.1 : 1.0;
+}
+
+
++ (void)arrangeLabels:(NSArray *)binLabels withRepositioning:(BOOL)reposition allowAnimations:(BOOL)allowAnimations {
+	float currentMaxX = 0;
+	for(BinLabel *binLabel in binLabels) {
+		if(!binLabel.hidden) {
+			binLabel.allowsAnimations = allowAnimations;
+			if(reposition) {
+				[binLabel reposition];
+			}
+			CALayer *bandLayer = binLabel->bandLayer;
+			NSRect nameRect = bandLayer.frame;
+			float nameRectMinX = nameRect.origin.x;
+			BOOL hideBinName = nameRectMinX <= currentMaxX;
+			binLabel.binNameHidden = hideBinName;
+			if(!bandLayer.hidden) {
+				float nameRectMaxX = NSMaxX(nameRect);
+				if(nameRectMaxX > currentMaxX) {
+					currentMaxX = nameRectMaxX;
+				}
+				if(hideBinName) {
+					/// Here, the overlaps with a previous one, which is normal if the label is hovered or highlighted
+					/// We go back to hide names of previous bins that overlap.
+					float nameRectMinX = nameRect.origin.x;
+					for(BinLabel *previousBinLabel in binLabels) {
+						if(previousBinLabel != binLabel) {
+							if(!previousBinLabel.binNameHidden && NSMaxX(previousBinLabel->bandLayer.frame) >= nameRectMinX) {
+								previousBinLabel.binNameHidden = YES;
+							}
+						} else {
+							break;
+						}
+					}
+				}
+			}
+			binLabel.allowsAnimations = YES;
+		}
 	}
 }
 
@@ -210,15 +280,14 @@
 
 
 - (void)deleteAction:(id)sender {
-	/// We delete our bin
-	if (self.highlighted) {
-		NSManagedObjectContext *MOC = self.region.managedObjectContext;
-		if(!MOC) {
-			return;
+	/// This deletes the bin represented by the label.
+	if (!_dragged) {
+		Region *bin = self.region;
+		NSManagedObjectContext *MOC = bin.managedObjectContext;
+		if(MOC) {
+			[MOC deleteObject:bin];
+			[self.view.undoManager setActionName: self.deleteActionTitle];
 		}
-		[MOC deleteObject:self.region];		/// this triggers the recreation of labels, which will deallocate us
-		[self.view.undoManager setActionName: self.deleteActionTitle];
-		[self removeFromView]; 				/// May not be required, this is a safety masure
 	}
 }
 

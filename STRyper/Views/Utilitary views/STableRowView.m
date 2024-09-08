@@ -33,7 +33,6 @@
 		/// We need to react when the tableview scrolls.
 		[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(setSubviewFrame:) name:NSViewBoundsDidChangeNotification object:self.enclosingScrollView.contentView];
 		registered = YES;
-		[self setSubviewFrame:nil];
 	}
 }
 
@@ -55,12 +54,17 @@
 		return;
 	}
 	
-	NSRect ourFrame = self.frame;
-	NSRect frame = NSMakeRect(self.visibleRect.origin.x, 0, clipView.frame.size.width, ourFrame.size.height);
+	float xOrigin = clipView.bounds.origin.x;
+	if(xOrigin < 0) {
+		xOrigin = 0;
+	}
+
 	NSView *subview = self.subviews.firstObject;
 	if(!subview) {
 		return;
 	}
+	
+	NSRect frame = NSMakeRect(xOrigin, 0, clipView.frame.size.width, self.frame.size.height);
 	NSRect subviewFrame = subview.frame;
 	if (frame.size.width > 30 && (fabs(frame.origin.x - subviewFrame.origin.x) > 0.5 ||
 								fabs(frame.size.width - subviewFrame.size.width) > 0.5)) {

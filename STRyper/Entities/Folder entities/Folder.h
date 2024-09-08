@@ -45,7 +45,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, nullable) NSOrderedSet <Folder *> *subfolders;
 
 /// The folder's name.
-@property (nonatomic) NSString *name;
+@property (nonatomic, copy) NSString *name;
 
 
 /// A user-legible string that denotes the folder type.

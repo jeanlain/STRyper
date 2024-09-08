@@ -35,12 +35,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// This class implements a method that finds peaks that corresponds to ``SizeStandard/sizes`` of a size standard.
 @interface Trace : CodingObject
 
-/// An integer from 0 to 4 that represents the channel (wavelength) of the fluorescence data.
+/// An integer that represents the channel (wavelength) of the fluorescence data.
 ///
 /// This number denotes the conventional order of the channels of a capillary sequencer: blue, green, black/yellow, red, orange.
 ///
 /// The channel number corresponds to the ABIF convention minus one, as the [the ABIF file format specifications](https://www.wikidata.org/wiki/Q43992376) use numbers from 1 to 5 to denote channels.
-typedef enum ChannelNumber : int16_t {
+typedef NS_ENUM(int16_t, ChannelNumber) {
 	
 	/// The first channel (number 0), represented by a blue color.
 	blueChannelNumber = 0,
@@ -56,7 +56,15 @@ typedef enum ChannelNumber : int16_t {
 	
 	/// The fifth channel (number 4), represented by an orange color.
 	orangeChannelNumber = 4,
-} ChannelNumber;
+	
+	/// A number that represents multiple channels
+	///
+	/// This number can be used to denote the fact that several channels are shown.
+	multipleChannelNumber = -1,
+	
+	/// A number that represents no channel.
+	noChannelNumber = -2
+};
 
 
 /// The chromatogram to which the trace belongs.
@@ -91,7 +99,7 @@ typedef enum ChannelNumber : int16_t {
 
 
 /// The name of the dye that emitted the fluorescence (e.g., "6-FAM").
-@property (nonatomic) NSString *dyeName;
+@property (nonatomic, copy) NSString *dyeName;
 
 /// The channel of the trace.
 @property (nonatomic, readonly) ChannelNumber channel;
@@ -139,7 +147,7 @@ int32_t peakEndScan(const Peak *peakPTR);
 ///
 /// The method sets the `crossTalk` member of each peak in ``peaks``.
 ///
-/// **IMPORTANT:** the method relies on ``peaks`` found in the other ``Chromatogram/traces`` of the ``chromatogram``.
+/// - Important: The method relies on ``peaks`` found in the other ``Chromatogram/traces`` of the ``chromatogram``.
 - (void)findCrossTalk;
 
 /// The minimum fluorescence level that a ``Peak`` must have to be detected.
@@ -147,11 +155,12 @@ int32_t peakEndScan(const Peak *peakPTR);
 /// The default value is 100.
 @property (nonatomic) int16_t peakThreshold;
 
-/// Returns a peak that had not beed detected in the fluorescence data at a scan number.
+/// Returns a peak that had not been detected in the fluorescence data at a scan number.
 ///
 /// If a peak comprising the `scan` already exists, of if no peak can be found at that `scan`, the methods returns a ``Peak`` with all members set to 0.
 ///
-/// This method can be used to "force" the trace to find a peak that may be below the ``peakThreshold``. However, the tip of the peak must be at least twice higher than its surroundings (which must not include other peaks).
+/// This method can be used to "force" the trace to find a peak that may be below the ``peakThreshold``. 
+/// However, the tip of the peak must be at least twice higher than its surroundings (which must not include other peaks).
 /// - Parameters:
 ///   - scan: The scan at which to look for a peak. The tip of the returned peak may not be at that scan.
 ///   - useRawData: Whether the method should use the trace ``rawData`` (if `YES`) or the data with baseline fluorescence level subtracted.
@@ -162,8 +171,8 @@ int32_t peakEndScan(const Peak *peakPTR);
 ///
 /// The peak is inserted at an index that maintains the ascending order of the ``Trace/peaks`` in the array (with respect to their `startScan`).
 /// This method logs an error message and returns `NO` if an existing peak overlaps the peak to insert.
-/// The method does not check if the peak to insert indeed covers a region where the fluorescence actually shows a peak.
-/// - Parameter newPeak: The peak to insert.
+/// The method does not check if the peak to insert covers a region where the fluorescence actually shows a peak.
+/// - Parameter peak: The peak to insert.
 - (BOOL)insertPeak:(Peak)peak;
 
 #pragma mark - fragments associated with the traces
@@ -175,8 +184,7 @@ int32_t peakEndScan(const Peak *peakPTR);
 
 /// The DNA fragments that were identified in the fluorescence data of the trace.
 ///
-/// If the trace returns `YES` to ``isLadder``  these fragment must be ``LadderFragment`` objects. Otherwise, they must be ``Allele`` objects.
-/// Methods implemented by this class do not check this condition.
+/// If the trace returns `YES` to ``isLadder``  these fragment as assumed to be ``LadderFragment`` objects. Otherwise, they are assumed to be be ``Allele`` objects.
 ///
 /// The reverse relationship is ``LadderFragment/trace`` from ``LadderFragment``.
 /// This relationship is encoded in ``CodingObject/encodeWithCoder:``  and decoded in ``CodingObject/initWithCoder:``.
@@ -255,6 +263,7 @@ TraceFragmentsKey;
 
 /// Allows quicker access to the trace ``rawData``, which can be accessed often.
 - (NSData*)primitiveRawData;
+- (NSData*)primitivePeaks;
 
 															
 @end

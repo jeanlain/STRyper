@@ -19,6 +19,7 @@
 
 
 #import "RegionLabel.h"
+@class TraceViewMarkerLabel;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -26,25 +27,29 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A bin label is not ``ViewLabel/enabled`` by default and does not react to a change in ``RegionLabel/editState``, as it can only modify its own ``RegionLabel/region``.
 ///
-/// The ``Region/name`` of its bin only shows if the label is wide enough.
+///	As a bin is part of a set belonging to a ``Bin/marker``, a bin label does not need to be created and added to a view, nor positioned individually.
+///	Bin labels are created, managed and positioned by the ``TraceViewMarkerLabel`` object that represents their marker.
+///	They take their ``RegionLabel/offset`` from this "parent" label.
 @interface BinLabel : RegionLabel
 
 /// Makes the label remove the bin from its ``Bin/marker``, regardless of the `sender`.
 - (void)deleteAction:(id)sender;
 
-/// The rectangle where the bin name shows, in view coordinates.
-///
-/// This rectangle can be wider then the bin's ``ViewLabel/frame`` and is never narrower. 
-/// This property can be used to avoid overlap between names of adjacent bin labels, in conjunction to ``binNameHidden``.
-@property (nonatomic, readonly) NSRect binNameRect;
 
-/// Whether the bin name is hidden.
+/// Rearranges bin labels on their host view, and avoids overlaps in bin names by hiding them if necessary.
 ///
-/// The bin name is always hidden of the label is itself is hidden.
-@property (nonatomic) BOOL binNameHidden;
+/// - Parameters:
+///   - binLabels: The bin labels to rearrange. They are assumed to be hosted by the same view and ordered from left to right in the array.
+///   - reposition: whether bin labels should be repositioned. If `NO`, only the visibility of bin names is managed.
+///   - allowAnimations: Whether the repositioning of the bin labels should allow animations.
++ (void)arrangeLabels:(NSArray<BinLabel *> *)binLabels withRepositioning:(BOOL)reposition allowAnimations:(BOOL)allowAnimations;
 
-/// Used internally to access the labels CA layer.
-@property (nonatomic, readonly) CALayer *_layer;
+/// The label that represents the marker containing the bin represented by the label.
+///
+/// This property is set internally.
+@property (nonatomic, weak) TraceViewMarkerLabel *parentLabel;
+
+- (void)_shiftByOffset:(MarkerOffset)offset;
 
 @end
 

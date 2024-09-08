@@ -24,7 +24,6 @@
 #import "SampleFolder.h"
 #import "Panel.h"
 #import "TableViewController.h"
-#import "AppDelegate.h"
 #import "NSManagedObjectContext+NSManagedObjectContextAdditions.h"
 
 NS_ASSUME_NONNULL_BEGIN
@@ -42,7 +41,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// and the other managing the source list of panels (``Panel`` and ``PanelFolder``  objects).
 ///
 /// NOTE: while this class implements methods to observe folders for changes in their ``Folder/subfolders`` and to update the source list accordingly,
-/// other classes should avoid changing parents/subfolders of folders that are shown by the source list.
+/// other objects should avoid changing parents/subfolders of folders that are shown by the source list.
 @interface SourceListController : TableViewController <NSOutlineViewDataSource, NSOutlineViewDelegate>  {
 
 	/// back the readonly  ``selectedFolder`` variable so that it is settable by subclasses.
@@ -105,7 +104,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Returns a folder for the corresponding item, or nil if the item cannot be associated with a folder.
 ///
-/// This is used within methods that take and id object as an argument, which is the case for many outline view delegate methods (the item used to be an NSTreeNode when this class was using an NSTreeController).
+/// This is used within methods that take and id object as an argument, which is the case for many outline view delegate methods 
+/// (the item used to be an NSTreeNode when this class was using an NSTreeController).
 - (nullable __kindof Folder *)_folderForItem:(id)item ;
 														
 /// The folder that is the target of an action (sent from the table's contextual menu)

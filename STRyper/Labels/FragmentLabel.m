@@ -51,24 +51,28 @@
 
 
 							
-typedef enum FragmentLabelType : NSUInteger {
+typedef NS_ENUM(NSUInteger, FragmentLabelType) {
 	noTypeFragmentLabel,		/// the default type for a label that is not yet initialized
 	ladderFragmentLabel,		/// for a label that represents a ladder fragment
 	alleleLabel,				/// for a label that represents an allele
 	additionalFragmentLabel		/// for a label that represents an additional fragment at a marker
-} FragmentLabelType;
+} ;
 
 
 @implementation FragmentLabel {
-	FragmentLabelType type;			/// the type of label is not set externally, but by the designated initializer. It is merely a shortcut that tells whether the fragment the label represents is a ladder fragment or an allele.
+	FragmentLabelType type;			/// the type of label is not set externally, but by the designated initializer. 
+									///It is merely a shortcut that tells whether the fragment the label represents is a ladder fragment or an allele.
 	CATextLayer *stringLayer;			  	/// shows the label name or size. It is separate from the base layer because the string is vertically centered,
 											/// which isn't possible in a `CATextLayer` without subclassing
 	
-	BOOL needsUpdateFrameSize;
-	
+	BOOL needsUpdateString;					/// Whether the labels needs to change its string, which involves changing its size.
+	BOOL needsUpdateStringColor;			/// Whether the labels needs to update its string color.
+	BOOL needsUpdateBackgroundColor;		/// Whether the labels needs to update its background color.
+	BOOL needsUpdateFont;					/// Whether the labels needs to update the string font.
+
 	/// ivars used for dragging the label
 	__weak PeakLabel *destination;		 	/// the peak label that is the possible destination of the fragment label being dragged
-	float refDist;							/// The maximum distance allowed for the destination
+	float refDist;							/// The maximum distance allowed between the destination and the dragged label.
 											/// It depends on the label width.
 	
 	NSTimer *clickedTimer;					/// A timer used to set the dragged state of the label has been clicked for a long time
@@ -79,17 +83,14 @@ typedef enum FragmentLabelType : NSUInteger {
 
 # pragma mark - init and attributes
 
-static NSArray<NSString *> const *observedKeyPaths;
+/// We observe some keys of the fragment to update when they change
+static NSString * const fragmentScanKey = @"fragment.scan";
+static NSString * const fragmentStringKey = @"fragment.string";
+static NSString * const fragmentOffsetKey = @"fragment.offset";
+
 static void * const fragmentScanChangedContext = (void*)&fragmentScanChangedContext;
 static void * const fragmentStringChangedContext = (void*)&fragmentStringChangedContext;
 static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChangedContext;
-
-
-+ (void)initialize {
-	if (self == [FragmentLabel class]) {
-		observedKeyPaths = @[@"fragment.scan", @"fragment.string", @"fragment.offset"];
-	}
-}
 
 
 - (instancetype)init {
@@ -110,19 +111,15 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 		stringLayer = CATextLayer.new;
 		stringLayer.delegate = self;
 		stringLayer.fontSize = 9.0;
-		stringLayer.actions = @{NSStringFromSelector(@selector(contents)):NSNull.null,
-								NSStringFromSelector(@selector(font)):NSNull.null,
-								NSStringFromSelector(@selector(foregroundColor)):NSNull.null};
-			
 		stringLayer.contentsScale = 3.0; /// This makes text sharper even if the display is 2X (an 1X display requires 2X).
 		stringLayer.alignmentMode = kCAAlignmentCenter;
 		[layer addSublayer:stringLayer];
 			
 		_overlappingLabels = [NSMutableSet setWithObject:self];
 		
-		[self addObserver:self forKeyPath:observedKeyPaths.firstObject options:NSKeyValueObservingOptionNew context:fragmentScanChangedContext];
-		[self addObserver:self forKeyPath:observedKeyPaths[1] options:NSKeyValueObservingOptionNew context:fragmentStringChangedContext];
-		[self addObserver:self forKeyPath:observedKeyPaths.lastObject options:NSKeyValueObservingOptionNew context:fragmentOffsetChangedContext];
+		[self addObserver:self forKeyPath:fragmentScanKey options:NSKeyValueObservingOptionNew context:fragmentScanChangedContext];
+		[self addObserver:self forKeyPath:fragmentStringKey options:NSKeyValueObservingOptionNew context:fragmentStringChangedContext];
+		[self addObserver:self forKeyPath:fragmentOffsetKey options:NSKeyValueObservingOptionNew context:fragmentOffsetChangedContext];
 		
 		self.fragment = fragment;
 		self.view = view;
@@ -137,59 +134,96 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 
 
 - (BOOL)tracksMouse {		
-	/// This label does not react when it is hovered
+	/// This label does not react when it is hovered.
 	return NO;
 }
 
 
 - (void)setFragment:(LadderFragment *)fragment {
 	_fragment = fragment;
+	FragmentLabelType previousType = type;
 	if(fragment) {
 		if([fragment isKindOfClass:Allele.class]) {
-			if(fragment.additional) {
-				type = additionalFragmentLabel;
-			} else {
-				type = alleleLabel;
-			}
+			type = fragment.additional? additionalFragmentLabel : alleleLabel;
 		} else {
 			type = ladderFragmentLabel;
 		}
-		/// Allele names or sizes are show in bold.
-		stringLayer.font = type == alleleLabel? (__bridge CFTypeRef _Nullable)([NSFont boldSystemFontOfSize:9]) :
-		(__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:9]);
+		if(previousType != type) {
+			needsUpdateFont = YES;
+		}
+		needsUpdateBackgroundColor = YES; /// The color also depends on the channel, not just the type of fragment
+		self.needsUpdateAppearance = YES;
 	}
 }
 
+
+- (void)setView:(TraceView *)aView {
+	if(self.view) {
+		if(alleleNameTextField.delegate == self) {
+			alleleNameTextField.hidden = YES;
+		}
+	}
+	super.view = aView;
+	if(layer && aView.backgroundLayer) {
+		[aView.backgroundLayer addSublayer:layer];
+	}
+}
+
+
+- (void)removeFromView {
+	if(clickedTimer.isValid) {
+		[clickedTimer invalidate];
+	}
+	_overlappingLabels = nil;
+	[super removeFromView];
+}
+
+
+# pragma mark - changes in appearance
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
 	if(context == fragmentScanChangedContext) {
-		[self setScan];
+		TraceView *view = self.view;
+		if(view) {
+			if(!view.needsRepositionFragmentLabels) {
+				[view labelNeedsRepositioning:self];
+			}
+			if(type == ladderFragmentLabel) {
+				needsUpdateBackgroundColor = YES; /// The background color depends on whether the scan is 0.
+				self.needsUpdateAppearance = YES;
+			}
+		}
 	} else if(context == fragmentStringChangedContext) {
-		[self setString];
+		if(![self.fragment.string isEqualToString:stringLayer.string]) {
+			needsUpdateString = YES;
+			TraceView *view = self.view;
+			if(view && !view.needsRepositionFragmentLabels) {
+				/// We change the string during `-reposition` as it affects the size of the label
+				[view labelNeedsRepositioning:self];
+			}
+		}
 	} else if(context == fragmentOffsetChangedContext) {
-		[self updateStringColor];
-	} else {
-		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-	}
+		needsUpdateStringColor = YES;
+		self.needsUpdateAppearance = YES;
+	} 
 }
 
-/// sets/updates the string that the label shows.
-- (void)setString {
-	if (alleleNameTextField.delegate == self) {
-		alleleNameTextField.hidden = YES;
+
+- (void)updateAppearance {
+	layer.borderWidth = self.highlighted?  2.0 : 0.0; /// the border becomes visible when the label is highlighted
+													  /// we have a grey background when disabled
+	if(needsUpdateBackgroundColor) {
+		[self updateBackgroundColor];
 	}
-	stringLayer.string = self.fragment.string;
 	
-	/// We need to adapt the size of the layer to the string.
-	TraceView *view = self.view;
-	if(view.needsLayoutLabels || view.needsLayoutFragmentLabels) {
-		/// If the label is to be repositioned, we defer the change of frame size to the `reposition` method.
-		/// This is because a change in frame size now may start an unwanted animation.
-		needsUpdateFrameSize = YES;
-	} else {
-		[self updateFrameSize];
-		/// A change in frame size requires checking for collisions.
-		[self.class avoidCollisionsInView:view allowAnimation:YES];
+	if(needsUpdateStringColor) {
+		[self updateStringColor];
+	}
+	
+	if(needsUpdateFont) {
+		stringLayer.font = type == alleleLabel? (__bridge CFTypeRef _Nullable)([NSFont boldSystemFontOfSize:9]) :
+		(__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:9]);
+		needsUpdateFont = NO;
 	}
 }
 
@@ -217,27 +251,14 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 	} else {
 		stringLayer.foregroundColor = view.fragmentLabelStringColor;
 	}
+	needsUpdateStringColor = NO;
 }
 
-
-/// Update our position and color according to the scan of our fragment
-- (void)setScan {
-	TraceView *view = self.view;
-	if(view) {
-		if(!view.needsLayoutLabels && ! view.needsLayoutFragmentLabels) {
-			/// a change in scan means that we must be repositioned. To make sure that collisions are avoided, we call the repositioning of all labels
-			view.needsLayoutFragmentLabels = YES;
-			/// we still reposition ourselves "manually", otherwise the repositioning of the label that changed peak may not be animated during undo
-			[self reposition];
-		}
-		[self updateBackgroundColor];
-	}
-}
 
 
 -(void) updateBackgroundColor {
 	if(!self.enabled) {
-		layer.backgroundColor = NSColor.darkGrayColor.CGColor;
+		layer.backgroundColor = NSColor.lightGrayColor.CGColor;
 	} else {
 		TraceView *view = self.view;
 		if(view) {
@@ -251,48 +272,8 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 			}
 		}
 	}
+	needsUpdateBackgroundColor = NO;
 }
-
-
-- (void)setView:(TraceView *)aView {
-	if(self.view) {
-		if(alleleNameTextField.delegate == self) {
-			alleleNameTextField.hidden = YES;
-		}
-	}
-	super.view = aView;
-	if(layer && aView.backgroundLayer) {
-		[aView.backgroundLayer addSublayer:layer];
-	}
-	[self updateStringColor];
-	[self updateBackgroundColor];
-}
-
-
-- (void)removeFromView {
-	if(clickedTimer.isValid) {
-		[clickedTimer invalidate];
-	}
-	_overlappingLabels = nil;
-	[super removeFromView];
-}
-
-
-- (void)setEnabled:(BOOL)enabled {
-	if(enabled != self.enabled) {
-		super.enabled = enabled;
-		/// we change appearance when we get enabled/disabled
-		[self updateAppearance];
-	}
-}
-
-
-- (void)updateAppearance {
-	layer.borderWidth = self.highlighted?  2.0 : 0.0; /// the border becomes visible when the label is highlighted
-													  /// we have a grey background when disabled
-	[self updateBackgroundColor];
-}
-
 
 
 - (void)updateForTheme {
@@ -300,6 +281,17 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 	[self updateBackgroundColor];
 }
 
+
+- (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
+	if(layer == stringLayer || self.view.needsRepositionFragmentLabels) {
+		/// We don't animate if the view needs to reposition fragment labels in response to a change of vertical scale
+		/// (animations would  be inappropriate).
+		/// We don't animate anything related to the string, as this method is called in a context that doesn't allow determining
+		/// whether animations are appropriate (it's not called immediately after an change in CATextLayer property).
+		return NSNull.null;
+	}	
+	return [super actionForLayer:layer forKey:event];
+}
 
 # pragma mark - dragging behavior
 
@@ -354,10 +346,16 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 		[NSHapticFeedbackManager.defaultPerformer performFeedbackPattern:NSHapticFeedbackPatternAlignment
 														 performanceTime:NSHapticFeedbackPerformanceTimeDefault];
 	}
-	
 	[self reposition];
 }
 
+
+- (void)setEnabled:(BOOL)enabled {
+	if(enabled != _enabled) {
+		needsUpdateBackgroundColor = YES;
+		super.enabled = enabled;
+	}
+}
 
 
 - (void)setClicked:(BOOL)clicked {
@@ -422,9 +420,6 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 			} else {
 				[self takeDestinationPeak];
 			}
-			/// To avoid collision, all labels are repositioned.
-			self.view.needsLayoutFragmentLabels = YES;
-			[self reposition]; /// Forces the animation of the label.
 		}
 	}
 }
@@ -482,7 +477,9 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 -(void) takeDestinationPeak {
 	LadderFragment *fragment = self.fragment;
 	if(destination.scan == fragment.scan || ![self canMoveToPeakLabel:destination]) {
-		/// if the destination is the same as the peak we already have or can't take the label (if nil for instance), we can return.
+		/// if the destination is the same as the peak we already have or can't take the label (if nil for instance),
+		/// we just need to return to our original position.
+		[self.view labelNeedsRepositioning:self];
 		return;
 	}
 	
@@ -538,9 +535,8 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 		return;
 	}
 	
-	if(needsUpdateFrameSize) {
-		[self updateFrameSize];
-		needsUpdateFrameSize = NO;
+	if(needsUpdateString) {
+		[self updateString];
 	}
 	
 	NSRect viewBounds = view.bounds;
@@ -607,7 +603,12 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 }
 
 
--(void)updateFrameSize {
+-(void)updateString {
+	if (alleleNameTextField.delegate == self) {
+		alleleNameTextField.hidden = YES;
+	}
+
+	stringLayer.string = self.fragment.string;
 	NSSize size = stringLayer.preferredFrameSize;
 	float stringWidth = size.width;
 	float width = stringWidth > 15.0 ? stringWidth : 15.0;
@@ -616,6 +617,7 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 	_frame = layer.frame;
 	stringLayer.bounds = CGRectMake(0, 0, size.width, size.height);
 	stringLayer.position = CGPointMake(NSMidX(bounds), NSMidY(bounds));
+	needsUpdateString = NO;
 }
 
 
@@ -670,7 +672,7 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 }
 
 
-+(void) avoidCollisionsInView:(TraceView *)view allowAnimation:(BOOL)animate {
++(void) avoidCollisionsInView:(TraceView *)view {
 	NSArray *fragmentLabels = view.fragmentLabels;
 	if(fragmentLabels.count < 2) {
 		return;
@@ -794,9 +796,7 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 				
 				i = 0;
 				for (FragmentLabel *label in overlappingLabelsArray) {
-					label.animated = animate;
 					label.frame = frames[i];
-					label.animated = YES;
 					i++;
 				}
 			}
@@ -810,7 +810,9 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 # pragma mark - other user actions
 
 - (void)deleteAction:(id)sender {
-	[self removeFragment:sender];
+	if(!_dragged) {
+		[self removeFragment:sender];
+	}
 }
 
 
@@ -823,7 +825,6 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 		default:
 			return @"Remove Ladder Size";
 	}
-
 }
 
 
@@ -932,8 +933,8 @@ static NSTextField *alleleNameTextField;	/// the text field allowing the user to
 			[window performSelector:@selector(makeFirstResponder:) withObject:view afterDelay:0.0];
 		} else {
 			/// Otherwise, the user must have clicked outside the textfield (hence the label)
-			/// In this case the should not remain.
-			/// The view would not do it for if the user has clicked elsewhere and the view is not the first responder.
+			/// In this case the highlighting should not remain.
+			/// The view would not do it for us if the user has clicked elsewhere and the view is not the first responder.
 
 			self.highlighted = NO;
 		}
@@ -947,9 +948,9 @@ static NSTextField *alleleNameTextField;	/// the text field allowing the user to
 # pragma mark - other
 
 - (void)dealloc {
-	for(NSString *keyPath in observedKeyPaths) {
-		[self removeObserver:self forKeyPath:keyPath];
-	}
+	[self removeObserver:self forKeyPath:fragmentScanKey];
+	[self removeObserver:self forKeyPath:fragmentStringKey];
+	[self removeObserver:self forKeyPath:fragmentOffsetKey];
 }
 
 @end

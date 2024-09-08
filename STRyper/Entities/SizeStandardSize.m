@@ -39,8 +39,9 @@
 
 
 - (void)setSize:(int16_t)size {
-	[self managedObjectOriginal_setSize:size];
-	[self.managedObjectContext.undoManager setActionName:@"Change Fragment Size"];
+	if(size != self.size) {
+		[self managedObjectOriginal_setSize:size];
+	}
 }
 
 
@@ -64,7 +65,14 @@
 
 
 - (BOOL)validateSize:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {
+	NSNumber *sizeNumber = *value;
 	if(!*value) {
+		NSNumber *previousSize = @(self.size);
+		if([self validateSize:&previousSize error:nil]) {
+			*value = previousSize;
+			return YES;
+		}
+		
 		if (error != NULL) {
 			NSString *description = [NSString stringWithFormat:@"The size must be specified."];
 			NSString *reason = [NSString stringWithFormat:@"A size standard fragment must have a size."];
@@ -73,11 +81,11 @@
 		return NO;
 	}
 	
-	int16_t size = [*value shortValue];
+	int16_t size = sizeNumber.shortValue;
 	if(size < 20) {
 		if (error != NULL) {
 			NSString *description = [NSString stringWithFormat:@"The size is too short."];
-			NSString *reason = [NSString stringWithFormat:@"A size standard fragment must be at least 20 bp."];
+			NSString *reason = [NSString stringWithFormat:@"A size must be at least 20 bp."];
 			*error = [NSError managedObjectValidationErrorWithDescription:description suggestion:reason object:self reason:reason];
 		}
 		return NO;
@@ -86,7 +94,7 @@
 	if(size > 1500) {
 		if (error != NULL) {
 			NSString *description = [NSString stringWithFormat:@"The size is too large."];
-			NSString *reason = [NSString stringWithFormat:@"A size standard fragment cannot 1500 bp in size."];
+			NSString *reason = [NSString stringWithFormat:@"A size cannot exceed 1500 bp."];
 			*error = [NSError managedObjectValidationErrorWithDescription:description suggestion:reason object:self reason:reason];
 		}
 		return NO;

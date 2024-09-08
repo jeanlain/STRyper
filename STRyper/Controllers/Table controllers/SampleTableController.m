@@ -37,18 +37,20 @@
 #import "Genotype.h"
 #import "Allele.h"
 #import "ProgressWindow.h"
+#import "IndexImageView.h"
+#import "AggregatePredicateEditorRowTemplate.h"
 
 @interface SampleTableController ()
 
 /// Bound to the FolderListController's property of the same name.
 @property (nonatomic) __kindof Folder *selectedFolder;
 
-@property (nonatomic) NSArray <Chromatogram *> *draggedSamples; /// redefinition of the readonly property as readwrite
+@property (nonatomic) NSArray<Chromatogram *> *draggedSamples; /// redefinition of the readonly property as readwrite
 
 /******** properties used to import ABIF files being dragged from the finder to a folder, ****/
 /// They avoid extracting paths of ABIF files at each step of the dragging sequence
 /// paths of ABIF files being dragged
-@property (nonatomic) NSArray *draggedABIFFilePaths;
+@property (nonatomic) NSArray<NSString *> *draggedABIFFilePaths;
 
 /// The identifier of the last dragging sequence (to avoid retrieving the files paths several times for the same sequence)
 @property (nonatomic) NSInteger lastDraggingSequence;
@@ -74,7 +76,7 @@
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-		controller = [[self alloc] init];
+		controller = self.new;
 	});
 	return controller;
 }
@@ -367,8 +369,7 @@
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
 	BOOL response = [super validateMenuItem:item];
 	if(item.hidden) {
-		return NO;					/// the item may have been hidden in our superclass' menuNeedsUpdate (usually,
-									/// if the item is part of the tableViews's menu and no row is clicked).
+		return NO;					/// the item may have been hidden in our superclass
 	}
 	if(!response) {
 		return NO;
@@ -385,13 +386,7 @@
 		if(genotypes.count == 0) {
 			return NO;
 		}
-		NSArray *shownGenotypes = GenotypeTableController.sharedController.genotypes.arrangedObjects;
-		for(Genotype *genotype in genotypes) {
-			if([shownGenotypes indexOfObjectIdenticalTo:genotype] != NSNotFound) {
-				return YES;
-			}
-		}
-		return NO;
+		return [genotypes sharesObjectsWithArray:GenotypeTableController.sharedController.genotypes.arrangedObjects];
 	}
 	
 	if(item.action == @selector(callGenotypes:)) {
@@ -618,14 +613,49 @@
 	[self applySizeStandard:standard toSamples:[self targetItemsOfSender:sender]];
 }
 
-- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
-	for (Chromatogram *sample in sampleArray) {
-		sample.sizeStandard = standard;		/// we don't do that in a child context without undo manager to save time, 
-											/// as this would require materializing samples in the other context, which would be worse.
+- (void)applySizeStandard2:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
+	/// TO TEST
+	CFTimeInterval startTime = CACurrentMediaTime();
+	AppDelegate *delegate = AppDelegate.sharedInstance;
+	NSManagedObjectContext *childContext = delegate.newChildContextOnMainQueue;
+	NSError *error;
+	standard = [childContext existingObjectWithID:standard.objectID error:&error];
+	if(!error) {
+		for (Chromatogram *sample in sampleArray) {
+			Chromatogram *aSample = [childContext existingObjectWithID:sample.objectID error:&error];
+			if(!error) {
+				aSample.sizeStandard = standard;		/// we don't do that in a child context without undo manager to save time,
+														/// as this would require materializing samples in the other context, which would be worse.
+			} else {
+				break;
+			}
+		}
+		if(childContext.hasChanges) {
+			[self.undoManager setActionName:@"Apply Size Standard"];
+			[childContext save:&error];
+			CFTimeInterval elapsedTime = CACurrentMediaTime() - startTime;
+			NSLog(@"Size standard applied in %f seconds", elapsedTime);
+			
+			[delegate saveAction:self];
+		}
 	}
-	[self.undoManager setActionName:@"Apply Size Standard"];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
-	
+	if(error) {
+		error = [NSError errorWithDescription:@"The size standard could not be applied because an error occurred in the database."
+								   suggestion:@"You may quit the application and try again."];
+		[NSApp presentError:error];
+	}
+}
+
+
+- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
+	if(sampleArray.count > 0) {
+		[self.undoManager setActionName:@"Apply Size Standard"];
+		for (Chromatogram *sample in sampleArray) {
+			sample.sizeStandard = standard;		/// we don't do that in a child context without undo manager to save time,
+												/// as saving the child context takes longer
+		}
+		[(AppDelegate *)NSApp.delegate saveAction:self];
+	}
 }
 
 /// Applies a fitting method (inferred from the sender) to target samples.
@@ -637,11 +667,11 @@
 	if(order > 2) {
 		order = 2;
 	}
+	[self.undoManager setActionName:@"Apply Fitting Method"];
 	for(Chromatogram *sample in [self targetItemsOfSender:sender]) {
 		sample.polynomialOrder = order;
 	}
-	[self.undoManager setActionName:@"Apply Fitting Method"];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+	[AppDelegate.sharedInstance saveAction:self];
 }
 
 
@@ -667,7 +697,7 @@
 		return;
 	}
 	
-	/// We don't do this in a child context as it takes longer
+	/// We don't do this in a child context as it takes longer.
 	NSMutableArray *errors = NSMutableArray.new;
 	NSArray *redMarkers = [panel markersForChannel:redChannelNumber];
 	if(redMarkers.count >0) {
@@ -681,6 +711,7 @@
 		}
 	}
 	
+	[self.undoManager setActionName:@"Apply Marker Panel"];
 	NSString *alleleName = [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName];
 	/// we set the panel's samples in one operation
 	[panel addSamples:[NSSet setWithArray:sampleArray]];
@@ -703,8 +734,7 @@
 		}
 		[MainWindowController.sharedController showAlertForError:error];
 	}
-	[self.undoManager setActionName:@"Apply Marker Panel"];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+	[AppDelegate.sharedInstance saveAction:self];
 }
 
 
@@ -713,13 +743,13 @@
 	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateAdditionalPeaks];
 	
 	NSArray *samples =[self targetItemsOfSender:sender];
+	[self.undoManager setActionName:@"Call Genotypes"];
 	for(Chromatogram *sample in samples) {
 		for (Genotype *genotype in sample.genotypes) {
 			[genotype callAllelesAndAdditionalPeak:annotateSuppPeaks];
 		}
 	}
-	[self.undoManager setActionName:@"Call Genotypes"];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+	[AppDelegate.sharedInstance saveAction:self];
 	
 }
 
@@ -835,19 +865,46 @@
 
 
 -(void) addSamplesFromFiles:(NSArray <NSString *>*)filePaths toFolder:(SampleFolder *)folder {
-	
-	[FileImporter.sharedFileImporter importSamplesFromFiles:filePaths completionHandler:^(NSError *error, SampleFolder *scratchFolder) {
-		scratchFolder = [folder.managedObjectContext existingObjectWithID:scratchFolder.objectID error:nil];
-		if(scratchFolder.samples.count > 0) {
-			/// to transfer imported samples to the folder, we need to materialize the scratch folder in the folder's context.
-			/// It won't appear in the folder list, as this scratch folder has no parent.
-			NSSet *samples = [NSSet setWithSet: scratchFolder.samples];
+	NSManagedObjectContext *MOC = folder.managedObjectContext;
+	NSUndoManager *undoManager = MOC.undoManager;
+	[MOC processPendingChanges];
+	[undoManager disableUndoRegistration];
+	NSMutableSet *importedSamples = NSMutableSet.new;
+	[FileImporter.sharedFileImporter importSamplesFromFiles:filePaths batchSize:200 intermediateHandler:^(SampleFolder * _Nonnull scratchFolder) {
+		scratchFolder = [MOC existingObjectWithID:scratchFolder.objectID error:nil];
+		NSSet *samples = scratchFolder.samples;
+		if(samples.count > 0) {
+			[importedSamples addObjectsFromArray:samples.allObjects];
 			[folder addSamples:samples];		/// this updates the sample table only once.
-			[self.undoManager setActionName:@"Import Sample(s)"];
+			[scratchFolder.managedObjectContext deleteObject:scratchFolder];
 			
+			/// We save to the store to allow freeing memory, and in case a crash occurs later during import the imported samples will be saved.
+			[AppDelegate.sharedInstance saveAction:self];
+		}
+	} completionHandler:^(NSError *error) {
+		if(error) {
+			if(error.code == NSUserCancelledError) {
+				NSString *description = [NSString stringWithFormat:@"The import was cancelled after %ld samples have been imported.", importedSamples.count];
+				error = [NSError cancelOperationErrorWithDescription:description suggestion:@"Keep imported samples?"];
+				NSAlert *alert = [NSAlert alertWithError:error];
+				[alert addButtonWithTitle:@"Keep Imported Samples"];
+				[alert addButtonWithTitle:@"Delete Imported Samples"];
+				[alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
+					if(returnCode != NSAlertFirstButtonReturn) {
+						[folder removeSamples: importedSamples];
+						[FolderListController.sharedController.trashFolder addSamples:importedSamples];
+						[AppDelegate.sharedInstance saveAction:self];
+					}
+				}];
+			} else {
+				[MainWindowController.sharedController showAlertForError:error];
+			}
+		}
+		if(importedSamples.count > 0) {
+			[undoManager removeAllActions];
 			if(folder == self.selectedFolder && folder.filterPredicate) {
-				NSSet *filteredSamples = [samples filteredSetUsingPredicate:folder.filterPredicate];
-				NSInteger filtered = samples.count - filteredSamples.count;
+				NSSet *filteredSamples = [importedSamples filteredSetUsingPredicate:folder.filterPredicate];
+				NSInteger filtered = importedSamples.count - filteredSamples.count;
 				if(filtered > 0) {
 					NSString *errorText = filtered == 1? @"One imported sample is masked by the filter applied to the selected folder." :
 					[NSString stringWithFormat: @"%ld imported samples are masked by the filter applied to the selected folder.", filtered];
@@ -862,14 +919,8 @@
 					}];
 				}
 			}
-			
-			[(AppDelegate *)NSApp.delegate saveAction:self];
-		}
-		[scratchFolder.managedObjectContext deleteObject:scratchFolder];
-		
-		if(error && error.code != NSUserCancelledError) {
-			/// we did not manage the error first, as the operation above may block the UI (hence the dismissal of any error alert) if many samples are imported
-			[MainWindowController.sharedController showAlertForError:error];
+		} else {
+			[undoManager enableUndoRegistration];
 		}
 	}];
 }
@@ -927,11 +978,11 @@
 				[sharedController selectFolder:selectedFolder];
 			}
 			NSString *action = copiedSamples.count > 1? @"Paste Samples" : @"Paste Sample";
+			[self.undoManager setActionName:action];
 			[self.samples addObjects:copiedSamples.allObjects];	/// which automatically selects the copied samples
 			[self.tableView scrollRowToVisible:self.tableView.selectedRow];
 			
-			[(AppDelegate *)NSApp.delegate saveAction:nil];
-			[self.undoManager setActionName:action];
+			[AppDelegate.sharedInstance saveAction:nil];
 		}
 		[folder.managedObjectContext deleteObject:folder];
 		
@@ -1115,9 +1166,7 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 
 
 - (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor {
-	
-	[super configurePredicateEditor:predicateEditor];
-	
+		
 	/// The searchable attributes are those shown in the sample table.
 	NSDictionary *columnDescription = self.columnDescription;
 	/// We also use the column ids to show searchable attributes in a consistent order
@@ -1126,9 +1175,7 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 		return;
 	}
 	
-	NSArray *columnDescriptions = [columnDescription objectsForKeys:sampleColumnIDs notFoundMarker:@""];		/// Dictionaries describing the sample-related columns
 	/// we prepare the keyPaths (attributes) that the predicate editor will allow searching. sampleName is not in sampleColumnIDs
-	
 	NSMutableArray *keyPaths = [NSMutableArray arrayWithObject:ChromatogramSampleNameKey];
 	/// We also prepare the titles for the menu items of the editor left popup buttons, as keypath names are not user-friendly
 	NSMutableArray *titles = [NSMutableArray arrayWithObject:@"Sample Name"];
@@ -1140,14 +1187,17 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 		[titles addObject:@"Folder Name"];
 	}
 	
+	NSArray *columnDescriptions = [columnDescription objectsForKeys:sampleColumnIDs notFoundMarker:@""];		/// Dictionaries describing the sample-related columns
 	for(NSDictionary *colDescription in columnDescriptions) {
 		NSString *keyPath = colDescription[KeyPathToBind];
-		[keyPaths addObject:keyPath];
-		if([keyPath isEqualToString:@"panel.name"]) {
-			/// For the panel key, the title used is different from that of the column, to make clear that we can search by panel name and not by panel content.
-			[titles addObject:@"Panel Name"];
-		} else {
-			[titles addObject:colDescription[ColumnTitle]];
+		if(keyPath) {
+			[keyPaths addObject:keyPath];
+			if([keyPath isEqualToString:@"panel.name"]) {
+				/// For the panel key, the title used is different from that of the column, to make clear that we can search by panel name and not by panel content.
+				[titles addObject:@"Panel Name"];
+			} else {
+				[titles addObject:colDescription[ColumnTitle]];
+			}
 		}
 	}
 	
@@ -1157,7 +1207,7 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 	NSMutableArray *finalTemplates = rowTemplates.mutableCopy;
 	for(NSPredicateEditorRowTemplate *template in rowTemplates) {
 		if(template.rightExpressionAttributeType == NSFloatAttributeType){
-			NSPredicateEditorRowTemplate *replacementTemplate = [[NSPredicateEditorRowTemplate alloc]
+			NSPredicateEditorRowTemplate *replacementTemplate = [[AggregatePredicateEditorRowTemplate alloc]
 																 initWithLeftExpressions:template.leftExpressions
 																 rightExpressionAttributeType:NSFloatAttributeType
 																 modifier:template.modifier
@@ -1189,16 +1239,16 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 	
 	
 	/// We create a formatting dictionary to translate attribute names into menu item titles. We don't translate other fields (operators)
-	NSArray *keys = NSArray.new;		/// the future keys of the dictionary
+	NSMutableArray *keys = NSMutableArray.new;		/// the future keys of the dictionary
 	for(NSString *keyPath in keyPaths) {
 		NSString *key = [NSString stringWithFormat: @"%@%@%@",  @"%[", keyPath, @"]@ %@ %@"];		/// see https://funwithobjc.tumblr.com/post/1482915398/localizing-nspredicateeditor
-		keys = [keys arrayByAddingObject:key];
+		[keys addObject:key];
 	}
 	
-	NSArray *values = NSArray.new;	/// the future values
+	NSMutableArray *values = NSMutableArray.new;	/// the future values
 	for(NSString *title in titles) {
 		NSString *value = [NSString stringWithFormat: @"%@%@%@",  @"%1$[", title, @"]@ %2$@ %3$@"];
-		values = [values arrayByAddingObject:value];
+		[values addObject:value];
 	}
 	
 	predicateEditor.formattingDictionary = [NSDictionary dictionaryWithObjects:values forKeys:keys];
@@ -1218,7 +1268,9 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 #pragma mark - recording and restoring sample selection
 
 
-UserDefaultKey SelectedSamples = @"SelectedSamples";
+- (NSString *)userDefaultKeyForSelectedItemIDs {
+	return @"SelectedSamples";
+}
 
 
 - (void)setSelectedFolder:(__kindof Folder *)selectedFolder {
@@ -1241,7 +1293,7 @@ UserDefaultKey SelectedSamples = @"SelectedSamples";
 	if(selectedFolder) {
 		NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
 		if(folderID) {
-			[self recordSelectedItemsAtUserDefaultsKey:SelectedSamples subKey:folderID maxRecorded:100];
+			[self recordSelectedItemsAtKey:folderID maxRecorded:100];
 		}
 	}
 }
@@ -1253,7 +1305,7 @@ UserDefaultKey SelectedSamples = @"SelectedSamples";
 	if(selectedFolder) {
 		NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
 		if(folderID) {
-			[self restoreSelectedItemsWithUserDefaultsKey:SelectedSamples subKey:folderID];
+			[self restoreSelectedItemsAtKey:folderID];
 		}
 	}
 }

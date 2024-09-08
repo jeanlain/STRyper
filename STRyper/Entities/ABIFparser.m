@@ -30,7 +30,7 @@ typedef struct __attribute__((__packed__)) DirEntry {
 
 
 /// The item element types for items we import (other types are not listed here, and are not managed).
-typedef enum elementType: int16_t {
+typedef NS_ENUM(int16_t, elementType) {
 	elementTypeWord = 3,				/// an unsigned 16-bit int
 	elementTypeShort = 4,				/// signed 16-bit int
 	elementTypeLong = 5,				/// a 32-bit int ("Long" is misleading)
@@ -38,7 +38,7 @@ typedef enum elementType: int16_t {
 	elementTypeTime = 11,
 	elementTypePString = 18,
 	elementTypeCString = 19
-} elementType;
+} ;
 
 static const int entrySize = 20; 	/// the size of a DirentryEntry in bytes
 static const int headerSize = 34;   /// the size of an ABIF file header in bytes
@@ -46,7 +46,7 @@ static const int headerSize = 34;   /// the size of an ABIF file header in bytes
 								   
 
 +(NSDictionary *)dictionaryWithABIFile:(NSString *)path itemsToImport:(NSDictionary *)itemsToImport error:(NSError **)error {
-	NSString *corruptFileString = [NSString stringWithFormat:@"File '%@' is corrupt.", path];
+	NSString *corruptFileString = [NSString stringWithFormat:@"File '%@' could not be decoded.", path];
 	
 	NSError *readError = nil;
 	NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath: path error:&readError];

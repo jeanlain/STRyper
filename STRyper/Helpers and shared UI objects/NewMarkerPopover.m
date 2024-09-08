@@ -60,7 +60,7 @@
 	if(modal) {
 		/// When modal, we *must* end the modal session when we close
 		/// I have not found another way than responding to -popoverDidClose, which is a delegate method
-		/// (No NSWindowDelegate method is called when we close).
+		/// (No `NSWindowDelegate` method is called when we close).
 		super.delegate = self;
 	}
 }
@@ -303,5 +303,38 @@
 	}
 }
 
+
+- (void)controlTextDidEndEditing:(NSNotification *)obj {
+	/// We are the delegate of text fields specifying start and end coordinates.
+	/// We can modify what the user has entered if coordinates are invalid instead of throwing an error, if possible.
+	/// At this stage, the marker is not created, so we cannot use validation methods.
+	NSTextField *textField = obj.object;
+	if(textField.stringValue.length > 0) {
+		float markerEnd = markerEndTextField.floatValue;
+		float markerStart = markerStartTextField.floatValue;
+		float newStartValue = -1, newEndValue = -1;
+		if(textField == markerStartTextField) {
+			if(markerStart < 0) {
+				newStartValue = 0;
+			} else if(markerEndTextField.stringValue.length > 0 && markerStart >= markerEnd-2) {
+				newEndValue = markerStart+2;
+			}
+		}
+		
+		if(textField == markerEndTextField) {
+			if(markerEnd > 1000) {
+				newEndValue = 1000;
+			} else if(markerStartTextField.stringValue.length > 0 && markerStart >= markerEnd-2) {
+				newStartValue = markerEnd-2;
+			}
+		}
+		if(newStartValue >= 0) {
+			markerStartTextField.floatValue = newStartValue;
+		}
+		if(newEndValue >= 0) {
+			markerEndTextField.floatValue = newEndValue;
+		}
+	}
+}
 
 @end

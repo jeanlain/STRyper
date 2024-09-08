@@ -47,6 +47,8 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 @implementation SampleInspectorController
 
+@synthesize samples = _samples;
+
 /// Implementation details:
 /// The outline view (of which we are the delegate and datasource) has rows that are entirely designed in the nib file loaded in -init.
 /// So to understand the implementation, one should inspect the nib file.
@@ -71,7 +73,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-			controller = [[self alloc] init];
+		controller = self.new;
 	});
 	return controller;
 }
@@ -94,14 +96,13 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-
 	outlineView.autosaveExpandedItems = YES;
 	outlineView.autosaveTableColumns = YES;
 	outlineView.autosaveName = @"sampleInspector";
 }
 
 
-- (void)setSamples:(NSArray<Chromatogram *> *)samples {
+- (void)setSamples:(nullable NSArray<Chromatogram *> *)samples {
 	sampleController.content = samples;
 	/// We use the -selection property of the sampleController for binding keys of chromatogram objects to UI items in the outline view.
 	/// This offers more binding options than the -content key.
@@ -296,14 +297,13 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 - (IBAction)pathControlIsClicked:(NSPathControl *)sender {		/// sent to the pathControl when it is clicked
 	
 	NSURL *clickedURL = sender.clickedPathItem.URL;
-	if(!clickedURL) {
-		return;
-	}
-	BOOL reachable = [NSWorkspace.sharedWorkspace selectFile:clickedURL.path inFileViewerRootedAtPath:@""];
-	if(!reachable) {
-		NSError *error = [NSError errorWithDescription:@"The destination could not be opened."
-											suggestion: @"The file may have been moved or deleted since it was imported."];
-		[NSApp presentError:error];
+	if(clickedURL) {
+		BOOL reachable = [NSWorkspace.sharedWorkspace selectFile:clickedURL.path inFileViewerRootedAtPath:@""];
+		if(!reachable) {
+			NSError *error = [NSError errorWithDescription:@"The destination could not be opened."
+												suggestion: @"The file may have been moved or deleted since it was imported."];
+			[NSApp presentError:error];
+		}
 	}
 }
 

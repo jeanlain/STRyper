@@ -37,7 +37,7 @@ extern const float markerViewHeight;
 /// A `MakerView` can make its ``traceView`` zoom to the range of a marker. It has two navigation buttons to that effect.
 /// It can also set a specific mode allowing the creation of a new marker by click & drag.
 ///
-/// IMPORTANT: a marker view must be the accessory view of a horizontal ruler view of a scrollview that has a ``TraceView`` as `documentView`.
+/// - Important: A marker view must be the accessory view of a horizontal ruler view of a scrollview that has a ``TraceView`` as `documentView`.
 ///
 /// Since it is subview of a ruler view, a marker view does not scroll, but makes as if it does by moving marker labels to reflect the scrolling position of its associated ``traceView``.
 /// In effect, its ``TraceView/visibleOrigin`` properties is simply taken from its ``traceView``.

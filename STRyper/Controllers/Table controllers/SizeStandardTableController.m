@@ -39,7 +39,7 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-		controller = [[self alloc] init];
+		controller = self.new;
 	});
 	return controller;
 }
@@ -92,7 +92,7 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 - (void)configureTableContent {
 	[super configureTableContent];
 	/// we create the "factory" size standards if needed
-	AppDelegate *appDelegate = (AppDelegate *)NSApp.delegate;
+	AppDelegate *appDelegate = AppDelegate.sharedInstance;
 	NSManagedObjectContext *MOC = appDelegate.managedObjectContext;
 	
 	NSDictionary *factoryStandards = @{@"GeneScan-500":@[@35, @50, @75, @100, @139, @150, @160, @200, @300, @340, @350, @400, @450, @490, @500], /// note that we removed size 250, which is unreliable
@@ -139,7 +139,7 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 }
 
 
-- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column {
+- (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
 	return @"Rename Size Standard";
 }
 
@@ -192,13 +192,14 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 - (IBAction)duplicateStandard:(id)sender {
 	NSArray *selectedObjects = [self targetItemsOfSender:sender];
 	if (selectedObjects.count > 0) {
+		[self.undoManager setActionName:@"Duplicate Size Standard"];
 		SizeStandard *initialStandard = selectedObjects.firstObject;
 		SizeStandard *duplicateStandard = [initialStandard copy];
 		duplicateStandard.editable = YES;
 		[duplicateStandard autoName];
 		[self.tableContent addObject:duplicateStandard];
+		[self.tableContent rearrangeObjects];
 		[self selectItemName:duplicateStandard];
-		[self.undoManager setActionName:@"Duplicate Size Standard"];
 	}
 }
 

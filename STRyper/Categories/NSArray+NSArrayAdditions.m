@@ -46,6 +46,16 @@
 }
 
 
+- (BOOL)sharesObjectsWithArray:(NSArray *)array {
+	for(id object in array) {
+		if([self indexOfObjectIdenticalTo:object] != NSNotFound) {
+			return YES;
+		}
+	}
+	return NO;
+}
+
+
 -(NSArray *) arrayByRemovingObjectsIdenticalInArray:(NSArray *)array {
 	return [self filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
 		return [array indexOfObjectIdenticalTo:evaluatedObject] == NSNotFound;

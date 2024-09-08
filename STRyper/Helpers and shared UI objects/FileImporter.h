@@ -61,19 +61,25 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Imports ``Chromatogram`` objects from abif files.
 ///
-/// When it is finished, this method calls a completion handler with any error that might have occurred.
-/// If several errors occurred, they are accessible with the `NSDetailedErrorsKey` key of the `userInfo` dictionary.
 ///
 /// The methods spawns a progress window after 1 second if the progress has not reached at least 50%.
-/// Samples are imported in a background queue into a temporary folder.
+/// Samples are imported in a background queue into a temporary folder. 
 ///
+/// The caller is sent a block to execute  every `batchSize` imported samples, and after all files have been processed.
+/// When import is finished, this method calls a completion handler with any error that might have occurred.
 /// - Parameters:
+///   - batchSize: The number of successfully imported files before `intermediateBlock` is called.
+///   Any number lower than 1 is considered as 1.
 ///   - filePaths: The paths of ABIF files to import.
-///   - callbackBlock: The block called after the import is finished. If an error occurred, the `NSError` parameter will be populated.
-///   The `SampleFolder` parameter contains a newly created folder (with no ``Folder/parent``) whose ``SampleFolder/samples`` are those imported.
-///   This folder is materialized in a ``AppDelegate/newChildContext``. It  can ben materialized in the parent context, allowing access to its samples in that context.
-- (void)importSamplesFromFiles:(NSArray<NSString *> *)filePaths completionHandler: (void (^)(NSError *error, SampleFolder* folder))callbackBlock;
-
+///   - intermediateBlock: The block sent after `batchSize` files have been imported, and after all files have been processed.
+///   The `SampleFolder` parameter contains a newly created folder (with no ``Folder/parent``) whose ``SampleFolder/samples`` are those imported since the last batch.
+///   This block can be used to update the UI, save to the store, etc.
+///   - callbackBlock: The block sent after the import is finished. If an error occurred during the import, the `NSError` parameter will be populated.
+///   If several errors occurred, they are accessible with the `NSDetailedErrorsKey` key of the `userInfo` dictionary.
+- (void)importSamplesFromFiles:(NSArray<NSString *> *)filePaths
+					 batchSize:(NSUInteger)batchSize
+		   intermediateHandler:(void (^)(SampleFolder* folder))intermediateBlock
+			 completionHandler: (void (^)(NSError *error))callbackBlock;
 
 /// Imports a folder from an archive.
 ///

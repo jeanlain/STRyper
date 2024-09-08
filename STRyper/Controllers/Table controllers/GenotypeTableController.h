@@ -20,7 +20,6 @@
 
 
 #import "TableViewController.h"
-#import "AppDelegate.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -38,8 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A  key to the user default that allows access to the genotype filters applied to folders
 extern UserDefaultKey GenotypeFiltersKey;
 
-/// A  key to the user default that allows recording the selected genotype in each folder
-extern UserDefaultKey SelectedGenotypes;
+
 
 @end
 

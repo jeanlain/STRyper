@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -125,7 +125,7 @@
                                                                     <binding destination="en7-xV-IcJ" name="toolTip" keyPath="objectValue.tooltip" id="XhY-K0-BwY"/>
                                                                 </connections>
                                                             </imageView>
-                                                            <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="GdZ-Ii-Y81" userLabel="Size standard name">
+                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="GdZ-Ii-Y81" userLabel="Size standard name">
                                                                 <rect key="frame" x="22" y="1" width="358" height="16"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="Size standard name" id="V4i-hN-P7a">
                                                                     <font key="font" usesAppearanceFont="YES"/>
@@ -140,7 +140,7 @@
                                                                             <bool key="NSValidatesImmediately" value="YES"/>
                                                                         </dictionary>
                                                                     </binding>
-                                                                    <outlet property="delegate" destination="-2" id="3cE-bA-fdP"/>
+                                                                    <outlet property="delegate" destination="-2" id="CIl-8r-edx"/>
                                                                 </connections>
                                                             </textField>
                                                         </subviews>
@@ -225,7 +225,7 @@
                                                         <rect key="frame" x="0.0" y="0.0" width="321" height="0.0"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
-                                                            <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="j2w-LN-2GJ">
+                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="j2w-LN-2GJ">
                                                                 <rect key="frame" x="0.0" y="-5" width="321" height="14"/>
                                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES" flexibleMaxY="YES"/>
                                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="150" id="IIs-VY-FJB">
@@ -241,6 +241,7 @@
                                                                         </dictionary>
                                                                     </binding>
                                                                     <binding destination="hq3-Ke-Lyz" name="editable" keyPath="objectValue.sizeStandard.editable" id="6hA-az-bKB"/>
+                                                                    <outlet property="delegate" destination="yu6-mr-3Yv" id="JNp-IB-qwE"/>
                                                                 </connections>
                                                             </textField>
                                                         </subviews>
@@ -251,6 +252,10 @@
                                                 </prototypeCellViews>
                                             </tableColumn>
                                         </tableColumns>
+                                        <connections>
+                                            <outlet property="dataSource" destination="yu6-mr-3Yv" id="bFH-K2-1Q4"/>
+                                            <outlet property="delegate" destination="yu6-mr-3Yv" id="ROE-ru-H7d"/>
+                                        </connections>
                                     </tableView>
                                 </subviews>
                             </clipView>
@@ -314,8 +319,8 @@
             <point key="canvasLocation" x="123.5" y="-79.5"/>
         </splitView>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
-        <arrayController mode="entity" entityName="" automaticallyPreparesContent="YES" automaticallyRearrangesObjects="YES" id="4TZ-Sm-dWa" userLabel="Size Standards"/>
-        <arrayController mode="entity" entityName="" automaticallyPreparesContent="YES" avoidsEmptySelection="NO" automaticallyRearrangesObjects="YES" id="3Ev-Uu-1iX" userLabel="Size Standard Fragments">
+        <arrayController mode="entity" entityName="" automaticallyPreparesContent="YES" id="4TZ-Sm-dWa" userLabel="Size Standards"/>
+        <arrayController mode="entity" entityName="" automaticallyPreparesContent="YES" avoidsEmptySelection="NO" id="3Ev-Uu-1iX" userLabel="Size Standard Fragments">
             <connections>
                 <binding destination="4TZ-Sm-dWa" name="contentSet" keyPath="selection.sizes" id="aMi-gr-qwS">
                     <dictionary key="options">

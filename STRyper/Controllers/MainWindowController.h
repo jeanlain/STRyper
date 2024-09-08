@@ -1,5 +1,5 @@
 //
-//  SourceItemController.h
+//  MainWindowController.h
 //  STRyper
 //
 //  Created by Jean Peccoud on 11/03/2022.

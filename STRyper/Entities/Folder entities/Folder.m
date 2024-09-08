@@ -38,6 +38,7 @@
 @end
 
 
+
 @implementation Folder
 
 
@@ -132,13 +133,13 @@
 
 - (void)setParent:(Folder *)parent {
 	[self managedObjectOriginal_setParent:parent];
-	if(!self.name) {
+	if(!self.name && parent) {
 		[self autoName];
 	}
 }
 
 
-- (NSArray *) baseFolders {		// returns the folders at the root level
+- (NSArray *) baseFolders {		/// returns the folders at the root level
 	NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:self.entity.name];
 	NSArray *folders = [self.managedObjectContext executeFetchRequest:request error:nil];
 	if(!folders) return NSArray.new;
@@ -191,11 +192,24 @@
 }
 
 
+- (void)setName:(NSString *)name {
+	if(![name isEqualToString:self.name]) {
+		[self managedObjectOriginal_setName:name];
+	}
+}
+
 
 - (BOOL)validateName:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {
 	NSString *name = *value;
 	
 	if(name.length == 0) {
+		NSString *previousName = self.name;
+		if(previousName.length > 0) {
+			if([self validateName:&previousName error:nil]) {
+				*value = previousName;
+				return YES;
+			}
+		}
 		if (error != NULL) {
 			NSString *description = [NSString stringWithFormat:@"The %@ must have a name.", self.folderType.lowercaseString];
 			*error = [NSError managedObjectValidationErrorWithDescription:description

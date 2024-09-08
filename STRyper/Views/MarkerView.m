@@ -34,7 +34,7 @@ const float markerViewHeight = 20.0;
 /// Whether the view is in a mode that allows if the user can add a region (marker)  by clicking add dragging.
 ///
 /// Setting this to `YES` changes the cursor to a copyDrag cursor.
-/// This property will not be set to `YES` is the view returns `nil` for its ``LabelView/panel`` property.
+/// This property will not be set to `YES` if the view returns `nil` for its ``LabelView/panel`` property.
 @property (nonatomic) BOOL inAddMode;
 						
 /// our ruler view.
@@ -44,7 +44,7 @@ const float markerViewHeight = 20.0;
 
 
 @implementation MarkerView {
-	CATextLayer *noPanelStringLayer;		/// a layer showing the string
+	CATextLayer *noPanelStringLayer;		/// a layer showing the string shown when no marker can be shown nor added
 	NSButton *addMarkerButton;          	/// a button that the views owns and that is used to add a new marker
 	NSButton *previousMarkerButton;         /// a button that can be click to make the trace view shows the previous marker (on the left)
 	NSButton *nextMarkerButton;          	/// a button that can be click to make the trace view shows the next marker (on the right)
@@ -86,7 +86,6 @@ enum ButtonTag : NSUInteger {
 -(void)setAttributes {
 	self.layer.opaque = YES;
 	self.layer.needsDisplayOnBoundsChange = YES;			/// our layer may show a text layer indicating the absence of panel. This text must remain centered if the view resizes.
-	self.layer.opaque = YES;
 	previousMarkerButton = [self defaultButtonWithImageName:@"goLeft" tag:previousMarkerButtonTag];
 	addMarkerButton = [self defaultButtonWithImageName:@"addCircle" tag:addMarkerButtonTag];
 	nextMarkerButton = [self defaultButtonWithImageName:@"goRight" tag:nextMarkerButtonTag];
@@ -152,7 +151,7 @@ enum ButtonTag : NSUInteger {
 			/// This is purely cosmetic, to signify that the added marker would be on this channel
 			button.action = @selector(tintButton:);
 			/// The button action is actually implemented by its binding
-			[button bind:NSValueBinding toObject:self withKeyPath:@"inAddMode" options:nil];
+			[button bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(inAddMode)) options:nil];
 			button.toolTip = @"Add marker (click & drag)";
 			button.frame = NSMakeRect(15, 0, 15, self.bounds.size.height);
 			button.autoresizingMask =  NSViewHeightSizable;
@@ -181,8 +180,12 @@ enum ButtonTag : NSUInteger {
 -(IBAction)tintButton:(NSButton *)sender {
 	if(!sender.isBordered && sender.image.isTemplate) {
 		if (@available(macOS 10.14, *)) {
-			NSColor *tintColor = MarkerView.colorsForChannels[self.channel];
-			sender.contentTintColor = [tintColor blendedColorWithFraction:0.3 ofColor:NSColor.whiteColor];
+			ChannelNumber channel = self.channel;
+			NSArray *colorsForChannels = self.class.colorsForChannels;
+			if(colorsForChannels.count > channel && channel >= 0) {
+				NSColor *tintColor = colorsForChannels[channel];
+				sender.contentTintColor = [tintColor blendedColorWithFraction:0.3 ofColor:NSColor.whiteColor];
+			}
 		}
 	}
 }
@@ -204,6 +207,8 @@ enum ButtonTag : NSUInteger {
 	/// This could have been done with a layout constraint, but this would have required more code, probably
 	if(noPanelStringLayer && !noPanelStringLayer.hidden) {
 		noPanelStringLayer.position = CGPointMake(NSMidX(self.bounds), NSMidY(self.bounds));
+	} else {
+		[super updateLayer];
 	}
 }
 
@@ -211,13 +216,6 @@ enum ButtonTag : NSUInteger {
 	if(!_backgroundLayer) {
 		_backgroundLayer = CALayer.new;
 		_backgroundLayer.delegate = self;
-		_backgroundLayer.actions = @{NSStringFromSelector(@selector(bounds)): NSNull.null,
-									 NSStringFromSelector(@selector(position)): NSNull.null,
-									 NSStringFromSelector(@selector(hidden)): NSNull.null,
-									 NSStringFromSelector(@selector(sublayers)): NSNull.null,
-									 kCAOnOrderOut: NSNull.null,
-									 kCAOnOrderIn: NSNull.null};
-		
 		_backgroundLayer.anchorPoint = CGPointMake(0, 0);
 		
 		/// The layer only occupies the area between navigation buttons, such that marker labels don't overlap with the buttons
@@ -235,14 +233,15 @@ enum ButtonTag : NSUInteger {
 # pragma mark - geometry
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == self.backgroundLayer || layer == self.layer) {
+	if(layer == _backgroundLayer || layer == self.layer) {
 		return NSNull.null;
 	}
 	return nil;
 }
 
 - (void)setBoundsOrigin:(NSPoint)newOrigin {
-	/// Our bound changes to reflect changes in our traceView bounds, which avoids hiding part of the traces by the vScale view. If we don't, the marker labels don't show at the correct position.
+	/// Our bound changes to reflect changes in our traceView bounds, which avoids hiding part of the traces by the vScale view. 
+	/// If we don't, the marker labels don't show at the correct position.
 	/// we have to reposition our navigation buttons, which should still show next to our edges.
 	float delta = self.bounds.origin.x - newOrigin.x;
 	[super setBoundsOrigin:newOrigin];
@@ -323,16 +322,14 @@ enum ButtonTag : NSUInteger {
 	}
 }
 
+- (BOOL)isMoving {
+	return self.traceView.isMoving;
+}
 
 # pragma mark - reaction to change in markers and panels
 
 
 - (NSArray *)viewLabels {
-	return self.markerLabels;
-}
-
-
-- (NSArray<ViewLabel *> *)repositionableLabels {
 	return self.markerLabels;
 }
 
@@ -353,13 +350,21 @@ enum ButtonTag : NSUInteger {
 	if(!self.panel) {
 		self.inAddMode = NO;				/// we make sure the user won't try to add markers if there is no panel
 		self.markerLabels = NSArray.new;	/// we remove marker labels and show a text indicating why the user cannot add markers
-		NSString *noPanelString = @"No marker to show";
-		for(Trace *trace in traceView.loadedTraces) {
-			if(trace.chromatogram.panel && trace.chromatogram.sizingQuality) {
-				/// if one sample is sized and has a panel, although the view has none, it means there are multiple panels
-				noPanelString = @"Multiple panels";
-				break;
+		NSString *noPanelString;
+		if(traceView.channel == noChannelNumber) {
+			/// We use the marker view to help the user understand why the trace view does not show a trace
+			noPanelString = @"No fluorescence data for this channel";
+		} else {
+			for(Trace *trace in traceView.loadedTraces) {
+				if(trace.chromatogram.panel && trace.chromatogram.sizingQuality) {
+					/// if one sample is sized and has a panel, although the view has none, it means there are multiple panels
+					noPanelString = @"Multiple panels";
+					break;
+				}
 			}
+		}
+		if(!noPanelString) {
+			noPanelString = @"No panel to show";
 		}
 		
 		if(!noPanelStringLayer) {
@@ -367,12 +372,12 @@ enum ButtonTag : NSUInteger {
 			noPanelStringLayer.font = (__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:10.0]);
 			noPanelStringLayer.fontSize = 10.0;
 			noPanelStringLayer.contentsScale = 3.0;
-			noPanelStringLayer.foregroundColor = NSColor.secondaryLabelColor.CGColor;
 			noPanelStringLayer.actions = @{@"hidden": [NSNull null], @"position": [NSNull null]};
 			noPanelStringLayer.alignmentMode = kCAAlignmentCenter;
-			noPanelStringLayer.bounds = CGRectMake(0, 0, 120, 15);
+			noPanelStringLayer.bounds = CGRectMake(0, 0, 200, 15);
 			[self.layer addSublayer:noPanelStringLayer];
 		}
+		noPanelStringLayer.foregroundColor = traceView.channel == noChannelNumber? NSColor.orangeColor.CGColor : NSColor.secondaryLabelColor.CGColor;
 		noPanelStringLayer.string = noPanelString;
 		noPanelStringLayer.hidden = NO;
 		addMarkerButton.enabled = NO;
@@ -393,7 +398,7 @@ enum ButtonTag : NSUInteger {
 			return;
 		}
 		
-		self.needsLayoutLabels = YES;
+		self.needsRepositionLabels = YES;
 		/*
 		extern uint64_t dispatch_benchmark(size_t count, void (^block)(void));
 		uint64_t t = dispatch_benchmark(10, ^{
@@ -433,7 +438,7 @@ enum ButtonTag : NSUInteger {
 	_markerLabels = markerLabels;
 	if(self.markerLabels.count > 0) {
 		self.needsUpdateLabelAppearance = YES;
-		self.needsLayoutLabels = YES;
+		self.needsRepositionLabels = YES;
 	}
 }
 
@@ -466,16 +471,15 @@ enum ButtonTag : NSUInteger {
 # pragma mark - reaction to user actions
 
 - (void)updateTrackingAreas {
-	if(self.traceView.isMoving) {
-		return;
+	if(!self.traceView.isMoving) {
+		[super updateTrackingAreas];
+		[self updateTrackingAreasOf:self.markerLabels];
 	}
-	[super updateTrackingAreas];
-	[self updateTrackingAreasOf:self.markerLabels];
 }
 
 
 - (void)updateCursor {
-	if(!self.traceView.isMoving) {
+	if(!self.traceView.isMoving && NSEvent.pressedMouseButtons == 0) {
 		if(hoveredMarkerLabel.hoveredEdge) {
 			[NSCursor.resizeLeftRightCursor set];
 		} else if(hoveredMarkerLabel) {
@@ -723,14 +727,14 @@ enum ButtonTag : NSUInteger {
 - (BOOL)resignFirstResponder {
 	self.rulerView.currentPosition = -10000;
 	if(self.inAddMode) {
-		/// this check is important, as executing the instruction below changes the button state, which enables it
+		/// this check is important, as executing the instruction below changes the button state, which enables it (a cocoa binding bug, IMO)
 		/// (which we don't want if there is no panel)
 		self.inAddMode = NO;  /// when we are no longer the first responder, the user will no longer be able to add a marker. They will have to click the button again
 	}
 	
 	RegionLabel *activeLabel = self.activeLabel;
 	if(!activeLabel.attachedPopover) {
-		self.activeLabel.highlighted = NO;
+		activeLabel.highlighted = NO;
 	}
 	return YES;
 }

@@ -38,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Defines the area of a region that is the target of an action on the region.
 ///
 /// This enum is used by ``RegionLabel``objects.
-typedef enum RegionEdge : NSUInteger {
+typedef NS_ENUM(NSUInteger, RegionEdge) {
 	/// Represents neither of the region edges.
 	noEdge,
 	
@@ -49,13 +49,13 @@ typedef enum RegionEdge : NSUInteger {
 	rightEdge,
 	
 	/// Represents the area between the region edges.
-	betweenEdges,		
-} RegionEdge;
+	betweenEdges
+} ;
 
 
 
 /// The name of the region.
-@property (nonatomic) NSString *name;
+@property (nonatomic, copy) NSString *name;
 
 /// The start of the region, in base pairs.
 ///
@@ -79,13 +79,17 @@ typedef enum RegionEdge : NSUInteger {
 /// This property is used in ``allowedRangeForEdge:``.
 ///
 /// The default implementation returns an empty array.
-@property (nonatomic, readonly) NSArray *siblings;
+@property (nonatomic, readonly) NSArray<Region *> *siblings;
 
 /// Mirrors the ``RegionLabel/editState`` of the ``RegionLabel`` class.
 ///
 /// This property can be used/observed to change the state of a label representing the region.
 @property (nonatomic) NSInteger editState;
 														
+/// The minimum with the region can have.
+///
+/// This value is used during validation of ``start`` and ``end`` attributes.
+@property (nonatomic, readonly) float minimumWidth;
 
 /// Tests whether a region overlaps with the receiver, based on their ``start`` and ``end`` attributes.
 /// - Parameter region: The region for which to test the overlap with the receiver.
@@ -109,8 +113,18 @@ typedef enum RegionEdge : NSUInteger {
 /// - Parameter edge: The edge for which to return range.
 -(BaseRange)allowedRangeForEdge:(RegionEdge)edge;
 
+extern CodingObjectKey regionStartKey,
+regionEndKey,
+regionNameKey,
+regionEditStateKey;
 
 
+/// A validation method for the ``start`` and ``end`` attribute, which subclasses override.
+/// - Parameters:
+///   - valueRef: the value to validate.
+///   - isStart: Whether is the value represents the `start` or the region.
+///   - error: The error to specify if validation failed.
+- (BOOL)validateCoordinate:(id _Nullable *_Nullable)valueRef isStart:(BOOL)isStart error:(NSError * _Nullable*)error;
 
 @end
 

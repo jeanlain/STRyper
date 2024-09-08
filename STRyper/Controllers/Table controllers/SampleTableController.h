@@ -20,7 +20,6 @@
 
 
 #import "TableViewController.h"
-#import "AppDelegate.h"
 @class SampleFolder, Chromatogram, Panel, SizeStandard;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -39,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This method is used to drag samples between folders,
 /// as the application does not yes implement pasteboard support for ``Chromatogram`` objects
-@property (nonatomic, readonly) NSArray <Chromatogram *> *draggedSamples;
+@property (nonatomic, readonly) NSArray<Chromatogram *> *draggedSamples;
 																			
 
 /// Returns the receiver's ``TableViewController/tableContent``.
@@ -56,11 +55,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Imports samples (``Chromatogram`` objects) from abif files and adds it to a folder.
 ///
-/// This method calls ``FileImporter/importSamplesFromFiles:completionHandler:`` and show errors that may have occurred to the user.
+/// This method calls ``FileImporter/importSamplesFromFiles:batchSize:intermediateHandler:completionHandler:``
+/// and show errors that may have occurred to the user.
 /// - Parameters:
 ///   - filePaths: The paths of abif files to be imported.
-///   - folder: The folder to which samples should be added.
--(void) addSamplesFromFiles:(NSArray <NSString *>*)filePaths toFolder:(SampleFolder *)folder;
+///   - folder: The folder to which samples should be added. Its `managedObjectContext` must be the "view context".
+-(void) addSamplesFromFiles:(NSArray<NSString *>*)filePaths toFolder:(SampleFolder *)folder;
 
 
 /// Applies a marker panel to samples (Chromatogram objects).
@@ -69,14 +69,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameters:
 ///   - panel: The panel to apply.
 ///   - sampleArray: The  samples that `panel` should be applied to.
-- (void)applyPanel:(Panel*) panel toSamples:(NSArray <Chromatogram *>*)sampleArray;
+- (void)applyPanel:(Panel*) panel toSamples:(NSArray<Chromatogram *>*)sampleArray;
 
 /// Applies a size standard to samples (Chromatogram objects).
 ///
 /// - Parameters:
 ///   - standard: The size standard to apply.
 ///   - sampleArray: The  samples that `standard` should be applied to.
-- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray;
+- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray<Chromatogram *> *)sampleArray;
 
 
 /// Copies of the samples referenced in the pasteboard and adds them to the selected folder.
@@ -91,7 +91,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// We do not copy chromatograms to the pasteboard, only their the absolute string of their object id.
 extern NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType;
 
-extern UserDefaultKey SelectedSamples;
 
 @end
 

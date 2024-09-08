@@ -33,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// In this case, it will not close when an action occurs outside its window except if its `delegate` returns `YES` to `-popoverShouldClose`.
 ///
 /// This behaviour can help to prevent inconsistence from happening while the marker is being created (deleting its panel, modifying other markers of the panel, etc.)
-@interface NewMarkerPopover : NSPopover <NSPopoverDelegate>
+@interface NewMarkerPopover : NSPopover <NSPopoverDelegate, NSControlTextEditingDelegate>
 
 /// Returns a new instance, which is loaded from a nib file.
 +(nullable instancetype) popover;
@@ -88,7 +88,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Does the same as `showRelativeToRect:ofView:preferredEdge:` of `NSPopover`, with an option to start a modal session with the popover.
 ///
-/// When `modal` is `YES, the popover blocks any event outside its window. It must be closed for the modal session to end.
+/// When `modal` is `YES`, the popover blocks any event outside its window. It must be closed for the modal session to end.
 /// - Parameters:
 ///   - positioningRect: The rectangle within positioningView relative to which the popover should be positioned. Normally set to the bounds of positioningView. May be an empty rectangle, which will default to the bounds of positioningView.
 ///   - positioningView: The view relative to which the popover should be positioned. Causes the method to raise `NSInvalidArgumentException` if nil.

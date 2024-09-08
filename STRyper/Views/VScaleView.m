@@ -101,8 +101,10 @@ static NSColor *rulerLabelColor;
 
 
 - (void)setHidden:(BOOL)hidden {
-	super.hidden = hidden;
-	self.traceView.leftInset = hidden? 0: self.width;
+	if(hidden != self.hidden) {
+		super.hidden = hidden;
+		self.traceView.leftInset = hidden? 0: self.width;
+	}
 }
 
 

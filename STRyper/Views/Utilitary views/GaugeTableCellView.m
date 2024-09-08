@@ -59,10 +59,10 @@
 		gaugeLayer.delegate = self;
 		_animateGauge = YES;
 		[self.layer addSublayer:gaugeLayer];
-		self.gaugeThickness = 3.5;
-		self.maxValue = 1.0;
-		self.maxValueColor = [NSColor colorWithCalibratedRed:0 green:0.7 blue:0 alpha:1];
-		self.minValueColor = NSColor.redColor;
+		_gaugeThickness = 3.5;
+		_maxValue = 1.0;
+		_maxValueColor = [NSColor colorWithCalibratedRed:0 green:0.7 blue:0 alpha:1];
+		_minValueColor = NSColor.redColor;
 	}
 }
 
@@ -84,15 +84,24 @@
 
 -(void)setGaugeSize {
 	float fraction = self.value/self.maxValue;
-	if(fraction <= 1 && fraction >= 0) {
-		gaugeLayer.bounds = CGRectMake(0, 0, NSMaxX(gaugeLayer.superlayer.bounds) * fraction, self.gaugeThickness);
+	if(fraction < 0) {
+		fraction = 0;
+	} else if(fraction > 1) {
+		fraction = 1;
 	}
+	gaugeLayer.bounds = CGRectMake(0, 0, NSMaxX(gaugeLayer.superlayer.bounds) * fraction, self.gaugeThickness);
 }
 
 
 /// Updates the gauge color.
 -(void)updateColor {
-	gaugeLayer.backgroundColor = [self.minValueColor blendedColorWithFraction:self.value/self.maxValue ofColor:self.maxValueColor].CGColor;
+	float fraction = self.value/self.maxValue;
+	if(fraction < 0) {
+		fraction = 0;
+	} else if(fraction > 1) {
+		fraction = 1;
+	}
+	gaugeLayer.backgroundColor = [self.minValueColor blendedColorWithFraction:fraction ofColor:self.maxValueColor].CGColor;
 }
 
 

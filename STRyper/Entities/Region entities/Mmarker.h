@@ -47,13 +47,14 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The marker name is set automatically with ``Region/autoName``.
 ///
-/// The method does not check if the parameters are valid (for instance `start` being lower than `end`).
+/// The method does not check if `start` and `end` coordinates are valid.
+/// Improper parameters will results in validation errors.
 /// - Parameters:
 ///   - start: The ``Region/start`` position of the marker.
 ///   - end: The ``Region/end`` position the marker
 ///   - channel: The ``channel`` of the marker
 ///   - panel: The ``panel`` of the marker.
--(instancetype) initWithStart:(float) start end:(float) end channel:(ChannelNumber) channel panel:(Panel *)panel;
+-(nullable instancetype) initWithStart:(float) start end:(float) end channel:(ChannelNumber) channel panel:(Panel *)panel;
 
 /// The ploidy of the maker, that is, the number of expected alleles at the locus for an individual.
 ///
@@ -77,6 +78,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// This relationship is encoded in ``CodingObject/encodeWithCoder:``  and decoded in ``CodingObject/initWithCoder:``.
 /// It is also used to test equivalence between markers via the ``CodingObject/isEquivalentTo:`` method.
 @property (nonatomic, nullable) NSSet <Bin *> *bins;
+
+
+/// The marker's ``bins`` sorted by ``Region/start``.
+///
+/// This property is generated dynamically on demand.
+@property (nonatomic, nullable, readonly) NSArray<Bin *> *sortedBins;
 
 /// The genotypes that samples have for the marker.
 ///

@@ -30,7 +30,8 @@
 #import "IndexImageView.h"
 #import "AggregatePredicateEditorRowTemplate.h"
 #import "Allele.h"
-
+#import "NSArray+NSArrayAdditions.h"
+#import "MarkerTableController.h"
 
 @interface GenotypeTableController ()
 
@@ -60,7 +61,7 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-		controller = [[self alloc] init];
+		controller = self.new;
 	});
 	return controller;
 }
@@ -129,7 +130,7 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 			@"genotypeSampleColumn":	@{KeyPathToBind: @"sample.sampleName",ColumnTitle: @"Sample", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
 			@"genotypeStatusColumn":	@{KeyPathToBind: @"statusText", ImageIndexBinding: @"status" ,ColumnTitle: @"Status", CellViewID: @"imageCellView", IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
 			@"genotypePanelColumn":		@{KeyPathToBind: @"sample.panel.name",ColumnTitle: @"Panel", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"genotypeMarkerColumn":	@{KeyPathToBind: @"marker.name",ColumnTitle: @"Marker", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
+			@"genotypeMarkerColumn":	@{KeyPathToBind: @"marker.name", ColumnTitle: @"Marker", CellViewID: @"compositeCellViewText", ImageIndexBinding: @"marker.channel", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
 			/*	@"genotypeScan1Column":		@{KeyPathToBind: @"allele1.scan",ColumnTitle: @"Scan1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO},
 			 @"genotypeScan2Column":		@{KeyPathToBind: @"allele2.scan",ColumnTitle: @"Scan2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO},*/
 			@"genotypeSize1Column":		@{KeyPathToBind: @"allele1.visibleSize",ColumnTitle: @"Size1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
@@ -206,8 +207,16 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	NSTableCellView *view = (NSTableCellView *)[super tableView:tableView viewForTableColumn:tableColumn row:row];
 	
 	if([ID isEqualToString:@"genotypeStatusColumn"]) {
-		if([view.imageView respondsToSelector:@selector(imageArray)]) {
-			((IndexImageView *)view.imageView).imageArray = statusImages;
+		IndexImageView *imageView = (IndexImageView *)view.imageView;
+		if([imageView respondsToSelector:@selector(imageArray)] && imageView.imageArray == nil) {
+			imageView.imageArray = statusImages;
+		}
+	}
+	
+	if([ID isEqualToString:@"genotypeMarkerColumn"]) {
+		IndexImageView *imageView = (IndexImageView *)view.imageView;
+		if([imageView respondsToSelector:@selector(imageArray)] && imageView.imageArray == nil) {
+			imageView.imageArray = MarkerTableController.channelColorImages;
 		}
 	}
 	
@@ -271,12 +280,7 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	if(content.count != genotypes.count) {
 		refresh = YES;
 	} else {
-		for(id genotype in genotypes) {
-			if([content indexOfObjectIdenticalTo:genotype] == NSNotFound) {
-				refresh = YES;
-				break;
-			}
-		}
+		refresh = [genotypes sharesObjectsWithArray:content];
 	}
 	if(refresh) {
 		self.genotypes.content = genotypes;
@@ -359,6 +363,8 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	
 	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateAdditionalPeaks];
 	
+	[self.undoManager setActionName:@"Bin Alleles"];
+	
 	for (Genotype *genotype in genotypes) {
 		GenotypeStatus status = genotype.status;
 		if(status == genotypeStatusNotCalled || status == genotypeStatusNoPeak) {
@@ -370,15 +376,15 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 		}
 	}
 	
-	[self.undoManager setActionName:@"Bin Alleles"];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+	[AppDelegate.sharedInstance saveAction:self];
 }
 
 
 - (IBAction)callAlleles:(id)sender {
 	/// we don't create a managed object context to call alleles as allele call is very quick (less than 1s for 10000 genotypes)
 	/// and is actually slower when we use a child context
-	
+	[self.undoManager setActionName:@"Find Alleles"];
+
 	BOOL doAll = [sender isKindOfClass:NSMenuItem.class] && [sender topMenu] == self.tableView.menu;
 	/// if the message was sent by the tableView's menu, we call the alleles of all target genotypes
 	/// else, we will call alleles only for genotypes that have not been called or edited
@@ -392,10 +398,68 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 		}
 	}
 	
-	[self.undoManager setActionName:@"Find Alleles"];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+	[self checkGenotypesForAdenylation:genotypes];
+	[AppDelegate.sharedInstance saveAction:self];
 	
 }
+
+
+-(void)checkGenotypesForAdenylation:(NSArray *)genotypes {
+	if(genotypes.count < 3) {
+		return;
+	}
+	
+	NSArray *markers = [genotypes valueForKeyPath:@"@distinctUnionOfObjects.marker"];
+	for(Mmarker *marker in markers) {
+		if(marker.ploidy < 2) {
+			continue;
+		}
+		
+		NSArray *genotypesAtMarker = [genotypes filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype*  _Nullable genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return genotype.marker == marker;
+		}]];
+		
+		if(genotypesAtMarker.count < 3) {
+			continue;
+		}
+		
+		NSArray *possibleHeterozygotes = [genotypesAtMarker filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype*  _Nullable genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return genotype.scanOfPossibleAllele > 0;
+		}]];
+		
+		if(possibleHeterozygotes.count == 0) {
+			continue;
+		}
+		
+		NSArray *heterozygotes = [genotypesAtMarker filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype*  _Nullable genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return genotype.scanOfPossibleAllele == -1;
+		}]];
+		
+		if(heterozygotes.count < 2 && heterozygotes.count == genotypesAtMarker.count) {
+			continue;
+		}
+		
+		float meanLeftAdenylationRatio = [[heterozygotes valueForKeyPath:@"@avg.leftAdenylationRatio"] floatValue];
+		float meanRightAdenylationRatio = [[heterozygotes valueForKeyPath:@"@avg.rightAdenylationRatio"] floatValue];
+
+		for(Genotype *genotype in possibleHeterozygotes) {
+			BOOL assignAllele2 = NO;
+			if(genotype.allele1.scan < genotype.scanOfPossibleAllele) {
+				float adenylationRatio = genotype.rightAdenylationRatio;
+				assignAllele2 = adenylationRatio > meanRightAdenylationRatio * 6 & adenylationRatio >= 0.7;
+			} else {
+				float adenylationRatio = genotype.leftAdenylationRatio;
+				assignAllele2 = adenylationRatio > meanLeftAdenylationRatio * 6 & adenylationRatio >= 0.7;
+			}
+			if(assignAllele2) {
+				Allele *allele2 = genotype.allele2;
+				allele2.scan = genotype.scanOfPossibleAllele;
+				[allele2 findNameFromBins];
+			}
+		}
+	}
+}
+
 
  /**********debugging******
 static NSInteger genotypeIndex = 0;
@@ -429,7 +493,8 @@ static NSInteger genotypeIndex = 0;
 
 /// Removes the additional fragments of target genotypes
 - (IBAction)removeAdditionalFragments:(id)sender {
-	
+	[self.undoManager setActionName:@"Remove Additional Peaks"];
+
 	NSArray *genotypes = self.tableView.clickedRow >= 0? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
 	
 	for (Genotype *genotype in genotypes) {
@@ -443,8 +508,7 @@ static NSInteger genotypeIndex = 0;
 		}
 	}
 	
-	[self.undoManager setActionName:@"Remove Additional Peaks"];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+	[AppDelegate.sharedInstance saveAction:self];
 }
 
 
@@ -463,12 +527,12 @@ static NSInteger genotypeIndex = 0;
 
 
 - (void)removeOffsets:(id)sender {
+	[self.undoManager setActionName:@"Reset Genotype Offset(s)"];
 	NSArray *genotypes = [self targetItemsOfSender:sender];
 	for(Genotype *genotype in genotypes) {
 		genotype.offsetData = nil;
 	}
-	[self.undoManager setActionName:@"Reset Genotype Offset(s)"];
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+	[AppDelegate.sharedInstance saveAction:self];
 }
 
 
@@ -597,9 +661,7 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 - (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor {
 	/// we prepare the keyPaths (attributes) that the predicate editor will allow filtering.
 	/// The first we add will be use to generate predicate editor row template "automatically" via core data.
-	
-	[super configurePredicateEditor:predicateEditor];
-	
+		
 	NSArray *keyPaths = @[@"marker.name", @"marker.panel.name", @"notes"];
 	
 	NSArray<NSPredicateEditorRowTemplate *> *rowTemplates = [NSPredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Genotype.entity];
@@ -788,9 +850,9 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 
 - (void)ruleEditorRowsDidChange:(NSNotification *)notification {
 	/// We use this notification to add status images to the popup button allowing to filter by status.
-	/// I haven't found a better solution. Providing an custom popup button in -templateViews of NSRuleEditorRowTemplate subclass doesn't work
+	/// I haven't found a better solution. Providing an custom popup button in -templateViews of `NSRuleEditorRowTemplate` subclass doesn't work
 	/// because the predicate editor only take the menu item titles to create its own popup button.
-	/// Subclassing NSRuleEditor would certainly be the best solution, but it would require much more effort.
+	/// Subclassing `NSRuleEditor` would certainly be the best solution, but it would require much more effort.
 	NSPredicateEditor *editor = notification.object;
 	NSView *view = editor.subviews.firstObject;
 	for(NSView *row in view.subviews) {
@@ -823,7 +885,10 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 
 #pragma mark - recording and restoring selection
 
-UserDefaultKey SelectedGenotypes = @"selectedGenotypes";
+- (NSString *)userDefaultKeyForSelectedItemIDs {
+	return @"selectedGenotypes";
+}
+
 
 -(void)recordSelectedItems {
 	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
@@ -832,7 +897,7 @@ UserDefaultKey SelectedGenotypes = @"selectedGenotypes";
 	}
 	NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
 	if(folderID) {
-		[self recordSelectedItemsAtUserDefaultsKey:SelectedGenotypes subKey:folderID maxRecorded:100];
+		[self recordSelectedItemsAtKey:folderID maxRecorded:100];
 	}
 }
 
@@ -844,7 +909,7 @@ UserDefaultKey SelectedGenotypes = @"selectedGenotypes";
 	}
 	NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
 	if(folderID) {
-		[self restoreSelectedItemsWithUserDefaultsKey:SelectedGenotypes subKey:folderID];
+		[self restoreSelectedItemsAtKey:folderID];
 	}
 }
 

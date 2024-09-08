@@ -50,6 +50,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)traceView:(TraceView *)traceView didStartMovingToRange:(BaseRange)range;
 
 
+- (void)traceView:(TraceView *)traceView didClickTrace:(Trace *)trace;
+
+
 @end
 
 NS_ASSUME_NONNULL_END

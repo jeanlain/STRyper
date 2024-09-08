@@ -34,8 +34,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter array: The array to compare.
 -(BOOL) isIdenticalTo:(NSArray *) array;
 
+/// Convenience method that returns whether the receiver shares at least one object with another array.
+///
+/// Pointer equality is used for the test. 
+/// - Parameter array: An array.
+-(BOOL) sharesObjectsWithArray:(NSArray *)array;
+
+/// Returns an array from which objects of another array are removed.
+/// - Parameter array: An array.
 -(NSArray *) arrayByRemovingObjectsIdenticalInArray:(NSArray *)array;
 
+/// Returns an array from which objects that are equal to objects of another array are removed.
+/// - Parameter array: An array.
 -(NSArray *) arrayByRemovingObjectsInArray:(NSArray *)array;
 
 

@@ -26,7 +26,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An `NSTableHeaderView` that only sets cursor rectangles in its visible rect.
 ///
-/// In macOS version 12 and earlier, `NSTableHeaderView`  cursor rectangles are added even if there are in the clipped region (which is an oversight on Apple's part), and may cause cursor changes on overlapping views.
+/// In macOS version 12 and earlier, `NSTableHeaderView`  cursor rectangles are added even if there are in the clipped region 
+/// (which is an oversight on Apple's part), and may cause cursor changes on overlapping views.
 ///
 /// This class avoids that by overriding `-addCursorRect:cursor:`.
 @interface TableHeaderView : NSTableHeaderView

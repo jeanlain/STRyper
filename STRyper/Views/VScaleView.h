@@ -30,8 +30,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// A `VScaleView` shows tick-marks and labels. Theses constitute the vertical axis of the plot containing fluorescent curves drawn by the trace view.
 /// The labels represent fluorescent levels of traces.
 ///
-/// IMPORTANT: the positioning of the labels assumes that the bottom edge of the `VScaleView` is at the bottom edge of its superview.
-/// To be properly positioned, the `VSCaleView` must be a subview of a ``TraceScrollView``. In fact, this scroll view creates a `VScaleView` when a ``TraceView`` is set as its `documentView`.
+/// - Important: the positioning of the labels assumes that the bottom edge of the `VScaleView` is at the bottom edge of its superview.
+/// To be properly positioned, the `VSCaleView` must be a subview of a ``TraceScrollView``. This scroll view creates a `VScaleView` when a ``TraceView`` is set as its `documentView`.
 @interface VScaleView : NSView
 
 /// Note: we don't use a subclass of `NSRulerView` as this view is not a ruler.

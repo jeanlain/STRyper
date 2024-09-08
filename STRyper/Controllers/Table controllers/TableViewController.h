@@ -23,6 +23,7 @@
 
 @import Cocoa;
 #import "NSMenuItem+NSMenuItemAdditions.h"
+#import "AppDelegate.h"
 @class MainWindowController;
 
 
@@ -39,7 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Other methods can populate the tableview with columns and cell views, based on column descriptions provided as a dictionary (see ``columnDescription``).
 /// This dictionary is useful for tables that have too many columns to all be designed in a nib.
 ///
-/// This class implements `-copy` (to the paste board) of the text content of selected rows, for subclasses that provide a ``columnDescription``
+/// This class implements `-copy` (to the paste board) of the text content of selected rows, for subclasses that provide a ``columnDescription``,
 /// and for the items shown in the table if they implement the `NSPasteBoardWriting` protocol.
 ///
 /// This class also provides  a menu for the table header view, to allow hiding/showing columns and sorting via a popover of class ``TableSortPopover``.
@@ -65,7 +66,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The tableview that the receiver manages.
 ///
-/// This view may differ from the `-view` property of the receiver, but in this case, it must be a subview of it,
+/// This view may differ from the `view` property of the receiver, but in this case, it must be a subview of it,
 /// otherwise, the receiver may not receive messages resulting from user actions on this table.
 @property (weak, readonly, nonatomic) NSTableView *tableView;
 
@@ -101,7 +102,9 @@ IsColumnVisibleByDefault, 	/// Whether the column is visible by default. Value m
 IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensitive.
 
 
-/// The tableview that contains the tableCellView prototypes (by default, the receiver's ``tableView``).
+/// The tableview that contains the prototypes for table cell view (by default, the receiver's ``tableView``).
+///
+/// This method avoids defining the same cell prototype redundantly in nibs containing several table views using this prototype.
 @property (nonatomic, weak) NSTableView *viewForCellPrototypes;
 
 
@@ -135,7 +138,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /// The default implementation returns `NO`.
 @property (readonly, nonatomic) BOOL shouldMakeTableHeaderMenu;
 
-/// Whether the ``tableView`` can be sorted via sort sheet (see ``showSortCriteria:``).
+/// Whether the ``tableView`` can be sorted via a sort sheet (see ``showSortCriteria:``).
 ///
 /// The default implementation returns the same value as ``shouldMakeTableHeaderMenu``.
 @property (readonly, nonatomic) BOOL canSortByMultipleColumns;
@@ -182,17 +185,17 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 
 
 /// A generic method that removes target items from the ``tableView``, sent from menus and buttons.
-/// - Parameter sender: The object that sent the message.
-///  Because this method analyzes the sender to determine which items to remove, not any sender is adequate.
+/// - Parameter sender: The object that sent the message, which determines the target items via ``targetItemsOfSender:``.
 - (IBAction)remove:(id)sender;
 
 
 /// The items that are the target of an action by a sender.
 ///
-/// These items are at the clicked row and/or selected rows of the ``tableView``, depending on the sender.
+/// If `sender` is an item from the ``tableView``'s `menu`, the target item is the one at the row
+/// that was right-clicked if it is not a selected row. Otherwise, the target items are those that are selected.
 ///
 /// - Parameter sender: The object that sent the message, typically an `NSMenuItem`.
-/// Because this method analyzes the sender to determine which items to remove, not any sender is adequate.
+///  - Note: Because this method analyzes the sender to determine which items to remove, not any sender is adequate.
 - (nullable NSArray *) targetItemsOfSender:(id)sender;
 
 
@@ -207,9 +210,9 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 ///
 /// The returned value will be used for the title a menu item whose action is ``remove:`` and the target is the receiver.
 /// The default value is "Delete " followed by the the value returned by ``nameForItem:``.
-/// If this returns `nil`, the menu is hidden out and removal is prevented.
+/// If this returns `nil`, the menu is hidden and removal is prevented.
 ///
-/// The default implementation does not check if any of the items is actually shown in the ``tableView``.
+/// The default implementation assumes that every item is shown in the ``tableView``.
 /// - Parameter items: The items that shall be removed.
 - (nullable NSString *) removeActionTitleForItems:(NSArray *)items;
 
@@ -299,7 +302,9 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 
 /// Copies items from an array to the pasteboard.
 ///
-/// Subclass can override the method to add specific data to the pasteboard
+/// The default implementation copies the text content of table rows that may show the
+/// corresponding items, calling ``stringForObject:``.
+/// Subclasses can override the method to add custom data to the pasteboard.
 /// - Parameters:
 ///   - items: The items to be copied.
 ///   - pasteboard: The pasteboard to copy the items to.
@@ -312,42 +317,49 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 - (NSString *)stringForObject:(id) object;
 														
 														
-/// A string corresponding to the value of a column (of the ``tableView``) for an object.
+/// A string corresponding to the value that a column of the ``tableView`` would show for an object.
 ///
-/// For performance reasons, the method does not read from a cell at that column and at the row represented by the object.
-/// This means that the object doesn't even have to be in the ``tableContent``.
-/// If the object isn't of the class managed by ``tableContent``, the returned string may not make sense.
+/// For performance reasons, the method does not read from a table cell,
+/// which means that the object doesn't even have to be in the ``tableContent``.
+///
+/// - Important: This method relies on the ``columnDescription`` dictionary and the object must be of the class managed by the ``tableContent``.
 /// - Parameters:
 ///   - column: The column for which the string should be returned.
 ///   - object: The object for which the string should be returned.
 - (NSString *)stringCorrespondingToColumn:(NSTableColumn *)column forObject:(id) object;
 				
 
-/******recording and restoring selection ****/
+/********recording and restoring selection ****/
 
-/// Records the selected items (selected rows) in the use defaults.
+/// Records the selected items (selected rows) in the user defaults so that selection can be preserved between app launches.
 ///
-/// The items are recorded using the absolute string of the URI representation of their object IDs.
+/// The items are recorded as an array of strings (the URI representation of their object IDs).
+/// This array is stored at key `key` of an `NSDictionary` which is encoded
+/// in the user defaults at the key returned by ``userDefaultKeyForSelectedItemIDs``.
 /// - Parameters:
-///   - key: The key of the user default to record the selected items.
-///   - subKey: A key for the dictionary that is saved in the user default.
-///   - maxRecorded: The maximum number of selected items to be recorded. Use 0 if all items are recorded.
--(void)recordSelectedItemsAtUserDefaultsKey:(NSString *)key subKey:(NSString *)subKey maxRecorded:(NSUInteger)maxRecorded;
+///   - key: The key of the dictionary at which the selected items are recorded (see discussion).
+///   - maxRecorded: The maximum number of selected items to record. Use 0 if all items must be recorded.
+-(void)recordSelectedItemsAtKey:(NSString *)key maxRecorded:(NSUInteger)maxRecorded;
+
+/// The key to store the identifiers of selected object in the user defaults.
+///
+/// The returned value is used for ``recordSelectedItemsAtKey:maxRecorded:`` and ``restoreSelectedItemsAtKey:``.
+/// It must not be identical to a key used in the user default from another purpose.
+- (UserDefaultKey) userDefaultKeyForSelectedItemIDs;
 
 /// Restore the selected items (selects rows) retrieved from the user defaults.
 /// - Parameters:
-///   - key: The key of the user default.
-///   - subKey: The key of the dictionary saved in the user defaults.
--(void)restoreSelectedItemsWithUserDefaultsKey:(NSString *)key subKey:(NSString *)subKey;
+///   - key: The key of the dictionary where identifiers for the selected object were stored (see ``recordSelectedItemsAtKey:maxRecorded:``).
+-(void)restoreSelectedItemsAtKey:(NSString *)key;
 
 /// Records the selected Items in the user defaults.
 ///
-/// Subclass are expected to override this method and call ``recordSelectedItemsAtUserDefaultsKey:subKey:maxRecorded:``.
+/// Subclass are expected to override this method and call ``recordSelectedItemsAtKey:maxRecorded:``.
 -(void)recordSelectedItems;
 
 /// Restores the selected items store in the user defaults and scrolls the ``tableView`` to show the first selected row.
 ///
-/// Subclass are expected to override this method and call ``restoreSelectedItemsWithUserDefaultsKey:subKey:``.
+/// Subclass are expected to override this method and call ``restoreSelectedItemsAtKey:``.
 -(void)restoreSelectedItems;
 
 /************filtering ***************/
@@ -381,7 +393,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /// Configures the predicate editor used to filter content.
 /// 
 /// The method is called just before the popover used to present the filter predicate editor shows for the first time.
-/// The default implementation only removes a visual effect view which was added in macOS 14, which negatively impacts the visuals.
+/// The default implementation does nothing.
 /// Subclasses are expected to configure the `rowTemplates` and the `formattingDictionary`of the `predicateEditor`.
 /// - Parameter predicateEditor: The predicate editor to configure.
 - (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor;

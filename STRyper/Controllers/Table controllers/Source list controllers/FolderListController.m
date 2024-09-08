@@ -25,7 +25,6 @@
 #import "ProgressWindow.h"
 #import "SmartFolder.h"
 #import "Chromatogram.h"
-#import "AppDelegate.h"
 #import "SampleSearchHelper.h"
 #import "MainWindowController.h"
 #import "HoveredTableRowView.h"
@@ -64,7 +63,7 @@
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-		controller = [[self alloc] init];
+		controller = self.new;
 	});
 	return controller;
 }
@@ -117,7 +116,7 @@
 		NSArray *trashFolders = [MOC executeFetchRequest:request error:nil];
 		
 		if(trashFolders.count > 1) {
-			/// this should not happen, as the UI does not allow creating root folders. But we manage this situation anyway.
+			/// this should not happen, as the UI does not allow creating root folders.
 			NSLog(@"several trash folders found for %@!", entityName);
 		}
 		
@@ -183,8 +182,9 @@
 		if(!rowView) {
 			rowView = HoveredTableRowView.new;
 			NSButton *button = [NSButton buttonWithImage:[NSImage imageNamed:@"addCircleStroke"] target:nil action:nil];
-			button.bezelStyle = NSBezelStyleInline;
+			button.bezelStyle = NSBezelStyleRecessed;
 			button.bordered = NO;
+			button.showsBorderOnlyWhileMouseInside = YES;
 			button.imagePosition = NSImageOnly;
 			button.imageScaling = NSImageScaleNone;
 			rowView.hoveredButton = button;
@@ -235,7 +235,16 @@
 - (void)outlineViewSelectionDidChange:(NSNotification *)notification {
 	[SampleTableController.sharedController recordSelectedItems];
 	[GenotypeTableController.sharedController recordSelectedItems];
+//	SampleFolder *previousSelectedFolder = self.selectedFolder;
 	[super outlineViewSelectionDidChange:notification];
+/*	if(self.selectedFolder != previousSelectedFolder) {
+		NSManagedObjectContext *MOC = previousSelectedFolder.managedObjectContext;
+		for(Chromatogram *sample in previousSelectedFolder.samples) {
+			if(!sample.hasChanges && !sample.isFault) {
+				[MOC refreshObject:sample mergeChanges:NO];
+			} else NSLog(@"name: %@", sample.sampleName);
+		}
+	}*/
 }
 
 
@@ -285,8 +294,8 @@
 	
 	if ([pboard.types containsObject:@"samplesDragType"]) {  /// samples are dragged from other folders
 		NSArray *draggedSamples = SampleTableController.sharedController.draggedSamples;
-		[(SampleFolder *)destination addSamples:[NSSet setWithArray:draggedSamples]];
 		[self.undoManager setActionName:@"Move Sample(s)"];
+		[(SampleFolder *)destination addSamples:[NSSet setWithArray:draggedSamples]];
 		return YES;
 	}
 	
@@ -413,12 +422,12 @@
 			
 			SampleFolder *theFolder = [MOC existingObjectWithID:importedFolder.objectID error:&error];
 			if(!error) {
+				[self.undoManager setActionName:@"Import Folder"];
 				theFolder.parent = self.rootFolder;
 				[theFolder autoName];
 				[self _addFolderToTable:theFolder];
 				[self selectFolder:theFolder];
-				[self.undoManager setActionName:@"Import Folder"];
-				[((AppDelegate *)NSApp.delegate) saveAction:self];
+				[AppDelegate.sharedInstance saveAction:self];
 			} else {
 				error = [NSError errorWithDescription:@"The folder could not be imported because of an unexpected error." suggestion:@""];
 			}
@@ -507,7 +516,7 @@
 	ProgressWindow *progressWindow = ProgressWindow.new;
 	NSWindow *window = self.tableView.window;
 	/// we export the folder in the background (private queue)
-	NSManagedObjectContext *MOC = [[(AppDelegate *)NSApp.delegate persistentContainer] newBackgroundContext];
+	NSManagedObjectContext *MOC = [[AppDelegate.sharedInstance persistentContainer] newBackgroundContext];
 	NSOperationQueue *callingQueue = NSOperationQueue.currentQueue;
 	
 	[MOC performBlock:^{
@@ -610,13 +619,16 @@
 		NSWindow *window = self.view.window;
 		NSOperationQueue *callingQueue = NSOperationQueue.currentQueue;
 		[backgroundContext performBlock:^{
+			NSUserDefaults *userDefaults = NSUserDefaults.standardUserDefaults;
 			/// if some folders are deleted, we remove their entries from the genotype filters.
-			NSMutableDictionary *genotypeFilters = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
-			NSMutableDictionary *selectedSamples = [NSUserDefaults.standardUserDefaults dictionaryForKey:SelectedSamples].mutableCopy;
-			NSMutableDictionary *selectedGenotypes = [NSUserDefaults.standardUserDefaults dictionaryForKey:SelectedGenotypes].mutableCopy;
+			NSMutableDictionary *genotypeFilters = [userDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
+			UserDefaultKey selectedSampleKey = SampleTableController.sharedController.userDefaultKeyForSelectedItemIDs;
+			UserDefaultKey selectedGenotypeKey = GenotypeTableController.sharedController.userDefaultKeyForSelectedItemIDs;
+			NSMutableDictionary *selectedSamples = [userDefaults dictionaryForKey:selectedSampleKey].mutableCopy;
+			NSMutableDictionary *selectedGenotypes = [userDefaults dictionaryForKey:selectedGenotypeKey].mutableCopy;
 			BOOL modified = NO;
 			NSError *error;
-			/// we don't set an NSProgress as it would be difficult to monitor the progress of deletion
+			/// we don't set an `NSProgress` as it would be difficult to monitor the progress of deletion
 			[progressWindow showProgressWindowForProgress:nil afterDelay:1.0 modal:YES parentWindow:window];
 			SampleFolder *trash = [backgroundContext existingObjectWithID:trashFolder.objectID error:&error];
 			if(!error) {
@@ -634,9 +646,9 @@
 					[backgroundContext deleteObject:folder];
 				}
 				if(modified) {
-					[NSUserDefaults.standardUserDefaults setObject:genotypeFilters forKey:GenotypeFiltersKey];
-					[NSUserDefaults.standardUserDefaults setObject:selectedSamples forKey:SelectedSamples];
-					[NSUserDefaults.standardUserDefaults setObject:selectedGenotypes forKey:SelectedGenotypes];
+					[userDefaults setObject:genotypeFilters forKey:GenotypeFiltersKey];
+					[userDefaults setObject:selectedSamples forKey:selectedSampleKey];
+					[userDefaults setObject:selectedGenotypes forKey:selectedGenotypeKey];
 				}
 				if(backgroundContext.hasChanges) {
 					[backgroundContext save:&error];
@@ -656,7 +668,7 @@
 - (IBAction)editSmartFolder:(id)sender {
 	
 	SmartFolder *targetFolder = [self _targetFolderOfSender:sender];
-	if(targetFolder && (!targetFolder.isSmartFolder|| !targetFolder.searchPredicate)) {
+	if(targetFolder && (!targetFolder.isSmartFolder || !targetFolder.searchPredicate)) {
 		return;
 	}
 	SampleSearchHelper *sharedHelper = SampleSearchHelper.sharedHelper;
@@ -665,8 +677,8 @@
 		if(returnCode == NSModalResponseOK) {
 			NSPredicate *predicate = sharedHelper.predicate;
 			if(predicate && ![predicate isEqual:targetFolder.searchPredicate]) {
-				targetFolder.searchPredicate = predicate;
 				[self.undoManager setActionName:@"Modify Search Criteria"];
+				targetFolder.searchPredicate = predicate;
 				if(FolderListController.sharedController.selectedFolder != targetFolder) {
 					[FolderListController.sharedController selectFolder:targetFolder];
 				}

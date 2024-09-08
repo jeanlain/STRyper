@@ -27,6 +27,7 @@
 #import "FileImporter.h"
 #import "IndexImageView.h"
 #import "TableSortPopover.h"
+#import "SampleSearchHelper.h"
 #import "NSPredicate+PredicateAdditions.h"
 #import "NSManagedObjectContext+NSManagedObjectContextAdditions.h"
 @import QuartzCore;
@@ -158,6 +159,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 	if(!self.orderedColumnIDs) {
 		return;
 	}
+	NSTableView *tableView = self.tableView;
 	NSDictionary *columnDescription = self.columnDescription;
 	for (NSString *ID in self.orderedColumnIDs) {
 		NSTableColumn *col = [[NSTableColumn alloc] initWithIdentifier:ID];
@@ -170,7 +172,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 			col.sortDescriptorPrototype = caseInsensitiveSorting ? [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)] : [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES];
 		}
 		
-		[self.tableView addTableColumn:col];
+		[tableView addTableColumn:col];
 		
 		col.width = col.headerCell.cellSize.width + 10;
 		col.minWidth = col.headerCell.cellSize.width ;
@@ -203,13 +205,14 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 		return  view;					/// hopefully, this won't happen otherwise some views will be missing
 	}
 	
+	NSString *objectValueString = [NSStringFromSelector(@selector(objectValue)) stringByAppendingString:@"."];
 	/// we bind elements in this cell to properties of the object is represents.
 	/// We could have done it in IB, but it is clearer to do it in code. The bindings are also described in +columnDescription
 	NSString *keyPath;
 	view.identifier = ID;		/// So that the view will not need to be configured in the future.
 	NSTextField *textField = view.textField;
 	if(textField) {
-		keyPath = [@"objectValue." stringByAppendingString: cellDescription[KeyPathToBind]];
+		keyPath = [objectValueString stringByAppendingString: cellDescription[KeyPathToBind]];
 		[textField bind:NSValueBinding toObject:view withKeyPath:keyPath options:@{NSValidatesImmediatelyBindingOption:@YES}];
 		textField.selectable = YES;
 		if([cellDescription[IsTextFieldEditable] boolValue]) {
@@ -220,17 +223,17 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 	
 	if(view.imageView) {
 		if([view.imageView respondsToSelector:@selector(imageIndex)]) {
-			keyPath = [@"objectValue." stringByAppendingString: cellDescription[ImageIndexBinding]];
+			keyPath = [objectValueString stringByAppendingString: cellDescription[ImageIndexBinding]];
 			[view.imageView bind:ImageIndexBinding toObject:view withKeyPath:keyPath options:nil];
 		}
 		if (!view.textField) {		/// the cells only showing an image (no textfield), we bind to the tooltip
-			keyPath = [@"objectValue." stringByAppendingString: cellDescription[KeyPathToBind]];
+			keyPath = [objectValueString stringByAppendingString: cellDescription[KeyPathToBind]];
 			[view.imageView bind:NSToolTipBinding toObject:view withKeyPath:keyPath options:nil];
 		}
 	}
 	
 	if([view isKindOfClass: GaugeTableCellView.class]) {
-		keyPath = [@"objectValue." stringByAppendingString: cellDescription[KeyPathToBind]];
+		keyPath = [objectValueString stringByAppendingString: cellDescription[KeyPathToBind]];
 		[view bind:NSValueBinding toObject:view withKeyPath:keyPath options:nil];
 	}
 	
@@ -240,7 +243,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 
 
 - (NSString *)tableView:(NSTableView *)tableView typeSelectStringForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
-	/// Overridden for performance. We take advantage of the fact that we know which value of an item a table cell shows.
+	/// Overridden for performance. We take advantage of the fact that we know which value of an item a table cell shows even if the cell doesn't exist.
 	if(tableColumn.isHidden) {
 		return nil;
 	}
@@ -299,34 +302,22 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 	NSTableHeaderView *headerView = tableView.headerView;
 	if(menu == headerView.menu) {		/// we populate the menu with items representing the columns that the user can show/hide.
 		[menu removeAllItems];			/// we do it every time the menu appears so that the columns are in the order of the table (the user may have reordered columns)
-		/// we first add the item allowing to sort the table. Recreating this item each time isn't costly.
+										/// Even if certain menu item alway appears at the same position in the menu, it's easier to recreate the whole menu than reordering items.
 		if([self canSortByMultipleColumns]) {
 			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Sort Table…" action:@selector(showSortCriteria:) keyEquivalent:@""];
 			item.target = self;
 			[menu addItem:item];
 		}
 		
-		/// we add a menu item allowing to hide the clicked column. To identify this column, we use the mouse location
-		/// But we don't hide if there is only one visible column
-		if(self.visibleColumns.count > 1) {
-			NSPoint clickPoint = [headerView convertPoint:NSApp.currentEvent.locationInWindow fromView:nil];
-			NSInteger clickedCol = [headerView columnAtPoint:clickPoint];
-			if(clickedCol >= 0 && clickedCol < tableView.numberOfColumns) {
-				NSTableColumn *clickedColumn = tableView.tableColumns[clickedCol];
-				if([self canHideColumn:clickedColumn]) {
-					NSString *title = [@"Hide " stringByAppendingFormat:@"\"%@\"", clickedColumn.title];
-					NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(hideColumn:) keyEquivalent:@""];
-					item.target = self;
-					item.representedObject = clickedColumn;
-					[menu addItem:item];
-				}
-			}
-		}
-		if(menu.itemArray.count > 0) {
-			[menu addItem:NSMenuItem.separatorItem];
-		}
+		/// We add a menu item allowing to hide the clicked column.
+		NSString *title = @"Hide Column";
+		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(hideColumn:) keyEquivalent:@""];
+		item.target = self;
+		[menu addItem:item];
+		[menu addItem:NSMenuItem.separatorItem];
 		
 		for(NSTableColumn *col in tableView.tableColumns) {
+			/// We create a menu allowing to toggle visibility of each column.
 			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:col.title action:@selector(toggleColumnVisibility:) keyEquivalent:@""];
 			item.target = self;
 			item.representedObject = col;
@@ -334,7 +325,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 		}
 		
 		[menu addItem:NSMenuItem.separatorItem];
-		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Show All" action:@selector(showAllColumns:) keyEquivalent:@""];
+		item = [[NSMenuItem alloc] initWithTitle:@"Show All" action:@selector(showAllColumns:) keyEquivalent:@""];
 		[menu addItem:item];
 	} else if(menu == tableView.menu) {
 		/// if the menu is from our tableview's menu (set in IB), we hide its items if there is no clicked row
@@ -548,14 +539,16 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 		[alert beginSheetModalForWindow: self.view.window completionHandler:^(NSModalResponse returnCode) {
 			if(returnCode == NSAlertFirstButtonReturn) {
 				/// [self removeSelectedObjects:objects];  // before we remove the objects, we remove them from the selection. This is because the detailed view shows selected samples, which are somehow not removed from the selection after being deleted (although they get removed from the selection at some point).
-				[self removeItems:items];
 				[self.undoManager setActionName:actionName];
+				[self removeItems:items];
 			}
 		}];
 		return;
 	}
-	[self removeItems:items];
+	
 	[self.undoManager setActionName:actionName];
+	[self removeItems:items];
+	[AppDelegate.sharedInstance saveAction:self];
 	
 }
 
@@ -582,7 +575,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 			[item.managedObjectContext deleteObject:item];
 		}
 	}
-	[(AppDelegate *)NSApp.delegate saveAction:self];
+	[AppDelegate.sharedInstance saveAction:self];
 }
 
 
@@ -768,6 +761,10 @@ static NSString *const KeypathKey = @"KeypathKey";
 	tableSortPopover.sortActionTarget = self;
 	NSTableHeaderView *headerView = self.tableView.headerView;
 	[tableSortPopover showRelativeToRect:headerView.bounds ofView:headerView preferredEdge:NSMaxYEdge];
+	NSVisualEffectView *popoverFrame = (NSVisualEffectView *)tableSortPopover.contentViewController.view.superview;
+	if([popoverFrame respondsToSelector:@selector(material)]) {
+		popoverFrame.material = NSVisualEffectMaterialContentBackground;
+	}
 }
 
 
@@ -803,18 +800,15 @@ static NSString *const KeypathKey = @"KeypathKey";
 		[tableView scrollRowToVisible:row];
 		CALayer *flashLayer = self.flashLayer;
 		if(flashLayer) {
+			flashLayer.hidden = NO;
 			NSRect frame = NSIntersectionRect([tableView rectOfRow:row], tableView.visibleRect);
 			flashLayer.frame = NSInsetRect(frame, 1, 1); /// This makes the frame more visible in light mode.
-			[tableView.layer addSublayer:flashLayer];
-			CABasicAnimation* flashAnimation = [CABasicAnimation animationWithKeyPath:@"opacity"];
+			CABasicAnimation* flashAnimation = [CABasicAnimation animationWithKeyPath:@"borderWidth"];
 			flashAnimation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
-			flashAnimation.fromValue = @(1.0);
-			flashAnimation.toValue = @(0.0);
-			flashAnimation.duration = 1.0;
-			[CATransaction setCompletionBlock:^{
-				[flashLayer removeFromSuperlayer];
-			}];
-			[flashLayer addAnimation:flashAnimation forKey:@"opacity"];
+			flashAnimation.fromValue = @(4.0);
+			flashAnimation.toValue = @(2.0);
+			flashAnimation.duration = 0.5;
+			[flashLayer addAnimation:flashAnimation forKey:@"borderWidth"];
 		}
 	}
 }
@@ -826,19 +820,16 @@ static NSString *const KeypathKey = @"KeypathKey";
 		_flashLayer.borderColor = NSColor.whiteColor.CGColor;
 		_flashLayer.borderWidth = 2.0;
 		_flashLayer.zPosition = 1000;
-		_flashLayer.opacity = 0.0;
 		_flashLayer.actions = @{NSStringFromSelector(@selector(bounds)):NSNull.null,
 								NSStringFromSelector(@selector(position)):NSNull.null
 		};
+		[self.tableView.layer addSublayer:_flashLayer];
 	}
 	return _flashLayer;
 }
 
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	NSInteger clickedRow = self.tableView.clickedRow;
-	
-
 	if(menuItem.action == @selector(remove:)) {
 		/// we give a contextual title to the menu that removes an item.
 		NSString *title = [self removeActionTitleForItems:[self targetItemsOfSender:menuItem]];
@@ -878,11 +869,33 @@ static NSString *const KeypathKey = @"KeypathKey";
 		return self.tableContent.selectedObjects.count > 0;
 	}
 	
+	NSInteger clickedRow = self.tableView.clickedRow;
+
 	if(menuItem.action == @selector(copy:)) {
 		if(menuItem.topMenu == self.tableView.menu) {
 			return clickedRow >= 0;
 		}
 		return self.columnDescription && self.tableContent.selectedObjects.count > 0;
+	}
+	
+	if(menuItem.action == @selector(hideColumn:)) {
+		NSArray *visibleColumns = self.visibleColumns;
+		if(visibleColumns.count > 1) {
+			NSTableView *tableView = self.tableView;
+			NSTableHeaderView *headerView = tableView.headerView;
+			NSPoint clickPoint = [headerView convertPoint:NSApp.currentEvent.locationInWindow fromView:nil];
+			NSInteger clickedCol = [headerView columnAtPoint:clickPoint];
+			NSTableColumn *clickedColumn = (clickedCol < 0 || clickedCol >= tableView.numberOfColumns)?
+			visibleColumns.lastObject : tableView.tableColumns[clickedCol];
+				
+			if([self canHideColumn:clickedColumn]) {
+				menuItem.title = [@"Hide " stringByAppendingFormat:@"\"%@\"", clickedColumn.title];
+				menuItem.representedObject = clickedColumn;
+				return YES;
+			}
+		}
+		menuItem.title = @"Can't hide column";
+		return NO;
 	}
 	
 	if(menuItem.action == @selector(toggleColumnVisibility:)) {
@@ -900,8 +913,15 @@ static NSString *const KeypathKey = @"KeypathKey";
 	if(menuItem.action == @selector(showAllColumns:)) {
 		return self.visibleColumns.count < self.tableView.tableColumns.count;
 	}
-
+	
 	return YES;
+}
+
+
+- (void)tableViewSelectionDidChange:(NSNotification *)notification {
+	if(_flashLayer) {
+		self.flashLayer.hidden = YES;
+	}
 }
 
 
@@ -946,10 +966,11 @@ static NSString *const KeypathKey = @"KeypathKey";
 
 #pragma mark - recording and restoring selection
 
-- (void)recordSelectedItemsAtUserDefaultsKey:(NSString *)key subKey:(NSString *)subKey maxRecorded:(NSUInteger)maxRecorded {
+- (void)recordSelectedItemsAtKey:(NSString *)subKey maxRecorded:(NSUInteger)maxRecorded {
 	NSArrayController *tableContent = self.tableContent;
 	NSArray *selectedObjects = tableContent.selectedObjects;
-
+	
+	UserDefaultKey key = self.userDefaultKeyForSelectedItemIDs;
 	NSMutableDictionary *dic = [NSUserDefaults.standardUserDefaults dictionaryForKey:key].mutableCopy;
 	if(!dic) {
 		dic = NSMutableDictionary.new;
@@ -969,7 +990,13 @@ static NSString *const KeypathKey = @"KeypathKey";
 }
 
 
-- (void)restoreSelectedItemsWithUserDefaultsKey:(NSString *)key subKey:(NSString *)subKey {
+- (NSString *)userDefaultKeyForSelectedItemIDs {
+	return [@"selected_" stringByAppendingString: self.entityName];
+}
+
+
+- (void)restoreSelectedItemsAtKey:(NSString *)subKey {
+	UserDefaultKey key = self.userDefaultKeyForSelectedItemIDs;
 	NSDictionary *dic = [NSUserDefaults.standardUserDefaults dictionaryForKey:key];
 	if(dic) {
 		NSArray *itemIDs = dic[subKey];
@@ -1079,17 +1106,7 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 
 
 - (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor {
-	if(self.filterUsingPopover) {
-		/// we remove the background of the editor, which is defined by a visual effect view in macOS 14.
-		/// This view has been located by looking as the subview tree fo the editor via the debugger.
-		/// It would be better to find it by scanning all subviews, but more cumbersome.
-		NSView *view = predicateEditor.subviews.firstObject;
-		view = view.subviews.firstObject;
-		view = view.subviews.firstObject;
-		if([view isKindOfClass:NSVisualEffectView.class]) {
-			view.hidden = YES;
-		}
-	}
+	
 }
 
 
@@ -1167,11 +1184,15 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 	
 	NSPredicateEditor *editor = [contentView viewWithTag:2];
 	editor.objectValue = filterPredicate;
-	
-	NSTextField *errorTextField = [contentView viewWithTag:7];
-	errorTextField.hidden = YES;
-	
+		
 	[filterPopover showRelativeToRect:sender.bounds ofView:sender preferredEdge:NSMinYEdge];
+	
+	/// We remove the visual effect of the popover, as this doesn't go well with the predicate editor.
+	/// We must do it after the popover is set to show, otherwise the visual effect view is not in place.
+	NSVisualEffectView *popoverFrame = (NSVisualEffectView *)contentView.superview;
+	if([popoverFrame respondsToSelector:@selector(material)]) {
+		popoverFrame.material = NSVisualEffectMaterialContentBackground;
+	}
 }
 
 
@@ -1181,16 +1202,18 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 	NSPredicateEditor *editor = [contentView viewWithTag:2];
 	NSPredicate *filterPredicate = editor.predicate;
 	
-	if(filterPredicate.hasEmptyTerms) {
-		NSTextField *errorTextField = [contentView viewWithTag:7];
-		errorTextField.hidden = NO;
+	NSError *error = [SampleSearchHelper errorInFieldsOfEditor:editor];
+	if(error) {
+		[[NSAlert alertWithError:error] beginSheetModalForWindow:editor.window completionHandler:^(NSModalResponse returnCode) {
+					
+		}];
 		return;
 	}
 	
 	NSButton *caseSensitiveButton = [contentView viewWithTag:3];
 	
 	if(caseSensitiveButton.state == NSControlStateValueOn) {
-		filterPredicate = [filterPredicate caseInsensitivePredicate];
+		filterPredicate = filterPredicate.caseInsensitivePredicate;
 	}
 	
 	[self applyFilterPredicate:filterPredicate];

@@ -43,7 +43,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The alleles added to the genotype are created with ``Allele/initWithGenotype:additional:``.
 ///
-/// This method returns `nil` if the `sample` and `marker` do not have the same managed object context, if the sample's ``Chromatogram/panel`` doesn't contain the `marker`, or if the `sample` already has a genotype for the `marker`.
+/// This method returns `nil` if the `sample` and `marker` do not have the same managed object context, if the sample's ``Chromatogram/panel`` doesn't contain the `marker`, if  the `sample` already has a genotype for the `marker`,
+/// of if `sample` contains no valid ``Chromatogram/trace`` for the ``Mmarker/channel`` of the `marker`.
 - (nullable instancetype)initWithMarker:(Mmarker *)marker sample:(Chromatogram *)sample;
 
 
@@ -103,13 +104,22 @@ NS_ASSUME_NONNULL_BEGIN
 /// The allele of shorter size for a diploid genotype, or the only allele.
 @property (nonatomic, readonly, nullable) Allele *allele1;
 
-/// The longer allele for a diploid genotype, or nil for a haploid.
+/// The longer allele for a diploid genotype, or `nil` for a haploid.
 @property (nonatomic, readonly, nullable) Allele *allele2;
+
+@property (readonly) float leftAdenylationRatio;
+
+@property (readonly) float rightAdenylationRatio;
+
+@property (readonly) int scanOfPossibleAllele;
+
+@property (readonly) BOOL heterozygous;
+
 
 #pragma mark - genotype status
 
 /// An integer that denotes the status of a genotype and that can be used to notify the user that its alleles should be checked.
-typedef enum GenotypeStatus : int32_t {
+typedef NS_ENUM(int32_t, GenotypeStatus) {
 	/// Denotes that the alleles have not been called nor edited, hence they have no size and no name.
 	genotypeStatusNotCalled,
 	
@@ -126,8 +136,8 @@ typedef enum GenotypeStatus : int32_t {
 	genotypeStatusMarkerChanged,
 	
 	/// The genotype was edited manually by the user.
-	genotypeStatusManual,
-} GenotypeStatus;
+	genotypeStatusManual
+} ;
 
 /// The status of the genotype.
 ///
@@ -142,7 +152,7 @@ typedef enum GenotypeStatus : int32_t {
 /// Text notes that can be added to the genotype.
 ///
 /// This property can be used to store a description of manual changes made the genotype.
-@property (nonatomic) NSString *notes;
+@property (nonatomic, copy) NSString *notes;
 
 		
 #pragma mark - marker offset
@@ -213,8 +223,7 @@ extern const MarkerOffset MarkerOffsetNone;
 /// Alleles should in principle not be changed after a genotype is created, but in the case of a Chromatogram copy, we have to
 -(void)managedObjectOriginal_setAlleles:(nullable NSSet *)alleles;
 
--(void)managedObjectOriginal_setStatus:(int32_t)status;
--(void)managedObjectOriginal_setNotes:(nullable NSString *)status;
+-(void)managedObjectOriginal_setStatus:(int32_t)status; /// Used internally, but we may as well leave this here since we have this extension in the header.
 -(void)managedObjectOriginal_setOffsetData:(nullable NSData *)offsetData;
 
 /// The sample of a genotype should not be changed by other objects after its creation, except during copy or import.

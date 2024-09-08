@@ -66,13 +66,15 @@ NSPasteboardType _Nonnull const ChromatogramObjectIDPasteboardType = @"org.jpecc
 
 NSPasteboardType _Nonnull const MarkerOffsetPasteboardType = @"org.jpeccoud.stryper.MarkerOffsetPasteboardType";
 
-const float DefaultReadLength	= 550.0;
+const float DefaultReadLength = 550.0;
 
 
 @interface Chromatogram ()
 
-@property (nonatomic, readwrite) int minScan;
-@property (nonatomic, readwrite) int maxScan;
+@property (nonatomic) int minScan;
+@property (nonatomic) int maxScan;
+@property (nonatomic) NSData *sizes;
+
 
 /// the url of the source file (computed on demand from -sourceFile). We use it to bind to a NSPathControl value.
 @property (readonly, nonatomic) NSURL *fileURL;
@@ -96,9 +98,7 @@ const float DefaultReadLength	= 550.0;
 -(void)managedObjectOriginal_setReverseCoefs:(nullable NSData *)coefs;
 -(void)managedObjectOriginal_setTraces:(nullable NSSet<Trace *>*)traces;
 -(void)managedObjectOriginal_setGenotypes:(nullable NSSet<Genotype *> *)genotypes;
--(void)managedObjectOriginal_setOffscaleRegions:(nullable NSData *)coefs;
-
--(nullable NSSet *)managedObjectOriginal_genotypes;
+-(void)managedObjectOriginal_setOffscaleRegions:(nullable NSData *)offscaleRegions;
 
 @end
 
@@ -110,7 +110,17 @@ const float DefaultReadLength	= 550.0;
 @end
 
 
-@implementation Chromatogram
+@interface Chromatogram (PrimitiveAccessors)
+
+/// Allows quicker access to the trace ``coefs``, which can be accessed often.
+- (NSData*)primitiveCoefs;
+															
+@end
+
+
+@implementation Chromatogram {
+	NSData *previousCoefs; /// Used to determined if sizing coefficients have changed, to update the ``sizes`` attribute in this case..
+}
 
 @dynamic comment, gelType, importDate, instrument, lane, nChannels, nScans, offScaleScans, offscaleRegions, owner, panelName, plate, protocol, resultsGroup, runName, runStopTime, sampleName, sampleType, polynomialOrder, intercept, sizingSlope, sizingQuality, coefs, reverseCoefs, sourceFile, well, folder, panel, sizeStandard, standardName, traces, genotypes;
 
@@ -231,15 +241,15 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 	
 }
 
-/// Returns a chromatogram based on objects in a supplied dictionary, or nil of the dictionary lacks consistent fluorescence data.
+/// Returns a chromatogram based on objects in a supplied dictionary, or `nil` if the dictionary lacks consistent fluorescence data.
 ///
 /// Returns nil and sets the `error`argument if the fluorescence data is inconsistent (missing channel, trace of different lengths, etc.)
 /// - Parameters:
 ///   - sampleContent: The dictionary containing the data to create the chromatogram.
 ///   - context: The context in which to materialize the chromatogram.
 ///   - path: The file path of the ABIF file. This is only used to add information to the potential error.
-///   - error: On output, any error that prevented creating the file.
-+ (nullable instancetype) chromatogramWithDictionary:(NSDictionary *)sampleContent insertInContext:(NSManagedObjectContext *)context path:(NSString *)path error:(NSError **)error  {
+///   - error: On output, any error that prevented creating the chromatogram.
++ (nullable instancetype) chromatogramWithDictionary:(NSDictionary<NSString *, id> *)sampleContent insertInContext:(NSManagedObjectContext *)context path:(NSString *)path error:(NSError **)error  {
 	Chromatogram *sample = nil;
 	/// we check if the dictionary contains valid data for the traces (the rest is optional)
 	/// we will not create a Chromatogram entity otherwise
@@ -299,7 +309,7 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 	/// We can  now create the chromatogram object
 	sample = [[Chromatogram alloc] initWithEntity:Chromatogram.entity insertIntoManagedObjectContext:context];
 	NSDictionary *attributeDescriptions = self.entity.attributesByName;
-	[sampleContent enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull obj, BOOL * _Nonnull stop) {
+	[sampleContent enumerateKeysAndObjectsUsingBlock:^(NSString *key, id  _Nonnull obj, BOOL * _Nonnull stop) {
 		NSAttributeDescription *desc = attributeDescriptions[key];
 		if(desc) {		/// if there is a description for the key, it means it corresponds to a chromatogram attribute.
 						/// We check if the data is of the right class
@@ -392,7 +402,6 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 
 
 # pragma mark - sizing
-
 
 - (void)setSizeStandard:(SizeStandard *)sizeStandard {
 	[self managedObjectOriginal_setSizeStandard:sizeStandard];
@@ -526,10 +535,6 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 		}
 	}
 	
-	
-//	NSLog(@"offset: %f", maxDiffOffset);
-	
-	//score = score > 160? 1: score/160;
 	[self managedObjectOriginal_setSizingQuality: @(score)];
 	
 }
@@ -612,10 +617,10 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 
 
 - (float)readLength {
-	if(_readLength < 1) {
-		[self computeSizes];
+	if(self.sizes.length > 0) {
+		return _readLength;
 	}
-	return _readLength;
+	return DefaultReadLength;
 }
 
 
@@ -629,9 +634,18 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 }
 
 
+- (float)startSize {
+	if(self.sizes.length > 0) {
+		return _startSize;;
+	}
+	return 0;
+}
+
+
 - (NSData *)sizes {
-	if(_sizes.length == 0) {
-		if(!self.coefs) {
+	NSData *coefs = self.primitiveCoefs;
+	if(_sizes.length == 0 || previousCoefs != coefs) {
+		if(!coefs) {
 			[self computeFitting];		/// this method modifies core data attribute, hence may generate undo actions that may not be desirable. 
 										/// This is why we compute sizing coefficients on sample import.
 		}
@@ -641,36 +655,12 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 }
 
 
--(void)setSizes:(NSData * )sizes {
-	BOOL hadSizes = _sizes.length > 0;
-	_sizes = sizes;
-	/// if sizes have changed, allele sizes must be changed as well
-	if(hadSizes && sizes) {
-		for (Genotype *genotype in self.genotypes) {
-			for(Allele *allele in genotype.alleles) {
-				[allele computeSize];
-			}
-		}
-	}
-}
-
-
-/// Resets the size in response to a change in sizing.
--(void)updateSizes {
-	self.sizes = NSData.new;
-	NSUndoManager *manager = self.managedObjectContext.undoManager;
-	if(manager.canUndo || manager.canRedo) {
-		[manager registerUndoWithTarget:self selector:@selector(updateSizes) object:nil];
-	}
-	
-}
-
 /// Computes and sets the `size` attribute.
 - (void)computeSizes {
 	
 	NSData *coefData = self.coefs;
+	previousCoefs = coefData;
 	if(self.nScans == 0 || coefData.length == 0) {
-		self.readLength = DefaultReadLength;
 		return;
 	}
 	int nScans = self.nScans;
@@ -713,7 +703,7 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	self.minScan = (int)minScan;
 	self.maxScan = (int)maxScan;
 	
-	self.sizes =[NSData dataWithBytes:computedSizes length:nScans * sizeof(float)];
+	self.sizes = [NSData dataWithBytes:computedSizes length:nScans * sizeof(float)];
 	
 	free(computedSizes);
 	
@@ -721,10 +711,10 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 
 
 - (int)maxScan {
-	if(_sizes.length == 0) {
-		[self computeSizes];
+	if(self.sizes.length > 0) {
+		return _maxScan;;
 	}
-	return _maxScan;
+	return self.nScans;
 }
 
 
@@ -875,7 +865,8 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 
 
 -(void)applyPanelWithAlleleName:(NSString *)alleleName {
-	[self managedObjectOriginal_setGenotypes:nil];		/// we remove genotypes we may have from a previous panel (genotypes delete themselves when they lose their sample)
+	/// we remove genotypes the sample may have from a previous panel (genotypes delete themselves when they lose their sample)
+	[self managedObjectOriginal_setGenotypes:nil];
 	if (self.panel) {
 		for (Mmarker *marker in self.panel.markers) {
 			Genotype *newGenotype = [[Genotype alloc] initWithMarker:marker sample:self];
@@ -891,12 +882,13 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 
 - (void)setCoefs:(NSData *)coefs {
 	[self managedObjectOriginal_setCoefs:coefs];
-	[self updateSizes];
-	/// when sizing has changed, we note that any genotype may be checked
+	/// when sizing has changed, we recompute allele sizes
 	for(Genotype *genotype in self.genotypes) {
+		for(Allele *allele in genotype.alleles) {
+			[allele computeSize];
+		}
 		genotype.status = genotypeStatusSizingChanged;
 	}
-
 }
 
 
@@ -1115,5 +1107,21 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 	}
 	return nil;
 }
+
+
+-(void)refreshSizeData {
+	if(_sizes) {
+		self.sizes = nil;
+	}
+}
+
+
+- (void)didTurnIntoFault {
+	[super didTurnIntoFault];
+	if(_sizes) {
+		self.sizes = nil;
+	}
+}
+
 
 @end

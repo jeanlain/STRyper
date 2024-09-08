@@ -64,6 +64,7 @@ static NSArray *channelColorImages;
 							  [NSImage imageNamed:@"showGreenDye"],
 							  [NSImage imageNamed:@"showBlackDye"],
 							  [NSImage imageNamed:@"showRedDye"],
+							  [NSImage imageNamed:@"showOrangeDye"]
 		];
 	}
 	return channelColorImages;
@@ -160,8 +161,9 @@ static NSArray *channelColorImages;
 	NSTableCellView *view = (NSTableCellView *)[super tableView:tableView viewForTableColumn:tableColumn row:row];
 
 	if([ID isEqualToString:@"markerChannelColumn"]) {
-		if([view.imageView respondsToSelector:@selector(imageArray)]) {
-			((IndexImageView *)view.imageView).imageArray = self.class.channelColorImages;
+		IndexImageView *imageView = (IndexImageView *)view.imageView;
+		if([imageView respondsToSelector:@selector(imageArray)] && imageView.imageArray == nil) {
+			imageView.imageArray = self.class.channelColorImages;
 		}
 	}
 	
@@ -169,7 +171,12 @@ static NSArray *channelColorImages;
 }
 
 
-# pragma mark - dragging markers
+# pragma mark - dragging and copying markers
+
+- (void)copyItems:(NSArray *)items ToPasteBoard:(NSPasteboard *)pasteboard {
+	[super copyItems:items ToPasteBoard:pasteboard];
+	[pasteboard writeObjects:items];
+}
 
 /// we allow copy-dragging markers between panels
 - (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint forRowIndexes:(NSIndexSet *)rowIndexes {
@@ -258,7 +265,7 @@ static NSArray *channelColorImages;
 		newMarkerPopover.markerName = [panel proposedMarkerName];
 		newMarkerPopover.diploid = YES;					/// which correspond to diploid
 		NSButton *button = (NSButton *)sender;
-		[newMarkerPopover showRelativeToRect:button.frame ofView:button.superview preferredEdge:NSRectEdgeMaxY modal:YES];
+		[newMarkerPopover showRelativeToRect:button.frame ofView:button.superview preferredEdge:NSRectEdgeMaxY modal:NO];
 	}
 }
 
@@ -267,7 +274,7 @@ static NSArray *channelColorImages;
 
 	NSError *error;
 	/// we add the marker in a background context. We won't save if the marker is not valid.
-	NSManagedObjectContext *MOC = ((AppDelegate *)NSApp.delegate).newChildContextOnMainQueue;
+	NSManagedObjectContext *MOC = AppDelegate.sharedInstance.newChildContextOnMainQueue;
 	
 	PanelListController *controller = PanelListController.sharedController;
 	Panel *panel = controller.selectedFolder;
@@ -296,7 +303,6 @@ static NSArray *channelColorImages;
 		return;
 	}
 
-	
 
 	Mmarker *newMarker = [[Mmarker alloc] initWithStart:newMarkerPopover.markerStart end:newMarkerPopover.markerEnd channel:newMarkerPopover.markerChannel panel:panel];
 	newMarker.name = newMarkerPopover.markerName;
@@ -315,10 +321,10 @@ static NSArray *channelColorImages;
 	
 	[newMarker createGenotypesWithAlleleName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
 	
+	[self.undoManager setActionName:@"Add Marker"];
 	BOOL saved = [MOC save:nil];
 	if(saved) {
-		[self.undoManager setActionName:@"Add Marker"];
-		[(AppDelegate *)NSApp.delegate saveAction:self];
+		[AppDelegate.sharedInstance saveAction:self];
 	} else {
 		error = [NSError errorWithDescription:@"The marker could not be created because an inconsistency in the database." suggestion:@"You may quit the application and try again."];
 		[NSApp presentError:error];

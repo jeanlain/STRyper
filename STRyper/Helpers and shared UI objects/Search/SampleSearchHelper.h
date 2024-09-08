@@ -29,7 +29,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// corresponding to the ``Chromatogram`` attributes shown in the table managed by ``SampleTableController``.
 ///
 /// The sample search is performed via an `NSFetchedResultsController object.
-@interface SampleSearchHelper : NSObject <NSFetchedResultsControllerDelegate> 
+///
+/// This class also has a convenience method to validate text fields of a (predicate) editor.
+@interface SampleSearchHelper : NSObject <NSFetchedResultsControllerDelegate>
 
 
 /// Returns the singleton object.
@@ -55,7 +57,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Since the singleton object has a single ``SearchWindow``, it is assumed that this method is not called again before the sheet closes.
 /// We only manage a single search at once.
 ///
-/// The method does not check if the `searchPredicate` has valid terms for a sample search.
+/// The method assumes that the `searchPredicate` has valid terms for a sample search.
 /// - Parameters:
 ///   - window: The window to which the search window should be attached as a modal sheet.
 ///   - searchPredicate: The predicate to show in the predicate editor. If nil, the method shows a default predicate using the ``Chromatogram/sampleName`` key.
@@ -73,6 +75,15 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Returns the managed object context in which samples are searched.
 -(NSManagedObjectContext *)managedObjectContext;
+
+
+/// Returns the first error found in text fields or an editor.
+///
+/// An error is an empty field or an incorrect values for a number in a text field that has a number formatter.
+/// This method can be used to determine whether search terms are valid.
+/// - Parameter editor: an editor.
++(nullable NSError *)errorInFieldsOfEditor:(NSView *)editor;
+
 
 @end
 

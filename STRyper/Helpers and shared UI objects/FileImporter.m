@@ -55,7 +55,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 	static dispatch_once_t once;
 
 	dispatch_once(&once, ^{
-		sharedImporter = [[self alloc] init];
+		sharedImporter = self.new;
 	});
 	return sharedImporter;
 }
@@ -95,19 +95,26 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 }
 
 
-- (void)importSamplesFromFiles:(NSArray<NSString *> *)filePaths completionHandler: (void (^)(NSError *error, SampleFolder* folder))callbackBlock {
+- (void)importSamplesFromFiles:(NSArray<NSString *> *)filePaths 
+					 batchSize:(NSUInteger)batchSize
+		   intermediateHandler:(void (^)(SampleFolder* folder))intermediateBlock
+			 completionHandler: (void (^)(NSError *error))callbackBlock {
 
 	if(self.importOnGoing) {
 		NSError *error = [NSError errorWithDescription:@"An import is already ongoing." suggestion:@"Please try again later."];
-		callbackBlock(error, nil);
+		callbackBlock(error);
 		return;
+	}
+	
+	if(batchSize < 1) {
+		batchSize = 1;
 	}
 		
 	NSOperationQueue *callingQueue = NSOperationQueue.currentQueue;
 	BOOL applySizeStandard = [NSUserDefaults.standardUserDefaults boolForKey:AutoDetectSizeStandard];
 	NSDate *currentDate = NSDate.date;		/// which we will add as import date for each sample, to make sure the date is the same for all
 	NSUInteger nFiles = filePaths.count;
-	NSInteger batchSize = nFiles/100 +1;
+	NSUInteger reportFileCount = nFiles/100 +1;
 	ProgressWindow *progressWindow = ProgressWindow.new;
 	NSWindow *window = MainWindowController.sharedController.window;
 	NSManagedObjectContext *MOC = ((AppDelegate*)NSApp.delegate).newChildContext;
@@ -122,7 +129,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 		[MOC obtainPermanentIDsForObjects:@[folder] error:nil];
 		[folder autoName]; /// To avoid a validation error.
 
-		NSUInteger numberOfProcessedFiles = 0;
+		NSUInteger numberOfProcessedFiles = 0, numberOfImportedFilesInBatch = 0;
 		for (NSString *filePath in filePaths) {
 			if(self.importProgress.isCancelled) {
 				break;
@@ -131,7 +138,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 			numberOfProcessedFiles++;
 			
 			Chromatogram *sample = [Chromatogram chromatogramWithABIFFile:filePath addToFolder:folder error:&fileError];
-			if(numberOfProcessedFiles % batchSize == 0) {
+			if(numberOfProcessedFiles % reportFileCount == 0) {
 				self.importProgress.completedUnitCount = numberOfProcessedFiles;
 				self.importProgress.localizedDescription = [NSString stringWithFormat:@"%ld of %ld samples processed",
 															numberOfProcessedFiles, nFiles];
@@ -144,6 +151,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 					[sample.managedObjectContext deleteObject:sample];
 				}
 			} else if(sample) {
+				numberOfImportedFilesInBatch++;
 				sample.importDate = currentDate;
 				if(applySizeStandard) {
 					[self autoDetectSizeStandardOnSample:sample];
@@ -153,12 +161,24 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 					[sample setLinearCoefsForReadLength:DefaultReadLength];
 				}
 			}
+			if(numberOfImportedFilesInBatch >= batchSize || numberOfProcessedFiles == nFiles) {
+				numberOfImportedFilesInBatch = 0;
+				[folder.managedObjectContext save:&error];
+				[callingQueue addOperationWithBlock:^{
+					intermediateBlock(folder);
+				}];
+				if(numberOfProcessedFiles < nFiles) {
+					folder = [[SampleFolder alloc] initWithContext:MOC];
+					[MOC obtainPermanentIDsForObjects:@[folder] error:nil];
+					[folder autoName];
+				}
+			}
 		}
 		
 		[self.importProgress resignCurrent];
 		
 		if(self.importProgress.isCancelled) {
-			error = [NSError cancelOperationErrorWithDescription:@"The user cancelled the import." suggestion:@""];
+			error = [NSError cancelOperationErrorWithDescription:@"The import was cancelled after." suggestion:@""];
 		} else if(folder.samples.count > 0 && folder.managedObjectContext.hasChanges) {
 			self.importProgress.localizedDescription = @"Saving imported data…";
 			self.importProgress.cancellable = NO;
@@ -186,7 +206,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 		}
 		
 		[callingQueue addOperationWithBlock:^{
-			callbackBlock(error, folder);
+			callbackBlock(error);
 		}];
 		
 		[progressWindow stopShowingProgressAndClose];
@@ -235,7 +255,7 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 	
 	ProgressWindow *progressWindow = ProgressWindow.new;
 	NSWindow *window = MainWindowController.sharedController.window;
-	self.childContext = [(AppDelegate *)NSApp.delegate newChildContext];
+	self.childContext = [AppDelegate.sharedInstance newChildContext];
 	self.importProgress = [NSProgress progressWithTotalUnitCount:-1];
 	[self.importProgress becomeCurrentWithPendingUnitCount:-1];
 	NSOperationQueue *callingQueue = NSOperationQueue.currentQueue;

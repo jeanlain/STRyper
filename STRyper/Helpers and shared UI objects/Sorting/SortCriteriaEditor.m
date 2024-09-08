@@ -146,21 +146,21 @@ static NSString *const Title = @"title";
 
 - (NSArray<NSSortDescriptor *> *)sortDescriptors {
 	NSMutableArray *sortDescriptors = [NSMutableArray arrayWithCapacity:sortDictionaries.count];
-		for(NSDictionary *dic in sortDictionaries) {
-			NSString *key = sortKeysForTitles[dic[Title]];
-			NSString *selectorName = selectorNamesForSortKeys[key];
-			if(!selectorName) {
-				selectorName = NSStringFromSelector(@selector(compare:));
-			}
-			BOOL ascending = [dic[ascendingOrder] boolValue];
-			if(key) {
-				NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:key
-																			 ascending:ascending
-																			  selector:NSSelectorFromString(selectorName)];
-				[sortDescriptors addObject:descriptor];
-			}
+	for(NSDictionary *dic in sortDictionaries) {
+		NSString *key = sortKeysForTitles[dic[Title]];
+		NSString *selectorName = selectorNamesForSortKeys[key];
+		if(!selectorName) {
+			selectorName = NSStringFromSelector(@selector(compare:));
 		}
-		return sortDescriptors;
+		BOOL ascending = [dic[ascendingOrder] boolValue];
+		if(key) {
+			NSSortDescriptor *descriptor = [NSSortDescriptor sortDescriptorWithKey:key
+																		 ascending:ascending
+																		  selector:NSSelectorFromString(selectorName)];
+			[sortDescriptors addObject:descriptor];
+		}
+	}
+	return [NSArray arrayWithArray: sortDescriptors];
 }
 
 # pragma mark - datasource methods for the table view defining sort criteria
@@ -200,6 +200,7 @@ static NSString *const Title = @"title";
 			popUp.enabled = YES;
 			for(NSMenuItem *item in popUp.menu.itemArray) {
 				item.enabled = YES;			/// we enable all items because, for unknown reasons, the selected item may sometimes appear as disabled
+											/// Note: this doesn't seem necessary, but maybe it was in older macOS versions.
 			}
 		}
 	}
@@ -264,7 +265,7 @@ static NSString *const Title = @"title";
 		[sortCriteriaTable reloadDataForRowIndexes:[NSIndexSet indexSetWithIndex:0] columnIndexes:[NSIndexSet indexSetWithIndex:0]];
 	}
 	
-	/// we makes sure that the "add" buttons have their correct state
+	/// we make sure that the "add" buttons have their correct state
 	[sortCriteriaTable reloadDataForRowIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, sortCriteriaTable.numberOfRows)] columnIndexes:[NSIndexSet indexSetWithIndex:3]];
 
 	if([self.delegate respondsToSelector:@selector(editor:didRemoveRowAtIndex:)]) {
@@ -276,6 +277,7 @@ static NSString *const Title = @"title";
 - (void)menuNeedsUpdate:(NSMenu *)menu {
 	/// we're the delegate of the popup buttons' menus allowing to choose the attributes by which to sort.
 	/// we disable the items corresponding to titles already used for sorting in other rows.
+	/// We don't use `validateMenuItem:` because it isn't called even after we set set the target and action of items.
 	NSArray *usedTitles = [sortDictionaries valueForKeyPath:[@"@unionOfObjects." stringByAppendingString:Title]];
 	for (NSMenuItem *item in menu.itemArray) {
 		item.enabled = item.state == NSControlStateValueOn || ![usedTitles containsObject:item.title];

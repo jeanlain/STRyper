@@ -105,7 +105,7 @@
 		NSCompoundPredicate *compound = (NSCompoundPredicate *)self;
 		NSMutableArray *subPredicates = [NSMutableArray arrayWithCapacity:compound.subpredicates.count];
 		for(NSPredicate *pred in compound.subpredicates) {
-			NSPredicate *result = [pred caseInsensitivePredicate];
+			NSPredicate *result = pred.caseInsensitivePredicate;
 			if(result) {
 				[subPredicates addObject:result];
 			} else {

@@ -43,29 +43,25 @@
 
 #pragma mark - initialization and base attributes setting
 
-/// We observe some keys of our region to update when they change
-static NSString * const startKey = @"start";
-static NSString * const endKey = @"end";
-static NSString * const nameKey = @"name";
-static NSString * const editStateKey = @"editState";
-
-
+/// Pointier to observe some keys of our region to update when they change
 static void * const regionStartChangedContext = (void*)&regionStartChangedContext;
 static void * const regionEndChangedContext = (void*)&regionEndChangedContext;
 static void * const regionEditStateChangedContext = (void*)&regionEditStateChangedContext;
 static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
+static void * const regionWillBeDeletedContext = (void*)&regionWillBeDeletedContext;
+static void * const popoverDelegateChangedContext = (void*)&popoverDelegateChangedContext;
 
 
 + (nullable __kindof RegionLabel*)regionLabelWithRegion:(Region *)region view:(__kindof LabelView *)view {
 	RegionLabel *label;
 	if([region isKindOfClass:Mmarker.class]) {
 		if([view isKindOfClass:TraceView.class]) {
-			label = [[TraceViewMarkerLabel alloc] init];
+			label = TraceViewMarkerLabel.new;
 		} else {
-			label = [[MarkerLabel alloc] init];
+			label = MarkerLabel.new;
 		}
 	} else {
-		label = [[BinLabel alloc] init];
+		label = BinLabel.new;
 	}
 	if(label) {
 		label.view = view;
@@ -75,39 +71,81 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 	return label;
 }
 
-- (void)setRegion:(__kindof Region *)region {
-	Region *previousRegion = self.region;
-	if(previousRegion) {
-		[previousRegion removeObserver:self forKeyPath:startKey];
-		[previousRegion removeObserver:self forKeyPath:endKey];
-		if(!self.isBinLabel) {
-			[previousRegion removeObserver:self forKeyPath:editStateKey];
-		}
+
+- (instancetype)init {
+	self = [super init];
+	if (self) {
+		_offset = MarkerOffsetNone;
+		layer = CALayer.new;
+		layer.delegate = self;
+		layer.opaque = YES;
 		if(![self isKindOfClass:TraceViewMarkerLabel.class]) {
-			[previousRegion removeObserver:self forKeyPath:nameKey];
+			layer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
+							  NSStringFromSelector(@selector(borderWidth)):NSNull.null};
+
+			bandLayer = CALayer.new;
+			bandLayer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
+								  NSStringFromSelector(@selector(borderWidth)):NSNull.null,
+								  NSStringFromSelector(@selector(hidden)):NSNull.null};
+			bandLayer.delegate = self;
+			bandLayer.opaque = YES;
+
+			stringLayer = CATextLayer.new;
+			stringLayer.actions = @{@"contents":NSNull.null}; /// `actionForLayer:ForKey:` on a text layer is deferred,
+															  /// which prevents determining if we should allow animation. So we don't.
+			stringLayer.contentsScale = 2.0;
+			stringLayer.delegate = self;
+			stringLayer.drawsAsynchronously = YES;  			/// maybe that helps a bit (not noticeable)
+			stringLayer.font = (__bridge CFTypeRef _Nullable)[NSFont labelFontOfSize:8.5];
+			stringLayer.foregroundColor = NSColor.textColor.CGColor;
 		}
 	}
+	return self;
+}
+
+
+- (void)setRegion:(__kindof Region *)region {
+	if(_region) {
+		[_region removeObserver:self forKeyPath:willBeDeletedKey];
+		[_region removeObserver:self forKeyPath:regionStartKey];
+		[_region removeObserver:self forKeyPath:regionEndKey];
+		if(!self.isBinLabel) {
+			[_region removeObserver:self forKeyPath:regionEditStateKey];
+		}
+		if(![self isKindOfClass:TraceViewMarkerLabel.class]) {
+			[_region removeObserver:self forKeyPath:regionNameKey];
+		}
+		[self.attachedPopover close];
+		self.attachedPopover = nil;
+	}
 	_region = region;
+	
 	if(region) {
-		[region addObserver:self forKeyPath:startKey
+		/// We observe the region rather than self for @"region.start" (in `init`) for instance, because that causes crashes when undoing
+		/// the deletion of a marker, for reasons I could not identify (observers were properly removed in dealloc).
+		[region addObserver:self forKeyPath:willBeDeletedKey
+					options:NSKeyValueObservingOptionNew
+					context:regionWillBeDeletedContext];
+		[region addObserver:self forKeyPath:regionStartKey
 					options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
 					context:regionStartChangedContext];
-		[region addObserver:self forKeyPath:endKey
+		[region addObserver:self forKeyPath:regionEndKey
 					options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
 					context:regionEndChangedContext];
-		if(![region isKindOfClass: Bin.class]) {
-			[region addObserver:self forKeyPath:editStateKey
+		if(!self.isBinLabel) {
+			[region addObserver:self forKeyPath:regionEditStateKey
 						options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
 						context:regionEditStateChangedContext];
 		}
 		if(![self isKindOfClass:TraceViewMarkerLabel.class]) {
 			/// This class of label doesn't show the name of the region.
-			[region addObserver:self forKeyPath:nameKey
+			[region addObserver:self forKeyPath:regionNameKey
 						options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
 						context:regionNameChangedContext];
 		}
 	}
 }
+
 
 
 - (BOOL)highlightedOnMouseUp {
@@ -124,22 +162,13 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 
 
 -(void) removeFromView {
-	NSView *view = self.view;
-	if (view) {
+	if(_attachedPopover) {
 		[self.attachedPopover close];
+		self.attachedPopover = nil;
 	}
-	if(bandLayer.superlayer) {
-		[bandLayer removeFromSuperlayer];		/// the band layer may not be in the same view as the "layer", so we remove it from its parent separately
-	}
+	[bandLayer removeFromSuperlayer];		/// the band layer may not be in the same view as the `layer`, so we remove it from its parent separately
 
 	[super removeFromView];
-}
-
-
-- (void)updateAppearance {
-	
-	/// when highlighted, we make our border visible to signify that we can be resized
-	layer.borderWidth = (self.highlighted)? 1.0 : 0.0;
 }
 
 
@@ -149,87 +178,75 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 
 # pragma mark - reacting to region and view changes, geometry updates
 
-
-- (void)setName {
+- (void)updateStringLayer {
 	NSString *name = self.region.name;
-	if(!name || !stringLayer) {
-		return;
-	}
-	stringLayer.string = name;
-	CGSize size = stringLayer.preferredFrameSize;
-	stringLayer.bounds = CGRectMake(0, 0, size.width, size.height);
-	
-	if(!self.view.needsLayoutLabels) {
-		[self repositionInternalLayers];		/// the change in name requires repositioning the string layer
+	if(name) {
+		stringLayer.string = name;
+		CGSize size = stringLayer.preferredFrameSize;
+		stringLayer.bounds = CGRectMake(0, 0, size.width, size.height);
 	}
 }
 
 
--(void)repositionInternalLayers {
+- (void)updateAppearance {
+	/// A region label has different tracking areas depending on its state (highlighted in particular).
+	if(needsUpdateTrackingAreas) {
+		layer.borderWidth = _highlighted? 1.0 : 0.0;
+		[self updateTrackingArea];
+		needsUpdateTrackingAreas = NO;
+	}
+	
+	if(needsUpdateString) {
+		[self updateStringLayer];
+		if(!self.view.needsRepositionLabels) {
+			[self layoutInternalLayers]; /// The change in layer size requires this.
+		}
+		needsUpdateString = NO;
+	}
+}
+
+
+-(void)layoutInternalLayers {
 	/// overridden
 }
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-	
-	if(context == regionEditStateChangedContext) {
+	if(context == regionWillBeDeletedContext) {
+		self.region = nil; /// which remove observations to avoid reacting to change in a region that will be deleted.
+	} else if(context == regionEditStateChangedContext) {
 		self.editState = self.region.editState;
 	} else if(context == regionNameChangedContext){
-		[self setName];
+		if(self.isBinLabel) {
+			[self updateStringLayer];
+			/// If the bin name change, we ask to reposition the parent label to avoid overlap with other bin names.
+			TraceViewMarkerLabel *parentLabel = [(BinLabel *)self parentLabel];
+			if(parentLabel) { /// which is `nil` if the label was just created and got a new region, but
+							  /// the parent label will be repositioned anyway.
+				[self.view labelNeedsRepositioning:parentLabel];
+			}
+		} else {
+			/// For a marker name, we defer the update
+			needsUpdateString = YES;
+			self.needsUpdateAppearance = YES;
+		}
 	} else  if(context == regionStartChangedContext || context == regionEndChangedContext) {
-		Region *region = self.region;
+		Region *region = object;
 		/// we close any popover we show if it is not the one changing the attributes of the region.
 		if(self.attachedPopover && self.attachedPopover != regionPopover) {
 			[self.attachedPopover performClose:self];
 		}
-		/// If we show the region popover, we update the start and end values to reflect those of our region
-		if(regionPopover.delegate == self) {
-			for (NSTextField *field in regionPopover.contentViewController.view.subviews) {
-				/// the text field contains an identifier that matches the region key
-				if([field.identifier isEqualToString:keyPath]) {
-					field.objectValue = [region valueForKey:keyPath];
-				}
-			}
-		}
 		if(context == regionStartChangedContext) {
-			float start = region.start;
-			if(start > 0) {
-				/// when a label is deleted, its coordinates are set to zero.
-				/// We don't need to react to that, as we will be removed anyway.
-				self.start = start;
-			}
+			self.start = region.start;
 		} else if(context == regionEndChangedContext) {
-			float end = region.end;
-			if(end > 0) {
-				self.end = end;
-			}
+			self.end = region.end;
 		}
-
-	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-}
-
-
-- (void)setEnabled:(BOOL)enabled {
-	if(enabled != _enabled) {
-		super.enabled = enabled;
-		[self updateAppearance];
+	} else if(context == popoverDelegateChangedContext) {
+		if(_attachedPopover.delegate != self) {
+			self.attachedPopover = nil;
+		}
 	}
 }
-
-
-- (void)setHighlighted:(BOOL)highlighted {
-	if(highlighted != self.highlighted) {
-		/// when may get de-highlighted because our popover spawns and our view resigns first responder. We avoid that.
-		super.highlighted = highlighted;
-	
-		/// when we get highlighted (the user has clicked our frame), we get "edges" ready for resizing. Hence the user cannot resize before clicking us.
-		/// This ensure that even if we are very close from the adjacent region,the user should always be able to grab the correct edge (and this may avoid unwanted resizing)
-		/// We therefore need to reposition and get/remove tracking areas for our edges
-		[self.view labelNeedsRepositioning:self];
-	}
-}
-
-
 
 
 - (void)setStart:(float)pos {
@@ -267,10 +284,6 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 	}
 	
 	TraceView *view = self.view;
-	
-	float clickedX = view.clickedPoint.x;
-	/// we set the clicked x position in our own coordinates (which must consider our offset)
-	clickedPosition = ([view sizeForX:clickedX] - self.offset.intercept)/self.offset.slope;
 	
 	/// we determine if the user has clicked an edge
 	self.clickedEdge = noEdge;	/// the default value
@@ -318,27 +331,36 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 
 # pragma mark - tracking area-related methods
 
+- (void)setHighlighted:(BOOL)highlighted {
+	if(highlighted != _highlighted) {
+		super.highlighted = highlighted;
+		needsUpdateTrackingAreas = YES;
+	}
+}
+
 
 - (void)updateTrackingArea {
 	TraceView *view = self.view;
-	if(!view) {
-		return;
-	}
-	/// we set tracking areas for our edges, which are needed to show the resizing cursor
-	[super updateTrackingArea];
-
-	if(self.highlighted) {
-		leftEdgeRect =  NSMakeRect(self.frame.origin.x, 0, 5, self.frame.size.height);
-		rightEdgeRect =  NSMakeRect(NSMaxX(self.frame)-5, 0, 5, self.frame.size.height);
+	if(view) {
+		BOOL highlighted = self.highlighted;
+		NSRect frame = NSInsetRect(regionRect, -2, 0);
+		/// when highlighted, the frame gets a bit wider
+		/// to avoid deselecting the label when the user clicks an edge for resizing.
+		self.frame = highlighted? frame: regionRect;
+		[super updateTrackingArea];
 		
-		leftEdgeArea = [self addTrackingAreaForRect:leftEdgeRect];
-		rightEdgeArea = [self addTrackingAreaForRect:rightEdgeRect];
-		NSPoint mouseLocation = view.mouseLocation;
-		self.hoveredEdge = (NSPointInRect(mouseLocation, leftEdgeRect) || NSPointInRect(mouseLocation, rightEdgeRect));
-	} else {
-		leftEdgeRect = NSZeroRect;
-		rightEdgeRect = NSZeroRect;
-		self.hoveredEdge = NO;
+		if(highlighted) {
+			leftEdgeRect =  NSMakeRect(frame.origin.x, 0, 5, frame.size.height);
+			rightEdgeRect =  NSMakeRect(NSMaxX(frame)-5, 0, 5, frame.size.height);
+			leftEdgeArea = [self addTrackingAreaForRect:leftEdgeRect];
+			rightEdgeArea = [self addTrackingAreaForRect:rightEdgeRect];
+			NSPoint mouseLocation = view.mouseLocation;
+			self.hoveredEdge = (NSPointInRect(mouseLocation, leftEdgeRect) || NSPointInRect(mouseLocation, rightEdgeRect));
+		} else {
+			leftEdgeRect = NSZeroRect;
+			rightEdgeRect = NSZeroRect;
+			self.hoveredEdge = NO;
+		}
 	}
 }
 
@@ -347,22 +369,19 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 	TraceView *view = self.view;
 	if (leftEdgeArea) {
 		[view removeTrackingArea:leftEdgeArea];
-		leftEdgeArea = nil;
 	}
 	if (rightEdgeArea) {
 		[view removeTrackingArea:rightEdgeArea];
-		rightEdgeArea = nil;
 	}
 	if(trackingArea) {
 		[view removeTrackingArea:trackingArea];
-		trackingArea = nil;
 	}
 }
 
 
 - (void)mouseEntered:(NSEvent *)theEvent {
 	NSTrackingArea *trackingArea = theEvent.trackingArea;
-	if (trackingArea == self->trackingArea) {  		/// the cursor entered the label
+	if (trackingArea == self->trackingArea) {
 		[super mouseEntered:theEvent];
 	} else if(trackingArea == leftEdgeArea || trackingArea == rightEdgeArea) {
 		self.hoveredEdge = YES;
@@ -372,7 +391,7 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 
 - (void)mouseExited:(NSEvent *)theEvent {
 	NSTrackingArea *trackingArea = theEvent.trackingArea;
-	 if (trackingArea == self->trackingArea) {  		/// the cursor exited the label
+	 if (trackingArea == self->trackingArea) {
 		 [super mouseExited:theEvent];
 	 } else if(trackingArea == leftEdgeArea || trackingArea == rightEdgeArea) {
 		 self.hoveredEdge = NO;
@@ -389,7 +408,9 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 
 
 - (void)cancelOperation:(id)sender {
-	self.editState = editStateNil;
+	if(!_dragged) {
+		self.editState = editStateNil;
+	}
 }
 
 
@@ -401,7 +422,7 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 	/// the default menu has an item for showing the popover that allows editing our region
 
 	if(_menu == nil) {
-		_menu = [[NSMenu alloc] initWithTitle:@"edit"];
+		_menu = NSMenu.new;
 		[_menu addItemWithTitle:@"Edit Name and Range" action:@selector(spawnRegionPopover:) keyEquivalent:@""];
 		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"edited"]];
 		for(NSMenuItem *item in self.menu.itemArray) {
@@ -415,24 +436,13 @@ static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 NSPopover *regionPopover;	/// the popover that the user can user to edit the region. We use a single instance as just one popover should show at a time
 
 
-/// The tag used to identify the controls in the regionPopover
-/// These tags are set in IB
-enum controlTag : NSInteger {
-	startTextFieldTag = 1,
-	endTextFieldTag = 2,
-	nameTextFieldTag = 3,
-	
-} controlTag;
-
 
 - (void)spawnRegionPopover:(id)sender {
 	Region *region = self.region;
 	if(!region || !self.view) {
 		return;
 	}
-	if(region.name.length == 0) {
-		[region autoName];	/// a proposed name should appear in the text field.
-	}
+
 	if(!regionPopover) {
 		regionPopover = NSPopover.new;
 		NSViewController *controller = [[NSViewController alloc] initWithNibName:@"RegionPopover" bundle:nil];
@@ -443,9 +453,10 @@ enum controlTag : NSInteger {
 		regionPopover.delegate = self;
 		for (NSTextField *field in regionPopover.contentViewController.view.subviews) {
 			NSString *identifier = field.identifier;
-			if([@[@"start", @"end", @"name"] containsObject:identifier]) {
+			if([@[regionStartKey, regionEndKey, regionNameKey] containsObject:identifier]) {
 				field.delegate = self;
-				[field bind:NSValueBinding toObject:region withKeyPath:identifier options:@{NSValidatesImmediatelyBindingOption:@YES}];
+				[field bind:NSValueBinding toObject:region withKeyPath:identifier 
+					options:@{NSValidatesImmediatelyBindingOption:@YES}];
 			}
 		}
 	}
@@ -454,13 +465,30 @@ enum controlTag : NSInteger {
 }
 
 
+- (void)setAttachedPopover:(NSPopover *)attachedPopover {
+	/// We observe the delegate of the attached popover, as a delegate that is different from the label means that the popover should
+	/// no longer be attached to it (it will be attached to another label). Several labels with the same attached popover will conflict in positioning the popover.
+	/// This currently is a safety measure, as the popover closes (setting this property to `nil`) before another label spawns it (due to the double click).
+	if(_attachedPopover != attachedPopover) {
+		if(_attachedPopover) {
+			[_attachedPopover removeObserver:self forKeyPath:@"delegate"];
+		}
+		_attachedPopover = attachedPopover;
+		if(_attachedPopover) {
+			[_attachedPopover addObserver:self forKeyPath:@"delegate"
+								  options:NSKeyValueObservingOptionNew
+								  context:popoverDelegateChangedContext];
+		}
+	}
+}
+
+
 - (void)controlTextDidEndEditing:(NSNotification *)obj {
-	/// we check if the value entered for the start or end of the region is allowed.
 	NSTextField *textField = obj.object;
-	NSInteger tag = textField.tag;
-	if(tag == nameTextFieldTag) {
+	NSString *ID = textField.identifier;
+	if([ID isEqualToString:regionNameKey]) {
 		[self.view.undoManager setActionName:self.isBinLabel? @"Rename Bin" : @"Rename Marker"];
-	} else if(tag == startTextFieldTag || tag == endTextFieldTag) {
+	} else if([@[regionStartKey, regionEndKey] containsObject:ID]) {
 		[self.view.undoManager setActionName:self.isBinLabel? @"Resize Bin" : @"Resize Marker"];
 	}
 }
@@ -469,13 +497,9 @@ enum controlTag : NSInteger {
 
 - (void)popoverWillShow:(NSNotification *)notification {
 	NSPopover *pop = notification.object;
-	if(self.attachedPopover != pop) {
-		/// if we already have a popover showing, we close it
-		[self.attachedPopover close];
-	}
 	self.attachedPopover = pop;
-	
 }
+
 
 - (void)popoverDidShow:(NSNotification *)notification {
 	NSPopover *popover = notification.object;
@@ -487,24 +511,8 @@ enum controlTag : NSInteger {
 }
 
 
-- (BOOL)control:(NSControl *)control textShouldEndEditing:(NSText *)fieldEditor {
-	NSString *identifier = control.identifier;
-	if([@[@"name", @"start", @"end"] containsObject: identifier]) {
-		NSError *error;
-		id value = control.objectValue;
-		[self.region validateValue:&value forKey:identifier error:&error];
-		if(error) {
-			control.objectValue = [self.region valueForKey:identifier];
-			return NO;
-		}
-	}
-	return YES;
-}
-
-
-
-- (void)popoverDidClose:(NSNotification *)notification {
-	if(self.attachedPopover == notification.object) {
+- (void)popoverWillClose:(NSNotification *)notification {
+	if(notification.object == _attachedPopover) {
 		self.attachedPopover = nil;
 		if(self.view.window.firstResponder != self.view) {
 			self.highlighted = NO;
@@ -515,7 +523,7 @@ enum controlTag : NSInteger {
 
 
 - (void)drag {
-	/// Default implementation used  by BinLabel and MarkerLabel, that can be used to resize or drag their region
+	/// Default implementation used by BinLabel and MarkerLabel, which resizes or moves their region
 	self.dragged = YES;
 
 	/// We determine the position of the mouse in base pairs (trace coordinates)
@@ -532,12 +540,15 @@ enum controlTag : NSInteger {
 	}
 	
 	if(self.clickedEdge == leftEdge) {
-		self.start = pos;       	/// which updates our frame (see -setStart)
+		self.start = pos;
 	} else if(self.clickedEdge == rightEdge) {
 		self.end = pos;
 	} else if(self.clickedEdge == betweenEdges && self.isBinLabel) {
 		/// If the user has clicked between the edges, we move both edges at the same time => we move the label. We only allow that for bins
 		/// this requires a bit of computation to deduce where the edges should go, since they are not at the mouse exact location
+		TraceView *view = self.view;
+		MarkerOffset offset = self.offset;
+		float clickedPosition = ([view sizeForX:view.clickedPoint.x] - offset.intercept)/offset.slope;
 		float newStart = pos - (clickedPosition - self.region.start);
 		float newEnd = pos - (clickedPosition - self.region.end);
 		if (newStart < leftLimit) {
@@ -564,9 +575,9 @@ enum controlTag : NSInteger {
 			if(self.start != self.region.start || self.end != self.region.end) {
 				[self updateRegion];
 			}
-			[self updateTrackingArea];
+			[self updateTrackingArea]; /// Since tracking areas are not updated during the drag.
 			
-			/// If the mouse is moving quickly when the drag session ended, it may exit tracking areas without mouseExited: being sent. Hence, the cursor will not update.
+			/// If the mouse is moving quickly after the drag session ended, it may exit tracking areas without mouseExited: being sent. Hence, the cursor will not update.
 			/// I suppose the tracking areas are not "ready" to react yet (an appkit bug?)
 			/// To reduce the risk of this happening, we send this message:
 			[self performSelector:@selector(_updateHoveredState) withObject:nil afterDelay:0.05];
@@ -636,15 +647,7 @@ enum controlTag : NSInteger {
 
 
 
--(void)_updateOffset:(MarkerOffset)offset {
-	TraceView *view = self.view;
-	NSArray *targetSamples = [view.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
-	Mmarker *marker = (Mmarker *)self.region;
-	
-	if(!targetSamples || !marker) {
-		return;
-	}
-	
+-(BOOL)_updateOffset:(MarkerOffset)offset {
 	if(offset.slope > 1.1) {
 		offset.slope = 1.1;
 	} else if(offset.slope < 0.9) {
@@ -652,11 +655,17 @@ enum controlTag : NSInteger {
 	}
 	float margin = (self.end - self.start)*0.5;
 	if(fabs(self.start - self.start * offset.slope - offset.intercept) > margin + 0.001 || fabs(self.end - self.end * offset.slope - offset.intercept) > margin + 0.001) {
-		return;
+		return NO;
 	}
 
+	TraceView *view = self.view;
+	NSArray *targetSamples = [view.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
+	Mmarker *marker = (Mmarker *)self.region;
 	
-	NSData *offsetCoefs = [NSData dataWithBytes:&offset length:sizeof(offset)];
+	if(!targetSamples || !marker) {
+		return NO;
+	}
+	
 	NSArray *genotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
 	
 	genotypes = [genotypes filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
@@ -664,18 +673,16 @@ enum controlTag : NSInteger {
 	}]];
 	
 	if(genotypes.count > 0) {
+		NSData *offsetCoefs = [NSData dataWithBytes:&offset length:sizeof(offset)];
 		[self.view.undoManager setActionName:@"Change Marker Offset"];
 		for(Genotype *genotype in genotypes) {
 			genotype.offsetData = offsetCoefs;
 		}
+		return YES;
 	}
+	return NO;
 }
 
-
-
-- (void)resetBinLabels {
-	
-}
 
 
 -(RegionLabel *)addLabelForBin:(Bin *)bin {
@@ -684,7 +691,7 @@ enum controlTag : NSInteger {
 
 
 - (void)dealloc {
-	self.region = nil;
+	self.region = nil; /// This is crucial to remove observers.
 }
 
 @end

@@ -38,24 +38,28 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The managed object context associated with the receiver.
 ///
-/// It must be the context to which the receiver is an undo manager.
-/// Hence, this must be set after the undo manager has been associated with the context.
+/// - Important: `managedObjectContext` must be the context to which the receiver is an undo manager.
+/// Hence, this property must be set after the receiver has been set as the  `undoManager` of the `managedObjectContext`.
 @property (weak, nonatomic) NSManagedObjectContext *managedObjectContext;
 
 
 /// Sets an possible action name for the receiver.
 ///
-/// The method has no visible effect until the receiver is notified that its ``managedObjectContext`` as changed.
+/// The method has no visible effect until the receiver is notified that its ``managedObjectContext`` has changed.
 /// The last action name set by this method before this notification is the one that will be used,  regardless of when this method was called.
 ///
 /// If the ``managedObjectContext`` is `nil`, the superclass implementation is used.
+///
+/// - Important: To take effet, this method must be called _before_ the managed object context associated with the receiver
+/// posts a change notification resulting from the action. If should therefore be called before the action is performed.
+///
 /// - Parameter actionName: The name of the action.
 - (void)setActionName:(NSString *)actionName;
 
 
 /// Forces setting the action name of the receiver.
 ///
-/// This can be used to action that do not modify the ``managedObjectContext``.
+/// This can be used to name an action that does not modify the ``managedObjectContext``.
 /// - Parameter actionName: The name of the action.
 -(void)forceActionName:(NSString *)actionName;
 

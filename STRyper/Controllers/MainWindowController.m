@@ -1,5 +1,5 @@
 //
-//  SourceItemController.m
+//  MainWindowController.m
 //  STRyper
 //
 //  Created by Jean Peccoud on 11/03/2022.
@@ -33,6 +33,13 @@
 #import "FileImporter.h"
 
 
+@interface MainWindowController ()
+
+/// Property bound to the active tab number of the tabView
+@property (nonatomic) NSNumber *activeBottomTab;
+
+@end
+
 
 @implementation MainWindowController {
 	/// Outlet used to populate the tab view by adding tabs, which are loaded from other nibs.
@@ -44,12 +51,12 @@
 }
 
 
-typedef enum bottomTab : NSUInteger {		/// the number of the tab in the bottom tab view
+typedef NS_ENUM(NSUInteger, bottomTab) {		/// the number of the tab in the bottom tab view
 	sampleInspectorTab,
 	genotypeTab,
 	markerTab,
 	sizeStandardTab
-} bottomTab;
+} ;
 
 
 @synthesize mainSplitViewController = _mainSplitViewController,
@@ -63,7 +70,7 @@ errorLogWindow = _errorLogWindow;
 	static dispatch_once_t once;
 	
 	dispatch_once(&once, ^{
-		controller = [[self alloc] init];
+		controller = self.new;
 	});
 	return controller;
 }
@@ -94,7 +101,7 @@ errorLogWindow = _errorLogWindow;
 		NSTabViewItem *item = NSTabViewItem.new;
 		item.view =  sampleInspectorController.view;
 		[tabView addTabViewItem:item];
-		[sampleInspectorController bind:@"samples" toObject:SampleTableController.sharedController.tableContent withKeyPath:@"selectedObjects" options:nil];
+	///	[sampleInspectorController bind:@"samples" toObject:SampleTableController.sharedController.tableContent withKeyPath:@"selectedObjects" options:nil];
 	} else {
 		NSLog(@"failed to load the sample table.");
 		abort();
@@ -138,7 +145,8 @@ errorLogWindow = _errorLogWindow;
 	
 	/// To remember which tab is shown and to synchronize the NSSegmentedControl button activating tab and the tabView, we use a property set in user defaults.
 	[tabView bind:NSSelectedIndexBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
-	
+	[self bind:@"activeBottomTab" toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
+
 	
 	if(!SampleSearchHelper.sharedHelper) {
 		/// we init the search controller as must perform the search in case there are smart folder in the database
@@ -150,7 +158,7 @@ errorLogWindow = _errorLogWindow;
 
 - (NSUndoManager *)windowWillReturnUndoManager:(NSWindow *)window {
 	/// Returns the NSUndoManager for the application. In this case, the manager returned is that of the managed object context for the application.
-	return ((AppDelegate *)NSApp.delegate).managedObjectContext.undoManager;
+	return AppDelegate.sharedInstance.managedObjectContext.undoManager;
 }
 	
 
@@ -195,7 +203,8 @@ errorLogWindow = _errorLogWindow;
 				thickness = NSMaxX(button.frame) + 5;
 			}
 			item.minimumThickness = thickness;
-			item.collapseBehavior = NSSplitViewItemCollapseBehaviorPreferResizingSiblingsWithFixedSplitView;	/// this doesn't appear to work consistently as revealing the bottom pane may sometimes increase the window height while there is still space
+			item.collapseBehavior = NSSplitViewItemCollapseBehaviorPreferResizingSiblingsWithFixedSplitView;	
+			/// the above doesn't appear to work consistently as revealing the bottom pane may sometimes increase the window height while there is still space
 			[_mainSplitViewController addSplitViewItem:item];
 		} else {
 			return nil;
@@ -488,10 +497,27 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 
 
 - (void)keyDown:(NSEvent *)event {
-	unichar key = [event.charactersIgnoringModifiers characterAtIndex:0];
-	/// we send any up/down arrow key event to the active tableview
-	if ((key == NSUpArrowFunctionKey || key == NSDownArrowFunctionKey) && self.sourceController.tableView) {
-		[self.sourceController.tableView keyDown:event];
+	NSString *chars = event.charactersIgnoringModifiers;
+	if(chars.length > 0) {
+		unichar key = [chars characterAtIndex:0];
+		/// we send any up/down arrow key event to the active tableview
+		if ((key == NSUpArrowFunctionKey || key == NSDownArrowFunctionKey) && self.sourceController.tableView) {
+			[self.sourceController.tableView keyDown:event];
+		}
+	}
+}
+
+
+- (void)setActiveBottomTab:(NSNumber *)activeBottomTab {
+	/// We determine if the sample inspector is shown. If not, there is not need to update it (via a binding)
+	/// Note: we use a NSNumber for this property, because using an NSInteger would not call this method
+	/// when the selected tab is zero (???).
+	SampleInspectorController *sampleInspectorController = SampleInspectorController.sharedController;
+	if(activeBottomTab.longValue == sampleInspectorTab) {
+		[sampleInspectorController bind:@"samples" toObject:SampleTableController.sharedController.tableContent withKeyPath:NSSelectedObjectsBinding options:nil];
+	} else {
+		[sampleInspectorController unbind:@"samples"];
+		sampleInspectorController.samples = nil;
 	}
 }
 

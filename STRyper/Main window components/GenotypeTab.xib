@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22689"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
@@ -18,20 +18,20 @@
         <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <view identifier="tab" id="zDR-oD-NhW">
-            <rect key="frame" x="0.0" y="0.0" width="659" height="627"/>
+            <rect key="frame" x="0.0" y="0.0" width="659" height="599"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
                 <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="17" horizontalPageScroll="10" verticalLineScroll="17" verticalPageScroll="10" id="KXV-TJ-ooR">
-                    <rect key="frame" x="0.0" y="30" width="659" height="597"/>
+                    <rect key="frame" x="0.0" y="30" width="659" height="569"/>
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     <clipView key="contentView" id="vQ5-hg-J4f">
-                        <rect key="frame" x="0.0" y="0.0" width="659" height="597"/>
+                        <rect key="frame" x="0.0" y="0.0" width="659" height="569"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <tableView identifier="genotypeTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="fullWidth" alternatingRowBackgroundColors="YES" autosaveColumns="NO" rowSizeStyle="automatic" headerView="6Hg-kz-OZW" viewBased="YES" floatsGroupRows="NO" id="EP9-jv-hOU" userLabel="Genotype table">
-                                <rect key="frame" x="0.0" y="0.0" width="659" height="569"/>
+                                <rect key="frame" x="0.0" y="0.0" width="659" height="541"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                                <size key="intercellSpacing" width="3" height="0.0"/>
+                                <size key="intercellSpacing" width="2" height="0.0"/>
                                 <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                 <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                 <tableColumns>
@@ -64,7 +64,7 @@
                         <rect key="frame" x="632" y="28" width="16" height="14"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </scroller>
-                    <tableHeaderView key="headerView" wantsLayer="YES" id="6Hg-kz-OZW" customClass="TableHeaderView">
+                    <tableHeaderView key="headerView" clipsToBounds="YES" wantsLayer="YES" id="6Hg-kz-OZW" customClass="TableHeaderView">
                         <rect key="frame" x="0.0" y="0.0" width="659" height="28"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </tableHeaderView>

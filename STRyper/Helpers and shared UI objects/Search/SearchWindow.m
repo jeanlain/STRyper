@@ -21,6 +21,7 @@
 #import "SearchWindow.h"
 #import "NSPredicate+PredicateAdditions.h"
 #import "NSError+NSErrorAdditions.h"
+#import "SampleSearchHelper.h"
 
 @implementation SearchWindow {
 	
@@ -86,12 +87,11 @@
 - (IBAction)validateSearch:(NSButton *)sender {
 	NSModalResponse returnCode = [sender.title isEqualToString:@"OK"]? NSModalResponseOK : NSModalResponseCancel;
 	
-	if(returnCode == NSModalResponseOK && self.predicateEditor) {
-		NSPredicate *predicate = self.predicateEditor.predicate;
-		/// we won't close if the predicate has empty terms
-		if(predicate.hasEmptyTerms) {
-			NSError *error = [NSError errorWithDescription:@"At least one text field is empty." suggestion:@"Please, fill all fields."];
-			[[NSAlert alertWithError:error] beginSheetModalForWindow:self completionHandler:^(NSModalResponse returnCode) {
+	NSPredicateEditor *editor = self.predicateEditor;
+	if(returnCode == NSModalResponseOK && editor) {
+		NSError *error = [SampleSearchHelper errorInFieldsOfEditor:editor];
+		if(error) {
+			[[NSAlert alertWithError:error] beginSheetModalForWindow:editor.window completionHandler:^(NSModalResponse returnCode) {
 			}];
 			return;
 		}

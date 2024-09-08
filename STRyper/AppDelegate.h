@@ -34,6 +34,9 @@
 		
 }
 
+/// Returns the shared instance.
++ (instancetype)sharedInstance;
+
 /// The persistent container of the core data database used by the application.
 ///
 /// If the persistent store cannot be loaded, the method shows an alert that proposes to create a new one and copy the old one, or to quit.
@@ -66,7 +69,7 @@
 ///
 /// This methods sends `-rollback` to the context if saving fails after undoing or if undoing is not possible.
 ///
-/// The method then shows an alert with an optimal button that can be clicked to open the log window (see ``MainWindowController/errorLogWindow``).
+/// The method then shows an alert with an optional button that can be clicked to open the log window (see ``MainWindowController/errorLogWindow``).
 /// The log window will contain the description of the error(s) that prevented saving.
 /// - Parameters:
 ///   - context: The managed object context for which validation errors should be recovered.

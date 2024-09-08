@@ -164,7 +164,7 @@
 
 
 - (void)updateCursor {
-	// overridden by subclasses
+	/// overridden by subclasses
 }
 
 
@@ -173,6 +173,19 @@
 	/// We set a location that is outside the view bounds to make clear to labels that the mouse is no longer in the view
 	/// Otherwise, some labels may get hovered when they update their tracking area.
 	self.mouseLocation = NSMakePoint(-100, -100);
+}
+
+- (void)keyDown:(NSEvent *)event {
+	if(!draggedLabel) {
+		[super keyDown:event];
+	}
+}
+
+
+- (void)keyUp:(NSEvent *)event {
+	if(!draggedLabel) {
+		[super keyUp:event];
+	} 
 }
 
 # pragma mark - geometry
@@ -189,15 +202,15 @@
 }
 
 
-- (void)layout {
-	[super layout];  /// Apple say it is required.
-	if(self.needsLayoutLabels) {
-		[self repositionLabels:self.repositionableLabels allowAnimation:NO];
-	} else {
-		if(labelsToReposition.count > 0) {
-			[self repositionLabels:labelsToReposition.allObjects allowAnimation:YES];
-			[labelsToReposition removeAllObjects];
-		}
+- (BOOL)wantsUpdateLayer {
+	return YES;
+}
+
+- (void)updateLayer {
+	NSArray *labels = self.needsRepositionLabels? self.markerLabels : labelsToReposition.allObjects;
+	[self repositionLabels:labels];
+	if(labelsToReposition.count > 0) {
+		[labelsToReposition removeAllObjects];
 	}
 }
 
@@ -206,7 +219,7 @@
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
 	if(draggedLabel) {
 		/// We forbid any action sent by a menu (via keyboard shortcut) while a label is being dragged
-		/// In particular, we disable undo/redo.
+		/// In particular, we disable undo/redo. Overriding `keyDown:` and `keyUp:` wasn't sufficient.
 		return NO;
 	}
 	
@@ -234,12 +247,17 @@
 	///
 	/// For reasons I can't understand, no AppKit class implements undo:, even though it is the action of the undo menu item
 	/// which NSWindow is able to validate. No one can manage the message. We have to implement it.
-	[self.undoManager undo];
+	if(!draggedLabel) {
+		[self.undoManager undo];
+	}
 }
 
 -(void)redo:(id)sender {
-	[self.undoManager redo];
+	if(!draggedLabel) {
+		[self.undoManager redo];
+	}
 }
+
 
 # pragma mark - labels
 
@@ -278,9 +296,7 @@
 				RegionLabel *regionLabel;
 				if(reassignedLabelsCount < otherLabelsCount) {
 					regionLabel = otherLabels[reassignedLabelsCount];
-					regionLabel.animated = NO;
 					regionLabel.region = region;
-					regionLabel.animated = YES;
 					reassignedLabelsCount++;
 				} else {
 					regionLabel = [RegionLabel regionLabelWithRegion:region view:self];
@@ -294,14 +310,18 @@
 }
 
 
-- (void)repositionLabels:(NSArray *)labels allowAnimation:(BOOL)allowAnimate {
+- (void)repositionLabels:(NSArray *)labels  {
 	if(self.hScale > 0.0 && !self.hidden) {
+		BOOL notMoving = !self.isMoving;
 		for (ViewLabel *label in labels) {
-			label.animated = allowAnimate;
 			[label reposition];
-			label.animated = YES;
+			if(notMoving && !label.dragged) {
+				/// if the view is not moving, we reposition tracking areas
+				/// (the view updates tracking areas after it stops moving and the label updates its tracking area after the drag)
+				[label updateTrackingArea];
+			}
 		}
-		self.needsLayoutLabels = NO;
+		self.needsRepositionLabels = NO;
 	}
 }
 
@@ -332,18 +352,18 @@
 
 
 
-- (void)setNeedsLayoutLabels:(BOOL)needsLayoutLabels {
-	_needsLayoutLabels = needsLayoutLabels;
-	if(needsLayoutLabels) {
-		self.needsLayout = YES;
+- (void)setNeedsRepositionLabels:(BOOL)needsRepositionLabels {
+	_needsRepositionLabels = needsRepositionLabels;
+	if(needsRepositionLabels) {
+		self.needsDisplay = YES;
 	}
 }
 
 
 - (void)labelNeedsRepositioning:(ViewLabel *)viewLabel {
-	if(!_needsLayoutLabels) {
+	if(!_needsRepositionLabels) {
 		[labelsToReposition addObject:viewLabel];
-		self.needsLayout = YES;
+		self.needsDisplay = YES;
 	}
 }
 
@@ -438,12 +458,10 @@
 		
 		if(temporaryContext.hasChanges) {
 			NSError *error;
+			[self.undoManager setActionName:[@"Add " stringByAppendingString:region.entity.name]];
 			[region.managedObjectContext save:&error];
 			NSManagedObjectContext *MOC = self.panel.managedObjectContext;
-			if(!error && MOC.hasChanges && [MOC save:nil]) {
-				/// saving is important as the label verifies if the region has a permanent object ID at some point.
-				[self.undoManager setActionName:[@"Add " stringByAppendingString:region.entity.name]];
-			} else {
+			if(error || !(MOC.hasChanges && [MOC save:nil])) {
 				NSString *description = [NSString stringWithFormat:@"The %@ could not be added because of an error in the database", region.entity.name.lowercaseString];
 				[NSApp presentError:[NSError errorWithDescription:description suggestion:@""]];
 				[label removeFromView];
