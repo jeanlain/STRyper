@@ -39,23 +39,20 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Configures the receiver with available key paths for sorting, corresponding selectors, and user-facing titles.
 ///
-/// The `titles` will compose the menu items of popup buttons allowing the user to define sort criteria.
+/// The `titles` will be those of the menu items of popup buttons allowing the user to define sort criteria.
+/// - Important: The `count` of `titles` and `sortDescriptors` must be the same and ≥ 2, otherwise an exception is thrown.
 /// - Parameters:
+///   - sortDescriptors: The sort descriptors that the receiver will propose, each of which must have a unique `key`.
 ///   - titles: The titles that will show in the popup button (from top to bottom) allowing the user to select among sort attributes at a given row.
-///   The array must contain at least two elements, each of which must be unique.
-///   - keypaths: The key paths used for sorting. Each key path corresponds to an element of the `titles` argument at the same index, and must be unique.
-///   - selectorNames: Names of selectors used for sorting the corresponding `keypaths`.
-///   These names can be produced with `NSStringFromSelector`. If `nil`, the default selector `compare:` will be used to generated the ``sortDescriptors``.
-///   If not `nil`, the count of the array must be the same as the `keypaths` array.
--(void)configureWithKeyPaths:(NSArray<NSString *>*)keypaths 
-			   selectorNames:(nullable NSArray<NSString *>*)selectorNames
-					  titles: (NSArray<NSString *>*)titles;
+///   Each title must be unique.
+- (void)configureWithSortDescriptors:(NSArray<NSSortDescriptor *> *)sortDescriptors
+							  titles:(NSArray<NSString *> *)titles;
 
-/// The sort descriptors that the receiver shows.
+/// The sort descriptors that the receiver shows as rows.
 ///
 /// The `selector` of each sort descriptor is ignored.
 ///
-/// - Important: The `key` of each sort descriptor must belong to the `keypaths` specified in ``configureWithKeyPaths:selectorNames:titles:``.
+/// - Important: The `key` of each sort descriptor must be used by one of the `sortDescriptors` set in ``configureWithSortDescriptors:titles:``.
 @property (nonatomic, copy) NSArray<NSSortDescriptor *>* sortDescriptors;
 
 /// The table view that contains the rows representing sort descriptors.

@@ -446,10 +446,10 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 			BOOL assignAllele2 = NO;
 			if(genotype.allele1.scan < genotype.scanOfPossibleAllele) {
 				float adenylationRatio = genotype.rightAdenylationRatio;
-				assignAllele2 = adenylationRatio > meanRightAdenylationRatio * 6 & adenylationRatio >= 0.7;
+				assignAllele2 = (adenylationRatio > meanRightAdenylationRatio) * 6 && (adenylationRatio >= 0.5);
 			} else {
 				float adenylationRatio = genotype.leftAdenylationRatio;
-				assignAllele2 = adenylationRatio > meanLeftAdenylationRatio * 6 & adenylationRatio >= 0.7;
+				assignAllele2 = (adenylationRatio > meanLeftAdenylationRatio * 6) && (adenylationRatio >= 0.5);
 			}
 			if(assignAllele2) {
 				Allele *allele2 = genotype.allele2;

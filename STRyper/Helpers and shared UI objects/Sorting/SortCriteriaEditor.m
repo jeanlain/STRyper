@@ -90,10 +90,10 @@ static NSString *const ascendingOrder = @"ascending";
 static NSString *const Title = @"title";
 
 
-- (void)configureWithKeyPaths:(NSArray<NSString *> *)keypaths selectorNames:(NSArray<NSString *> *)selectorNames titles:(NSArray<NSString *> *)titles {
+- (void)configureWithSortDescriptors:(NSArray<NSSortDescriptor *> *)sortDescriptors titles:(NSArray<NSString *> *)titles {
 	NSUInteger count = titles.count;
-	if(count != keypaths.count || (selectorNames && selectorNames.count != count)) {
-		NSException *exception = [NSException exceptionWithName:@"Editor configuration exception." reason:@"Cannot configure the editor. The titles, keypaths and selector names have different counts." userInfo:nil];
+	if(count != sortDescriptors.count) {
+		NSException *exception = [NSException exceptionWithName:@"Editor configuration exception." reason:@"Cannot configure the editor. The titles and sort descriptors have different counts." userInfo:nil];
 		[exception raise];
 		return;
 	}
@@ -106,17 +106,17 @@ static NSString *const Title = @"title";
 	
 	self.titles = titles;
 	
-	titlesForSortKeys = [NSMutableDictionary dictionaryWithCapacity:count];
-	sortKeysForTitles = [NSMutableDictionary dictionaryWithCapacity:count];
-	selectorNamesForSortKeys = [NSMutableDictionary dictionaryWithCapacity:count];
-	
-	for(NSUInteger index = 0; index < titles.count; index++) {
-		titlesForSortKeys[keypaths[index]] = titles[index];
-		if(selectorNames) {
-			selectorNamesForSortKeys[keypaths[index]] = selectorNames[index];
-		}
-		sortKeysForTitles[titles[index]] = keypaths[index];
+	NSArray *keypaths = [sortDescriptors valueForKeyPath:@"@unionOfObjects.key"];
+
+	titlesForSortKeys = [NSMutableDictionary dictionaryWithObjects:titles forKeys:keypaths];
+	sortKeysForTitles = [NSMutableDictionary dictionaryWithObjects:keypaths forKeys:titles];
+		
+	NSMutableArray *selectorNames = [NSMutableArray arrayWithCapacity:count];
+	for(NSSortDescriptor *sortDescriptor in sortDescriptors) {
+		[selectorNames addObject:NSStringFromSelector(sortDescriptor.selector)];
 	}
+	selectorNamesForSortKeys = [NSMutableDictionary dictionaryWithObjects:selectorNames forKeys:keypaths];
+	
 }
 
 

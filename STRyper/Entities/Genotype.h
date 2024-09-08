@@ -107,12 +107,22 @@ NS_ASSUME_NONNULL_BEGIN
 /// The longer allele for a diploid genotype, or `nil` for a haploid.
 @property (nonatomic, readonly, nullable) Allele *allele2;
 
+/// The maximum height ratio (in RFU) measured between peaks that represent adenylation and alleles, for peaks that are at the right of alleles.
+///
+/// This property is zero if ``callAllelesAndAdditionalPeak:`` was not called after the genotype was inserted/fetched.
 @property (readonly) float leftAdenylationRatio;
 
+/// The maximum height ratio (in RFU) measured between peaks that represent adenylation  and alleles, for peaks that are at the left of alleles.
+///
+/// This property is zero if ``callAllelesAndAdditionalPeak:`` was not called after the genotype was inserted/fetched.
 @property (readonly) float rightAdenylationRatio;
 
+/// The scan of a peak that could represent and allele.
+///
+/// This property is zero if ``callAllelesAndAdditionalPeak:`` was not called after the genotype was inserted/fetched.
 @property (readonly) int scanOfPossibleAllele;
 
+/// Whether the genotype is heterozygous, i.e., whether the positions (scans) of its ``assignedAlleles`` differ (and differ from zero).
 @property (readonly) BOOL heterozygous;
 
 

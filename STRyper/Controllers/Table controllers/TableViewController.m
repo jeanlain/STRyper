@@ -701,50 +701,34 @@ static NSString *const KeypathKey = @"KeypathKey";
 		return;
 	}
 	
-	/// We prepare the sort criteria editor
-	NSArray *columnTitles = [visibleColumns valueForKeyPath:@"@unionOfObjects.title"];
-	NSMutableArray *keypaths = [NSMutableArray arrayWithCapacity:visibleColumns.count];
-	NSMutableArray *selectorNames = [NSMutableArray arrayWithCapacity:visibleColumns.count];
-	for(NSTableColumn *column in visibleColumns) {
-		NSDictionary *columnDescription = self.columnDescription[column.identifier];
-		NSString *keypath = columnDescription[KeyPathToBind];
-		if(keypath) {
-			[keypaths addObject:keypath];
-			BOOL caseSensitive = [columnDescription[IsColumnSortingCaseInsensitive]boolValue];
-			NSString *selectorName = caseSensitive? NSStringFromSelector(@selector(localizedCaseInsensitiveCompare:)) : NSStringFromSelector(@selector(compare:));
-			[selectorNames addObject:selectorName];
-		} else {
-			NSLog(@"Missing keypath for column identifier '%@'.", column.identifier);
-			return;
-		}
+	NSArray<NSSortDescriptor *> *sortDescriptors = [visibleColumns valueForKeyPath:@"@unionOfObjects.sortDescriptorPrototype"];
+	
+	if(sortDescriptors.count < 1) {
+		return;
 	}
+	
+	NSArray<NSString *> *keypaths = [sortDescriptors valueForKeyPath:@"@unionOfObjects.key"];
 	
 	/// We show the sort criteria that were last applied
 	NSArray *lastSortCriteria = [NSUserDefaults.standardUserDefaults arrayForKey:[self.tableView.identifier stringByAppendingString:@"_sortCriteria"]];
 	
-	NSMutableArray *sortDescriptors = [NSMutableArray arrayWithCapacity:lastSortCriteria.count];
+	NSMutableArray *previousSortDescriptors = [NSMutableArray arrayWithCapacity:lastSortCriteria.count];
 	
 	for(NSDictionary *dic in lastSortCriteria) {
 		if([dic isKindOfClass:NSDictionary.class]) {
 			NSString *keypath = dic[KeypathKey];
-			if(keypath && [keypaths containsObject: keypath]) {
-				[sortDescriptors addObject:[NSSortDescriptor sortDescriptorWithKey:keypath ascending:[dic[AscendingOrderKey] boolValue]]];
+			if(keypath && [keypaths containsObject:keypath]) {
+				[previousSortDescriptors addObject:[NSSortDescriptor sortDescriptorWithKey:keypath ascending:[dic[AscendingOrderKey] boolValue]]];
 			} else {
-				[sortDescriptors removeAllObjects];
+				[previousSortDescriptors removeAllObjects];
 				break;
 			}
 		}
 	}
 	
-	if(sortDescriptors.count < 1) {
-		/// If we could not retrieved sort descriptors, we show a default one based on the first visible column
-		NSString *keypath = self.columnDescription[[visibleColumns.firstObject identifier]][KeyPathToBind];
-		if(keypath) {
-			sortDescriptors = [NSMutableArray arrayWithObject:[NSSortDescriptor sortDescriptorWithKey:keypath ascending:YES]];
-		} else {
-			NSLog(@"Unable to generate sort descriptors.");
-			return;
-		}
+	if(previousSortDescriptors.count < 1) {
+		/// If we could not retrieved sort descriptors, we show a default one based on the first visible column.
+		previousSortDescriptors = [NSMutableArray arrayWithObject:sortDescriptors.firstObject];
 	}
 	
 	if(!tableSortPopover) {
@@ -752,10 +736,10 @@ static NSString *const KeypathKey = @"KeypathKey";
 		tableSortPopover.behavior = NSPopoverBehaviorTransient;
 	}
 	
-	[tableSortPopover.sortCriteriaEditor configureWithKeyPaths:keypaths 
-												 selectorNames:selectorNames
+	NSArray<NSString *> *columnTitles = [visibleColumns valueForKeyPath:@"@unionOfObjects.title"];
+	[tableSortPopover.sortCriteriaEditor configureWithSortDescriptors:sortDescriptors
 														titles:columnTitles];
-	tableSortPopover.sortCriteriaEditor.sortDescriptors = sortDescriptors;
+	tableSortPopover.sortCriteriaEditor.sortDescriptors = previousSortDescriptors;
 	
 	tableSortPopover.sortAction = @selector(applySort:);
 	tableSortPopover.sortActionTarget = self;

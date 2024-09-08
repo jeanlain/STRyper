@@ -995,7 +995,7 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 		[self managedObjectOriginal_setGenotypes: [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, Genotype.class, nil]  forKey:ChromatogramGenotypesKey]];
 		NSSet <NSString *>*identifiers = [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, NSString.class, nil]  forKey:@"versionIdentifiers"];
 		
-		if(![identifiers containsObject:@"1.1"]) {
+		if(![identifiers containsObject:@"1.2"]) {
 			/// Crosstalk detection was improved in this version.
 			for (Trace *trace in self.traces) {
 				[trace findCrossTalk];

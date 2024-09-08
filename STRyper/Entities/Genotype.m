@@ -373,16 +373,14 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 				MarkerPeak *parentPeakPTR = &markerPeaks[parentPeak];
 				float diffSize = parentPeakPTR->size - peakPTR->size;
 				if(fabs(diffSize) < 1.5) {
-					if(diffSize > 0) {
-						if(stutterRatio > _leftAdenylationRatio) {
+					if(stutterRatio > _leftAdenylationRatio && stutterRatio > _rightAdenylationRatio) {
+						_scanOfPossibleAllele = peakPTR->scan;
+						if(diffSize > 0) {
 							_leftAdenylationRatio = stutterRatio;
-						}
-					} else {
-						if(stutterRatio > _rightAdenylationRatio) {
+						} else {
 							_rightAdenylationRatio = stutterRatio;
 						}
 					}
-					_scanOfPossibleAllele = peakPTR->scan;
 				}
 				
 				if(annotateSuppPeaks && peakPTR->stutterRatio > 2 && ratio > 0.2) {
