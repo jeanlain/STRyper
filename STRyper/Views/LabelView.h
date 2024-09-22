@@ -38,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This superclass is tailored for the ``MarkerView`` and ``TraceView`` concrete subclasses and might not be suitable for all possible subclasses showing ``ViewLabel`` objects.
 /// Instances of this class disable menu items and don't react to key-pressed events while a label is being dragged
 /// to avoid unwanted effect (for instance, deleting a label being dragged).
-@interface LabelView : NSView <NSViewLayerContentScaleDelegate, CALayerDelegate> {
+@interface LabelView : NSView <NSViewLayerContentScaleDelegate, CALayerDelegate, NSMenuItemValidation> {
 	
 	/// A tracking area covering the visible rectangle of the view, so it can react to mouse movement and enter/exit events.
 	NSTrackingArea *trackingArea;

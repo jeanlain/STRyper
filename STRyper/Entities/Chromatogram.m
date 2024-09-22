@@ -975,6 +975,15 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 	if(currentProgress.isCancelled) {
 		return;
 	}
+	
+	NSKeyedArchiver *encoder = (NSKeyedArchiver *)coder;
+	if([encoder respondsToSelector:@selector(setClassName:forClass:)]) {
+		Class traceClass = FluoTrace.class;
+		if([encoder classNameForClass:traceClass] != previousTraceClassName) {
+			[encoder setClassName:previousTraceClassName forClass:traceClass];
+		}
+	}
+	
 	[super encodeWithCoder:coder];
 	[coder encodeObject:self.panel forKey:ChromatogramPanelKey];
 	[coder encodeObject:self.sizeStandard forKey:ChromatogramSizeStandardKey];
@@ -989,11 +998,21 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 	}
 	self = [super initWithCoder:coder];
 	if(self) {
+		
+		NSSet <NSString *>*identifiers = [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, NSString.class, nil]  forKey:NSStringFromSelector(@selector(versionIdentifiers))];
+
+		NSKeyedUnarchiver *decoder = (NSKeyedUnarchiver *)coder;
+		if([decoder respondsToSelector:@selector(setClass:forClassName:)]) {
+			Class traceClass = FluoTrace.class;
+			if([decoder classForClassName:previousTraceClassName] != traceClass) {
+				[decoder setClass:traceClass forClassName:previousTraceClassName];
+			}
+		}
+		
 		[self managedObjectOriginal_setPanel: [coder decodeObjectOfClass:Panel.class forKey:ChromatogramPanelKey]];	/// it is important to decode the panel first, as it may be replaced by one already in the store
 		[self managedObjectOriginal_setSizeStandard: [coder decodeObjectOfClass:SizeStandard.class forKey:ChromatogramSizeStandardKey]];
 		[self managedObjectOriginal_setTraces: [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, Trace.class, nil] forKey:ChromatogramTracesKey]];
 		[self managedObjectOriginal_setGenotypes: [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, Genotype.class, nil]  forKey:ChromatogramGenotypesKey]];
-		NSSet <NSString *>*identifiers = [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, NSString.class, nil]  forKey:@"versionIdentifiers"];
 		
 		if(![identifiers containsObject:@"1.2"]) {
 			/// Crosstalk detection was improved in this version.

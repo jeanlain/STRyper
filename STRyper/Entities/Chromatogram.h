@@ -24,7 +24,7 @@
 #import "CodingObject.h"
 #import "Trace.h"
 
-@class Trace, Folder, SampleFolder, SizeStandard, Panel, Genotype, Mmarker;
+@class Folder, SampleFolder, SizeStandard, Panel, Genotype, Mmarker;
 
 
 NS_ASSUME_NONNULL_BEGIN
@@ -392,14 +392,14 @@ extern const float DefaultReadLength;
 /// For each offset, this dictionary has a key that is the absolute string of the objectID of the marker.  The value is the ``Genotype/offsetData`` of the receiver's genotype for the marker.
 /// - Parameter markers: The markers for which the returned dictionary should contain offset data. If `nil`, all markers of the receiver's `panel` are used.
 /// `Nil` is returned of none of the markers has an offset for the receiver.
-- (nullable NSDictionary *)dictionaryForOffsetsAtMarkers:(nullable NSArray<Mmarker *> *)markers;
+- (nullable NSDictionary<NSString*, NSData*> *)dictionaryForOffsetsAtMarkers:(nullable NSArray<Mmarker *> *)markers;
 
 
 /// Returns a dictionary of containing marker offsets from the general pasteboard, if any.
 ///
 ///	This is a convenience method used to extract a dictionary of the type returned by ``dictionaryForOffsetsAtMarkers:``,
 /// which may have been added to the pasteboard during a `copy:` operation.
-+ (nullable NSDictionary *)markerOffsetDictionaryFromGeneralPasteBoard;
++ (nullable NSDictionary<NSString*, NSData*> *)markerOffsetDictionaryFromGeneralPasteBoard;
 
 /// Makes the chromatogram (re)generate its  set of ``genotypes`` given its ``panel``.
 ///

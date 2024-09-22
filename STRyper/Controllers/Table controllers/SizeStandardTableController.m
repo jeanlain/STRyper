@@ -124,18 +124,8 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 
 
 /// We allow dragging a size standard onto samples
-- (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
-	if(row > [self.tableContent.arrangedObjects count]) {
-		return nil;
-	}
-	SizeStandard *draggedSizeStandard = [self.tableContent.arrangedObjects objectAtIndex:row];;
-	if(draggedSizeStandard.objectID.isTemporaryID) {
-		[draggedSizeStandard.managedObjectContext obtainPermanentIDsForObjects:@[draggedSizeStandard] error:nil];
-	}
-	NSPasteboardItem *pasteBoardItem = NSPasteboardItem.new;
-	[pasteBoardItem setString:draggedSizeStandard.objectID.URIRepresentation.absoluteString forType:SizeStandardDragType];
-	return pasteBoardItem;
-	
+- (NSPasteboardType)draggingPasteBoardTypeForRow:(NSInteger)row {
+	return SizeStandardDragType;
 }
 
 

@@ -455,6 +455,44 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 }
 
 
+- (NSPasteboardType)draggingPasteBoardTypeForRow:(NSInteger)row {
+	return nil;
+}
+
+
+- (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
+	   
+	if(row > [self.tableContent.arrangedObjects count]) {
+		return nil;
+	}
+	CodingObject *draggedItem = [self.tableContent.arrangedObjects objectAtIndex:row];
+	
+	if([draggedItem conformsToProtocol:@protocol(NSPasteboardWriting)]) {
+		return (id)draggedItem;
+	}
+	
+	NSPasteboardType draggingPasteBoardType = [self draggingPasteBoardTypeForRow:row];
+	if(!draggingPasteBoardType) {
+		return nil;
+	}
+	
+	if(draggedItem.objectID.isTemporaryID) {
+		[draggedItem.managedObjectContext obtainPermanentIDsForObjects:@[draggedItem] error:nil];
+	}
+	NSPasteboardItem *pasteBoardItem = NSPasteboardItem.new;
+	[pasteBoardItem setString:draggedItem.objectID.URIRepresentation.absoluteString forType:draggingPasteBoardType];
+	return pasteBoardItem;
+	
+}
+
+
+
+- (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint forRowIndexes:(NSIndexSet *)rowIndexes {
+	[SortCriteriaEditor setRowImagesForDraggingSession:session
+										 fromTableView:tableView
+										  atRowIndexes:rowIndexes forPoint:screenPoint];
+}
+
 # pragma mark - renaming, adding and removing items
 
 - (IBAction)rename:(id)sender {

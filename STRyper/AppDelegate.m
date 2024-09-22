@@ -480,6 +480,10 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
 #pragma mark - save and termination
 
+- (BOOL)applicationSupportsSecureRestorableState:(NSApplication *)app {
+	return YES;
+}
+
 
 - (IBAction)saveAction:(id)sender {
 	NSManagedObjectContext *context = self.managedObjectContext;

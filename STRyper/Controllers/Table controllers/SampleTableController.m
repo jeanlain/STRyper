@@ -45,7 +45,6 @@
 /// Bound to the FolderListController's property of the same name.
 @property (nonatomic) __kindof Folder *selectedFolder;
 
-@property (nonatomic) NSArray<Chromatogram *> *draggedSamples; /// redefinition of the readonly property as readwrite
 
 /******** properties used to import ABIF files being dragged from the finder to a folder, ****/
 /// They avoid extracting paths of ABIF files at each step of the dragging sequence
@@ -230,29 +229,6 @@
 
 # pragma mark - managing drag & drop of samples (chromatograms)
 
-- (BOOL)tableView:(NSTableView *)tableView writeRowsWithIndexes:(NSIndexSet *)rowIndexes toPasteboard:(NSPasteboard *)pboard {
-	/// To drag chromatograms between folders
-	/// This method is deprecated but convenient as it visually makes the whole row follow the mouse when dragging.
-	/// pasteboardWriterForRow would only make the clicked cell move under the mouse, which isn't what we want.
-	
-	/// We don't drag rows if the clicked row is not among selected rows. This helps the user selects several rows by dragging.
-	/// We need to determined the clicked row (NSTableView's -clickedRow returns -1)
-	NSPoint mouseLoc = tableView.window.mouseLocationOutsideOfEventStream;
-	mouseLoc = [tableView convertPoint:mouseLoc fromView:nil];
-	NSInteger row = [tableView rowAtPoint:mouseLoc];
-	if(! [tableView.selectedRowIndexes containsIndex:row]) {
-		return NO;
-	}
-	[pboard declareTypes:@[@"samplesDragType"] owner:self];
-	/// we won't copy samples to the pasteboard, we just point to them
-	NSArray *temp = [self.samples.arrangedObjects objectsAtIndexes:rowIndexes];
-	if (temp.count > 0) {
-		self.draggedSamples = temp;
-		return YES;
-	}
-	return NO;
-}
-
 
 - (NSDragOperation)tableView:(NSTableView *)tableView validateDrop:(id<NSDraggingInfo>)info proposedRow:(NSInteger)row proposedDropOperation:(NSTableViewDropOperation)dropOperation {
 	
@@ -346,10 +322,6 @@
 	}
 	
 	return NO;
-}
-
-- (void)tableView:(NSTableView *)tableView draggingSession:(nonnull NSDraggingSession *)session endedAtPoint:(NSPoint)screenPoint operation:(NSDragOperation)operation {
-	self.draggedSamples = NSArray.new;		/// if the dragging session ended, we remove everything from the dragged samples array
 }
 
 

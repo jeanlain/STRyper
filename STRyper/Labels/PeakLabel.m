@@ -200,19 +200,21 @@
 	return YES;
 }
 
-- (NSString *)description {
-	/// used for the tooltip
-	BOOL noSizing = trace.chromatogram.sizingQuality.floatValue == 0;
-	NSString *sizeInfo = @"unavailable";
-	if(!noSizing) {
-		sizeInfo = [NSString stringWithFormat:@"%.01f bp", self.size];
+- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
+	if(tag == toolTipTag) {
+		BOOL noSizing = trace.chromatogram.sizingQuality.floatValue == 0;
+		NSString *sizeInfo = @"unavailable";
+		if(!noSizing) {
+			sizeInfo = [NSString stringWithFormat:@"%.01f bp", self.size];
+		}
+		int16_t fluo = [self.view.trace fluoForScan:self.scan useRawData:self.view.showRawData maintainPeakHeights:self.view.maintainPeakHeights];
+		NSString *string = [NSString stringWithFormat:@"Scan: %d\nSize: %@\nFluorescence: %d RFU", self.scan, sizeInfo, fluo];
+		if(self.crossTalk < 0) {
+			string = [string stringByAppendingString:@"\nCaution: crosstalk"];
+		}
+		return string;
 	}
-	int16_t fluo = [self.view.trace fluoForScan:self.scan useRawData:self.view.showRawData maintainPeakHeights:self.view.maintainPeakHeights];
-	NSString *string = [NSString stringWithFormat:@"Scan: %d\nSize: %@\nFluorescence: %d RFU", self.scan, sizeInfo, fluo];
-	if(self.crossTalk < 0) {
-		string = [string stringByAppendingString:@"\nCaution: crosstalk"];
-	}
-	return string;
+	return @"";
 }
 
 
@@ -463,7 +465,9 @@ static CALayer *dragLineLayer;
 						closestAllele = allele;
 					}
 				}
-				allelesWeTake = [NSSet setWithObject:closestAllele];
+				if(closestAllele) {
+					allelesWeTake = [NSSet setWithObject:closestAllele];
+				}
 			}
 		}
 		

@@ -21,8 +21,6 @@
 
 
 #import "LadderFragment.h"
-#import "Chromatogram.h"
-#import "FragmentLabel.h"
 
 CodingObjectKey LadderFragmentScanKey = @"scan",
 LadderFragmentSizeKey = @"size",

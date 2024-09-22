@@ -79,7 +79,7 @@
 	[super viewDidLoad];
 	
 	/// to drag folders between folders, samples between folders and import samples into folders from ABIF files
-	[outlineView registerForDraggedTypes:@[FolderDragType, @"samplesDragType", NSPasteboardTypeFileURL]];
+	[outlineView registerForDraggedTypes:@[FolderDragType, ChromatogramObjectIDPasteboardType, NSPasteboardTypeFileURL]];
 }
 
 
@@ -254,31 +254,24 @@
 	NSPasteboard *pboard = info.draggingPasteboard;
 	Folder *destination = [self _folderForItem:item];
 	
-	if ([pboard.types containsObject:@"samplesDragType"])  { 					/// chromatograms are dragged
-		if(destination.isSmartFolder || index >= 0 || !destination.parent) {
-			/// we don't allow dropping samples between folders, but only onto folders
-			/// (even though this should work, this would be confusing for the user)
-			return NSDragOperationNone;
+	/// Implements dropping chromatograms or ABIF files
+	if(index < 0 && !destination.isSmartFolder && destination.parent && destination != self.trashFolder) {
+		/// Note that we don't allow dropping between rows, which would be possible but disturbing to the user.
+		if ([pboard.types containsObject:ChromatogramObjectIDPasteboardType])  {
+			/// chromatograms are dragged
+			if(destination != self.selectedFolder) {
+				return NSDragOperationGeneric;
+			}
 		}
-		NSArray *draggedSamples = SampleTableController.sharedController.draggedSamples;
-		if(draggedSamples.count == 0) {
-			return NSDragOperationNone;
-		}
-		if (self.selectedFolder != destination)  {
-			/// only if the destination is different from the folder of samples being dragged (which must be the selected folder)
-			return NSDragOperationGeneric;
-		}
-	}
-	if([pboard.types containsObject:NSPasteboardTypeFileURL]) { 	/// files are dragged from the finder
-		if(destination.isSmartFolder || index >= 0 || destination == self.trashFolder || !destination.parent) {	/// see above
-			return NSDragOperationNone;
-		}
-		if(lastDraggingSequence != info.draggingSequenceNumber) {
-			lastDraggingSequence = info.draggingSequenceNumber;
-			draggedABIFFilePaths = [FileImporter.class ABIFilesFromPboard:pboard];
-		}
-		if (draggedABIFFilePaths.count > 0) {
-			return NSDragOperationCopy;
+		if([pboard.types containsObject:NSPasteboardTypeFileURL]) {
+			/// files are dragged from the finder
+			if(lastDraggingSequence != info.draggingSequenceNumber) {
+				lastDraggingSequence = info.draggingSequenceNumber;
+				draggedABIFFilePaths = [FileImporter.class ABIFilesFromPboard:pboard];
+			}
+			if (draggedABIFFilePaths.count > 0) {
+				return NSDragOperationCopy;
+			}
 		}
 	}
 	
@@ -292,11 +285,25 @@
 	NSPasteboard *pboard = info.draggingPasteboard;
 	Folder *destination = [self _folderForItem:item];
 	
-	if ([pboard.types containsObject:@"samplesDragType"]) {  /// samples are dragged from other folders
-		NSArray *draggedSamples = SampleTableController.sharedController.draggedSamples;
-		[self.undoManager setActionName:@"Move Sample(s)"];
-		[(SampleFolder *)destination addSamples:[NSSet setWithArray:draggedSamples]];
-		return YES;
+	NSManagedObjectContext *MOC = self.managedObjectContext;
+	if ([pboard.types containsObject:ChromatogramObjectIDPasteboardType]) {
+		/// samples are dragged from other folders
+		NSMutableArray *draggedSamples = NSMutableArray.new;
+		for(NSPasteboardItem *item in pboard.pasteboardItems) {
+			/// We have to enumerate the items, because for some reason, `stringForType` called on the pboard returns only
+			/// the string for the first item rather than the concatenated string.
+			NSString *URIString = [item stringForType:ChromatogramObjectIDPasteboardType];
+			Chromatogram *sample = [MOC objectForURIString:URIString expectedClass:Chromatogram.class];
+			if(sample) {
+				[draggedSamples addObject:sample];
+			}
+		}
+		if(draggedSamples.count > 0) {
+			[self.undoManager setActionName:@"Move Sample(s)"];
+			[(SampleFolder *)destination addSamples:[NSSet setWithArray:draggedSamples]];
+			return YES;
+		}
+		return NO;
 	}
 	
 	if ([pboard.types containsObject:NSPasteboardTypeFileURL] ) {

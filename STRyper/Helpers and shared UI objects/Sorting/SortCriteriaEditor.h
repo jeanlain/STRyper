@@ -62,6 +62,19 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSTableView *sortCriteriaTable;
 
 
+/// Convenience method that sets the full dragged rows of a table view as images of dragging items.
+///
+/// This method should be called within `tableView:draggingSession:willBeginAtPoint:forRowIndexes:`.
+/// It sets the image of the session's dragged items as the rows being dragged, with proper positioning.
+/// - Parameters:
+///   - session: The dragging session.
+///   - tableView: The table view whose rows will be dragged.
+///   - rowIndexes: The indexes of dragged rows.
+///   - screenPoint: The drag point in screen coordinates
++ (void)setRowImagesForDraggingSession:(NSDraggingSession *)session
+						 fromTableView:(NSTableView *)tableView
+						  atRowIndexes:(NSIndexSet *)rowIndexes
+							  forPoint:(NSPoint)screenPoint;
 
 @end
 

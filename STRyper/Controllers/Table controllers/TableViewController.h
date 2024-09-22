@@ -44,7 +44,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// and for the items shown in the table if they implement the `NSPasteBoardWriting` protocol.
 ///
 /// This class also provides  a menu for the table header view, to allow hiding/showing columns and sorting via a popover of class ``TableSortPopover``.
-@interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSPopoverDelegate> {
+@interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSPopoverDelegate, NSMenuItemValidation, NSViewToolTipOwner> {
 	
 	/// backs the ``tableView`` readonly property.
 	///
@@ -296,7 +296,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /****methods used to copy objects to the pasteboard ***************/
 
 /// Copies the items that are selected in the ``tableView`` to the general pasteboard.
-/// - Parameter sender: The object that sent this message. The default implementation ignores this parameter.
+/// - Parameter sender: The object that sent this message. 
 -(IBAction)copy:(id)sender;
 
 
@@ -309,6 +309,9 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 ///   - items: The items to be copied.
 ///   - pasteboard: The pasteboard to copy the items to.
 -(void) copyItems:(NSArray *) items ToPasteBoard:(NSPasteboard *)pasteboard;
+
+
+-(nullable NSPasteboardType) draggingPasteBoardTypeForRow:(NSInteger) row;
 
 /// Returns a string representing the values that a given object may show at the visible columns of the ``tableView``.
 ///

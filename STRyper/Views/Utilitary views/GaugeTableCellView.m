@@ -141,6 +141,16 @@
 }
 
 
+- (void)setNilValueForKey:(NSString *)key {
+	if([key isEqualToString:@"value"]) {
+		[self setValue:@(0) forKey:key];
+	} else {
+		[super setNilValueForKey:key];
+	}
+	
+}
+
+
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
 	/// if the gauge changes because the object value has changed, we don't animate the change
 	if(currentRepresentedObject != self.objectValue || !_animateGauge) {

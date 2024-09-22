@@ -34,6 +34,7 @@ CodingObjectKey TraceIsLadderKey = @"isLadder",
 TracePeaksKey = @"peaks",
 TraceFragmentsKey = @"fragments";
 
+NSString * _Nonnull const previousTraceClassName = @"Trace";
 
 @interface Trace ()
 /// Fluorescence data (array of 16-bit integers) with baseline "noise" removed.

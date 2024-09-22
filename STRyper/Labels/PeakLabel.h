@@ -36,7 +36,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A peak label does not have a ``ViewLabel/representedObject`` but shows in a tooltip containing its ``description`` 
 /// when the label is ``ViewLabel/hovered`` and if its view returns `YES` to ``TraceView/showPeakTooltips``.
-@interface PeakLabel : ViewLabel
+@interface PeakLabel : ViewLabel <NSViewLayerContentScaleDelegate, NSViewToolTipOwner>
 
 /// Returns an peak label configured with the attributes of the peak it should represents.
 /// - Parameters:
@@ -96,9 +96,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// Because a peak label that is not dragged affects the UI only through its ``ViewLabel/trackingArea``,
 /// it need repositioning only when its tracking area is updated.
 -(void)updateTrackingArea;
-
-/// A description of the represented peak: its ``size``, height in RFU, ``scan`` and whether it results from ``crossTalk``.
-- (NSString *)description;
 
 /// Implements the ``ViewLabel/drag`` method.
 ///

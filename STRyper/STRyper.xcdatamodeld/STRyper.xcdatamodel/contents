@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23G93" minimumToolsVersion="Xcode 8.0" sourceLanguage="Objective-C" userDefinedModelVersionIdentifier="1.2">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23231" systemVersion="24A335" minimumToolsVersion="Xcode 8.0" sourceLanguage="Objective-C" userDefinedModelVersionIdentifier="1.2">
     <entity name="Allele" representedClassName="Allele" parentEntity="LadderFragment" syncable="YES">
         <attribute name="additionnal" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES" syncable="YES"/>
         <relationship name="genotype" maxCount="1" deletionRule="Nullify" destinationEntity="Genotype" inverseName="alleles" inverseEntity="Genotype" syncable="YES"/>
@@ -102,7 +102,7 @@
         <attribute name="genotypeSearch" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="NO" syncable="YES"/>
         <attribute name="searchPredicateData" optional="YES" attributeType="Binary" syncable="YES"/>
     </entity>
-    <entity name="Trace" representedClassName="Trace" syncable="YES">
+    <entity name="Trace" representedClassName="FluoTrace" syncable="YES">
         <attribute name="channel" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="dyeName" optional="YES" attributeType="String" syncable="YES"/>
         <attribute name="isLadder" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES" syncable="YES"/>

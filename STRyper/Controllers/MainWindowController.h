@@ -31,7 +31,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The singleton object is the responder of event messages not consumed before they reach the main window.
 /// It also determines which ``TableViewController`` object provides content to the detailed outline view (``DetailedViewController``), and when to update the content to display in this view.
-@interface MainWindowController : NSWindowController <NSWindowDelegate>
+@interface MainWindowController : NSWindowController <NSWindowDelegate, NSMenuItemValidation>
 
 /// Returns the singleton object loaded from a nib.
 +(instancetype)sharedController;

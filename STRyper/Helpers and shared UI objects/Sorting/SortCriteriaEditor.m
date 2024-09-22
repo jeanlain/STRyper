@@ -300,18 +300,55 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 }
 
 
-- (BOOL)tableView:(NSTableView *)tableView writeRowsWithIndexes:(NSIndexSet *)rowIndexes toPasteboard:(NSPasteboard *)pboard {
-	if(tableView.numberOfRows < 2) {
-		return NO;
-	}
-	NSUInteger row = rowIndexes.firstIndex;
-	/// We don't actually write anything to the pasteboard, we just record the index of the dragged row
-	draggedRow = row;
-	[pboard declareTypes:@[CriteriaDragType] owner:self];
+- (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
+	NSPasteboardItem *item = NSPasteboardItem.new;
+	/// We actually don't use the pasteboard, as we just record the dragged row at the beginning of the drag session.
+	[item setString:@"" forType:CriteriaDragType];
+	return item;
+}
+
+
+- (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint forRowIndexes:(NSIndexSet *)rowIndexes {
+	
+	draggedRow = rowIndexes.firstIndex;
 	if(NSCursor.currentCursor != NSCursor.closedHandCursor) {
 		[NSCursor.closedHandCursor push];
 	}
-	return YES;
+	
+	[self.class setRowImagesForDraggingSession:session fromTableView:tableView atRowIndexes:rowIndexes forPoint:screenPoint];
+	
+}
+
+
++ (void)setRowImagesForDraggingSession:(NSDraggingSession *)session fromTableView:(NSTableView *)tableView atRowIndexes:(NSIndexSet *)rowIndexes forPoint:(NSPoint) screenPoint {
+	
+	/// We prepare row images representing items being dragged
+	NSMutableArray *imageComponents = [NSMutableArray arrayWithCapacity:rowIndexes.count];
+	NSPoint viewPoint = [tableView.window convertPointFromScreen:screenPoint];
+	viewPoint = [tableView convertPoint:viewPoint fromView:nil];
+	NSPointPointer ptr = &screenPoint;
+
+	[rowIndexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL * _Nonnull stop) {
+		NSImage *rowImage = [tableView dragImageForRowsWithIndexes:[NSIndexSet indexSetWithIndex:idx] tableColumns:tableView.tableColumns event:NSEvent.new offset:ptr];
+			if(rowImage) {
+				[imageComponents addObject:rowImage];
+			}
+	}];
+	
+	/// we set the image components of the dragging items
+	[session enumerateDraggingItemsWithOptions:NSDraggingItemEnumerationConcurrent
+									   forView:nil
+									   classes:@[NSPasteboardItem.class]
+								 searchOptions:NSDictionary.new
+									usingBlock:^(NSDraggingItem *draggingItem, NSInteger idx, BOOL *stop) {
+		if(idx < imageComponents.count) {
+			NSImage *rowImage = imageComponents[idx];
+			NSSize imageSize = rowImage.size;
+			[draggingItem setDraggingFrame:NSMakeRect(-viewPoint.x, draggingItem.draggingFrame.origin.y, imageSize.width, imageSize.height)
+								  contents:rowImage];
+			
+		}
+	}];
 }
 
 

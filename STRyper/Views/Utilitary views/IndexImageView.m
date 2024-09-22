@@ -63,6 +63,17 @@ NSBindingName const ImageIndexBinding = @"imageIndex";
 }
 
 
+
+- (void)setNilValueForKey:(NSString *)key {
+	if([key isEqualToString:@"imageIndex"]) {
+		[self setValue:[NSNumber numberWithInt:0] forKey:key];
+	} else {
+		[super setNilValueForKey:key];
+	}
+	
+}
+
+
 - (void)setImage:(NSImage *)image {
 	NSUInteger index = [_imageArray indexOfObjectIdenticalTo:image];
 	if(!_imageArray || index == NSNotFound) {

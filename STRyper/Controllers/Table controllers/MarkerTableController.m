@@ -178,59 +178,6 @@ static NSArray *channelColorImages;
 	[pasteboard writeObjects:items];
 }
 
-/// we allow copy-dragging markers between panels
-- (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint forRowIndexes:(NSIndexSet *)rowIndexes {
-	/// here we set images representing markers being dragged
-	/// If we don't, images would correspond to the cells of the column being clicked at the beginning of the drag,
-	/// which may not indicate the marker name. Instead, it could be size,  ploidy...
-	/// We use image components that indicate the marker's dye and its name.
-	/// The former is the colored icon showing in the cell indicating the dye (which contains an popup button)
-	/// The latter is the image representation of the cell indicating the marker's name (which simply contains a text field). We need to retrieve the indexes of the corresponding columns.
-	NSUInteger nameColIndex = [tableView columnWithIdentifier:@"markerNameColumn"];
-	NSUInteger channelColIndex = [tableView columnWithIdentifier:@"markerChannelColumn"];
-	if(nameColIndex == NSNotFound || channelColIndex == NSNotFound) {
-		return;
-	}
-	
-	/// we make arrays of the components, which we will access later (as the user can drag several markers)
-	NSMutableArray *textComponents = [NSMutableArray arrayWithCapacity:rowIndexes.count];		/// the components representing the names of the markers
-	NSMutableArray *imageComponents = [NSMutableArray arrayWithCapacity:rowIndexes.count];		/// image components containing the icons for the dyes
-
-	[rowIndexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL * _Nonnull stop) {
-		NSTableCellView *cellView  = [tableView viewAtColumn:nameColIndex row:idx makeIfNecessary:YES];
-		[textComponents addObject:cellView.draggingImageComponents];
-		NSTableCellView* dyeCellView = [tableView viewAtColumn:channelColIndex row:idx makeIfNecessary:YES];
-		NSDraggingImageComponent *imageComponent = [NSDraggingImageComponent draggingImageComponentWithKey:NSDraggingImageComponentIconKey];
-		if(dyeCellView.imageView) {
-			NSImage *dyeImage = dyeCellView.imageView.image;
-			if(dyeImage) {
-				imageComponent.contents = dyeImage;
-				NSSize imageSize = dyeImage.size;
-				imageComponent.frame = NSMakeRect(-imageSize.width, 0, imageSize.width, imageSize.height);
-			}
-		}
-		[imageComponents addObject:@[imageComponent]];
-	}];
-	
-	/// we now set the image components of the dragging items
-	[session enumerateDraggingItemsWithOptions:NSDraggingItemEnumerationConcurrent
-									   forView:tableView
-									   classes:@[NSPasteboardItem.class]
-								 searchOptions:NSDictionary.new
-									usingBlock:^(NSDraggingItem *draggingItem, NSInteger idx, BOOL *stop) {
-		if(idx < textComponents.count) {
-			draggingItem.imageComponentsProvider = ^NSArray*(void) {
-				return [imageComponents[idx] arrayByAddingObjectsFromArray: textComponents[idx]];
-			};
-		}
-	}];
-}
-
-- (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
-	/// when the user drags a row, we copy the underlying marker in the pasteboard
-	return [self.tableContent.arrangedObjects objectAtIndex:row];
-} 
-
 
 
 - (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {

@@ -40,7 +40,6 @@ typedef NS_ENUM(int16_t, elementType) {
 	elementTypeCString = 19
 } ;
 
-static const int entrySize = 20; 	/// the size of a DirentryEntry in bytes
 static const int headerSize = 34;   /// the size of an ABIF file header in bytes
 								   
 								   
@@ -82,7 +81,7 @@ static const int headerSize = 34;   /// the size of an ABIF file header in bytes
 	
 	if(fileData.length < headerSize) {
 		if (error != NULL) {
-			NSString *reason = [NSString stringWithFormat:@"File size of %ld bytes is less than expected header size of %d bytes.", fileData.length, headerSize];
+			NSString *reason = [NSString stringWithFormat:@"File size of %ld bytes is less than the expected header size of %d bytes.", fileData.length, headerSize];
 			*error = [NSError fileReadErrorWithDescription:corruptFileString
 												suggestion:@""
 												  filePath:path
@@ -302,7 +301,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 ///   - fileData: The data containing the ABIF file.
 + (nullable id) objectForEntryEquivalentTo:(DirEntry)entry inABIFData:(NSData *)fileData {
 																				
-	if(fileData.length < headerSize + entrySize) {
+	if(fileData.length < headerSize + sizeof(DirEntry)) {
 		return nil;
 	}
 	
@@ -325,7 +324,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 			/// If we're here, the entry was not valid or the item element type is not managed
 			/// So we search for another entry in the rest of the file
 			NSInteger rangeSize = fileData.length - range.location - range.length;
-			if(rangeSize < entrySize) {
+			if(rangeSize < sizeof(DirEntry)) {
 				return nil;
 			}
 			searchRange = NSMakeRange(range.location + range.length, rangeSize);

@@ -33,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A trace contains fluorescence data obtained from a given ``channel``, as well as information related to peaks found in the data.
 ///
 /// This class implements a method that finds peaks that corresponds to ``SizeStandard/sizes`` of a size standard.
-@interface Trace : CodingObject
+@interface FluoTrace : CodingObject
 
 /// An integer that represents the channel (wavelength) of the fluorescence data.
 ///
@@ -258,8 +258,12 @@ extern CodingObjectKey TraceIsLadderKey,
 TracePeaksKey,
 TraceFragmentsKey;
 
+/// The previous name used for the class, which we add to change because Apple started using it in a private framework in macOS sequoia.
+extern NSString * _Nonnull const previousTraceClassName;
 
-@interface Trace (PrimitiveAccessors)
+@compatibility_alias Trace FluoTrace;
+
+@interface FluoTrace (PrimitiveAccessors)
 
 /// Allows quicker access to the trace ``rawData``, which can be accessed often.
 - (NSData*)primitiveRawData;

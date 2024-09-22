@@ -28,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This  menu allowing several actions described in the ``STRyper`` user guide.
 ///
 /// To implement some of these actions, the label must find an label representing its marker among the ``LabelView/markerLabels`` of its marker view's ``MarkerView/traceView``.
-@interface MarkerLabel : RegionLabel <NSMenuDelegate>
+@interface MarkerLabel : RegionLabel <NSMenuDelegate, NSMenuItemValidation>
 
 /// Returns a menu that allows zooming to the range of the marker the the label represents, change some of its attributes,
 /// or perform other actions affecting the label's ``RegionLabel/editState``.

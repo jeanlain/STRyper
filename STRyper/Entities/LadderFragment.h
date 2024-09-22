@@ -21,7 +21,8 @@
 
 
 #import "CodingObject.h"
-@class Trace, FragmentLabel, PeakLabel;
+#import "Chromatogram.h"
+@class FragmentLabel, PeakLabel;
 
 /// An entity that represents a DNA fragment identified in a molecular ladder.
 @interface LadderFragment : CodingObject

@@ -32,13 +32,6 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This class implements internal methods that allow the user to apply a ``SizeStandard`` or a ``Panel`` to target samples.
 @interface SampleTableController : TableViewController
-
-
-/// Contains samples being dragged from the tableview.
-///
-/// This method is used to drag samples between folders,
-/// as the application does not yes implement pasteboard support for ``Chromatogram`` objects
-@property (nonatomic, readonly) NSArray<Chromatogram *> *draggedSamples;
 																			
 
 /// Returns the receiver's ``TableViewController/tableContent``.
