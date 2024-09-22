@@ -163,10 +163,17 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		abort();
 	}
 	
-	[self bind:NSStringFromSelector(@selector(dubiousAlleleName)) toObject:NSUserDefaults.standardUserDefaults withKeyPath:DubiousAlleleName options:nil];
-	[self bind:NSStringFromSelector(@selector(missingAlleleName)) toObject:NSUserDefaults.standardUserDefaults withKeyPath:MissingAlleleName options:nil];
-	[self bind:NSStringFromSelector(@selector(defaultStartSize)) toObject:NSUserDefaults.standardUserDefaults withKeyPath:DefaultStartSize options:nil];
-	[self bind:NSStringFromSelector(@selector(defaultEndSize)) toObject:NSUserDefaults.standardUserDefaults withKeyPath:DefaultEndSize options:nil];
+	NSUserDefaults *standardUserDefaults = NSUserDefaults.standardUserDefaults;
+	self.dubiousAlleleName = [standardUserDefaults stringForKey:DubiousAlleleName];
+	self.missingAlleleName = [standardUserDefaults stringForKey:MissingAlleleName];
+	self.defaultEndSize = [standardUserDefaults floatForKey:DefaultEndSize];
+	self.defaultStartSize = [standardUserDefaults floatForKey:DefaultStartSize];
+	
+	[standardUserDefaults bind:DubiousAlleleName toObject:self withKeyPath:NSStringFromSelector(@selector(dubiousAlleleName)) options:nil];
+	[standardUserDefaults bind:MissingAlleleName toObject:self withKeyPath:NSStringFromSelector(@selector(missingAlleleName)) options:nil];
+	[standardUserDefaults bind:DefaultStartSize toObject:self withKeyPath:NSStringFromSelector(@selector(defaultStartSize)) options:nil];
+	[standardUserDefaults bind:DefaultEndSize toObject:self withKeyPath:NSStringFromSelector(@selector(defaultEndSize)) options:nil];
+
 	
 	/// When the app quits, the trash is normally emptied. But if the app has crashed or was killed (or perhaps for other reasons), the trash may contain items.
 	/// We propose to restore them		(MOVE THAT to FolderListController.m ? TO TEST)
@@ -290,8 +297,8 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	}
 	
 	float endValue = end.floatValue;
-	if(endValue > 1200) {
-		endValue = 1200;
+	if(endValue > MAX_TRACE_LENGTH) {
+		endValue = MAX_TRACE_LENGTH;
 	} else if(endValue < _defaultStartSize + 2) {
 		endValue = _defaultStartSize + 2;
 	}

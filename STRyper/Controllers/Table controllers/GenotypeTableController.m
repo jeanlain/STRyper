@@ -225,13 +225,6 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 }
 
 
-#pragma mark - contextual menu management
-
-
-- (nullable NSString *)removeActionTitleForItems:(NSArray *)items {
-	return nil;  /// one cannot remove a genotype. It is removed only when a marker is no longer applied to a sample
-}
-
 
 #pragma mark - keeping the genotype table up-to-date
 
@@ -289,6 +282,15 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 
 
 #pragma mark - user actions on genotypes
+
+- (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
+	/// One cannot drag a row of the table.
+	return nil;
+}
+
+- (nullable NSString *)removeActionTitleForItems:(NSArray *)items {
+	return nil;  /// one cannot remove a genotype. It is removed only when a marker is no longer applied to a sample
+}
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
 	if(menuItem.action == @selector(removeOffsets:)) {

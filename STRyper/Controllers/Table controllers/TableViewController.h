@@ -42,6 +42,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This class implements `-copy` (to the paste board) of the text content of selected rows, for subclasses that provide a ``columnDescription``,
 /// and for the items shown in the table if they implement the `NSPasteBoardWriting` protocol.
+/// This class also implements dragging rows of the table (see ``tableView:pasteboardWriterForRow:``.
 ///
 /// This class also provides  a menu for the table header view, to allow hiding/showing columns and sorting via a popover of class ``TableSortPopover``.
 @interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSPopoverDelegate, NSMenuItemValidation, NSViewToolTipOwner> {
@@ -311,6 +312,19 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 -(void) copyItems:(NSArray *) items ToPasteBoard:(NSPasteboard *)pasteboard;
 
 
+/// Implements the delegate method `tableView:pasteboardWriterForRow:`
+///
+/// The default implementation returns the item at the row if it conforms to `NSPasteboardWriting`.
+/// If not, the method creates an `NSPasteboardItem` with the item's objectID absolute string set for
+/// the type returned by ``draggingPasteBoardTypeForRow:`` if this method does not return `nil`.
+///
+/// Otherwise the method returns `nil` (no dragging).
+- (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row;
+
+/// The type of pasteboard to use when a row of the table is dragged.
+///
+/// This method is called during ``tableView:pasteboardWriterForRow:``.
+/// - Parameter row: The row that is dragged.
 -(nullable NSPasteboardType) draggingPasteBoardTypeForRow:(NSInteger) row;
 
 /// Returns a string representing the values that a given object may show at the visible columns of the ``tableView``.

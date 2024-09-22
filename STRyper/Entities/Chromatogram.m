@@ -976,6 +976,7 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 		return;
 	}
 	
+	/// For backwards compatibility, we use the initial name for the `Trace` class to encode traces.
 	NSKeyedArchiver *encoder = (NSKeyedArchiver *)coder;
 	if([encoder respondsToSelector:@selector(setClassName:forClass:)]) {
 		Class traceClass = FluoTrace.class;
@@ -1001,6 +1002,7 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 		
 		NSSet <NSString *>*identifiers = [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, NSString.class, nil]  forKey:NSStringFromSelector(@selector(versionIdentifiers))];
 
+		/// To read archives, we need to set the class for the initial name for the `Trace` class.
 		NSKeyedUnarchiver *decoder = (NSKeyedUnarchiver *)coder;
 		if([decoder respondsToSelector:@selector(setClass:forClassName:)]) {
 			Class traceClass = FluoTrace.class;
