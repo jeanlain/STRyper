@@ -30,11 +30,11 @@
 #import "MarkerView.h"
 #import "TraceScrollView.h"
 #import "STableRowView.h"
+#import "RulerView.h"
+#import "SizeStandardTableController.h"
+#import "SizeStandard.h"
 
 @interface DetailedViewController ()
-
-
-
 
 /************ properties that we bind to the user defaults equivalent ******/
 
@@ -110,6 +110,9 @@
 @synthesize traceRowHeight = _traceRowHeight;
 
 static NSArray<NSString *> *channelPreferenceKeys;				/// a convenience array we use to bind values of channel buttons to the corresponding user default key and to determine which button to disable
+																
+static NSString* const applySizeStandardMenuIdentifier = @"applySizeStandardMenuIdentifier";
+
 
 static const float defaultRowHeight = 20.0;
 static const float minTraceRowHeight = 40.0;
@@ -441,6 +444,20 @@ static const float maxTraceRowHeight = 1000.0;
 		[traceView bind:DisplayedChannelsBinding toObject:self withKeyPath:@"displayedChannels" options:nil];
 		[traceView bind:DefaultRangeBinding toObject:self withKeyPath:@"defaultRange" options:nil];
 		[scrollView bind:AllowSwipeBetweenMarkersBinding toObject:standardUserDefaults withKeyPath:SwipeBetweenMarkers options:nil];
+		
+		NSPopUpButton *popup = traceView.rulerView.applySizeStandardButton;
+		if(popup) {
+			NSMenu *menu = NSMenu.new;
+			menu.identifier = applySizeStandardMenuIdentifier;
+			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Apply Size Standard" action:nil keyEquivalent:@""];
+			item.representedObject = traceView; /// We will need to identify the view to determine the sample(s) it shows.
+												/// In principle, this should not create a retain cycle (the traceView does not have strong ownership of the ruler view)
+												/// The `target` property of item cannot be used instead, as it apparently doesn't work here (possibly because the item
+												/// has no action, and I don't want to set a dummy action for this).
+			[menu addItem:item];
+			menu.delegate = self;
+			popup.menu = menu;
+		}
 	}
 	
 	[traceView loadContent:item];
@@ -1273,12 +1290,6 @@ static const float maxTraceRowHeight = 1000.0;
 }
 
 
--(BOOL)validateDefaultStartSize:(id *)defaultStartSize error:(NSError **)error {
-	
-	return YES;
-}
-
-
 - (void)setTopFluoMode:(TopFluoMode)topFluoMode {
 	_topFluoMode = topFluoMode;
 	self.autoScaleToHighestPeak = topFluoMode == topFluoModeHighestPeak;
@@ -1294,6 +1305,37 @@ static const float maxTraceRowHeight = 1000.0;
 - (void)setDefaultEndSize:(float)defaultEndSize {
 	_defaultEndSize = defaultEndSize;
 	self.defaultRange = MakeBaseRange(self.defaultStartSize, defaultEndSize-self.defaultStartSize);
+}
+
+
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+	if([menu.identifier isEqualToString:applySizeStandardMenuIdentifier]) {
+		NSMenuItem *firstItem = menu.itemArray.firstObject;
+		if(firstItem) {
+			[menu removeAllItems];
+			[menu addItem:firstItem];
+			for(SizeStandard *standard in SizeStandardTableController.sharedController.tableContent.arrangedObjects) {
+				NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:standard.name action:@selector(applySizeStandard:) keyEquivalent:@""];
+				item.target = self;
+				item.representedObject = standard;
+				[menu addItem:item];
+			}
+		}
+	}
+}
+
+
+-(IBAction)applySizeStandard:(NSMenuItem *)sender {
+	SizeStandard *standard = sender.representedObject;
+	if(standard) {
+		TraceView *traceView = sender.menu.itemArray.firstObject.representedObject;
+		if([traceView respondsToSelector:@selector(loadedTraces)]) {
+			NSArray *samples = [traceView.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
+			if(samples.count > 0) {
+				[SampleTableController.sharedController applySizeStandard:standard toSamples:samples];
+			}
+		}
+	}
 }
 
 

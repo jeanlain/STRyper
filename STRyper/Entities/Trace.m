@@ -148,26 +148,30 @@ int32_t peakEndScan(const Peak *peakPTR) {
 	int16_t *adjusted = calloc(nScans, sizeof(int16_t));	/// this will store the adjusted fluo data, after baseline level removal
 	
 	Peak *peaks = malloc(nScans*sizeof(*peaks));
+	bool *isMin = calloc(nScans, sizeof(bool));		/// Whether a scan represents a local minimum in fuorescence
+
 	int nPeaks = 0;
 	/// we have several rounds of peak detection and baseline fluo removal.
 	/// This is because we outline peaks on adjusted data (with baseline level subtracted) and because the subtraction is better after more than 1 round
 	for(int round = 1; round <= 3; round++) {
 		if(round == 1)	{
-			nPeaks = peakDetect(raw, nScans, peaks, &maxFluoLevel, peakThreshold, ratio);
+			nPeaks = peakDetect(raw, nScans, peaks, isMin, &maxFluoLevel, peakThreshold, ratio);
 			[self setPrimitiveValue:@(maxFluoLevel) forKey:@"maxFluo"];
 		}
 		else {
 			ratio = 0.5;
-			nPeaks = peakDetect(adjusted, nScans, peaks, &maxFluoLevel, peakThreshold, ratio);
+			nPeaks = peakDetect(adjusted, nScans, peaks, isMin, &maxFluoLevel, peakThreshold, ratio);
 		}
 		if(nPeaks == 0) {
 			break;
 		}
 		if(round < 3) {
-			///we remove noise and put result in the adjusted array. Some fluo levels may become negative, but the second round will mitigate that.
+			///we subtract baseline and put results in the adjusted array. Some fluo levels may become negative, but the second round will mitigate that.
 			subtractBaseline(raw, peaks, nPeaks, nScans, adjusted, false);
 		}
 	}
+	
+	free(isMin);
 	
 	if(nPeaks == 0) {
 		free(peaks); free(adjusted);
@@ -175,46 +179,47 @@ int32_t peakEndScan(const Peak *peakPTR) {
 	}
 	
 	/// we set the peaks. The current peak edges are not close enough from the tips, which isn't ideal for user interaction with peaks.
-	/// we will use the closest scan to a peak that has fluorescence 0 (in adjusted data),
-	/// even if there can be scans with negative fluo levels (as we don't show negative fluo on the curves)
+	/// we set the edge as the closest scan to the tip that has fluorescence 0 (in adjusted data)
+	/// or as the scan of a local minimum if the fluo starts to increase > 1.5 times the minimum.
 	for (int n = 0; n < nPeaks; n++ ) {
-		Peak peak = peaks[n];
-		int32_t tipScan = peak.startScan + peak.scansToTip;
-		int32_t i = tipScan;			/// we start at the peak apex, and will go left to find the start scan
-		int32_t localMin = i;
-		int16_t localMinFluo = adjusted[i];
-		while (i > peak.startScan && adjusted[i] > 0 && i > 0) { /// we find the left-hand minimum
-			i--;
-			if(adjusted[i] < localMinFluo) {
-				localMinFluo = adjusted[i];
-				localMin = i;
+		Peak *peakPTR = &peaks[n];
+		int32_t startScan = peakPTR->startScan;
+		int32_t tipScan = startScan + peakPTR->scansToTip;
+		int32_t i = 0, j = 0, localMin = 0;
+		int32_t localMinFluo = adjusted[tipScan];
+		for (i = tipScan-1; i > startScan; i--) {
+			int16_t fluo = adjusted[i];
+			if(fluo <= 0) {
+				break;
 			}
-			if(adjusted[i] > localMinFluo*1.5) {
-				/// if the fluo starts to increase again (50% higher than the last recorded min), we consider we have reach another peak
+			if(fluo < localMinFluo) {
+				localMin = i;
+				localMinFluo = fluo;
+			} else if(fluo > localMinFluo*1.5) {
 				i = localMin;
 				break;
 			}
 		}
-		peaks[n].startScan = i;
-		peaks[n].scansToTip = tipScan - i;
 		
-		/// we do the same for the right-hand minimum
-		i = tipScan;
-		int32_t endScan = i + peak.scansFromTip;
-		localMin = i;
-		localMinFluo = adjusted[i];
-		while (i < endScan && adjusted[i] > 0) {
-			i++;
-			if(adjusted[i] < localMinFluo) {
-				localMinFluo = adjusted[i];
-				localMin = i;
+		localMinFluo = adjusted[tipScan];
+		int32_t endScan = tipScan + peakPTR->scansFromTip;
+		for (j  = tipScan+1; j < endScan; j++) {
+			int16_t fluo = adjusted[j];
+			if(fluo <= 0) {
+				break;
 			}
-			if(adjusted[i] > localMinFluo*1.5) {
-				i = localMin;
+			if(fluo < localMinFluo) {
+				localMin = j;
+				localMinFluo = fluo;
+			} else if(fluo > localMinFluo*1.5) {
+				j = localMin;
 				break;
 			}
 		}
-		peaks[n].scansFromTip = i - tipScan;
+		
+		peakPTR->startScan = i;
+		peakPTR->scansToTip = tipScan - i;
+		peakPTR->scansFromTip = j - tipScan;
 	}
 	
 	[self managedObjectOriginal_setPeaks:[NSData dataWithBytes:peaks length:nPeaks*sizeof(Peak)]];
@@ -289,30 +294,46 @@ int32_t peakEndScan(const Peak *peakPTR) {
 ///   - fluo: The fluorescence data in which to find peaks.
 ///   - nScans: Numbers of data point in the fluorescence data.
 ///   - peaks: On output, the array of peaks found, in ascending scan order. The provided array must be long enough.
+///   - isMin: Wether a scan represents a local minimum.
 ///   - maxFluo: On output, the maximum value of `fluo`.
 ///   - fluoThreshold: The minimum fluorescence value to consider a peak = the peak minimum height.
 ///   - minRatio: The minimum ratio of fluo level  (background / peak tip), to consider a peak
-int peakDetect (const int16_t *fluo, int nScans, Peak *peaks, int *maxFluo, int16_t fluoThreshold, float minRatio) {
-	
+int peakDetect (const int16_t *fluo, int nScans, Peak *peaks, bool *isMin, int *maxFluo, int16_t fluoThreshold, float minRatio) {
 	/// A scan is considered a peak tip if its fluo is higher than the threshold and its elevation is at least 1/minRatio higher than both local minima around it
 	/// for each peak, we have two minima (both sides), but a minimum is shared between adjacent peaks
-	int16_t minLocalFluo = SHRT_MAX;
-	int16_t maxLocalFluo = 0; int32_t currentMinScan = 0; int32_t currentMaxScan = 0;
+	int16_t minLocalFluo = SHRT_MAX, maxLocalFluo = 0;
+	int32_t currentMinScan = 0, currentMaxScan = 0, previousMinScan = 0;
 	int nPeaks = 0;
 	for (int32_t scan = 0; scan < nScans; scan++) {
 		int16_t f = fluo[scan];
+		if(isMin[scan]) {
+			previousMinScan = scan;
+			if(nPeaks > 0) {
+				Peak *peakPTR = &peaks[nPeaks-1];
+				if(peakPTR->scansFromTip < 0) {
+					peakPTR->scansFromTip = scan - peakPTR->startScan - peakPTR->scansToTip;
+				}
+			}
+		}
 		
 		/// We assume we have passed a peak if the current min fluo level is sufficiently less than the current max,
 		/// and same for the current fluo (which may not be a local minimum).
 		/// This condition is met in the "descending" slope of the peak (at its right)
 		if ((maxLocalFluo >= fluoThreshold) && (f < maxLocalFluo * minRatio) && (minLocalFluo < maxLocalFluo * minRatio) && (currentMinScan < currentMaxScan)) {
-			peaks[nPeaks].crossTalk = 0;
-			peaks[nPeaks].startScan = currentMinScan;
+			Peak *peakPTR = &peaks[nPeaks];
+			peakPTR->crossTalk = 0;
+			int32_t startScan = previousMinScan > currentMinScan && previousMinScan < currentMaxScan? previousMinScan : currentMinScan;
+			peakPTR->startScan =  startScan;
+			peakPTR->scansToTip = currentMaxScan - startScan;
+			peakPTR->scansFromTip = -1;
+			isMin[currentMinScan] = true;
 			
-			/// we record the scan of the passed peak and of the last min
-			peaks[nPeaks].scansToTip = currentMaxScan - currentMinScan;
+			/// we "close" the previous peak.
 			if(nPeaks > 0) {
-				peaks[nPeaks-1].scansFromTip = currentMinScan - peaks[nPeaks-1].startScan - peaks[nPeaks-1].scansToTip;
+				peakPTR = &peaks[nPeaks-1];
+				if(peakPTR->scansFromTip < 0 || peakEndScan(peakPTR) > currentMinScan) {
+					peakPTR->scansFromTip = currentMinScan - peakPTR->startScan - peakPTR->scansToTip;
+				}
 			}
 			currentMinScan = scan;					/// in case the current scan just happens to be the minimum between two peaks
 			minLocalFluo = f; maxLocalFluo = f;		/// we reset the max and min fluo levels
@@ -323,7 +344,7 @@ int peakDetect (const int16_t *fluo, int nScans, Peak *peaks, int *maxFluo, int1
 			minLocalFluo = f;
 			currentMinScan = scan;
 			if(currentMinScan > currentMaxScan) {
-				/// as long as we are one the "descending slope" of the peak, we make sure the max local fluo is not taken from this region
+				/// as long as we are on the "descending slope" of the peak, we make sure the max local fluo is not taken from this region
 				/// (and will be used when the fluo increases again)
 				maxLocalFluo = f;
 				currentMaxScan = scan;
@@ -331,12 +352,16 @@ int peakDetect (const int16_t *fluo, int nScans, Peak *peaks, int *maxFluo, int1
 		} else if (f > maxLocalFluo) {
 			maxLocalFluo = f;
 			currentMaxScan = scan;
-			if(*maxFluo < f) *maxFluo = f;		/// we also record the max fluo of the trace, which we will store later
+			if(*maxFluo < f) {
+				/// we also record the max fluo of the trace, which we will store later
+				*maxFluo = f;
+			}
 		}
 	}
 	/// We close the last peak
 	if(nPeaks > 0) {
-		peaks[nPeaks-1].scansFromTip = currentMinScan - peaks[nPeaks-1].startScan - peaks[nPeaks-1].scansToTip;
+		Peak *peakPTR = &peaks[nPeaks-1];
+		peakPTR->scansFromTip = currentMinScan - peakPTR->startScan - peakPTR->scansToTip;
 	}
 	return nPeaks;
 }
@@ -902,6 +927,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 		n++;
 		const Peak *peakPTR = &peaks[i];
 		LadderPeak newLadderPeak = LadderPeakFromPeak(peakPTR, self);
+		NSLog(@"scan: %d, height: %hd", newLadderPeak.scan, newLadderPeak.height);
 		sumHeight += newLadderPeak.height;
 		meanHeight = sumHeight/n;
 		/// we ignore peaks that are much higher than the current average and are near the start of trace

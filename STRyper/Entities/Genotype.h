@@ -146,7 +146,10 @@ typedef NS_ENUM(int32_t, GenotypeStatus) {
 	genotypeStatusMarkerChanged,
 	
 	/// The genotype was edited manually by the user.
-	genotypeStatusManual
+	genotypeStatusManual,
+	
+	/// The sample has not proper sizing, no genotype should not be used.
+	genotypeStatusNoSizing
 } ;
 
 /// The status of the genotype.

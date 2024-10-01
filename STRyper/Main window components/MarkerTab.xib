@@ -219,7 +219,7 @@
                                                         <rect key="frame" x="8" y="0.0" width="241" height="24"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
-                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
+                                                            <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
                                                                 <rect key="frame" x="0.0" y="4" width="241" height="16"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Marker panels" id="7FA-Ui-YsX">
                                                                     <font key="font" usesAppearanceFont="YES"/>
@@ -245,7 +245,7 @@
                                                                 <rect key="frame" x="3" y="3" width="25" height="20"/>
                                                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="Panel" id="7bN-jX-rDv"/>
                                                             </imageView>
-                                                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
+                                                            <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
                                                                 <rect key="frame" x="29" y="5" width="212" height="14"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" title="Name" id="sPR-x9-rNz">
                                                                     <font key="font" metaFont="smallSystem"/>

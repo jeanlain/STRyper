@@ -80,6 +80,13 @@
 }
 
 
+- (void)mouseDraggedInView {
+	if(self.clicked) {
+		[self drag];
+	}
+}
+
+
 - (void)rightMouseDownInView {
 	if(self.enabled) {
 		if (NSPointInRect(self.view.rightClickedPoint, self.frame)) {
@@ -119,7 +126,7 @@
 }
 
 - (void)drag {
-	
+	[_view labelIsDragged:self];
 }
 
 
@@ -196,7 +203,7 @@
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
 	/// by default, we don't animate basic geometry for a layer when the label is dragged
-	if(!_allowsAnimations || _view.needsRepositionLabels || _view.hScale < 0 ||
+	if(!_allowsAnimations || _view.hScale < 0 || (_view.isMoving && !_view.resizedWithAnimation) ||
 	   (_dragged && ([event isEqualToString:@"bounds"] || [event isEqualToString:@"position"]))) {
 		return NSNull.null;
 	}

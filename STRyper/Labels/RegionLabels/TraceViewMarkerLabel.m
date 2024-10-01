@@ -64,7 +64,7 @@ static NSImage *anchorImage;
 
 
 + (void)initialize {
-	if (self == [TraceViewMarkerLabel class]) {
+	if (self == TraceViewMarkerLabel.class) {
 		anchorImage = [NSImage imageNamed:@"anchor"];
 	}
 }
@@ -603,6 +603,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	} else {
 		[self moveByOffset:offset];
 	}
+	[view labelIsDragged:self];
 }
 
 
@@ -808,14 +809,20 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 }
 
 
-- (RegionLabel *)addLabelForBin:(Bin *)bin {
-	BinLabel *binLabel = [RegionLabel regionLabelWithRegion:bin view:self.view];
+- (nullable __kindof RegionLabel*)labelWithNewBinByDraggingWithError:( NSError * _Nullable *)error {
+	BinLabel *binLabel = [RegionLabel regionLabelWithNewRegionByDraggingInView:self.view error:error];
 	if(binLabel) {
 		binLabel.parentLabel = self;
 		if(!_binLabels) {
 			self.binLabels = @[binLabel];
 		} else {
-			self.binLabels = [_binLabels arrayByAddingObject:binLabel];
+			NSArray *binLabels = [_binLabels arrayByAddingObject:binLabel];
+			self.binLabels = [binLabels sortedArrayUsingComparator:^NSComparisonResult(BinLabel *label1, BinLabel *label2) {
+				if(label1.start < label2.start) {
+					return NSOrderedAscending;
+				}
+				return NSOrderedDescending;
+			}];
 		}
 	}
 	return binLabel;

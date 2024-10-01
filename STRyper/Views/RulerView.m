@@ -39,6 +39,8 @@ static NSArray <NSAttributedString *> *sizeArrayRed;
 /// these arrays will store the with an height of each string to avoid recomputing them at every drawRect
 static float labelWidth[MAX_TRACE_LENGTH +1], labelHeight[MAX_TRACE_LENGTH +1];
 
+static void * const sampleSizeStandardChangedContext = (void*)&sampleSizeStandardChangedContext;
+
 
 /// strings that can be displayed if the sample shown by the traceView is not sized
 /// they replaces the labels in the display
@@ -53,8 +55,8 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 
 
 @implementation RulerView {
-	
 	NSPoint mouseLocation;
+	BOOL mouseDown;						/// tells if the user as clicked the view (and the button is still down)
 	BOOL isDraggingForZoom;        		/// tells if the user is performing a zoom by dragging the mouse
 	float startPoint;   				/// the location of the last mouseDown event, used to compute the area that is covered by a mouse drag
 	float startSize;
@@ -66,6 +68,7 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 	float horizontalScrollAmount;
 }
 
+@synthesize applySizeStandardButton = _applySizeStandardButton;
 
 /// Implementation notes:
 /// The drawing of size labels is done in -drawRect:
@@ -78,86 +81,91 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 static NSColor *rulerLabelColor;
 
 + (void)initialize {
-	rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
-
-	NSImage *cursorImage = [NSImage imageNamed:@"loupeCursorBordered"];
-	cursorImage.size = NSMakeSize(15, 20);
-	loupeCursor = [[NSCursor alloc]initWithImage:cursorImage hotSpot:NSMakePoint(6.1, 5.9)];
+	if (self == RulerView.class) {
+		rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
 		
-	NSDictionary *labelFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0], NSForegroundColorAttributeName: rulerLabelColor};
-	NSDictionary *redFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0],
-								   NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0 green:0.2 blue:0.2 alpha:1]};
-
-	/// we populate the label array. We do it once for all rulerViews.
-	NSMutableArray *temp = NSMutableArray.new;
-	NSMutableArray *tempRed = NSMutableArray.new;
-	for(int size = 0; size <= MAX_TRACE_LENGTH; size++) {
-		NSAttributedString *rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", size] attributes:labelFontStyle];
-		NSAttributedString *rulerLabelRed = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", size] attributes:redFontStyle];
-
+		NSImage *cursorImage = [NSImage imageNamed:@"loupeCursorBordered"];
+		cursorImage.size = NSMakeSize(15, 20);
+		loupeCursor = [[NSCursor alloc]initWithImage:cursorImage hotSpot:NSMakePoint(6.1, 5.9)];
 		
-		/// we also compute the dimension of labels now, once for all, as it can be costly to do on the fly
-		labelWidth[size] = rulerLabel.size.width;
-		labelHeight[size] = rulerLabel.size.height;  /// which is actually the same for all labels, but we do it anyway
-		[temp addObject:rulerLabel];
-		[tempRed addObject:rulerLabelRed];
+		NSDictionary *labelFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0], NSForegroundColorAttributeName: rulerLabelColor};
+		NSDictionary *redFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0],
+									   NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0 green:0.2 blue:0.2 alpha:1]};
 		
+		/// we populate the label array. We do it once for all rulerViews.
+		NSMutableArray *temp = NSMutableArray.new;
+		NSMutableArray *tempRed = NSMutableArray.new;
+		for(int size = 0; size <= MAX_TRACE_LENGTH; size++) {
+			NSAttributedString *rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", size] attributes:labelFontStyle];
+			NSAttributedString *rulerLabelRed = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", size] attributes:redFontStyle];
+			
+			
+			/// we also compute the dimension of labels now, once for all, as it can be costly to do on the fly
+			labelWidth[size] = rulerLabel.size.width;
+			labelHeight[size] = rulerLabel.size.height;  /// which is actually the same for all labels, but we do it anyway
+			[temp addObject:rulerLabel];
+			[tempRed addObject:rulerLabelRed];
+			
+		}
+		sizeArray = [NSArray arrayWithArray:temp];
+		sizeArrayRed = [NSArray arrayWithArray:tempRed];
+		
+		NSDictionary *fontAttributes = @{NSFontAttributeName: [NSFont labelFontOfSize:10], NSForegroundColorAttributeName: NSColor.secondaryLabelColor};
+		
+		noSizing = [[NSAttributedString alloc]initWithString:@"No size standard applied" attributes:fontAttributes];
+		failedSizing = [[NSAttributedString alloc]initWithString:@"Sample sizing failed" attributes:fontAttributes];
+		noSizingWidth = noSizing.size.width;
+		failedSizingWidth = failedSizing.size.width;
+		
+		
+		/// we initialize the layers that show the current mouse position
+		/// the base layer only shows a vertical line at the position
+		currentPositionMarkerLayer = CALayer.new;
+		currentPositionMarkerLayer.backgroundColor = NSColor.grayColor.CGColor;
+		currentPositionLayer.opaque = YES;
+		currentPositionMarkerLayer.anchorPoint = CGPointMake(1, 1);
+		currentPositionMarkerLayer.opaque = YES;
+		currentPositionMarkerLayer.bounds = CGRectMake(0, 0, 1, ruleThickness-1);
+		
+		currentPositionLayer = CATextLayer.new;
+		currentPositionLayer.contentsScale = 3.0;	/// this makes text sharper (a non-retina display would require 2.0, so it's overkill in this situation)
+		currentPositionLayer.bounds = CGRectMake(0, 0, 25, 9);					/// this ensures that the layer hides the ruler labels and tick-marks behind it (25 is larger than any string it can show)
+		currentPositionLayer.anchorPoint = CGPointMake(0, 0);
+		currentPositionLayer.font = (__bridge CFTypeRef _Nullable)(labelFontStyle[NSFontAttributeName]);
+		currentPositionLayer.fontSize = 8.0;
+		currentPositionLayer.allowsFontSubpixelQuantization = YES;
+		
+		[currentPositionMarkerLayer addSublayer:currentPositionLayer];
+		currentPositionLayer.position = CGPointMake(1, 1.8);		/// this places this layer 1 pixel to the right of the vertical line of the currentPositionMarkerLayer
 	}
-	sizeArray = [NSArray arrayWithArray:temp];
-	sizeArrayRed = [NSArray arrayWithArray:tempRed];
-
-	NSDictionary *fontAttributes = @{NSFontAttributeName: [NSFont labelFontOfSize:10], NSForegroundColorAttributeName: NSColor.secondaryLabelColor};
-	
-	noSizing = [[NSAttributedString alloc]initWithString:@"No size standard applied" attributes:fontAttributes];
-	failedSizing = [[NSAttributedString alloc]initWithString:@"Sample sizing failed" attributes:fontAttributes];
-	noSizingWidth = noSizing.size.width;
-	failedSizingWidth = failedSizing.size.width;
-
-	
-	/// we initialize the layers that show the current mouse position
-	/// the base layer only shows a vertical line at the position
-	currentPositionMarkerLayer = CALayer.new;
-	currentPositionMarkerLayer.backgroundColor = NSColor.grayColor.CGColor;
-	currentPositionLayer.opaque = YES;
-	currentPositionMarkerLayer.anchorPoint = CGPointMake(1, 1);
-	currentPositionMarkerLayer.opaque = YES;
-	currentPositionMarkerLayer.bounds = CGRectMake(0, 0, 1, ruleThickness-1);
-
-	currentPositionLayer = CATextLayer.new;
-	currentPositionLayer.contentsScale = 3.0;	/// this makes text sharper (a non-retina display would require 2.0, so it's overkill in this situation)
-	currentPositionLayer.bounds = CGRectMake(0, 0, 25, 9);					/// this ensures that the layer hides the ruler labels and tick-marks behind it (25 is larger than any string it can show)
-	currentPositionLayer.anchorPoint = CGPointMake(0, 0);
-	currentPositionLayer.font = (__bridge CFTypeRef _Nullable)(labelFontStyle[NSFontAttributeName]);
-	currentPositionLayer.fontSize = 8.0;
-	currentPositionLayer.allowsFontSubpixelQuantization = YES;
-	
-	[currentPositionMarkerLayer addSublayer:currentPositionLayer];
-	currentPositionLayer.position = CGPointMake(1, 1.8);		/// this places this layer 1 pixel to the right of the vertical line of the currentPositionMarkerLayer
-	
 }
 
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
 	self = [super initWithFrame:frameRect];
 	if (self) {
-		/*
-		NSButton *button = [NSButton buttonWithImage:[NSImage imageNamed:@"zoomToFit"] target:self action:@selector(zoomToFit:)];
-		button.bezelStyle = NSBezelStyleInline;
-		button.bordered = NO;
-		button.imagePosition = NSImageOnly;
-		button.imageScaling = NSImageScaleNone;
-		[button.cell setBackgroundColor: NSColor.windowBackgroundColor];
-		button.frame = NSMakeRect(-25, 20, 20, ruleThickness);
-		button.toolTip = @"Zoom to default range";
-		button.autoresizingMask = NSViewMaxXMargin;
-		[self addSubview:button]; */
-		
 		/// we initialize the offset. There is one per size label.
 		offsets = calloc(MAX_TRACE_LENGTH, sizeof(float));
 	}
 	return self;
 }
 
+
+- (NSPopUpButton *)applySizeStandardButton {
+	if(!_applySizeStandardButton) {
+		_applySizeStandardButton = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 100, 20) pullsDown:YES];
+		_applySizeStandardButton.font = [NSFont systemFontOfSize:10.0];
+		_applySizeStandardButton.title = @"Apply Size Standard";
+		_applySizeStandardButton.bezelStyle = NSBezelStyleRecessed;
+		_applySizeStandardButton.showsBorderOnlyWhileMouseInside = YES;
+		_applySizeStandardButton.translatesAutoresizingMaskIntoConstraints = NO;
+		[self addSubview:_applySizeStandardButton];
+		/// we center the button horizontally and vertically in its view
+		[[_applySizeStandardButton.centerXAnchor constraintEqualToAnchor:self.centerXAnchor] setActive:YES];
+		[[_applySizeStandardButton.bottomAnchor constraintEqualToAnchor:self.bottomAnchor] setActive:YES];
+	}
+	return _applySizeStandardButton;
+}
 
 
 - (BOOL)isOpaque {
@@ -197,6 +205,25 @@ static NSColor *rulerLabelColor;
 - (void)setClientView:(NSView *)clientView {
 	super.clientView = clientView;
 	traceView = (TraceView *)clientView;
+	[traceView addObserver:self forKeyPath:@"trace.chromatogram.sizeStandard"
+				   options:NSKeyValueObservingOptionNew|NSKeyValueObservingOptionInitial 
+				   context:sampleSizeStandardChangedContext];
+}
+
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+	if (context == sampleSizeStandardChangedContext) {
+		if(_applySizeStandardButton) {
+			Chromatogram *sample = traceView.trace.chromatogram;
+			_applySizeStandardButton.hidden = !sample || sample.sizeStandard != nil;
+			if(!_applySizeStandardButton.hidden) {
+				self.needsDisplay = YES;
+				self.currentPosition = -1000;
+			}
+		}
+	} else {
+		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+	}
 }
 
 
@@ -369,7 +396,9 @@ int rulerLabelIncrementForHScale(float hScale) {
 	
 	if(sample && sample.sizingQuality == nil) {
 		if(!sample.sizeStandard) {
-			[noSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - noSizingWidth/2, topY-15)];
+			if(!_applySizeStandardButton) {
+				[noSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - noSizingWidth/2, topY-15)];
+			}
 		} else {
 			[failedSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - failedSizingWidth/2, topY-15)];
 		}
@@ -448,13 +477,18 @@ int rulerLabelIncrementForHScale(float hScale) {
 		rect.origin.x = traceView.leftInset;
 	}
 	
-
-	[self addCursorRect:NSIntersectionRect(rect, self.visibleRect) cursor:loupeCursor];
-	
+	NSRect visibleRect = self.visibleRect;
+	[self addCursorRect:NSIntersectionRect(rect, visibleRect) cursor:loupeCursor];
+	for(NSView *view in self.subviews) {
+		if(!view.hidden) {
+			[self addCursorRect: NSIntersectionRect(view.frame, visibleRect) cursor:NSCursor.arrowCursor];
+		}
+	}
 }
 
 
 - (void)mouseDown:(NSEvent *)theEvent   {
+	mouseDown = YES;
 	[loupeCursor set];
 	mouseLocation= [self convertPoint:theEvent.locationInWindow fromView:nil];
 	startPoint = mouseLocation.x;
@@ -465,10 +499,14 @@ int rulerLabelIncrementForHScale(float hScale) {
 
 
 - (void)mouseDragged:(NSEvent *)theEvent   {
-	mouseLocation = [self convertPoint:theEvent.locationInWindow fromView:nil];
-	[self autoscrollWithLocation: mouseLocation];
-	isDraggingForZoom = YES;
-	self.needsDisplay = YES;
+	if(mouseDown) {
+		/// This check avoid `mouseDragged` beings sent after the user clicked the button to apply a size standard,
+		/// (which pops a menu) and dragged the mouse on another view (which IMO is an appkit bug)
+		mouseLocation = [self convertPoint:theEvent.locationInWindow fromView:nil];
+		[self autoscrollWithLocation: mouseLocation];
+		isDraggingForZoom = YES;
+		self.needsDisplay = YES;
+	}
 }
 
 
@@ -500,6 +538,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 
 
 - (void)mouseUp:(NSEvent *)theEvent {
+	mouseDown = NO;
 	[loupeCursor set];
 	if (theEvent.clickCount == 2) {  
 		/// we zoom out to the default when the user double clicks
@@ -533,6 +572,9 @@ int rulerLabelIncrementForHScale(float hScale) {
 
 - (void)dealloc {
 	free(offsets);
+	if(traceView) {
+		[traceView removeObserver:self forKeyPath:@"trace.chromatogram.sizeStandard"];
+	}
 }
 
 @end

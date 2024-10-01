@@ -46,10 +46,12 @@ static void *progressChangedContext = &progressChangedContext;
 
 
 + (void)initialize {
-	observedKeys = @[NSStringFromSelector(@selector(completedUnitCount)),
-					 NSStringFromSelector(@selector(localizedDescription)),
-					 @"cancellable",		/// there is no selector named "cancellable". Using "isCancellable" does no work. 
-					 @"cancelled",];		/// ditto
+	if (self == ProgressWindow.class) {
+		observedKeys = @[NSStringFromSelector(@selector(completedUnitCount)),
+						 NSStringFromSelector(@selector(localizedDescription)),
+						 @"cancellable",		/// there is no selector named "cancellable". Using "isCancellable" does no work.
+						 @"cancelled",];		/// ditto
+	}
 }
 
 

@@ -26,7 +26,7 @@
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     <clipView key="contentView" id="tYv-Hh-kQD">
                         <rect key="frame" x="0.0" y="0.0" width="584" height="224"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <autoresizingMask key="autoresizingMask"/>
                         <subviews>
                             <tableView identifier="sampleTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" alternatingRowBackgroundColors="YES" autosaveColumns="NO" rowHeight="16" rowSizeStyle="automatic" headerView="yhO-Rg-Mgn" viewBased="YES" floatsGroupRows="NO" id="KUu-Te-JeL" userLabel="sample table">
                                 <rect key="frame" x="0.0" y="0.0" width="584" height="196"/>

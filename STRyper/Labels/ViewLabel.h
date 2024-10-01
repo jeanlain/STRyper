@@ -104,6 +104,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// If the clicked occurred outside the frame, this sets the ``highlighted`` property to `NO`.
 - (void)mouseDownInView;
 
+/// Sent by a ``LabelView`` to a label on `mouseDragged:`.
+///
+/// The default implementation calls ``drag`` on the label is it is ``clicked``.
+/// - Note: This message should be received after the ``LabelView/mouseLocation`` is updated.
+-(void)mouseDraggedInView;
+
 /// Sent by a ``LabelView`` to a label on when the user has right/ctrl-clicked the view.
 ///
 /// By default, if the label is ``enabled``  and if  ``view``-s ``LabelView/clickedPoint`` lies within its ``frame``,
@@ -198,10 +204,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Makes the label perform its dragging behavior.
 ///
-/// The ``view`` should send this message when the label should be dragged (typically, within `-mouseDragged`)
-/// after checking if the label is in an appropriate state (``highlighted``, ``enabled``, etc.).
+/// This method needs not be called directly. The label calls it on itself as appropriate when receiving ``mouseDraggedInView``.
 ///
-/// The default implementation does nothing.
+/// The default implementation sends ``LabelView/labelIsDragged:`` to the view.
 /// Subclasses can override this method and use the ``LabelView/mouseLocation`` and ``LabelView/clickedPoint`` properties of  the ``view``.
 - (void)drag;
 

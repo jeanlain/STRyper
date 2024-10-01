@@ -326,6 +326,10 @@ enum ButtonTag : NSUInteger {
 	return self.traceView.isMoving;
 }
 
+- (BOOL)resizedWithAnimation {
+	return self.traceView.resizedWithAnimation;
+}
+
 # pragma mark - reaction to change in markers and panels
 
 
@@ -609,15 +613,10 @@ enum ButtonTag : NSUInteger {
 	/// when the user drags the mouse, they may be adding or resizing a marker
 	NSPoint point =  [self convertPoint:event.locationInWindow fromView:nil];
 	self.mouseLocation = point;
+	self.rulerView.currentPosition  = [self sizeForX:point.x];
 
 	if(self.inAddMode & !hoveredMarkerLabel && mouseIn) {
 		/// The user adds a new marker by dragging in an empty area (no label is clicked).
-		/// This is basically the same method as used by the traceView to add a bin
-		Panel *panel = self.panel;
-		if(!panel.managedObjectContext) {
-			return;
-		}
-		
 		float position = [self sizeForX:self.mouseLocation.x];         	/// we convert the mouse position in base pairs
 		float clickedPosition =  [self sizeForX:self.clickedPoint.x];   /// we obtain the original clicked position in base pairs
 		
@@ -634,81 +633,60 @@ enum ButtonTag : NSUInteger {
 			}
 		}
 		
-		float start = (position < clickedPosition) ? position:clickedPosition;
-		float end = (position < clickedPosition) ? clickedPosition:position;
-		
-		/// we add a new marker in a child context of the view context, as the marker is not in its final state until mouseUp, and changes should not be undoable
-		
-		if(panel.objectID.isTemporaryID) {
-			 [panel.managedObjectContext obtainPermanentIDsForObjects:@[panel] error:nil];
-		}
-		temporaryContext =[[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
-		temporaryContext.parentContext = panel.managedObjectContext;
-		/// we materialize the panel in this context, as the new marker must be added to it
-		panel = [temporaryContext existingObjectWithID:panel.objectID error:nil];
-
-		if(panel.managedObjectContext != temporaryContext) {
-			NSError *error = [NSError errorWithDescription:@"The marker could not be added because an error occurred in the database." suggestion:@"You may quit the application and try again."];
+		NSError *error;
+		draggedLabel = [RegionLabel regionLabelWithNewRegionByDraggingInView:self error:&error];
+		if(error) {
+			error = [NSError errorWithDescription:@"The marker could not be added because an error occurred in the database."
+												suggestion:@"You may quit the application and try again"];
 			[[NSAlert alertWithError:error] beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
 			}];
-			return;
+		} else if(draggedLabel) {
+			self.markerLabels = [self.markerLabels arrayByAddingObject:(RegionLabel *)draggedLabel];
+			self.inAddMode = NO;
+			[NSCursor.resizeLeftRightCursor set];
 		}
-		
-		Mmarker *newRegion = [[Mmarker alloc] initWithStart:start end:end channel:self.channel panel:panel];
-		if(!newRegion) {
-			return;
-		}
-		/// we give a blank name. Only on mouseUp the marker will get its final name (we use a space as an empty name causes issues)
-		newRegion.name = @" ";
-		RegionLabel *label = [RegionLabel regionLabelWithRegion:newRegion view:(TraceView *)self];
-		self.markerLabels = [self.markerLabels arrayByAddingObject:label];
-		
-		/// we highlight the label and the correct edge to allow immediate sizing (see below)
-		label.highlighted = YES;
-		label.clicked = YES;
-		label.clickedEdge = position < clickedPosition? leftEdge: rightEdge;
-		[NSCursor.resizeLeftRightCursor set];
-
-		self.inAddMode = NO;
-
+	
 		return;
 	}
 	
 	if(!draggedLabel) {
-		draggedLabel = self.activeLabel;
-	}
-	
-	if(draggedLabel && ((RegionLabel *)draggedLabel).clickedEdge != noEdge) {
-		[draggedLabel drag];
-		[self autoscrollWithDraggedLabel];
-		self.rulerView.currentPosition  = [self sizeForX:self.mouseLocation.x];
+		[self.activeLabel mouseDraggedInView];
+	} else {
+		[draggedLabel mouseDraggedInView];
 	}
 }
 
 
+- (void)labelIsDragged:(ViewLabel *)label {
+	draggedLabel = label;
+	[self autoscrollWithDraggedLabel:(RegionLabel *)label];
+}
 
-- (void)autoscrollWithDraggedLabel {
+
+
+- (void)autoscrollWithDraggedLabel:(RegionLabel*)draggedLabel {
 	/// we autoscroll if the mouse is dragged over the rightmost button on the left (the "+"' button), or the button on the right
-	if(!NSPointInRect(self.mouseLocation, draggedLabel.frame)) {
-		return;
-	}
+	NSRect labelFrame = draggedLabel.frame;
+	
 	TraceView *traceView = self.traceView;
 	NSRect traceViewBounds = traceView.bounds;
-	float location = self.mouseLocation.x;
-	NSRect rect = self.visibleRect;
-	float leftLimit = rect.origin.x;
-	float rightLimit = NSMaxX(rect);
+	float location = draggedLabel.clickedEdge == leftEdge? NSMinX(labelFrame) : NSMaxX(labelFrame);
+	NSRect visibleRect = self.visibleRect;
+	float leftLimit = visibleRect.origin.x;
+	float rightLimit = NSMaxX(visibleRect);
 
-	/// we scroll the trace view if the mouse goes beyond the limits
+	/// we scroll the trace view if the label frame goes beyond the limits
 	float delta = location - leftLimit;
+	float newOrigin = traceView.visibleOrigin;
 	if(delta < 0) {	/// the mouse has passed the left limit
-		if(traceView.visibleOrigin <= traceViewBounds.origin.x) {
+		newOrigin += delta;
+		if(newOrigin <= traceViewBounds.origin.x) {
 			return;	/// this would scroll the traceView too far
 		}
 	} else {
 		delta = location - rightLimit;
 		if(delta > 0) {	/// the mouse has passed the right limit
-			float newOrigin = traceView.visibleOrigin + delta;
+			newOrigin += delta;
 			if(newOrigin + traceView.visibleRect.size.width > NSMaxX(traceViewBounds)) {
 				return;
 			}
@@ -717,9 +695,7 @@ enum ButtonTag : NSUInteger {
 		}
 	}
 	
-	BaseRange newRange = self.traceView.visibleRange;
-	newRange.start += delta/self.traceView.hScale;
-	self.traceView.visibleRange = newRange;
+	[traceView scrollPoint:NSMakePoint(newOrigin, 0)];
 	
 }
 

@@ -80,7 +80,8 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 					 [NSImage imageNamed:@"filled circle"],
 					 [NSImage imageNamed:@"danger"],
 					 [NSImage imageNamed:NSImageNameStatusPartiallyAvailable],
-					 [NSImage imageNamed:@"edited round"]];
+					 [NSImage imageNamed:@"edited round"],
+					 [NSImage imageNamed:@"stop sign"]];
 	
 	if(SampleTableController.sharedController.samples) {
 		
@@ -293,9 +294,9 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	NSArray *genotypes = [self targetItemsOfSender:menuItem];
 	if(menuItem.action == @selector(removeOffsets:)) {
 		/// we hide and disable this item if no target genotype has an offset
-		NSArray *genotypes = [self targetItemsOfSender:menuItem];
 		for(Genotype *genotype in genotypes) {
 			MarkerOffset offset = genotype.offset;
 			if(offset.intercept != 0.0 || offset.slope != 1.0) {
@@ -311,7 +312,6 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 		NSDictionary *dic = Chromatogram.markerOffsetDictionaryFromGeneralPasteBoard;
 		if(dic) {
 			NSArray *URIs = dic.allKeys;
-			NSArray *genotypes = [self targetItemsOfSender:menuItem];
 			for(Genotype *genotype in genotypes) {
 				NSString *URI = genotype.marker.objectID.URIRepresentation.absoluteString;
 				if([URIs containsObject:URI]) {
@@ -326,7 +326,6 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	
 	if(menuItem.action == @selector(removeAdditionalFragments:)) {
 		/// we hide and disable this item if no target genotype has an offset
-		NSArray *genotypes = [self targetItemsOfSender:menuItem];
 		for(Genotype *genotype in genotypes) {
 			if(genotype.additionalFragments.count > 0) {
 				menuItem.hidden = NO;
@@ -334,6 +333,15 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 			}
 		}
 		menuItem.hidden = YES;
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(callAlleles:) || menuItem.action == @selector(binAlleles:)) {
+		for(Genotype *genotype in genotypes) {
+			if(genotype.sample.sizingQuality.floatValue > 0) {
+				return YES;
+			}
+		}
 		return NO;
 	}
 	
@@ -675,7 +683,8 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 							  @(genotypeStatusAutomatic),
 							  @(genotypeStatusSizingChanged),
 							  @(genotypeStatusMarkerChanged),
-							  @(genotypeStatusManual)]) {
+							  @(genotypeStatusManual),
+							  @(genotypeStatusNoSizing)]) {
 		[expressions addObject:[NSExpression expressionForConstantValue:status]];
 	}
 	
@@ -730,7 +739,7 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 	for(NSString *keyPath in keyPaths) {
 		if([keyPath isEqualToString:@"status"]) {
 			/// We need to translate each status number into a string.
-			for (int status = genotypeStatusNotCalled; status <= genotypeStatusManual; status++) {
+			for (int status = genotypeStatusNotCalled; status <= genotypeStatusNoSizing; status++) {
 				NSString *key = [NSString stringWithFormat: @"%@%@%@%d%@",  @"%[", keyPath, @"]@ %@ %[", status, @"]@"];
 				[keys addObject:key];
 			}
@@ -747,7 +756,7 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 	for(NSString *title in titles) {
 		if([title isEqualToString:@"Status"]) {
 			/// The different genotype statuses.
-			NSArray *menuItemTitles = @[@"Not called", @"No peak found", @"Called", @"Sizing has changed", @"Marker has changed", @"Edited manually"];
+			NSArray *menuItemTitles = @[@"Not called", @"No peak found", @"Called", @"Sizing has changed", @"Marker has changed", @"Edited manually", @"Sample not sized!"];
 			for (NSString *menuItemTitle in menuItemTitles) {
 				NSString *value = [NSString stringWithFormat: @"%@%@%@%@%@",  @"%1$[", title, @"]@ %2$@ %3$[", menuItemTitle, @"]@"];
 				[values addObject:value];

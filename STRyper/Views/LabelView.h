@@ -64,6 +64,8 @@ NS_ASSUME_NONNULL_BEGIN
 	/// Backs the ``colorsForChannels`` readonly property and allows subclasses to set it.
 	NSArray *_colorsForChannels;
 	
+	
+	BOOL _resizedWithAnimation;
 	/// The marker label that is hovered.
 	__weak RegionLabel *hoveredMarkerLabel;
 	
@@ -77,9 +79,6 @@ NS_ASSUME_NONNULL_BEGIN
 	///
 	/// This ivar is used internally to avoid computations that should not be performed if the mouse is not in the view.
 	BOOL mouseIn;
-				  
-	/// A temporary context used to materialize a ``RegionLabel`` object that the user can create using the view.
-	NSManagedObjectContext *temporaryContext;
 
 }
 
@@ -114,6 +113,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// This properties is used to determine the x coordinate for a size of 0 base pairs,
 /// given that ``Chromatogram/startSize``  is often negative.
 @property (nonatomic, readonly) float sampleStartSize;
+
+
+@property (nonatomic, readonly) BOOL resizedWithAnimation;
 
 /// Returns a size in base pairs for a given position along the x axis of the view (in quartz points).
 ///
@@ -162,6 +164,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter label: The label that had its ``RegionLabel/editState`` changed.
 -(void)labelDidChangeEditState:(RegionLabel *)label;
 
+/// Notifies the view that a `ViewLabel` is performing its drag behavior.
+///
+/// - Parameter label: The label that is dragged.
+-(void)labelIsDragged:(ViewLabel *)label;
 
 /// Notifies the view that a ``RegionLabel``  has added a new ``Region`` (via click & drag).
 ///

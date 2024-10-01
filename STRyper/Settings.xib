@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23094" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23094"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -17,14 +17,14 @@
             <windowCollectionBehavior key="collectionBehavior" fullScreenNone="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="336" y="1003" width="316" height="262"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="1512" height="944"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
             <value key="minSize" type="size" width="316" height="262"/>
             <value key="maxSize" type="size" width="316" height="262"/>
             <view key="contentView" id="q0D-D5-1Ni">
                 <rect key="frame" x="0.0" y="0.0" width="316" height="284"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="uSe-Tg-Rtm">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="uSe-Tg-Rtm">
                         <rect key="frame" x="18" y="263" width="82" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Sample sizing" id="EPG-kP-9zS">
                             <font key="font" metaFont="smallSystemBold"/>
@@ -46,7 +46,7 @@
                             </binding>
                         </connections>
                     </button>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jEe-KA-BXs" userLabel="Default sizing method:">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jEe-KA-BXs" userLabel="Default sizing method:">
                         <rect key="frame" x="18" y="224" width="123" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default sizing method:" id="eiT-aF-Jqe">
                             <font key="font" metaFont="smallSystem"/>
@@ -77,7 +77,7 @@
                             <binding destination="oXY-Ga-9dS" name="selectedIndex" keyPath="values.DefaultSizingOrder" id="Tqu-0K-VwH"/>
                         </connections>
                     </popUpButton>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9yZ-ev-Uc4" userLabel="Genotyping">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9yZ-ev-Uc4" userLabel="Genotyping">
                         <rect key="frame" x="18" y="202" width="69" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Genotyping" id="Xbn-5O-8SE" userLabel="Genotyping">
                             <font key="font" metaFont="smallSystemBold"/>
@@ -85,7 +85,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="3Sd-10-UKi">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="3Sd-10-UKi">
                         <rect key="frame" x="18" y="185" width="222" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default name for missing/uncalled alleles:" id="TaH-4W-Qy6">
                             <font key="font" metaFont="smallSystem"/>
@@ -93,7 +93,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" verticalHuggingPriority="750" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="D7S-ET-8Vx">
+                    <textField verticalHuggingPriority="750" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="D7S-ET-8Vx">
                         <rect key="frame" x="246" y="183" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="Gev-iN-e94"/>
@@ -112,7 +112,7 @@
                             </binding>
                         </connections>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="QCa-pv-ImL">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="QCa-pv-ImL">
                         <rect key="frame" x="18" y="163" width="224" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default name for non-binned alleles:" id="Yoc-mJ-Ya8">
                             <font key="font" metaFont="smallSystem"/>
@@ -120,7 +120,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" verticalHuggingPriority="750" tag="1" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="8do-CE-iUa">
+                    <textField verticalHuggingPriority="750" tag="1" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="8do-CE-iUa">
                         <rect key="frame" x="246" y="161" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="cH2-Z3-6jq"/>
@@ -139,7 +139,7 @@
                             </binding>
                         </connections>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="fHg-LG-cUI">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="fHg-LG-cUI">
                         <rect key="frame" x="18" y="119" width="176" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default visible range of traces:" id="pra-yw-mTb">
                             <font key="font" metaFont="smallSystemBold"/>
@@ -147,7 +147,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Mlm-cG-fgS">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Mlm-cG-fgS">
                         <rect key="frame" x="18" y="102" width="34" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Start:" id="gSI-HU-hAD">
                             <font key="font" metaFont="smallSystem"/>
@@ -157,17 +157,17 @@
                     </textField>
                     <stepper horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="DNH-7g-HI8" userLabel="Start stepper">
                         <rect key="frame" x="51" y="97" width="15" height="22"/>
-                        <stepperCell key="cell" controlSize="small" continuous="YES" alignment="left" id="XFF-8r-e2b"/>
+                        <stepperCell key="cell" controlSize="small" continuous="YES" alignment="left" increment="10" maxValue="1200" id="XFF-8r-e2b"/>
                         <connections>
-                            <binding destination="oXY-Ga-9dS" name="maxValue" keyPath="values.DefaultEndSize" id="drB-zm-Gcd"/>
-                            <binding destination="oXY-Ga-9dS" name="value" keyPath="values.DefaultStartSize" previousBinding="drB-zm-Gcd" id="4BT-mA-gEd">
+                            <binding destination="-2" name="value" keyPath="self.defaultStartSize" id="r1s-YR-VFI">
                                 <dictionary key="options">
+                                    <bool key="NSAllowsEditingMultipleValuesSelection" value="NO"/>
                                     <bool key="NSValidatesImmediately" value="YES"/>
                                 </dictionary>
                             </binding>
                         </connections>
                     </stepper>
-                    <textField focusRingType="none" verticalHuggingPriority="750" tag="2" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FCR-zr-HMJ">
+                    <textField verticalHuggingPriority="750" tag="2" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FCR-zr-HMJ">
                         <rect key="frame" x="65" y="100" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="00s-TN-w7N"/>
@@ -187,7 +187,7 @@
                             </binding>
                         </connections>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jSL-5l-Wfa">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jSL-5l-Wfa">
                         <rect key="frame" x="115" y="102" width="57" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="bp     End:" id="mDU-hD-QxM">
                             <font key="font" metaFont="smallSystem"/>
@@ -197,17 +197,17 @@
                     </textField>
                     <stepper horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Sd7-OA-qgH" userLabel="End stepper">
                         <rect key="frame" x="171" y="97" width="15" height="22"/>
-                        <stepperCell key="cell" controlSize="small" continuous="YES" alignment="left" maxValue="1200" id="mTT-Oe-NUl"/>
+                        <stepperCell key="cell" controlSize="small" continuous="YES" alignment="left" increment="10" maxValue="1200" id="mTT-Oe-NUl"/>
                         <connections>
-                            <binding destination="oXY-Ga-9dS" name="value" keyPath="values.DefaultEndSize" previousBinding="Ln3-Hm-zob" id="wyd-Ao-XgG">
+                            <binding destination="-2" name="value" keyPath="self.defaultEndSize" id="jzg-bk-8qA">
                                 <dictionary key="options">
+                                    <bool key="NSAllowsEditingMultipleValuesSelection" value="NO"/>
                                     <bool key="NSValidatesImmediately" value="YES"/>
                                 </dictionary>
                             </binding>
-                            <binding destination="oXY-Ga-9dS" name="minValue" keyPath="values.DefaultStartSize" id="Ln3-Hm-zob"/>
                         </connections>
                     </stepper>
-                    <textField focusRingType="none" verticalHuggingPriority="750" tag="3" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Th6-Yh-gLJ">
+                    <textField verticalHuggingPriority="750" tag="3" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Th6-Yh-gLJ">
                         <rect key="frame" x="185" y="100" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="Pp5-Po-W67"/>
@@ -228,7 +228,7 @@
                             </binding>
                         </connections>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="r7V-4r-Krv">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="r7V-4r-Krv">
                         <rect key="frame" x="235" y="102" width="18" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="bp" id="zWA-uE-hBV">
                             <font key="font" metaFont="smallSystem"/>
@@ -236,7 +236,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="EAx-VE-G92" userLabel="When scaling views to highest peak:">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="EAx-VE-G92" userLabel="When scaling views to highest peak:">
                         <rect key="frame" x="18" y="78" width="213" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="When scaling views to highest peaks:" id="Gtl-BN-0Ce">
                             <font key="font" metaFont="smallSystemBold"/>
@@ -258,7 +258,7 @@
                             </binding>
                         </connections>
                     </button>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="pmw-k5-0yM" userLabel="When scaling views to highest peak:">
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="pmw-k5-0yM" userLabel="When scaling views to highest peak:">
                         <rect key="frame" x="18" y="39" width="233" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="When subtracting baseline fluorescence:" id="u7J-W6-7eV">
                             <font key="font" metaFont="smallSystemBold"/>

@@ -125,7 +125,7 @@
                                                                     <binding destination="en7-xV-IcJ" name="toolTip" keyPath="objectValue.tooltip" id="XhY-K0-BwY"/>
                                                                 </connections>
                                                             </imageView>
-                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="GdZ-Ii-Y81" userLabel="Size standard name">
+                                                            <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="GdZ-Ii-Y81" userLabel="Size standard name">
                                                                 <rect key="frame" x="22" y="1" width="358" height="16"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="Size standard name" id="V4i-hN-P7a">
                                                                     <font key="font" usesAppearanceFont="YES"/>
@@ -225,7 +225,7 @@
                                                         <rect key="frame" x="0.0" y="0.0" width="321" height="0.0"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
-                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="j2w-LN-2GJ">
+                                                            <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="j2w-LN-2GJ">
                                                                 <rect key="frame" x="0.0" y="-5" width="321" height="14"/>
                                                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES" flexibleMaxY="YES"/>
                                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" sendsActionOnEndEditing="YES" title="150" id="IIs-VY-FJB">

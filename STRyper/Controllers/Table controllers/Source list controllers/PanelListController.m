@@ -151,7 +151,7 @@
 					NSError *validationError;
 					[marker validateValue:&panel forKey:@"panel" error:&validationError];
 					if(!validationError) {
-						marker.panel = panel;
+						[marker managedObjectOriginal_setPanel:panel];
 						nCopiedMarkers++;
 					} else {
 						[MOC deleteObject:marker];

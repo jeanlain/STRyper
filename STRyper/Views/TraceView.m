@@ -135,10 +135,7 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	float drawnRangeEnd;		/// The position of the trailing edge of the rightmost trace layer
 	
 	NSMutableSet *fragmentLabelsToReposition; /// Used to determine wether we should reposition Fragment labels during -layout.
-	
-	BOOL resizedWithAnimation;	/// Whether the view is being resized in a context allowing implicit animation.
-								/// We use this info to determine how to reposition layers.
-	
+		
 	BOOL needsUpdateAppearance; /// To determine whether we need to update colors (background layer, others) to adapt to the current appearance.
 								/// This ivar avoid doing these changes during updateLayer when not necessary
 								/// (as the method is also called to update label colors, which is required more often).
@@ -160,19 +157,20 @@ static const float defaultTraceLayerWidth = 512; /// Default width of a trace la
 static NSColor *traceViewBackgroundColor;
 
 + (void)initialize {
-	
-	animatableKeys = @[NSStringFromSelector(@selector(topFluoLevel)),
-					   NSStringFromSelector(@selector(animatableRange)),
-					   NSStringFromSelector(@selector(vScale))];
-	
-	/// We determine if the SoC is from Apple by reading the CPU brand.
-	/// There may be a better way by reading the architecture.
-	size_t size = 100;		/// To make sure that we can read the whole CPU name.
-	char string[size];
-	sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
-	appleSilicon = strncmp(string, "Apple", 5) == 0;
-	
-	traceViewBackgroundColor = [NSColor colorNamed: @"traceViewBackgroundColor"];
+	if (self == TraceView.class) {
+		animatableKeys = @[NSStringFromSelector(@selector(topFluoLevel)),
+						   NSStringFromSelector(@selector(animatableRange)),
+						   NSStringFromSelector(@selector(vScale))];
+		
+		/// We determine if the SoC is from Apple by reading the CPU brand.
+		/// There may be a better way by reading the architecture.
+		size_t size = 100;		/// To make sure that we can read the whole CPU name.
+		char string[size];
+		sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
+		appleSilicon = strncmp(string, "Apple", 5) == 0;
+		
+		traceViewBackgroundColor = [NSColor colorNamed: @"traceViewBackgroundColor"];
+	}
 }
 
 
@@ -487,6 +485,9 @@ static NSColor *traceViewBackgroundColor;
 	[self stopObservingSamples];
 	_loadedTraces = nil;	/// We don't use the setter to avoid calling setTrace:, which triggers KVO notifications with unwanted side effects
 							/// since the view is not used at this point (removing labels, hiding the vScaleView, etc.)
+	if(updateTrackingAreasTimer.valid) {
+		[updateTrackingAreasTimer invalidate];
+	}
 	visibleTraces = nil;
 	showsTraces = NO;
 	self.clickedTrace = nil;
@@ -977,7 +978,7 @@ static NSColor *traceViewBackgroundColor;
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
 	if(layer.superlayer == traceLayerParent) {
-		if(resizedWithAnimation) {
+		if(_resizedWithAnimation) {
 			return nil;
 		}
 		return NSNull.null;
@@ -1508,7 +1509,6 @@ static NSColor *traceViewBackgroundColor;
 		self.hScale = newScale;
 		self.visibleOrigin = (range.start - _sampleStartSize) * _hScale;
 		[self.delegate traceViewDidChangeRangeVisibleRange:self];
-		self.isMoving = YES;
 	}
 	if(!self.marker)  {
 		for(Trace *trace in self.loadedTraces) {
@@ -1530,7 +1530,6 @@ static NSColor *traceViewBackgroundColor;
 		float newScale = self.visibleWidth / _visibleRange.len;
 		self.hScale = newScale;
 		self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
-		self.isMoving = YES;
 	}
 	if(!self.marker)  {
 		for(Trace *trace in self.loadedTraces) {
@@ -1590,7 +1589,7 @@ static NSColor *traceViewBackgroundColor;
 - (void)setVScale:(float)scale {
 	if (scale != _vScale) {
 		_vScale = scale;
-		if(!resizedWithAnimation) {
+		if(!_resizedWithAnimation) {
 			self.needsDisplayTraces = YES;
 			self.needsRepositionFragmentLabels = YES;
 		} else {
@@ -1650,6 +1649,7 @@ static NSColor *traceViewBackgroundColor;
 
 - (void)setVisibleOrigin:(float)newVisibleOrigin {
 	if (newVisibleOrigin != _visibleOrigin) {
+		self.isMoving = YES;
 		/// we set the current mouse location in the view coordinate system as it changes during scrolling
 		/// (since the view scrolls behind the mouse) and should show in the ruler view
 		/// to compute it, we need to record the previous visible origin (the new mouse location must set it after the scroll)
@@ -1661,7 +1661,7 @@ static NSColor *traceViewBackgroundColor;
 		[self.enclosingScrollView reflectScrolledClipView:clipView];
 		traceLayerFillingClipRect = nil;  /// The layer showing traces no longer fits the visible rectangle
 		
-		if(!resizedWithAnimation) {
+		if(!_resizedWithAnimation) {
 			[self setNeedsLayoutTraceLayer]; /// We need to position trace layers during scrolling.
 			///as our markerView doesn't scroll, it needs to reposition its marker labels to reflect our range
 			self.markerView.needsRepositionLabels = YES;
@@ -1686,7 +1686,7 @@ static NSColor *traceViewBackgroundColor;
 		}
 		_hScale = newScale;
 		[self fitToIntrinsicContentSize];
-		if(!resizedWithAnimation) {
+		if(!_resizedWithAnimation) {
 			self.markerView.needsRepositionLabels = YES;
 		}
 	}
@@ -1942,7 +1942,7 @@ static NSColor *traceViewBackgroundColor;
 - (void)resizeWithOldSuperviewSize:(NSSize)oldSize {
 	/// we react to changes in our clipview size to maintain our visible range and fit vertically to this view
 	NSSize newSize = self.superview.bounds.size;
-	resizedWithAnimation = NSAnimationContext.currentContext.allowsImplicitAnimation;
+	self.resizedWithAnimation = NSAnimationContext.currentContext.allowsImplicitAnimation;
 	
 	if(newSize.height != oldSize.height) {
 		[self fitVertically];
@@ -1951,7 +1951,7 @@ static NSColor *traceViewBackgroundColor;
 	if(newSize.width != oldSize.width && self.hScale > 0) {
 		self.hScale = self.visibleWidth / _visibleRange.len;
 		self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
-		if(resizedWithAnimation) {
+		if(_resizedWithAnimation) {
 			/// To reposition marker labels in sync with the animation, we need to reposition them now.
 			/// We do it now because resizeWithOldSuperviewSize: is not called on the marker view when the context allows implicit animations.
 			/// We need to resize the marker view to its final size, otherwise the markers label will not be positioned properly.
@@ -1963,7 +1963,7 @@ static NSColor *traceViewBackgroundColor;
 		}
 	}
 	
-	resizedWithAnimation = NO;
+	self.resizedWithAnimation = NO;
 }
 
 
@@ -2018,14 +2018,17 @@ static NSColor *traceViewBackgroundColor;
 
 - (void)setFrameSize:(NSSize)newSize {
 	NSSize oldSize = self.frame.size;
+	self.isMoving = YES;
 	_isResizing = YES;
 	[super setFrameSize:newSize];
 	_isResizing = NO;
-	if(resizedWithAnimation) {
+	if(_resizedWithAnimation) {
 		/// If the size changes (without a change in vScale or hScale), the marker labels need to be repositioned
 		/// to occupy the whole view height. Bins are resized by the marker labels.
 		/// We don't defer that, otherwise labels would not move in sync with the animation.
 		[self repositionLabels:self.markerLabels];
+		[self repositionLabels:self.fragmentLabels];
+		[FragmentLabel avoidCollisionsInView:self];
 		[self rescaleTraceLayersWithOldSize:oldSize];
 	} else {
 		/// If we don't need to animate, it's safer to reposition the layer filling the visible rectangle.
@@ -2034,6 +2037,11 @@ static NSColor *traceViewBackgroundColor;
 		self.needsDisplayTraces = YES;
 	}
 	[self positionVerticalLineLayer];
+}
+
+
+-(void)setResizedWithAnimation:(BOOL)resizedWithAnimation {
+	_resizedWithAnimation = resizedWithAnimation;
 }
 
 
@@ -2121,10 +2129,10 @@ static NSColor *traceViewBackgroundColor;
 }
 
 
--(void)setIsMoving:(BOOL)state {
-	if(_isMoving != state) {
-		_isMoving = state;
-		if(state) {
+-(void)setIsMoving:(BOOL)moving {
+	if(_isMoving != moving) {
+		_isMoving = moving;
+		if(moving) {
 			/// when the view gets resized, we remove tracking areas. During zoom, we don't reposition the areas, so their position is invalid.
 			/// After resizing, they will be rebuilt
 			for(NSTrackingArea *area in self.trackingAreas) {
@@ -2844,24 +2852,19 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 	/// used to let the user resize labels of add a new bin
 	
 	self.mouseLocation = [self convertPoint:theEvent.locationInWindow fromView:nil];
-	ViewLabel *activeLabel = self.activeLabel;
-	if(!draggedLabel && activeLabel.clicked) {
-		if(NSPointInRect(self.clickedPoint, activeLabel.frame)) {
-			/// We make sure that we should drag the label because this method might not follow a mouseDown: message sent to us
-			/// (which I consider an oversight from appkit), in particular if the view was showing a contextual menu before the drag.
-			/// The label may appear clicked after the mouse button was released, when a menu was showing (hence no mouseUp: message was sent to us)
-			/// Because no mouseDown: is sent to us when he user clicks the view while the menu is open, the label still appears clicked.
-			draggedLabel = activeLabel;
-		} else {
-			activeLabel.clicked = NO;
-		}
+	if(draggedLabel) {
+		[draggedLabel mouseDraggedInView];
+		return;
 	}
 	
-	if(draggedLabel) {
-		[draggedLabel drag];
-		if(draggedLabel.dragged) {
-			[self autoscrollWithDraggedLabel];
+	ViewLabel *activeLabel = self.activeLabel;
+	if(activeLabel.clicked) {
+		if(!NSPointInRect(self.clickedPoint, activeLabel.frame)) {
+			/// The active label may appear clicked after the mouse button was released when a contextual menu was showing (because no mouseUp: message was sent to us in that case)
+			/// Because no mouseDown: is sent to us when he user clicks the view while the menu is open, the label still appears clicked.
+			activeLabel.clicked = NO;
 		}
+		[activeLabel mouseDraggedInView];
 		return;
 	}
 	
@@ -2878,10 +2881,6 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 			}
 			/// the rest is similar to the addition of new marker (see equivalent method in MarkerView.m)
 			Mmarker *marker = (Mmarker*)enabledMarkerLabel.region;
-			if(!marker.managedObjectContext) {
-				return;
-			}
-			
 			float position = [self sizeForX:self.mouseLocation.x];         			/// we convert the mouse position in base pairs
 			float clickedPosition =  [self sizeForX:self.clickedPoint.x];      		/// we obtain the original clicked position in base pairs
 			
@@ -2892,67 +2891,47 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 					return;
 				}
 			}
-			
-			dashedLineLayer.hidden = YES;											/// it is better to hide the dashed line when the bin is created, to reduce visual clutter.
-			MarkerOffset offset = enabledMarkerLabel.offset;
-			position = (position - offset.intercept) / offset.slope;
-			clickedPosition = (clickedPosition - offset.intercept) / offset.slope;
-			
-			float start = (position < clickedPosition) ? position:clickedPosition;	/// we determine the start of the bin, depending on the direction of the drag
-			float end = (position < clickedPosition) ? clickedPosition:position;
-			
-			if(marker.objectID.isTemporaryID) {
-				[marker.managedObjectContext obtainPermanentIDsForObjects:@[marker] error:nil];
-			}
-			temporaryContext =[[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
-			temporaryContext.parentContext = marker.managedObjectContext;
-			marker = [temporaryContext existingObjectWithID:marker.objectID error:nil];
-			
-			if(marker.managedObjectContext != temporaryContext) {
-				NSError *error = [NSError errorWithDescription:@"The bin could not be added because an error occurred in the database." suggestion:@"You may quit the application and try again"];
+			NSError *error;
+			draggedLabel = [enabledMarkerLabel labelWithNewBinByDraggingWithError:&error];
+			if(error) {
+				error = [NSError errorWithDescription:@"The bin could not be added because an error occurred in the database."
+													suggestion:@"You may quit the application and try again"];
 				[[NSAlert alertWithError:error] beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
 				}];
-				return;
-			}
-			
-			Bin *newRegion = [[Bin alloc] initWithStart:start end:end marker:marker];
-			if(!newRegion) {
-				return;
-			}
-			newRegion.name = @" ";
-			RegionLabel *label = [enabledMarkerLabel addLabelForBin:newRegion];
-			if(label) {
-				draggedLabel = label;
-				label.highlighted = YES;            /// we highlight the label and the correct edge to allow immediate sizing (see above)
-				label.clicked = YES;
-				label.clickedEdge = position < clickedPosition? leftEdge: rightEdge;
+			} else if(draggedLabel) {
+				dashedLineLayer.hidden = YES;	/// it is better to hide the dashed line when the bin is created, to reduce visual clutter.
 				[NSCursor.resizeLeftRightCursor set];
 			}
-			return;
 		}
 	}
 }
 
 
-- (void)autoscrollWithDraggedLabel {
-	
-	if(draggedLabel != self.enabledMarkerLabel) {
+- (void)labelIsDragged:(ViewLabel *)label {
+	draggedLabel = label;
+	if(label != self.enabledMarkerLabel) {
 		/// We don't scroll while dragging this label, as it would be disturbing.
-		
-		NSRect labelFrame = draggedLabel.frame;
-		if(NSPointInRect(self.mouseLocation, labelFrame)) {
-			if([draggedLabel isKindOfClass:RegionLabel.class]) {
-				RegionEdge clickedEdge = ((RegionLabel *)draggedLabel).clickedEdge;
-				if(clickedEdge == betweenEdges) {
-					if(labelFrame.size.width > self.clipRect.size.width)
-						/// if a label is dragged (not resized) and is larger than what we show, we don't scroll.
-						return;
-				}
-			}
-			
-			[self scrollRectToVisible:labelFrame];
-		}
+		[self autoscrollWithDraggedLabel:label];
 	}
+}
+
+
+- (void)autoscrollWithDraggedLabel:(ViewLabel *)draggedLabel {
+	NSRect labelFrame = draggedLabel.frame;
+	NSRect clipRect = self.clipRect;
+	if([draggedLabel respondsToSelector:@selector(clickedEdge)]) {
+		RegionEdge clickedEdge = ((RegionLabel *)draggedLabel).clickedEdge;
+		if(clickedEdge == betweenEdges) {
+			if(labelFrame.size.width > clipRect.size.width)
+				/// if a label is dragged (not resized) and is larger than what we show, we don't scroll.
+				return;
+		}
+	} else if([draggedLabel respondsToSelector:@selector(dragHandleEndPosition)]) {
+		float xPos = [(PeakLabel *)draggedLabel dragHandleEndPosition].x;
+		labelFrame = NSMakeRect(xPos-3, 0, 6, 1);
+	}
+	
+	[self scrollRectToVisible:labelFrame];
 }
 
 

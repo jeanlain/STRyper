@@ -42,24 +42,25 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 
 + (void)initialize {
-	fileErrorSuggestion = @"Check the file. Encoding must be ASCII or UTF-8 and fields separated by tabs";
-	
-	/// This dictionary describes a line in the text file describing elements of a panel.
-	/// The key is the keyword in the first field of the line.
-	/// The value contains the class of the described object, followed by the keys that the other fields specify for the object.
-	fieldDescription = @{
-		@"panel": @[Panel.entity.name, @"name"],
-		@"marker": @[Mmarker.entity.name, @"name", @"start", @"end", @"channel", @"ploidy", @"motiveLength"],
-		@"bin": @[Bin.entity.name, @"name", @"start", @"end"],
-	};
-	
-	/// the colors corresponding to channels, as the text file specifies color names. The index of the color in the array is the channel
-	/// except for "yellow", which corresponds to channel 2 (black).
-	channelColorNames = @[@"blue", @"green", @"black", @"red", @"orange", @"yellow"];
-	
-	numberFormatter = NSNumberFormatter.new;	/// a formatter we use during import
-	numberFormatter.decimalSeparator = @".";
-	
+	if (self == PanelFolder.class) {
+		fileErrorSuggestion = @"Check the file. Encoding must be ASCII or UTF-8 and fields separated by tabs";
+		
+		/// This dictionary describes a line in the text file describing elements of a panel.
+		/// The key is the keyword in the first field of the line.
+		/// The value contains the class of the described object, followed by the keys that the other fields specify for the object.
+		fieldDescription = @{
+			@"panel": @[Panel.entity.name, @"name"],
+			@"marker": @[Mmarker.entity.name, @"name", @"start", @"end", @"channel", @"ploidy", @"motiveLength"],
+			@"bin": @[Bin.entity.name, @"name", @"start", @"end"],
+		};
+		
+		/// the colors corresponding to channels, as the text file specifies color names. The index of the color in the array is the channel
+		/// except for "yellow", which corresponds to channel 2 (black).
+		channelColorNames = @[@"blue", @"green", @"black", @"red", @"orange", @"yellow"];
+		
+		numberFormatter = NSNumberFormatter.new;	/// a formatter we use during import
+		numberFormatter.decimalSeparator = @".";
+	}
 }
 
 

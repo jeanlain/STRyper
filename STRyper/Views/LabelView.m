@@ -381,6 +381,11 @@
 }
 
 
+- (void)labelIsDragged:(ViewLabel *)label {
+	
+}
+
+
 - (void)labelDidChangeHighlightedState:(ViewLabel *)label {
 }
 
@@ -449,25 +454,24 @@
 - (void)labelDidUpdateNewRegion:(RegionLabel *)label {
 
 	Region *region = label.region;
-	if(region.managedObjectContext == temporaryContext) {
+	NSManagedObjectContext *regionContext = region.managedObjectContext;
+	NSManagedObjectContext *panelContext = self.panel.managedObjectContext;
 						
 		if([region isKindOfClass:Mmarker.class]) {
 			Mmarker *marker = (Mmarker *)region;
 			[marker createGenotypesWithAlleleName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
 		}
 		
-		if(temporaryContext.hasChanges) {
+		if(regionContext.hasChanges) {
 			NSError *error;
 			[self.undoManager setActionName:[@"Add " stringByAppendingString:region.entity.name]];
-			[region.managedObjectContext save:&error];
-			NSManagedObjectContext *MOC = self.panel.managedObjectContext;
-			if(error || !(MOC.hasChanges && [MOC save:nil])) {
+			[regionContext save:&error];
+			if(error || !(panelContext.hasChanges && [panelContext save:nil])) {
 				NSString *description = [NSString stringWithFormat:@"The %@ could not be added because of an error in the database", region.entity.name.lowercaseString];
 				[NSApp presentError:[NSError errorWithDescription:description suggestion:@""]];
 				[label removeFromView];
 			}
 		}
-	}
 }
 
 

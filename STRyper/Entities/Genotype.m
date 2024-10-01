@@ -66,22 +66,24 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 	
 
 + (void)initialize {
-	
-	
-	statusTexts = @[@"Genotype not called",
-					@"No peak detected",
-					@"Genotype called",
-					@"Sample sizing has changed!",
-					@"Marker has been edited",
-					@"Genotype edited manually"];
-	
-	assignedAllelePredicate = [NSPredicate predicateWithBlock:^BOOL(Allele * allele, NSDictionary<NSString *,id> * _Nullable bindings) {
-		return allele.additional == NO;
-	}];
-	
-	additionalFragmentPredicate = [NSPredicate predicateWithBlock:^BOOL(Allele * allele, NSDictionary<NSString *,id> * _Nullable bindings) {
-		return allele.additional;
-	}];
+	if(self == Genotype.class) {
+		
+		statusTexts = @[@"Genotype not called",
+						@"No peak detected",
+						@"Genotype called",
+						@"Sample sizing has changed!",
+						@"Marker has been edited",
+						@"Genotype edited manually",
+						@"Sample is not sized!"];
+		
+		assignedAllelePredicate = [NSPredicate predicateWithBlock:^BOOL(Allele * allele, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return allele.additional == NO;
+		}];
+		
+		additionalFragmentPredicate = [NSPredicate predicateWithBlock:^BOOL(Allele * allele, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return allele.additional;
+		}];
+	}
 }
 
 
@@ -107,6 +109,9 @@ static NSArray<NSString *> *statusTexts;		/// the text for the different statuse
 	if(self) {
 		[self managedObjectOriginal_setMarker:marker];
 		[self managedObjectOriginal_setSample:sample];
+		if(sample.sizingQuality.floatValue <= 0) {
+			self.status = genotypeStatusNoSizing;
+		}
 		for (int i = 1; i <= marker.ploidy; i++) {
 			Allele *newAllele = [[Allele alloc] initWithGenotype:self additional:NO];
 			if(!newAllele) {

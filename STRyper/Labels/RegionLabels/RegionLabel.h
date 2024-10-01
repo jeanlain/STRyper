@@ -91,6 +91,34 @@ NS_ASSUME_NONNULL_BEGIN
 ///   - view: The view on which the label will show. It must be either a ``TraceView`` or a ``MarkerView`` object.
 + (nullable __kindof RegionLabel*)regionLabelWithRegion:(Region *)region view:(__kindof LabelView *)view;
 
+
+/// Returns a region label representing a new region (marker or bin) created by click & drag in a view.
+///
+/// Markers or bins can be created by click and drag. Which type of region is created is determined by the `view`'s class.
+/// If it is a ``TraceView``, a bin will be created, otherwise a marker will be created.
+/// This method uses the ``LabelView/mouseLocation`` and the ``LabelView/clickedPoint``
+/// of the `view` to determine the region's start and end. These properties must be set properly before the method is called.
+/// If the region could not be created, the method returns `nil` and sets the `error`.
+/// - note: The method does not check if the ``Region/start`` and ``Region/end`` of the new region are valid.
+/// - Important: The new region is added in a temporary managed object context on the main queue.
+///
+/// - Parameters:
+///   - view: The view in which the label should be created.
+///   - error: On output, any error preventing creating the region, which would correspond to a core data error.
++ (nullable __kindof RegionLabel*)regionLabelWithNewRegionByDraggingInView:(__kindof LabelView *)view error:(NSError * _Nullable *)error;
+
+
+/// Returns a label representing a new bin created by click and drag within the receiver.
+///
+/// Bins can be created by click-and drag within a label representing a marker on a ``TraceView``. The receiver must be such label.
+/// This method uses the ``LabelView/mouseLocation`` and the
+/// ``LabelView/clickedPoint`` of the receiver's ``ViewLabel/view`` to determine the bin's start and end.
+/// These properties must be set properly before the method is called. If the bin could not be created, the method returns `nil` and sets the `error`.
+/// - note: The method does not check if the ``Region/start`` and ``Region/end`` of the new bin are valid.
+/// - Important: The new region is added in a temporary managed object context on the main queue.
+/// - Parameter error: On output, any error preventing creating the bin, which would correspond to a core data error.
+- (nullable __kindof RegionLabel*)labelWithNewBinByDraggingWithError:( NSError * _Nullable *)error;
+
 /// Whether the label represents a marker.
 @property (nonatomic, readonly) BOOL isMarkerLabel;
 
@@ -200,16 +228,6 @@ typedef NS_ENUM(NSUInteger, EditState) {
 /// Bin labels are sorted by ascending ``RegionLabel/start``.
 @property (nonatomic, nullable, readonly) NSArray<__kindof RegionLabel *> *binLabels;
 
-/// Returns a label representing a bin, and adds it to the  receiver's ``binLabels`` array.
-///
-///	The returned label is configured to be displayed on the ``ViewLabel/view`` hosting the receiver.
-///	If the receiver does not represent a marker on a ``TraceView``, the method returns `nil` and does nothing else.
-///
-///	This method can be used to represent a new bin that has need not been (yet) added to the set of ``Mmarker/bins``
-///	of a maker object (as identified by its pointer) represented by the receiver.
-/// The method does not check that the bin position is consistent with the range of the marker represented by the receiver and existing bins.
-/// - Parameter bin: The bin that should be represented by the label.
--(nullable RegionLabel *)addLabelForBin:(Bin *)bin;
 
 /// Internal method that updates the ``Genotype/offset`` of the target genotypes to reflect the ``offset`` of the label.
 ///

@@ -585,9 +585,9 @@
 	[self applySizeStandard:standard toSamples:[self targetItemsOfSender:sender]];
 }
 
+
 - (void)applySizeStandard2:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
-	/// TO TEST
-	CFTimeInterval startTime = CACurrentMediaTime();
+	/// METHOD LEFT TO TEST (not currently used)
 	AppDelegate *delegate = AppDelegate.sharedInstance;
 	NSManagedObjectContext *childContext = delegate.newChildContextOnMainQueue;
 	NSError *error;
@@ -605,8 +605,6 @@
 		if(childContext.hasChanges) {
 			[self.undoManager setActionName:@"Apply Size Standard"];
 			[childContext save:&error];
-			CFTimeInterval elapsedTime = CACurrentMediaTime() - startTime;
-			NSLog(@"Size standard applied in %f seconds", elapsedTime);
 			
 			[delegate saveAction:self];
 		}

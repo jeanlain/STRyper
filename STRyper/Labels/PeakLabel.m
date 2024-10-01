@@ -35,6 +35,7 @@
 
 /// property redeclared as readwrite.
 @property (weak, nonatomic, nullable) LadderFragment *fragment;
+@property (nonatomic) NSPoint dragHandleEndPosition;
 
 @end
 
@@ -44,19 +45,20 @@
 	__weak Mmarker *marker; 				/// see property with the same name
 	__weak RegionLabel *targetBinLabel;		/// the bin label that is the current target of a drag
 	NSPoint startPoint;						/// to implement dragging behavior. Position of the dragging handle fixed point
-	NSPoint handlePosition;					/// position of the dragging handle that is controlled by the mouse
 	NSToolTipTag toolTipTag;				/// The tag of the tooltip showing peak information on our view
 }
 
 #pragma mark - initialization and base attributes setting
 
 + (void)initialize {
-	dragLineLayer = CALayer.new;
-	dragLineLayer.anchorPoint = CGPointMake(0, 0);
-	dragLineLayer.contentsScale = 2.0;
-	dragLineLayer.shadowOpacity = 1.0;
-	dragLineLayer.shadowRadius = 1.0;
-	dragLineLayer.shadowOffset = CGSizeMake(0, -1);
+	if (self == PeakLabel.class) {
+		dragLineLayer = CALayer.new;
+		dragLineLayer.anchorPoint = CGPointMake(0, 0);
+		dragLineLayer.contentsScale = 2.0;
+		dragLineLayer.shadowOpacity = 1.0;
+		dragLineLayer.shadowRadius = 1.0;
+		dragLineLayer.shadowOffset = CGSizeMake(0, -1);
+	}
 }
 
 
@@ -312,16 +314,15 @@ static CALayer *dragLineLayer;
 		TraceView *view = self.view;
 		NSPoint mouseLocation = view.mouseLocation;
 		targetBinLabel = nil;
-			
-		/// We highlight the bin label that is under the mouse
-		/// They won't highlight by themselves because bin labels are disabled when peak labels are enabled.
-		/// We could enable them just for this situation, but this won't be more elegant nor easier.
+		
+		/// We find the target bin that corresponds to the handle position
+		NSArray *binLabels;
 		for(RegionLabel *markerLabel in view.markerLabels) {
 			if(markerLabel.region == marker) {
-				for(RegionLabel *binLabel in markerLabel.binLabels) {
+				binLabels = markerLabel.binLabels;
+				for(RegionLabel *binLabel in binLabels) {
 					if (NSPointInRect(mouseLocation, binLabel.frame)) {
 						targetBinLabel = binLabel;
-						binLabel.hovered = YES;
 						break;
 					} else {
 						binLabel.hovered = NO;
@@ -330,31 +331,46 @@ static CALayer *dragLineLayer;
 				break;
 			}
 		}
+		NSPoint dragHandleEndPosition = mouseLocation;
+		if(!targetBinLabel) {
+			/// If the handled has passed the first or last bin label, we lock it to either bin.
+			float clickX = view.clickedPoint.x;
+			RegionLabel *firstBinLabel = binLabels.firstObject, *lastBinLabel = binLabels.lastObject;
+			float firstMidX = NSMidX(firstBinLabel.frame), lastMidX = NSMidX(lastBinLabel.frame);
+			if(clickX > firstMidX && dragHandleEndPosition.x < firstMidX) {
+				targetBinLabel = firstBinLabel;
+			} else if(clickX < lastMidX && dragHandleEndPosition.x > lastMidX) {
+				targetBinLabel = lastBinLabel;
+			}
+		}
 		
-		handlePosition.y = mouseLocation.y;
 		if(targetBinLabel) {
+			/// We highlight the bin label that is under the mouse
+			/// They won't highlight by themselves because bin labels are disabled when peak labels are enabled.
+			/// We could enable them just for this situation, but this won't be more elegant nor easier.
+			targetBinLabel.hovered = YES;
 			/// if the mouse is within a bin, we set the x position of the handle to the middle of the bin (some sort of magnetism)
 			float midBinX = NSMidX(targetBinLabel.frame);
-			if(handlePosition.x != midBinX) {
+			if(self.dragHandleEndPosition.x != midBinX) {
 				/// If the handle was not previously in the bin, we signify magnetism with haptic feedback
 				[NSHapticFeedbackManager.defaultPerformer performFeedbackPattern:NSHapticFeedbackPatternAlignment
 																 performanceTime:NSHapticFeedbackPerformanceTimeDefault];
 			}
-			handlePosition.x = midBinX;
+			dragHandleEndPosition.x = midBinX;
 		} else {
-			handlePosition.x = mouseLocation.x;
+			dragHandleEndPosition.x = mouseLocation.x;
 		}
-		
+		self.dragHandleEndPosition = dragHandleEndPosition;
 		/// we prepare the layer that draws the handle.
 		/// This layer goes from the start point of the drag to the end point, and takes the whole view height
 		/// We could make it larger, but performance is better when the layer is not larger than needed
-		float distX = ceil(startPoint.x - handlePosition.x);
-		float x = distX < 0? startPoint.x : handlePosition.x;
+		float distX = ceil(startPoint.x - dragHandleEndPosition.x);
+		float x = distX < 0? startPoint.x : dragHandleEndPosition.x;
 		CGRect frame = CGRectMake(x - 5, 0, fabsf(distX) + 10, view.frame.size.height);
 		dragLineLayer.position = frame.origin;
 		dragLineLayer.bounds = frame; /// so the layer coordinates match those of its super layer (hence the trace view).
 		[dragLineLayer setNeedsDisplay];
-		[view scrollRectToVisible:frame];
+		[super drag];
 	}
 }
 
@@ -369,6 +385,14 @@ static CALayer *dragLineLayer;
 			toolTipTag = [view addToolTipRect:self.frame owner:self userData:nil];
 		}
 	}
+}
+
+
+- (NSPoint)dragHandleEndPosition {
+	if(!self.dragged) {
+		return NSZeroPoint;
+	}
+	return _dragHandleEndPosition;
 }
 
 
@@ -498,14 +522,18 @@ static CALayer *dragLineLayer;
 		NSPoint start = startPoint;
 		CGRect origin = CGRectMake(start.x-4,start.y -4, 8, 8);
 		
-		NSPoint endPoint = handlePosition;
+		NSPoint endPoint = _dragHandleEndPosition;
 		float maxY = NSMaxY(self.view.bounds) -18;
+		BOOL outOfBounds = NO;
 		if(endPoint.y > maxY) {
+			outOfBounds = endPoint.y > maxY + 5;
 			endPoint.y = maxY;
 		} else if(endPoint.y < 2) {
+			outOfBounds = endPoint.y < -5;
 			endPoint.y = 2;
 		}
 		endPoint.y += 2;
+		layer.opacity = outOfBounds? 0.5 : 1;
 				
 		CGRect current = CGRectMake(endPoint.x-4, endPoint.y-4, 8, 8);
 		

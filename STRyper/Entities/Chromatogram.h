@@ -153,7 +153,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter channel: The channel of the trace to retrieve.
 - (nullable Trace*)traceForChannel:(ChannelNumber)channel;
 
-#define MAX_TRACE_LENGTH  1000			/// the maximum length of a trace the app can display
+#define MAX_TRACE_LENGTH  1200			/// the maximum length of a trace the app can display
 																
 /// The number of fluorescence data points (scans) recorded for the sample.
 ///
@@ -246,19 +246,19 @@ typedef struct OffscaleRegion {
 @property (nonatomic, readonly, copy) NSString *standardName;
 
 
-/// The order of the polynomial used to compute the relationship between scan number (x) and size in base pairs (y) for a `Chromatogram`.
+/// The order, minus one, of the polynomial used to compute the relationship between scan number (x) and size in base pairs (y) for a `Chromatogram`.
 typedef NS_ENUM(int16_t, PolynomialOrder) {
 	/// Signifies that no polynomial is applied.
-	NoFittingMethod = 0,
+	NoFittingMethod = -1,
 	
 	/// Denotes a polynomial of the first order.
-	LinearRegression = 1,
+	LinearRegression = 0,
 	
 	/// Denotes a polynomial of the second order.
-	SecondOrderPolynomial = 2,
+	SecondOrderPolynomial = 1,
 	
 	/// Denotes a polynomial of the third order.
-	ThirdOrderPolynomial = 3,
+	ThirdOrderPolynomial = 2,
 } ;
 
 /// The order of the polynomial equation used to size the sample.

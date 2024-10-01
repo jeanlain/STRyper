@@ -43,6 +43,15 @@ NS_ASSUME_NONNULL_BEGIN
 /// An "m" was added to the class name to avoid collision with a structure named "Marker".
 @interface Mmarker : Region <NSPasteboardWriting>
 
+/// An integer that denotes the ploidy of a marker, that is, the number of expected alleles at the locus for an individual.
+typedef NS_ENUM(int16_t, Ploidy) {
+	/// Denotes a haploid marker.
+	haploid = 1,
+	
+	/// Denotes a diploid marker.
+	diploid = 2
+};
+
 /// Inits a marker with the mandatory attributes.
 ///
 /// The marker name is set automatically with ``Region/autoName``.
@@ -50,16 +59,15 @@ NS_ASSUME_NONNULL_BEGIN
 /// The method does not check if `start` and `end` coordinates are valid.
 /// Improper parameters will results in validation errors.
 /// - Parameters:
-///   - start: The ``Region/start`` position of the marker.
-///   - end: The ``Region/end`` position the marker
-///   - channel: The ``channel`` of the marker
+///   - start: The ``Region/start`` of the marker.
+///   - end: The ``Region/end`` the marker.
+///   - channel: The ``channel`` of the marker.
+///   - ploidy: The ``ploidy`` of the marker.
 ///   - panel: The ``panel`` of the marker.
--(nullable instancetype) initWithStart:(float) start end:(float) end channel:(ChannelNumber) channel panel:(Panel *)panel;
+-(nullable instancetype) initWithStart:(float) start end:(float)end channel:(ChannelNumber)channel ploidy:(Ploidy)ploidy panel:(Panel *)panel;
 
-/// The ploidy of the maker, that is, the number of expected alleles at the locus for an individual.
-///
-/// The default value is 2. Possible values are 1 and 2.
-@property (nonatomic) int16_t ploidy;
+/// The ploidy of the maker.
+@property (nonatomic, readonly) Ploidy ploidy;
 												
 /// The channel corresponding to the dye of the marker.
 @property (nonatomic, readonly) ChannelNumber channel;
@@ -95,7 +103,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The panel containing the marker.
 ///
 /// The reverse relationship is ``Panel/markers``.
-@property (nonatomic) Panel *panel;
+@property (nonatomic, readonly) Panel *panel;
 
 
 /// A string representation describing the attributes of the marker.
@@ -109,7 +117,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This method may be used after a marker is created and expects the absence of genotypes for the receiver.
 /// It would create redundant genotypes if it is not the case.
--(void)createGenotypesWithAlleleName:(NSString *)alleleName;
+- (void)createGenotypesWithAlleleName:(NSString *)alleleName;
 
 @end
 
@@ -123,16 +131,17 @@ extern NSString * _Nonnull const MarkerPanelKey;
 
 @interface Mmarker (CoreDataGeneratedAccessors)
 
--(void)addBins:(NSSet *)bins;
--(void)removeBins:(NSSet *)bins;
+- (void)addBins:(NSSet *)bins;
+- (void)removeBins:(NSSet *)bins;
 
 @end
 
 
 @interface Mmarker (DynamicAccessors)
 
--(void)managedObjectOriginal_setPanel:(Panel *)panel;
--(void)managedObjectOriginal_setChannel:(int16_t)channel;
+- (void)managedObjectOriginal_setPanel:(Panel *)panel;
+- (void)managedObjectOriginal_setPloidy:(Ploidy)ploidy;
+- (void)managedObjectOriginal_setChannel:(int16_t)channel;
 
 @end
 

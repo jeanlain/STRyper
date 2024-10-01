@@ -65,13 +65,15 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 }
 
 + (void)initialize {
-	standardForKey =
-	@{
-		@"500": @"GeneScan-500",
-		@"400": @"GeneScan-400HD",
-		@"350": @"GeneScan-350",
-		@"600": @"GeneScan-600"
-	};
+	if (self == FileImporter.class) {
+		standardForKey =
+		@{
+			@"500": @"GeneScan-500",
+			@"400": @"GeneScan-400HD",
+			@"350": @"GeneScan-350",
+			@"600": @"GeneScan-600"
+		};
+	}
 }
 
 # pragma mark - sample import

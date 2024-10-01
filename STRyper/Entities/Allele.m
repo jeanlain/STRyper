@@ -154,7 +154,10 @@
 
 /// Convenience method used to show additional fragments of a genotype in a table.
 - (NSString *)sizeAndName {
-	return [super.string stringByAppendingFormat:@":%@", self.name];
+	if(self.name.length > 0) {
+		return [super.string stringByAppendingFormat:@":%@", self.name];
+	}
+	return super.string;
 }
 
 

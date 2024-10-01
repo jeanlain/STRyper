@@ -54,13 +54,14 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 /// So to understand the implementation, one should inspect the nib file.
 
 +(void)initialize {
-	/// the main section titles
-	outlineViewSections = @[
-		@"Sample information",
-		@"Run information",
-		@"Sizing",
-	];
-	
+	if (self == SampleInspectorController.class) {
+		/// the main section titles
+		outlineViewSections = @[
+			@"Sample information",
+			@"Run information",
+			@"Sizing",
+		];
+	}
 
 	/// the Chromatogram attribute names that we bind to value of NSTextfields that the inspector tab shows
 	sampleKeyPaths = Chromatogram.entity.attributeKeys;
@@ -213,25 +214,25 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 				popup.target = self;
 				popup.action = @selector(popupClicked:);
 				NSString *boundKeyPath = [@"selection." stringByAppendingString:subView.identifier];
-				if([popup.identifier isEqualToString:@"sizeStandard"]) {
+				if([popup.identifier isEqualToString:ChromatogramSizeStandardKey]) {
 					/// a section has a popup button indicating the selected samples' size standard among the available size standards
 					NSString *keyPath = @"tableContent.arrangedObjects";
 					/// the content (menu) of the popup button represents the size standards
 					[popup bind:NSContentBinding toObject:SizeStandardTableController.sharedController withKeyPath:keyPath options:nil];
 					/// the values shown by menu items are the size standard names
 					[popup bind:NSContentValuesBinding toObject:SizeStandardTableController.sharedController
-					  withKeyPath:[keyPath stringByAppendingString:@".name"] options:nil];
+					withKeyPath:[keyPath stringByAppendingString:@".name"] options:@{NSNullPlaceholderBindingOption:@"(None)"}];
 					/// and the selected item is the size standard of the selected sample(s)
 					[popup bind:NSSelectedObjectBinding toObject:sampleController withKeyPath: boundKeyPath options:nil];
 					popup.menu.delegate = self;
 
-				} else if([subView.identifier isEqualToString:@"polynomialOrder"]) {
+				} else if([popup.identifier isEqualToString:@"polynomialOrder"]) {
 					/// the fitting method used by a size standard is the index of the selected menu item of a popup button showing the fitting method
-					[subView bind:NSSelectedIndexBinding toObject:sampleController withKeyPath:boundKeyPath
+					[popup bind:NSSelectedIndexBinding toObject:sampleController withKeyPath:boundKeyPath
 						  options:@{NSMultipleValuesPlaceholderBindingOption : @(-1), NSNoSelectionPlaceholderBindingOption : @(-1)}];
-				} else if([subView.identifier isEqualToString:@"peakThreshold"]) {
-					[subView bind:NSContentBinding toObject:self withKeyPath:subView.identifier options:nil];
-					[subView bind:NSSelectedObjectBinding toObject:sampleController
+				} else if([popup.identifier isEqualToString:@"peakThreshold"]) {
+					[popup bind:NSContentBinding toObject:self withKeyPath:subView.identifier options:nil];
+					[popup bind:NSSelectedObjectBinding toObject:sampleController
 					  withKeyPath:[@"selection.ladderTrace." stringByAppendingString:subView.identifier]
 						  options:@{NSMultipleValuesPlaceholderBindingOption : @(-1), NSNoSelectionPlaceholderBindingOption : @100}];
 				}

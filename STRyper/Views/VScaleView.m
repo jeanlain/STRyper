@@ -38,26 +38,28 @@ static NSDictionary *labels;
 static NSColor *rulerLabelColor;
 
 + (void)initialize {	
-	rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
-	NSDictionary *labelFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0], NSForegroundColorAttributeName: rulerLabelColor};
-
-	/// we populate the dictionary.
-	NSMutableDictionary *dict = NSMutableDictionary.new;
-
-	int i = 10;
-	for(int fluo = 0; fluo < 33000;) {
-		NSAttributedString *rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", fluo] attributes:labelFontStyle];
-		if(fluo >= 10000) {
-			rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%dk", fluo/1000] attributes:labelFontStyle];
-		}
-		dict[@(fluo)] = @[rulerLabel, @(rulerLabel.size.width)];
-		if (fluo == 200) i = 50;		/// for higher fluo levels, we don't generate all possible values (to save memory)
-		if (fluo == 2500) i = 100;
-		if (fluo == 15000) i = 500;
-		fluo += i;
+	if (self == VScaleView.class) {
+		rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
+		NSDictionary *labelFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0], NSForegroundColorAttributeName: rulerLabelColor};
 		
+		/// we populate the dictionary.
+		NSMutableDictionary *dict = NSMutableDictionary.new;
+		
+		int i = 10;
+		for(int fluo = 0; fluo < 33000;) {
+			NSAttributedString *rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%d", fluo] attributes:labelFontStyle];
+			if(fluo >= 10000) {
+				rulerLabel = [[NSAttributedString alloc]initWithString:[NSString stringWithFormat:@"%dk", fluo/1000] attributes:labelFontStyle];
+			}
+			dict[@(fluo)] = @[rulerLabel, @(rulerLabel.size.width)];
+			if (fluo == 200) i = 50;		/// for higher fluo levels, we don't generate all possible values (to save memory)
+			if (fluo == 2500) i = 100;
+			if (fluo == 15000) i = 500;
+			fluo += i;
+			
+		}
+		labels = [NSDictionary dictionaryWithDictionary:dict];
 	}
-	labels = [NSDictionary dictionaryWithDictionary:dict];
 }
 
 

@@ -251,9 +251,8 @@ static NSArray *channelColorImages;
 	}
 
 
-	Mmarker *newMarker = [[Mmarker alloc] initWithStart:newMarkerPopover.markerStart end:newMarkerPopover.markerEnd channel:newMarkerPopover.markerChannel panel:panel];
+	Mmarker *newMarker = [[Mmarker alloc] initWithStart:newMarkerPopover.markerStart end:newMarkerPopover.markerEnd channel:newMarkerPopover.markerChannel ploidy:newMarkerPopover.diploid+1 panel:panel];
 	newMarker.name = newMarkerPopover.markerName;
-	newMarker.ploidy = newMarkerPopover.diploid +1; /// Segment 0 represents an haploid marker.
 	newMarker.motiveLength = newMarkerPopover.motiveLength;
 	
 	[newMarker validateForUpdate:&error];

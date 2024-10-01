@@ -315,7 +315,9 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 	if(mouseLocation.y > NSMaxY(view.bounds) + 2) {
 		if(!draggedOut) {
 			draggedOut = YES;
-			[NSCursor.disappearingItemCursor push];
+			if(self.fragment.scan > 0) {
+				[NSCursor.disappearingItemCursor push];
+			}
 		}
 	} else if(draggedOut) {
 		draggedOut = NO;
@@ -347,6 +349,7 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 														 performanceTime:NSHapticFeedbackPerformanceTimeDefault];
 	}
 	[self reposition];
+	[super drag];
 }
 
 
@@ -414,7 +417,11 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 			layer.shadowRadius = 0;
 			layer.transform = CATransform3DIdentity;
 			if(draggedOut) {
-				[self removeFragment:self];
+				if(self.fragment.scan > 0) {
+					[self removeFragment:self]; /// Which repositions the label at the top of the view at the theoretical size.
+				} else {
+					[self.view labelNeedsRepositioning:self];
+				}
 				draggedOut = NO;
 				[NSCursor.currentCursor pop];
 			} else {

@@ -319,7 +319,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /// the type returned by ``draggingPasteBoardTypeForRow:`` if this method does not return `nil`.
 ///
 /// Otherwise the method returns `nil` (no dragging).
-- (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row;
+- (nullable id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row;
 
 /// The type of pasteboard to use when a row of the table is dragged.
 ///

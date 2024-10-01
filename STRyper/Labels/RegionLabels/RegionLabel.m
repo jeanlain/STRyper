@@ -50,6 +50,7 @@ static void * const regionEditStateChangedContext = (void*)&regionEditStateChang
 static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 static void * const regionWillBeDeletedContext = (void*)&regionWillBeDeletedContext;
 static void * const popoverDelegateChangedContext = (void*)&popoverDelegateChangedContext;
+static NSManagedObjectContext *temporaryContext;
 
 
 + (nullable __kindof RegionLabel*)regionLabelWithRegion:(Region *)region view:(__kindof LabelView *)view {
@@ -71,6 +72,82 @@ static void * const popoverDelegateChangedContext = (void*)&popoverDelegateChang
 	return label;
 }
 
+
++ (nullable __kindof RegionLabel*)regionLabelWithNewRegionByDraggingInView:(__kindof LabelView *)view
+																	 error:(NSError * _Nullable __autoreleasing *)error {
+	float position = [view sizeForX:view.mouseLocation.x];         	/// the mouse position in base pairs
+	float clickedPosition =  [view sizeForX:view.clickedPoint.x];   /// the original clicked position in base pairs
+
+	Panel *panel;
+	Mmarker *marker;
+	CodingObject *parentObject;
+	if(![view isKindOfClass:TraceView.class]) {
+		panel = view.panel;
+		parentObject = panel;
+	} else {
+		for(MarkerLabel *label in view.markerLabels) {
+			if(label.start <= clickedPosition && label.end >= clickedPosition) {
+				marker = label.region;
+				parentObject = marker;
+				MarkerOffset offset = label.offset;
+				position = (position - offset.intercept) / offset.slope;
+				clickedPosition = (clickedPosition - offset.intercept) / offset.slope;
+				break;
+			}
+		}
+	}
+	if(!parentObject) {
+		return nil;
+	}
+		
+	float start = (position < clickedPosition) ? position:clickedPosition;
+	float end = (position < clickedPosition) ? clickedPosition:position;
+	
+	temporaryContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
+
+	NSError *databaseError;
+	/// we add the new region in a temporary context, as the region is not in its final state until mouseUp, and changes should not be undoable
+	if(parentObject.objectID.isTemporaryID) {
+		[parentObject.managedObjectContext obtainPermanentIDsForObjects:@[parentObject] error:&databaseError];
+	}
+	temporaryContext.parentContext = parentObject.managedObjectContext;
+	/// we materialize the parent object in this context, as the new region must be added to it
+	parentObject = [temporaryContext existingObjectWithID:parentObject.objectID error:&databaseError];
+	
+	if(databaseError || parentObject.managedObjectContext != temporaryContext) {
+		if(error != NULL) {
+			*error = databaseError;
+		}
+		return nil;
+	}
+	Region *newRegion;
+	if(panel) {
+		panel = (Panel *)parentObject;
+		ChannelNumber channel = [(TraceView *)view channel];
+		newRegion = [[Mmarker alloc] initWithStart:start end:end channel:channel ploidy:diploid panel:panel];
+	} else if (marker) {
+		marker = (Mmarker *)parentObject;
+		newRegion = [[Bin alloc] initWithStart:start end:end marker:marker];
+	}
+	if(!newRegion) {
+		return nil;
+	}
+	/// we give a blank name. Only on mouseUp the region will get its final name (we use a space as an empty name causes issues)
+	newRegion.name = @" ";
+
+	RegionLabel *label = [self regionLabelWithRegion:newRegion view:view];
+	
+	/// we highlight the label and the correct edge to allow immediate sizing (see below)
+	label.highlighted = YES;
+	label.clicked = YES;
+	label.clickedEdge = position < clickedPosition? leftEdge: rightEdge;
+	return label;
+}
+
+
+- (__kindof RegionLabel *)labelWithNewBinByDraggingWithError:(NSError * _Nullable __autoreleasing *)error {
+	return nil;
+}
 
 - (instancetype)init {
 	self = [super init];
@@ -562,6 +639,7 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 		self.start = newStart;
 		self.end = newEnd;
 	}
+	[super drag];
 }
 
 
@@ -605,6 +683,10 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 			validNewStart = YES;
 		} else {
 			invalid = YES;
+			/// We don't use the validation methods of the region, because when both start and end are changed (dragged),
+			/// both may be considered invalid, as validation of start relies on the end (to check the region width) and vice versa.
+			/// Our current safeguards should be sufficient but it would be safer to use a more robust solution.
+			/// We don't throw an error at the user because it wouldn't be their fault. This would be a programmer error (we could throw an exception to catch...)
 			NSLog(@"Start position %f of %@ '%@' is out of allowed range! Not updating region.", start, region.entity.name, region.name);
 		}
 	}
@@ -631,8 +713,7 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 	if(validNewEnd) {
 		region.end = end;
 	}
-	
-	if(self.region.objectID.isTemporaryID) {
+	if(region.managedObjectContext == temporaryContext) {
 		[region autoName];
 		if(self.isBinLabel) {
 			[self.view labelDidUpdateNewRegion:self];
@@ -683,11 +764,6 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 	return NO;
 }
 
-
-
--(RegionLabel *)addLabelForBin:(Bin *)bin {
-	return nil;
-}
 
 
 - (void)dealloc {

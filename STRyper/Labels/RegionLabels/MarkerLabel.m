@@ -29,6 +29,16 @@ static NSPopover *addBinsPopover;	/// The popover that permits to define the set
 									
 static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to define a new marker
 
+@interface MarkerLabel ()
+
+/// properties bound to UI elements in the `addBinsPopover`.
+@property (nonatomic) float binSetStart;
+@property (nonatomic) float binSetEnd;
+@property (nonatomic) NSInteger binSpacing;
+@property (nonatomic) float binWidth;
+
+@end
+
 
 @implementation MarkerLabel {
 	/// As these labels are not drawn in the trace view (their "view" property is the marker view), it is useful to keep a reference to the traceView
@@ -42,7 +52,7 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	__weak NSTrackingArea *actionButtonArea; /// A tracking area to determine if the action button is hovered
 	NSToolTipTag toolTipTag;		/// a tag for a tooltip indicating the action button role
 	BOOL hoveredActionButton;			/// Whether the action button is hovered
-
+	
 }
 
 /// Images for the action button. CALayer cannot adapt to the app appearance if it uses an NSImage, so we have to specify different images for light and dark mode
@@ -53,7 +63,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 # pragma mark - attributes and appearance
 
 + (void)initialize {
-	if([self class] == MarkerLabel.class) {
+	if(self == MarkerLabel.class) {
 		actionCheckHoveredImage = [NSImage imageNamed:@"action check hovered"];
 		actionRoundHoveredImage = [NSImage imageNamed:@"action round hovered"];
 		actionCheckImage = [NSImage imageNamed:@"action check"];
@@ -76,12 +86,12 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		layer.borderColor = NSColor.grayColor.CGColor;
 		layer.bounds = CGRectMake(0, -3, 50, 20);
 		/// we use -3 because we place the layer bottom edge 3 points below the view, so as to hide the bottom edge of the border when it is highlighted.
-
+		
 		stringLayer.fontSize = 10.0;
 		stringLayer.allowsFontSubpixelQuantization = YES;
 		stringLayer.anchorPoint = CGPointMake(0,0);
 		[layer addSublayer:stringLayer];
-	
+		
 		[layer addSublayer:bandLayer];
 		actionButtonLayer = CALayer.new;
 		actionButtonLayer.hidden = YES;
@@ -137,7 +147,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		BOOL hidden = (editState == editStateNil && !hovered && !highlighted) || !enabled || !self.region;
 		actionButtonLayer.hidden = hidden;
 		[self updateActionButton];
-
+		
 		if(wasHidden != hidden) {
 			/// we reposition the label internal layers as the button layer's change in visibility changes the name's position
 			[self layoutInternalLayers];
@@ -219,6 +229,13 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	}
 }
 
+- (void)mouseDraggedInView {
+	/// Overridden, as this label can only be dragged (resized) by dragging its edges (not between edges)
+	if(self.clickedEdge == leftEdge || self.clickedEdge == rightEdge) {
+		[self drag];
+	}
+}
+
 # pragma mark - geometry and tracking areas
 
 - (void)reposition {
@@ -272,7 +289,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	}
 	/// we position the button even if hidden. Otherwise, it may arrive from a distance when we get hovered
 	actionButtonLayer.position = position;
-
+	
 	stringLayer.position = actionButtonLayer.hidden? CGPointMake(position.x, 4) : CGPointMake(NSMaxX(actionButtonLayer.frame) + 1, 4);
 }
 
@@ -345,7 +362,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"paste offset"]];
 		[_menu addItemWithTitle:@"Remove Offset" action:@selector(removeOffset:) keyEquivalent:@""];
 		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"close"]];
-	
+		
 		for(NSMenuItem *item in self.menu.itemArray) {
 			if(!item.submenu) {
 				item.target = self;
@@ -484,7 +501,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		[self.view labelDidChangeEditState:self];
 	}
 }
-	
+
 
 - (void)spawnRegionPopover:(id)sender {
 	Mmarker *marker = self.region;
@@ -533,7 +550,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	Region *region = self.region;
 	[self.region.managedObjectContext deleteObject:region];
 	[(MarkerView *)self.view updateContent];
-
+	
 }
 
 
@@ -541,7 +558,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 -(void)addMarker:(NSButton *) sender {
 	[sender.window makeFirstResponder:nil];	/// this forces the fields of the popover to validate
 	Mmarker *marker = self.region;
-	marker.ploidy = newMarkerPopover.diploid + 1;
+	[marker managedObjectOriginal_setPloidy: newMarkerPopover.diploid + 1];
 	marker.motiveLength = newMarkerPopover.motiveLength;
 	NSError *error;
 	[marker validateForUpdate:&error];
@@ -585,54 +602,115 @@ enum addBinPopoverTag : NSInteger {
 		cancelButton.action = @selector(close);
 		cancelButton.target = addBinsPopover;
 	}
-	
-	NSView *view = addBinsPopover.contentViewController.view;
-	addBinsPopover.delegate = self;
-	Mmarker *marker = self.region;
-	NSTextField *startBinTextField = [view viewWithTag:binStartTextFieldTag];
-	startBinTextField.intValue = round(marker.start + 0.5) +1;
-	startBinTextField.delegate = self;
-	NSTextField *endBinTextfield = [view viewWithTag:binEndTextFieldTag];
-	endBinTextfield.intValue = (int)marker.end -1;
-	endBinTextfield.delegate = self;
-	NSButton *addBinsButton = [view viewWithTag:addBinsButtonTag];
-	addBinsButton.target = self;
-	addBinsButton.action = @selector(addBinSet:);
-	NSSlider *binWidthSlider = [view viewWithTag:binWidthSliderTag];
-	binWidthSlider.target = self;
-	binWidthSlider.action = @selector(binWidthSliderChanged:);
-	
-	NSPopUpButton *binSpacingButton = [view viewWithTag:binSpacingButtonTag];
-	binSpacingButton.target = self;
-	binSpacingButton.action = @selector(binSpacingButtonChanged:);
-	[binSpacingButton selectItemAtIndex:marker.motiveLength-1];
-	
+	if(addBinsPopover.delegate != self) {
+		NSView *view = addBinsPopover.contentViewController.view;
+		Mmarker *marker = self.region;
+		NSTextField *startBinTextField = [view viewWithTag:binStartTextFieldTag];
+		NSTextField *endBinTextField = [view viewWithTag:binEndTextFieldTag];
+		NSSlider *binWidthSlider = [view viewWithTag:binWidthSliderTag];
+		NSPopUpButton *binSpacingButton = [view viewWithTag:binSpacingButtonTag];
+		
+		if(addBinsPopover.delegate) {
+			[startBinTextField unbind:NSValueBinding];
+			[endBinTextField unbind:NSValueBinding];
+			[binWidthSlider unbind:NSValueBinding];
+			[binSpacingButton unbind:NSSelectedIndexBinding];
+		}
+		self.binSetStart = ceilf(marker.start) +1;
+		self.binSetEnd = floorf(marker.end -1);
+		self.binSpacing = marker.motiveLength-1;
+		self.binWidth = 1.0;
+		
+		NSDictionary *option = @{NSValidatesImmediatelyBindingOption:@YES};
+		[startBinTextField bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binSetStart)) options:option];
+		[endBinTextField bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binSetEnd)) options:option];
+		[binSpacingButton bind:NSSelectedIndexBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binSpacing)) options:option];
+		[binWidthSlider bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binWidth)) options:option];
+		
+		NSButton *addBinsButton = [view viewWithTag:addBinsButtonTag];
+		addBinsButton.target = self;
+		addBinsButton.action = @selector(addBinSet:);
+		
+		addBinsPopover.delegate = self;
+	}
 	
 	[addBinsPopover showRelativeToRect:self.frame ofView:self.view preferredEdge:NSMaxYEdge];
-
+	
 }
 
 
--(void)binWidthSliderChanged:(NSSlider *)sender {
-	/// We ensure that the bin width is not larger than the bin spacing,
-	NSPopUpButton *binSpacingButton = [sender.superview viewWithTag:binSpacingButtonTag];
-	NSInteger binSpacing = binSpacingButton.indexOfSelectedItem+1;
-	if(binSpacing < sender.floatValue + 0.1) {
-		sender.floatValue = binSpacing - 0.1;
+-(BOOL)validateBinSetStart:(id *)ioValue error:(NSError **)error {
+	NSNumber *start = *ioValue;
+	if(start == nil) {
+		*ioValue = @(_binSetStart);
+		return YES;
 	}
-	/// and also takes the opportunity to update the text field indicating bin width.
-	NSTextField *binWidthTextfield = [sender.superview viewWithTag:binWidthTextFieldTag];
-	[binWidthTextfield takeFloatValueFrom:sender];
+	NSSlider *binWidthSlider = [addBinsPopover.contentViewController.view viewWithTag:binWidthSliderTag];
+	float halfBinWidth = binWidthSlider.floatValue/2;
+	
+	float startValue = start.floatValue;
+	float min = self.region.start + halfBinWidth + 0.1;
+	float max = self.region.end - halfBinWidth - 0.1;
+	
+	if(startValue < min) {
+		startValue = min;
+	} else if(startValue > max) {
+		startValue = max;
+	}
+	if(startValue > _binSetEnd) {
+		self.binSetEnd = startValue;
+	}
+	*ioValue = @(startValue);
+	return YES;
 }
 
 
--(void)binSpacingButtonChanged:(NSPopUpButton *)sender {
-	NSInteger binSpacing = sender.indexOfSelectedItem+1;
-	NSSlider *binWidthSlider = [sender.superview viewWithTag:binWidthSliderTag];
-	if(binSpacing < binWidthSlider.floatValue + 0.1) {
-		binWidthSlider.floatValue = binSpacing - 0.1;
-		NSTextField *binWidthTextfield = [sender.superview viewWithTag:binWidthTextFieldTag];
-		[binWidthTextfield takeFloatValueFrom:binWidthSlider];
+
+-(BOOL)validateBinSetEnd:(id *)ioValue error:(NSError **)error {
+	NSNumber *end = *ioValue;
+	if(end == nil) {
+		*ioValue = @(_binSetStart);
+		return YES;
+	}
+	float halfBinWidth = self.binWidth/2;
+	
+	float endValue = end.floatValue;
+	float max = self.region.end - halfBinWidth - 0.1;
+	float min = self.region.start + halfBinWidth + 0.1;
+	
+	if(endValue < min) {
+		endValue = min;
+	} else if(endValue > max) {
+		endValue = max;
+	}
+	if(endValue < _binSetStart) {
+		self.binSetStart = endValue;
+	}
+	*ioValue = @(endValue);
+	return YES;
+}
+
+
+-(BOOL)validateBinWidth:(id *)ioValue error:(NSError **)error {
+	NSNumber *width = *ioValue;
+	float widthValue = width.floatValue;
+	if(widthValue < 0.1) {
+		widthValue = 0.1;
+	} else if(widthValue > 2) {
+		widthValue = 2;
+	}
+	if(widthValue > _binSpacing + 0.9) {
+		widthValue = _binSpacing + 0.9;
+	}
+	*ioValue = @(widthValue);
+	return YES;
+}
+
+
+- (void)setBinSpacing:(NSInteger)binSpacing {
+	_binSpacing = binSpacing;
+	if(_binWidth > binSpacing + 0.9) {
+		self.binWidth = binSpacing + 0.9;
 	}
 }
 
@@ -640,37 +718,11 @@ enum addBinPopoverTag : NSInteger {
 /// Adds a set of bins to our marker based on specifications defined by the user on the popover (to which the sender belongs)
 -(void)addBinSet:(NSButton *)sender {
 	NSView *view = addBinsPopover.contentViewController.view;
-	NSTextField *startBinTextField = [view viewWithTag:binStartTextFieldTag];
-	NSTextField *endBinTextfield = [view viewWithTag:binEndTextFieldTag];
-	NSSlider *binWidthSlider = [view viewWithTag:binWidthSliderTag];
-	NSPopUpButton *binSpacingPopup = [view viewWithTag:binSpacingButtonTag];
 	NSButton *removeAllBinsButton = [view viewWithTag:existingBinsCheckboxTag];
 	
 	Mmarker *marker = self.region;
-	if(!marker || !startBinTextField || !endBinTextfield || !binWidthSlider || !binSpacingPopup) {
-		return;
-	}
-	
-	float binSetStart = startBinTextField.floatValue;
-	float binSetEnd = endBinTextfield.floatValue;
-	float binWidth = binWidthSlider.floatValue;
-	if(binWidth < 0.5) {
-		binWidth = 0.5;
-	} else if(binWidth > 1.5) {
-		binWidth = 1.5;
-	}
-	
-	NSInteger binSpacing = binSpacingPopup.indexOfSelectedItem + 1;
-	if(binSpacing < 1) {
-		binSpacing = 1;
-	}
-	
+
 	NSString *correction;
-	if(binWidth > binSpacing - 0.1) {
-		binWidth = binSpacing - 0.1;
-		correction = [NSString stringWithFormat: @"Bin width was narrowed to %0.1f bp to avoid overlap between bins.", binWidth];
-	}
-	
 	
 	float markerStart = marker.start + 0.1;
 	float markerEnd = marker.end - 0.1;
@@ -679,6 +731,13 @@ enum addBinPopoverTag : NSInteger {
 	BOOL removeAllBins = removeAllBinsButton.state == NSControlStateValueOn;
 	
 	int skippedBins = 0;
+	float binSetStart = self.binSetStart;
+	float binSetEnd = self.binSetEnd;
+	NSInteger binSpacing = self.binSpacing + 1;
+	float binWidth = self.binWidth;
+	if(binSpacing < 1) {
+		binSpacing = 1;
+	}
 	for(float i = binSetStart; i <= binSetEnd; i+= binSpacing) {
 		float binStart = i - binWidth/2;
 		float binEnd = i + binWidth/2;

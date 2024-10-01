@@ -47,7 +47,11 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 
 
 
-- (nullable instancetype)initWithStart:(float)start end:(float)end channel:(ChannelNumber)channel panel:(Panel *)panel {
+- (nullable instancetype)initWithStart:(float)start
+								   end:(float)end
+							   channel:(ChannelNumber)channel
+								ploidy:(Ploidy)ploidy
+								 panel:(Panel *)panel {
 	if(!panel.managedObjectContext) {
 		return nil;
 	}
@@ -55,8 +59,9 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	if(self) {
 		self.start = start;
 		self.end = end;
-		self.channel = channel;
-		self.panel = panel;
+		[self managedObjectOriginal_setChannel:channel];
+		[self managedObjectOriginal_setPloidy:ploidy];
+		[self managedObjectOriginal_setPanel:panel];
 		[self autoName];
 	}
 	return self;
@@ -269,25 +274,12 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 
 - (BOOL)validatePloidy:(id _Nullable __autoreleasing *)valueRef error:(NSError * _Nullable __autoreleasing *)error {
 	NSNumber *num = *valueRef;
-	int ploidy = num.intValue;
+	Ploidy ploidy = num.shortValue;
 	
-	if(ploidy < 1) {
-		if (error != NULL) {
-			NSString *description = [NSString stringWithFormat:@"Marker '%@' ploidy of %d is too low.", self.name, ploidy];
-			*error = [NSError managedObjectValidationErrorWithDescription:description
-															   suggestion:@"Ploidy must be either 1 (haploid) or 2 (diploid)."
-																   object:self reason:description];
-			
-		}
-		return NO;
-	} else if(ploidy > 2) {
-		if (error != NULL) {
-			NSString *description = [NSString stringWithFormat:@"Marker '%@' ploidy of %d is too large.", self.name, ploidy];
-			*error = [NSError managedObjectValidationErrorWithDescription:description
-															   suggestion:@"Ploidy must be either 1 (haploid) or 2 (diploid)."
-																   object:self reason:description];
-		}
-		return NO;
+	if(ploidy < haploid) {
+		*valueRef = @(haploid);
+	} else if(ploidy > diploid) {
+		*valueRef = @(diploid);
 	}
 	
 	return YES;
@@ -297,25 +289,12 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 
 - (BOOL)validateChannel:(id _Nullable __autoreleasing *)valueRef error:(NSError * _Nullable __autoreleasing *)error {
 	NSNumber *num = *valueRef;
-	int channel = num.intValue;
+	ChannelNumber channel = num.shortValue;
 	
 	if(channel < 0) {
-		if (error != NULL) {
-			NSString *description = [NSString stringWithFormat:@"Marker '%@' channel is too low.", self.name];
-			*error = [NSError managedObjectValidationErrorWithDescription:description
-															   suggestion:@"Channel must be comprised between 0 (blue) and 3 (red)."
-																   object:self reason:description];
-			
-		}
-		return NO;
+		*valueRef = @(0);
 	} else if(channel > 3) {
-		if (error != NULL) {
-			NSString *description = [NSString stringWithFormat:@"Marker '%@' channel is too large.", self.name];
-			*error = [NSError managedObjectValidationErrorWithDescription:description
-															   suggestion:@"Channel must be comprised between 0 (blue) and 3 (red)."
-																   object:self reason:description];
-		}
-		return NO;
+		*valueRef = @(3);
 	}
 	
 	return YES;
@@ -327,22 +306,9 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	int motiveLength = num.intValue;
 	
 	if(motiveLength < 2) {
-		if (error != NULL) {
-			NSString *description = [NSString stringWithFormat:@"Marker '%@' motive length of %d is too low.", self.name, motiveLength];
-			*error = [NSError managedObjectValidationErrorWithDescription:description
-															   suggestion:@"Motive length must be comprised between 2 and 7."
-																   object:self reason:description];
-			
-		}
-		return NO;
+		*valueRef = @(2);
 	} else if(motiveLength > 7) {
-		if (error != NULL) {
-			NSString *description = [NSString stringWithFormat:@"Marker '%@' motive length of %d is too large.", self.name, motiveLength];
-			*error = [NSError managedObjectValidationErrorWithDescription:description
-															   suggestion:@"Motive length must be comprised between 2 and 7."
-																   object:self reason:description];
-		}
-		return NO;
+		*valueRef = @(7);
 	}
 	
 	return YES;

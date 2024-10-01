@@ -34,7 +34,7 @@
 @end
 
 /// Keys corresponding to the sample information shown;
-static NSString *sampleNameKey = @"sampleName",
+static NSString const *sampleNameKey = @"sampleName",
 *wellKey = @"well",
 *plateNameKey = @"plateName";
 
@@ -52,31 +52,32 @@ static NSString *sampleNameKey = @"sampleName",
 static NSDictionary *itemsToImport, *itemFieldNames;
 
 +(void)initialize {
-	itemsToImport =
-	///the items that we import from an ABIF file. keys = item name combined with item number (as per ABIF specs). Value = corresponding attribute names of Chromatogram, except for some which are attributes of Trace
-	@{
-		@"CTNM1": plateNameKey,
+	if(self == PreviewViewController.class) {
+		itemsToImport =
+		///the items that we import from an ABIF file. keys = item name combined with item number (as per ABIF specs). Value = corresponding attribute names of Chromatogram, except for some which are attributes of Trace
+		@{
+			@"CTNM1": plateNameKey,
+			
+			/// raw fluorescence data and dye names, not attributes of Chromatogram, but of Trace
+			@"DATA1": @"rawData1",
+			@"DATA2": @"rawData2",
+			@"DATA3": @"rawData3",
+			@"DATA4": @"rawData4",
+			@"DATA105": @"rawData5",
+			@"RUND2": @"runStopDate",
+			@"RUNT2": @"runStopTime",
+			@"TUBE1": wellKey,
+			@"SCAN1": @"nScans",
+			@"SpNm1": sampleNameKey
+		};
 		
-		/// raw fluorescence data and dye names, not attributes of Chromatogram, but of Trace
-		@"DATA1": @"rawData1",
-		@"DATA2": @"rawData2",
-		@"DATA3": @"rawData3",
-		@"DATA4": @"rawData4",
-		@"DATA105": @"rawData5",
-		@"RUND2": @"runStopDate",
-		@"RUNT2": @"runStopTime",
-		@"TUBE1": wellKey,
-		@"SCAN1": @"nScans",
-		@"SpNm1": sampleNameKey
-	};
-	
-	itemFieldNames =
-	@{
-		sampleNameKey : @"Sample name",
-		plateNameKey : @"Plate name",
-		wellKey : @"Well"
-	};
-	
+		itemFieldNames =
+		@{
+			sampleNameKey : @"Sample name",
+			plateNameKey : @"Plate name",
+			wellKey : @"Well"
+		};
+	}
 }
 
 - (void)loadView {

@@ -54,7 +54,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// NOTE: the attributes are set via primitive setters, to avoid side effects.
 ///
-/// - Important: The managed object context used to materialize the object is retrieved from the `coder`'s `delegate`, which must return a Managed object context when sent a `-childContext` message.
+/// - Important: The managed object context used to materialize the object is retrieved from the `coder`'s `delegate`,
+/// which must return a Managed object context when sent a `-childContext` message.
 /// If it does not, the method tests whether the application delegate returns a context from this message. If not, the method returns `nil`.
 ///
 /// - Parameter coder: The object used to decode the receiver.

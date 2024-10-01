@@ -133,65 +133,65 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 # pragma mark - chromatogram creation
 
 + (void)initialize {
-	
-	itemsToImport =
-	///the items that we import from an ABIF file. keys = item name combined with item number (as per ABIF specs). Value = corresponding attribute names of Chromatogram, except for some which are attributes of Trace
-	@{
-		@"CMNT1": ChromatogramCommentKey,
-		@"CTNM1": ChromatogramPlateKey,
-		@"CTOw1": ChromatogramOwnerKey,
+	if (self == Chromatogram.class) {
+		itemsToImport =
+		///the items that we import from an ABIF file. keys = item name combined with item number (as per ABIF specs). Value = corresponding attribute names of Chromatogram, except for some which are attributes of Trace
+		@{
+			@"CMNT1": ChromatogramCommentKey,
+			@"CTNM1": ChromatogramPlateKey,
+			@"CTOw1": ChromatogramOwnerKey,
+			
+			/// raw fluorescence data and dye names, not attributes of Chromatogram, but of Trace
+			@"DATA1": @"rawData1",
+			@"DATA2": @"rawData2",
+			@"DATA3": @"rawData3",
+			@"DATA4": @"rawData4",
+			@"DATA105": @"rawData5",
+			@"DyeN1": @"dye1",
+			@"DyeN2": @"dye2",
+			@"DyeN3": @"dye3",
+			@"DyeN4": @"dye4",
+			@"DyeN5": @"dye5",
+			/********/
+			
+			@"GTyp1": ChromatogramGelTypeKey,
+			@"StdF1": ChromatogramStandardNameKey,
+			@"HCFG3": ChromatogramInstrumentKey,
+			@"LANE1": ChromatogramLaneKey,
+			@"OfSc1": ChromatogramOffscaleScansKey,
+			@"RUND2": @"runStopDate",
+			@"RUNT2": ChromatogramRunStopTimeKey,
+			@"RunN1": ChromatogramRunNameKey,
+			@"RPrN1": ChromatogramProtocolKey,
+			@"TUBE1": ChromatogramWellKey,
+			@"PANL1": ChromatogramPanelNameKey,
+			@"RGNm1": ChromatogramResultsGroupKey,
+			@"SCAN1": ChromatogramNScansKey,
+			@"SpNm1": ChromatogramSampleNameKey,
+			@"STYP1": ChromatogramSampleTypeKey,
+		};
 		
-		/// raw fluorescence data and dye names, not attributes of Chromatogram, but of Trace
-		@"DATA1": @"rawData1",
-		@"DATA2": @"rawData2",
-		@"DATA3": @"rawData3",
-		@"DATA4": @"rawData4",
-		@"DATA105": @"rawData5",
-		@"DyeN1": @"dye1",
-		@"DyeN2": @"dye2",
-		@"DyeN3": @"dye3",
-		@"DyeN4": @"dye4",
-		@"DyeN5": @"dye5",
-		/********/
+		colors = @[@"blue", @"green", @"black", @"red", @"orange"];
 		
-		@"GTyp1": ChromatogramGelTypeKey,
-		@"StdF1": ChromatogramStandardNameKey,
-		@"HCFG3": ChromatogramInstrumentKey,
-		@"LANE1": ChromatogramLaneKey,
-		@"OfSc1": ChromatogramOffscaleScansKey,
-		@"RUND2": @"runStopDate",
-		@"RUNT2": ChromatogramRunStopTimeKey,
-		@"RunN1": ChromatogramRunNameKey,
-		@"RPrN1": ChromatogramProtocolKey,
-		@"TUBE1": ChromatogramWellKey,
-		@"PANL1": ChromatogramPanelNameKey,
-		@"RGNm1": ChromatogramResultsGroupKey,
-		@"SCAN1": ChromatogramNScansKey,
-		@"SpNm1": ChromatogramSampleNameKey,
-		@"STYP1": ChromatogramSampleTypeKey,
-	};
-	
-	colors = @[@"blue", @"green", @"black", @"red", @"orange"];
-	
-	channelForDyeName =
-	/// correspondence between dye names and numbers. We use incomplete dye names, to be more flexible
-	/// (sometimes, "6-FAM" is preceded by a space in an ABIF file, for instance)
-	/// we actually don't use this dictionary as we trust the item number of the raw fluorescence data
-	@{
-		@"FAM":@0,
-		@"R110":@0,
-		@"PET":@3,
-		@"ROX":@3,
-		@"VIC":@1,
-		@"JOE":@1,
-		@"HEX":@1,
-		@"TET":@1,
-		@"R6":@1,
-		@"NED":@2,
-		@"TAMRA": @2,
-		@"LIZ":@4
-	};
-	
+		channelForDyeName =
+		/// correspondence between dye names and numbers. We use incomplete dye names, to be more flexible
+		/// (sometimes, "6-FAM" is preceded by a space in an ABIF file, for instance)
+		/// we actually don't use this dictionary as we trust the item number of the raw fluorescence data
+		@{
+			@"FAM":@(blueChannelNumber),
+			@"R110":@(blueChannelNumber),
+			@"PET":@(redChannelNumber),
+			@"ROX":@(redChannelNumber),
+			@"VIC":@(greenChannelNumber),
+			@"JOE":@(greenChannelNumber),
+			@"HEX":@(greenChannelNumber),
+			@"TET":@(greenChannelNumber),
+			@"R6":@(greenChannelNumber),
+			@"NED":@(blackChannelNumber),
+			@"TAMRA": @(orangeChannelNumber),
+			@"LIZ":@(blackChannelNumber)
+		};
+	}
 }
 
 
@@ -406,7 +406,9 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 - (void)setSizeStandard:(SizeStandard *)sizeStandard {
 	[self managedObjectOriginal_setSizeStandard:sizeStandard];
 	if(sizeStandard) {
-		[self managedObjectOriginal_setPolynomialOrder: [NSUserDefaults.standardUserDefaults integerForKey:DefaultSizingOrder]];
+		if(self.polynomialOrder == NoFittingMethod) {
+			[self managedObjectOriginal_setPolynomialOrder: [NSUserDefaults.standardUserDefaults integerForKey:DefaultSizingOrder]];
+		}
 		[self.ladderTrace findLadderFragmentsAndComputeSizing];
 	}
 }
@@ -535,7 +537,7 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 		}
 	}
 	
-	[self managedObjectOriginal_setSizingQuality: @(score)];
+	[self setSizingQuality: @(score)];
 	
 }
 
@@ -547,7 +549,7 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 	
 	float reverseCoefs[2] = {-coefs[0]/coefs[1], 1/coefs[1]};
 	[self managedObjectOriginal_setReverseCoefs:[NSData dataWithBytes: reverseCoefs length:2*sizeof(float)]];
-	[self managedObjectOriginal_setSizingQuality:nil];
+	[self setSizingQuality:nil];
 
 }
 
@@ -888,6 +890,19 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 			[allele computeSize];
 		}
 		genotype.status = genotypeStatusSizingChanged;
+	}
+}
+
+
+-(void)setSizingQuality:(NSNumber * _Nullable)sizingQuality {
+	[self managedObjectOriginal_setSizingQuality:sizingQuality];
+	if(sizingQuality.floatValue <= 0) {
+		for(Genotype *genotype in self.genotypes) {
+			genotype.status = genotypeStatusNoSizing;
+			for(Allele *allele in genotype.alleles) {
+				allele.scan = 0;
+			}
+		}
 	}
 }
 
