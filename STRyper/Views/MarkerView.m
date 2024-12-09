@@ -29,7 +29,9 @@
 
 const float markerViewHeight = 20.0;
 
-@interface MarkerView ()
+@interface MarkerView () {
+	NSArray <RegionLabel *> *sortedMarkerLabels; /// marker labels sorted by increasing start size
+}
 
 /// Whether the view is in a mode that allows if the user can add a region (marker)  by clicking add dragging.
 ///
@@ -158,14 +160,12 @@ enum ButtonTag : NSUInteger {
 			break;
 		case previousMarkerButtonTag:
 			button.action = @selector(moveToPreviousMarker:);
-			[button bind:NSEnabledBinding toObject:self withKeyPath:@"markerLabels.@count" options:nil];
 			button.frame = NSMakeRect(0, 0, 15, self.bounds.size.height);
 			button.toolTip = @"Move to previous marker";
 			button.autoresizingMask = NSViewHeightSizable;
 			break;
 		case nextMarkerButtonTag:
 			button.action = @selector(moveToNextMarker:);
-			[button bind:NSEnabledBinding toObject:self withKeyPath:@"markerLabels.@count" options:nil];
 			button.frame = NSMakeRect(NSMaxX(self.bounds) - 15, 0, 15, self.bounds.size.height);
 			button.toolTip = @"Move to next marker";
 			button.autoresizingMask = NSViewMinXMargin | NSViewHeightSizable;
@@ -440,9 +440,15 @@ enum ButtonTag : NSUInteger {
 		}
 	}
 	_markerLabels = markerLabels;
-	if(self.markerLabels.count > 0) {
+	NSInteger markerCount = markerLabels.count;
+	
+	sortedMarkerLabels = markerCount > 1? [markerLabels sortedArrayUsingKey:@"start" ascending:YES] : markerLabels;
+	if(markerCount > 0) {
 		self.needsUpdateLabelAppearance = YES;
 		self.needsRepositionLabels = YES;
+	}
+	if(self.hScale > 0) {
+		[self updateNavigationButtonEnabledState];
 	}
 }
 
@@ -514,7 +520,6 @@ enum ButtonTag : NSUInteger {
 	}
 	BaseRange visibleRange = self.traceView.visibleRange;
 	float rangeStart = visibleRange.start;
-	NSArray *sortedMarkerLabels = [self.markerLabels sortedArrayUsingKey:@"start" ascending:YES];
 	RegionLabel *targetLabel;
 	for(RegionLabel *markerLabel in sortedMarkerLabels) {
 		if(markerLabel.startSize < rangeStart) {
@@ -543,7 +548,6 @@ enum ButtonTag : NSUInteger {
 	}
 	BaseRange visibleRange = self.traceView.visibleRange;
 	float rangeEnd = visibleRange.start + visibleRange.len;
-	NSArray *sortedMarkerLabels = [self.markerLabels sortedArrayUsingKey:@"start" ascending:YES];
 	RegionLabel *targetLabel;
 	for(RegionLabel *markerLabel in sortedMarkerLabels) {
 		if(markerLabel.endSize > rangeEnd) {
@@ -564,6 +568,19 @@ enum ButtonTag : NSUInteger {
 	return nil;
 }
 
+
+- (void)updateNavigationButtonEnabledState {
+	if(sortedMarkerLabels.count > 0) {
+		NSRect visibleRect = self.visibleRect;
+		float rightSize = [self sizeForX:NSMaxX(visibleRect)];
+		float leftSize = [self sizeForX:visibleRect.origin.x];
+		previousMarkerButton.enabled = leftSize > sortedMarkerLabels.firstObject.startSize;
+		nextMarkerButton.enabled = rightSize < sortedMarkerLabels.lastObject.endSize;
+	} else {
+		previousMarkerButton.enabled = NO;
+		nextMarkerButton.enabled = NO;
+	}
+}
 
 
 - (void)setInAddMode:(BOOL)inAddMode {

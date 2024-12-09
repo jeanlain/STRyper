@@ -84,11 +84,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// Records the currently selected folder in the user defaults for possible restoration when the app next launches.
 - (void)recordSelectedFolder;
 
-/// Overridden by subclass to allow the user to export the selected item of the source list (``SampleFolder`` or ``Panel``).
-///
-/// The default implementation does nothing.
-/// - Parameter sender: The object that sent the message.
-- (IBAction)exportSelection:(id)sender;
 
 /// Adds a new folder to the source list.
 ///
@@ -109,7 +104,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable __kindof Folder *)_folderForItem:(id)item ;
 														
 /// The folder that is the target of an action (sent from the table's contextual menu)
-- (__kindof Folder *)_targetFolderOfSender:(id)sender;
+- (nullable __kindof Folder *)_targetFolderOfSender:(id)sender;
 
 
 /// Removes a folder from the view (doesn't change the model).

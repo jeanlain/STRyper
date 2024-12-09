@@ -915,37 +915,45 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	
 	/// to select among competing peaks later on, we also record the mean height and area of peaks that presumably represent the ladder, excluding artifacts.
 	/// for height, we need to access the fluorescence level
-	float heights[nPeaks];									/// as we will store peaks by decreasing sizes, we will store heights in this array
+	float heights[nPeaks];		/// as we will store peaks by decreasing sizes, we will store heights in this array
 	vDSP_Length nHeights = 0;
 	
-	float meanHeight = 0;
-	int n = 0, sumHeight = 0;
+	int maxFluo = 0;
 	const Peak *peaks = peakData.bytes;
+	
+	/// We determine a scan before which we may ignore peaks that are abnormally high (artefacts near the start of the trace).
+	float firstPeakScan = peaks[0].startScan;
+	int refScan = firstPeakScan + (sample.nScans - firstPeakScan)/5;
 	
 	for (int i = nPeaks-1; i >= 0; i--) {
 		/// we enumerate peaks from last to first (in scan number), as the first peaks are usually artifacts
-		n++;
 		const Peak *peakPTR = &peaks[i];
 		LadderPeak newLadderPeak = LadderPeakFromPeak(peakPTR, self);
-		NSLog(@"scan: %d, height: %hd", newLadderPeak.scan, newLadderPeak.height);
-		sumHeight += newLadderPeak.height;
-		meanHeight = sumHeight/n;
-		/// we ignore peaks that are much higher than the current average and are near the start of trace
-		if(peakPTR->crossTalk >= 0 && !(newLadderPeak.height > meanHeight *2 && peakEndScan(peakPTR) < sample.nScans/3)) {
-			heights[nHeights] = newLadderPeak.height;
-			nHeights++;
+		
+		if(peakPTR->crossTalk >= 0) {
+			/// We ignore crosstalk peaks
+			short height = newLadderPeak.height;
+			if(!(height > maxFluo *2 && peakEndScan(peakPTR) < refScan)) {
+				/// and those that are much higher than the current max and are near the start of trace
+				heights[nHeights] = newLadderPeak.height;
+				nHeights++;
+				if(height > maxFluo){
+					maxFluo = height;
+				}
+			}
 		}
 		ladderPeaks[i] = newLadderPeak;
 	}
 	
 	vDSP_vsort(heights, nHeights, -1);
-	n = 0; sumHeight = 0;
+	float meanHeight = 0;
+	int n = 0, sumHeight = 0;
 	float minHeight = heights[nHeights-1];		/// the minimum height of the peaks that probably correspond to the ladder (those we use to compute meanHeight)
 	
 	for (int i = 1; i < nHeights; i++) {
-		if(n == nSizes || (i < nHeights -1 && i > 2 && heights[i] > 3 * heights[i+1])) {
+		if(n >= nSizes +3 || (i < nHeights -1 && i > 2 && heights[i] > 3 * heights[i+1])) {
 			break;		/// We stop considering peaks if a peak is much shorter than the previous one. This helps to exclude noise.
-						/// Also, we stop when we have reached the number of expected ladder fragments
+						/// Also, we stop when we have reached the number of expected ladder fragments (+3 for safety)
 		}
 		sumHeight += heights[i];
 		minHeight = heights[i];
@@ -966,7 +974,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 		LadderPeak *ladderPeakPTR = &ladderPeaks[i];
 		if(ladderPeakPTR->height*2 >= minHeight && ladderPeakPTR->crossTalk >= 0) {
 			/// We ignore peaks resulting from crosstalk although the code afterwards still checks for crosstalk for peak selection,
-			/// as we previously were still considering crosstalk peaks.I left these checks in the code in case we need them.
+			/// as the code was previously considering crosstalk peaks.I left these checks in the code in case we need them.
 			/// A peak resulting from crosstalk could be valid if a ladder fragment has the same size as a fragment in another channel.
 			/// But currently, this peak is ignored. I believe it is safer to let the user assign it manually.
 			ladderPeakPTRs[n] = ladderPeakPTR;
@@ -1115,7 +1123,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 				meanOffset /= (nAssigned-1);
 				float r = 1/meanOffset * (nAssigned - nMissed)/nAssigned;
 				
-				if(r > bestScores[nAssigned]) {		/// if the fit is better than the best so far, for a this number of assigned fragments
+				if(r > bestScores[nAssigned]) {		/// if the fit is better than the best so far, for this number of assigned fragments
 					bestScores[nAssigned] = r;
 					/// we add results to the array
 					assignments[nAssigned] = [NSData dataWithBytes:ladderSizes length:nSizes*sizeof(LadderSize)];

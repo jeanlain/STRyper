@@ -45,8 +45,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// Message sent by a traceView when it starts moving to range with animation.
 /// This method isn't required to move other view in sync, as `traceViewDidChangeRangeVisibleRange` is sent at every step of the animation.
 /// But if (for instance) other animations should be started, this method can be used.
-///
-/// The traceView doesn't have its visibleRange set to range when this message is received.
+/// 
+/// The traceView doesn't have its visibleRange set to `range` when this message is received.
+/// - Parameters:
+///   - traceView: The view that sent the message.
+///   - range: The range to which the view has started moving.
 - (void)traceView:(TraceView *)traceView didStartMovingToRange:(BaseRange)range;
 
 

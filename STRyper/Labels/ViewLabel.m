@@ -91,7 +91,7 @@
 	if(self.enabled) {
 		if (NSPointInRect(self.view.rightClickedPoint, self.frame)) {
 			self.highlighted = YES;
-			self.clicked = YES;
+	//		self.clicked = YES;
 		} else {
 			self.highlighted = NO;
 			self.clicked = NO;

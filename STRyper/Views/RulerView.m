@@ -22,10 +22,14 @@
 
 #import "RulerView.h"
 #import "RegionLabel.h"
+#import "MarkerView.h"
 
 const float ruleThickness = 14.0;			/// the thickness of the ruler
 
+/// Variables that manage the loupe cursors
 static NSCursor *loupeCursor;
+static NSCursor *loupeCursorMinus; /// indicates that one can zoom out.
+static id eventMonitor;			   /// to monitor when the alt key is pressed, for zooming out.
 
 /// we prepare an array of labels used for the ruler (expressed in base pairs), which is shared by all ruler views.
 /// Possible improvement: all strings we show could be in CATextLayers, which would be moved around by the GPU when the trace view scrolls, instead of redrawing everything.
@@ -52,9 +56,10 @@ static float failedSizingWidth;
 /// the layer showing the current position of the mouse using a vertical line. We use a global instance as only one view at a time shows this layer
 static CALayer *currentPositionMarkerLayer;
 static CATextLayer *currentPositionLayer;		/// the layer showing the current position in base pairs
-
+static NSColor *rulerLabelColor;
 
 @implementation RulerView {
+	BOOL altKeyDown;					/// Whether the option key is being pressed
 	NSPoint mouseLocation;
 	BOOL mouseDown;						/// tells if the user as clicked the view (and the button is still down)
 	BOOL isDraggingForZoom;        		/// tells if the user is performing a zoom by dragging the mouse
@@ -78,16 +83,20 @@ static CATextLayer *currentPositionLayer;		/// the layer showing the current pos
 
 #pragma mark - initialization and general attributes
 
-static NSColor *rulerLabelColor;
 
 + (void)initialize {
 	if (self == RulerView.class) {
+		
 		rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
 		
 		NSImage *cursorImage = [NSImage imageNamed:@"loupeCursorBordered"];
 		cursorImage.size = NSMakeSize(15, 20);
 		loupeCursor = [[NSCursor alloc]initWithImage:cursorImage hotSpot:NSMakePoint(6.1, 5.9)];
 		
+		cursorImage = [NSImage imageNamed:@"loupeCursorMinus"];
+		cursorImage.size = NSMakeSize(15, 20);
+		loupeCursorMinus = [[NSCursor alloc]initWithImage:cursorImage hotSpot:NSMakePoint(6.1, 5.9)];
+
 		NSDictionary *labelFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0], NSForegroundColorAttributeName: rulerLabelColor};
 		NSDictionary *redFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0],
 									   NSForegroundColorAttributeName: [NSColor colorWithCalibratedRed:1.0 green:0.2 blue:0.2 alpha:1]};
@@ -137,6 +146,8 @@ static NSColor *rulerLabelColor;
 		
 		[currentPositionMarkerLayer addSublayer:currentPositionLayer];
 		currentPositionLayer.position = CGPointMake(1, 1.8);		/// this places this layer 1 pixel to the right of the vertical line of the currentPositionMarkerLayer
+	
+		
 	}
 }
 
@@ -146,6 +157,10 @@ static NSColor *rulerLabelColor;
 	if (self) {
 		/// we initialize the offset. There is one per size label.
 		offsets = calloc(MAX_TRACE_LENGTH, sizeof(float));
+		NSTrackingArea *trackingArea = [[NSTrackingArea alloc] initWithRect:frameRect
+																	options: NSTrackingMouseEnteredAndExited | NSTrackingInVisibleRect | NSTrackingActiveInKeyWindow
+																	  owner:self userInfo:nil];
+		[self addTrackingArea:trackingArea];
 	}
 	return self;
 }
@@ -458,7 +473,6 @@ int rulerLabelIncrementForHScale(float hScale) {
 	return (size - traceView.sampleStartSize) * traceView.hScale - traceView.visibleOrigin + traceView.leftInset;
 }
 
-
 #pragma mark - zooming-related methods
 
 
@@ -478,7 +492,8 @@ int rulerLabelIncrementForHScale(float hScale) {
 	}
 	
 	NSRect visibleRect = self.visibleRect;
-	[self addCursorRect:NSIntersectionRect(rect, visibleRect) cursor:loupeCursor];
+	NSCursor *cursor = altKeyDown? loupeCursorMinus : loupeCursor;
+	[self addCursorRect:NSIntersectionRect(rect, visibleRect) cursor:cursor];
 	for(NSView *view in self.subviews) {
 		if(!view.hidden) {
 			[self addCursorRect: NSIntersectionRect(view.frame, visibleRect) cursor:NSCursor.arrowCursor];
@@ -486,15 +501,48 @@ int rulerLabelIncrementForHScale(float hScale) {
 	}
 }
 
+- (void)mouseEntered:(NSEvent *)event {
+	/// We track if the alt key is pressed to set the loupe cursor as appropriate
+	/// We don't use `keyDown:` because the view may not receive this message, yet it should be able to show the correct cursor in any situation.
+	eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskFlagsChanged
+														 handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
+		
+		self->altKeyDown = (event.modifierFlags & NSEventModifierFlagOption) != 0;
+		[self.window invalidateCursorRectsForView:self];
+		return event;
+	}];
+	
+	/// We determine whether the alt key is pressed when the mouse enters the view.
+	BOOL altKeyPressed = (event.modifierFlags & NSEventModifierFlagOption) != 0;
+	if(altKeyPressed != altKeyDown) {
+		/// If the state of the key has changed, we reset the cursor rectangles to associate them to the correct cursor.
+		/// We don't set the loupe cursor here because it doesn't appear reliable.
+		altKeyDown = altKeyPressed;
+		[self.window invalidateCursorRectsForView:self];
+	}
+}
 
-- (void)mouseDown:(NSEvent *)theEvent   {
-	mouseDown = YES;
-	[loupeCursor set];
-	mouseLocation= [self convertPoint:theEvent.locationInWindow fromView:nil];
-	startPoint = mouseLocation.x;
-	startSize = [self sizeForX:startPoint];
-	/// we record the time of the click, as we don't zoom for the first click of a double-click sequence (in case the user has dragged the mouse slightly)
-	timeStamp = theEvent.timestamp;
+- (void)mouseExited:(NSEvent *)event {
+	if (eventMonitor) {
+		[NSEvent removeMonitor:eventMonitor];
+		eventMonitor = nil;
+	}
+}
+
+- (void)mouseDown:(NSEvent *)event   {
+	BOOL altKeyPressed = (event.modifierFlags & NSEventModifierFlagOption) != 0;
+	if(!altKeyPressed) {
+		/// The user may be starting to drag the mouse to zoom in
+		mouseDown = YES;
+		[loupeCursor set]; /// In case it is not already showing.
+		mouseLocation= [self convertPoint:event.locationInWindow fromView:nil];
+		startPoint = mouseLocation.x;
+		startSize = [self sizeForX:startPoint];
+		/// we record the time of the click, as we don't zoom for the first click of a double-click sequence (in case the user has dragged the mouse slightly)
+		timeStamp = event.timestamp;
+	} else {
+		[loupeCursorMinus set];
+	}
 }
 
 
@@ -537,18 +585,32 @@ int rulerLabelIncrementForHScale(float hScale) {
 }
 
 
-- (void)mouseUp:(NSEvent *)theEvent {
+- (void)mouseUp:(NSEvent *)event {
 	mouseDown = NO;
+
 	[loupeCursor set];
-	if (theEvent.clickCount == 2) {  
-		/// we zoom out to the default when the user double clicks
-		[self zoomToFit:self];
-	} else if (isDraggingForZoom) {               				
+	if (isDraggingForZoom) {
 		/// if the mouse has been dragged, we may zoom to the selected region
-		if((theEvent.timestamp - timeStamp > 0.2 && fabs(startPoint - mouseLocation.x) > 3) || fabs(startPoint - mouseLocation.x) > 10) { /// we do not zoom if this appears to be a simple click (of a double click sequence)
+		if((event.timestamp - timeStamp > 0.2 && fabs(startPoint - mouseLocation.x) > 3) || fabs(startPoint - mouseLocation.x) > 10) {
+			/// we do not zoom if this appears to be a simple click (of a double click sequence)
 			[traceView zoomFromSize:startSize toSize:[self sizeForX:mouseLocation.x]];
 		}
 		self.needsDisplay = YES;  	/// even if the zoom did not occur (which tiggers a redisplay) we need to clear the selection rectangle
+	} else {
+		float zoomFactor = 4.0;
+		BOOL altKeyPressed = (event.modifierFlags & NSEventModifierFlagOption) != 0;
+		if(altKeyPressed) {
+			/// The user wants to zoom out.
+			[loupeCursorMinus set]; /// In case it is not already showing.
+			if (event.clickCount == 2) {
+				/// we zoom to the default range when the user double clicks
+				[self zoomToFit:self];
+				return;
+			}
+			zoomFactor = 0.4;
+		}
+		NSPoint location = [traceView convertPoint:event.locationInWindow fromView:nil];
+		[traceView zoomTo:location.x withFactor:zoomFactor animate:YES];
 	}
 	isDraggingForZoom = NO;
 }
@@ -571,6 +633,10 @@ int rulerLabelIncrementForHScale(float hScale) {
 # pragma mark - other
 
 - (void)dealloc {
+	if (eventMonitor) {
+		[NSEvent removeMonitor:eventMonitor];
+		eventMonitor = nil;
+	}
 	free(offsets);
 	if(traceView) {
 		[traceView removeObserver:self forKeyPath:@"trace.chromatogram.sizeStandard"];

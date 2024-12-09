@@ -23,6 +23,7 @@
 #import "SizeStandard.h"
 #import "SizeStandardSize.h"
 #import "SampleTableController.h"
+#import "MainWindowController.h"
 @class SizeTableController;
 
 
@@ -142,34 +143,22 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 }
 
 
-- (BOOL)canAlwaysRemove {
-	return NO;				/// non-editable size standards cannot be removed
-}
-
-
-- (nullable NSAlert *)cannotRemoveAlertForItems:(NSArray *)items {
-	
-	SizeStandard *standard = items.firstObject;		/// there can be only one item, as the table doesn't allow multiple selection
-	if(!standard || standard.editable) {
-		return nil;			/// there is no alert if the size standard to remove is editable
-	}
-	return [super cannotRemoveAlertForItems:items];
-	
-}
-
-
-- (NSString *)removeActionTitleForItems:(NSArray *)items {
+- (NSString *)deleteActionTitleForItems:(NSArray *)items {
 	id item = items.firstObject;
 	if([item respondsToSelector:@selector(editable)]) {
 		if([item editable]) {
-			return [super removeActionTitleForItems:items];
+			return [super deleteActionTitleForItems:items];
 		}
 	}
 	return nil;
 }
 
 
-- (NSString *)cannotRemoveInformativeStringForItems:(NSArray *)items {
+- (NSString *)cannotDeleteInformativeStringForItems:(NSArray *)items {
+	SizeStandard *standard = items.firstObject;		/// there can be only one item, as the table doesn't allow multiple selection
+	if(!standard || standard.editable) {
+		return nil;			/// there is no alert if the size standard to remove is editable
+	}
 	return @"This size standard is part of the default set.";
 }
 
@@ -180,7 +169,7 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 
 
 - (IBAction)duplicateStandard:(id)sender {
-	NSArray *selectedObjects = [self targetItemsOfSender:sender];
+	NSArray *selectedObjects = [self validTargetsOfSender:sender];
 	if (selectedObjects.count > 0) {
 		[self.undoManager setActionName:@"Duplicate Size Standard"];
 		SizeStandard *initialStandard = selectedObjects.firstObject;

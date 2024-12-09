@@ -14,7 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The reason why we have a dedicated class for that (we could have used the Chromatogram class)
 /// is its use in the quick look plugin (which cannot import the Chromatogram class as the plugin does not use core data).
 
-/// Returns an dictionary from an ABIF file.
+/// - Returns: A dictionary whose keys are the values from `itemsToImport`, and values are decoded attributes from the file.
 /// - Parameters:
 ///   - path: The path to the file.
 ///   - itemsToImport: A dictionary whose keys are the ABIF element type to import from the file (see ABIF file format specifications) appended

@@ -42,13 +42,15 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable NSString *)exportString;
 
 
-/// Adds panels decoded from a text file to the receiver's subfolders and returns `YES` if no error occurred.
+/// Adds panels decoded from a text file to the receiver's subfolders and returns the decoded panel(s) if no error occurred.
 ///
 /// This method sets the `error` argument if there was a error preventing importing the panels, or a validation error.
+///
+///	- Returns: The decoded panel, or a folder containing the decoded panels, or `nil` in case of error.
 /// - Parameters:
 ///   - path: The path of the file to import. Its format is described in the ``STRyper`` user guide.
 ///   - error: On output, any error that occurred.
-- (BOOL) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
+- (nullable __kindof Folder *) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
 
 
 /// When its ``Folder/subfolders`` change, a panel folder posts a notification with this name to the default notification center.

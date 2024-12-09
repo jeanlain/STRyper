@@ -29,8 +29,8 @@
 
 /// The trace in which the ladder fragment was identified.
 ///
-/// The reverse relationship is ``Trace/fragments``.
-/// The trace should in principle return `YES` to ``Trace/isLadder``.
+/// The reverse relationship is ``FluoTrace/fragments``.
+/// The trace should in principle return `YES` to ``FluoTrace/isLadder``.
 @property (nonatomic, readonly) Trace *trace;
 
 
@@ -44,8 +44,8 @@
 
 /// The *theoretical* size of the fragment in base pairs.
 ///
-/// The size is that of the peak induced by the fragment, it is defined in the size standard applied to the fragment's sample (the ``Trace/chromatogram`` of its ``trace``).
-/// It should typically not be a decimal number, but subclass may use decimals.
+/// The size is that of the peak induced by the fragment, it is defined in the size standard applied to the fragment's sample (the ``FluoTrace/chromatogram`` of its ``trace``).
+/// It should typically not be a decimal number, but subclasses may use decimals.
 @property (nonatomic) float size;
 
 /// An estimate of the difference between the fragment's ``size`` and the size derived from its  ``scan`` and the sizing properties of its chromatogram.

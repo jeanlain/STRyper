@@ -22,6 +22,7 @@
 
 #import "TraceView.h"
 
+#import "MarkerLabel.h"
 #import "FragmentLabel.h"
 #import "VScaleView.h"
 #import "Mmarker.h"
@@ -89,7 +90,9 @@ DefaultRangeBinding = @"defaultRange";
 /// some variables shared by all instances
 static NSArray *animatableKeys;		/// Keys that are animatable.
 
-static const float maxHScale = 500.0; 	/// the maximum hScale (pts per base pair), to avoid making the view too wide.
+static const float maxFluoLevel = 35000.0; /// The maximum top fluo level in RFU.
+
+static const float maxHScale = 500.0; 	/// the maximum hScale (points per base pair), to avoid making the view too wide.
 
 static const int threshold = 1;   	/// height (in points) below which we do not add points to the fluorescence curve and just draw a straight line (optimization)
 
@@ -506,7 +509,8 @@ static NSColor *traceViewBackgroundColor;
 
 
 - (void)updateMarkerLabels {
-	NSArray *markers = [self.panel markersForChannel:self.channel];
+	/// If we only show a marker, we create a label for this marker only. Otherwise, for all marker for the view's panel for the appropriate channel.
+	NSArray *markers = (!self.trace && self.marker)? @[self.marker] : [self.panel markersForChannel:self.channel];
 	NSArray *markerLabels = [self regionLabelsForRegions:markers reuseLabels:self.markerLabels];
 	
 	if(markers.count > 0) {
@@ -541,37 +545,34 @@ static NSColor *traceViewBackgroundColor;
 		[self updatePeakLabels];
 	}
 	
+	/// We reposition fragment labels. All of them, even if only certain labels have been marked for reposition.
+	/// Because they position influences other (anti-collision).
 	NSArray *fragmentLabels = self.fragmentLabels;
-	BOOL needsRepositionLabels = self.needsRepositionLabels;
-	/// We consider fragments to reposition separately to force animations on their repositioning.
-	/// These should be fragments that had their position changed "manually", otherwise `_needsRepositionFragmentLabels` would be `YES`.
-	BOOL fragmentLabelsToRepositionSeparately = fragmentLabelsToReposition.count > 0 && !_needsRepositionFragmentLabels &&
-	!(needsRepositionLabels && !self.trace.isLadder);
-	if(fragmentLabelsToRepositionSeparately) {
-		fragmentLabels = [fragmentLabels arrayByRemovingObjectsInArray:fragmentLabelsToReposition.allObjects];
-	}
-	
 	NSInteger fragmentLabelCount = fragmentLabels.count;
-	if(fragmentLabelCount > 0 &&
-	   (_needsRepositionFragmentLabels || needsRepositionLabels) && self.hScale >=0) {
+	if(fragmentLabelCount > 0 && self.hScale >=0) {
+		/// If ladder fragment labels have been moved individually (after a drag), we want to animate them, but the view moving (to respond to to the change in sizing)
+		/// would prevent the animation. We try to force it for those labels.
+		BOOL forceAnimateCertainFragmentLabels = !_resizedWithAnimation && _isMoving && fragmentLabelsToReposition.count > 0 &&
+		!_needsRepositionFragmentLabels && !(self.needsRepositionLabels && !self.trace.isLadder);
+		NSArray *fragmentLabelsToAnimate = fragmentLabelsToReposition.allObjects;
+
 		for(FragmentLabel *label in fragmentLabels) {
-			[label reposition];
+			if(forceAnimateCertainFragmentLabels && [fragmentLabelsToAnimate indexOfObjectIdenticalTo:label] != NSNotFound) {
+				_resizedWithAnimation = YES;
+				[label reposition];
+				_resizedWithAnimation = NO;
+			} else {
+				[label reposition];
+			}
 		}
-		if(fragmentLabelCount > 1 && !fragmentLabelsToRepositionSeparately) {
+		if(fragmentLabelCount > 1) {
 			[FragmentLabel avoidCollisionsInView:self];
 		}
 	}
 
 	[super updateLayer];
 	self.needsRepositionFragmentLabels = NO;
-	if(fragmentLabelsToRepositionSeparately) {
-		for(FragmentLabel *label in self.fragmentLabels) {
-			/// Here, repositioning should be animated, as `needsLayoutFragmentLabels` and `needsRepositionLabels` return `NO`
-			/// We reposition all fragment labels to properly manage the case where a label no longer needs to avoid collisions.
-			[label reposition];
-		}
-		[FragmentLabel avoidCollisionsInView:self];
-	}
+
 	[fragmentLabelsToReposition removeAllObjects];
 	if(needsUpdateAppearance) {
 		self.layer.backgroundColor = traceViewBackgroundColor.CGColor;
@@ -822,6 +823,18 @@ static NSColor *traceViewBackgroundColor;
 			hoveredPeakLabel = nil;
 		}
 		[self positionVerticalLineLayer];
+	}
+}
+
+
+- (void)labelDidChangeHighlightedState:(ViewLabel *)label {
+	if([label isKindOfClass:PeakLabel.class]) {
+		/// The vertical line must show on a label that is highlighted.
+		/// Usually, the label is also hovered, so the line is already positioned, but not always (after a righ-click on a peak).
+		if(label.highlighted) {
+			hoveredPeakLabel = (PeakLabel*)label;
+			[self positionVerticalLineLayer];
+		}
 	}
 }
 
@@ -1393,7 +1406,7 @@ static NSColor *traceViewBackgroundColor;
 		}
 		if(lineWidth > 1) {
 			/// and a lighter color
-			CGContextSetStrokeColorWithColor(ctx, [strokeColor  blendedColorWithFraction:0.3 ofColor:NSColor.whiteColor].CGColor);
+			CGContextSetStrokeColorWithColor(ctx, [strokeColor  blendedColorWithFraction:0.3 ofColor:NSColor.textColor].CGColor);
 		} else {
 			CGContextSetStrokeColorWithColor(ctx, strokeColor.CGColor);
 		}
@@ -1541,8 +1554,8 @@ static NSColor *traceViewBackgroundColor;
 
 - (void)setTopFluoLevel:(float)fluo {
 	if(_topFluoLevel != fluo && fluo > 0) {
-		if(fluo > 35000) {
-			fluo = 35000;
+		if(fluo > maxFluoLevel) {
+			fluo = maxFluoLevel;
 		} else if(fluo < 20) {
 			fluo = 20;
 		}
@@ -1565,8 +1578,8 @@ static NSColor *traceViewBackgroundColor;
 
 - (void)setTopFluoLevelAndDontNotify:(float)fluo {
 	if(_topFluoLevel != fluo && fluo > 0) {
-		if(fluo > 35000) {
-			fluo = 35000;
+		if(fluo > maxFluoLevel) {
+			fluo = maxFluoLevel;
 		} else if(fluo < 20) {
 			fluo = 20;
 		}
@@ -2086,9 +2099,12 @@ static NSColor *traceViewBackgroundColor;
 		}
 	}
 	
-	
 	maxLocalFluo += maxLocalFluo * 20/NSMaxY(self.bounds);		/// we leave a 20-point margin above the highest peak
-	return maxLocalFluo;
+    if(maxLocalFluo > maxFluoLevel) {
+        maxLocalFluo = maxFluoLevel;
+    }
+    return maxLocalFluo;
+    
 }
 
 
@@ -2635,51 +2651,77 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 - (NSMenu *)menuForEvent:(NSEvent *)event {
 	NSMenu *menu = [super menuForEvent:event];
 	if(menu) {
-		return menu;
+		if(![self.activeLabel isKindOfClass:PeakLabel.class]) {
+			/// If the menu comes form something else than a peak label, we use it
+			return menu;
+		}
+	} else {
+		menu = NSMenu.new;
 	}
-		
-	if(visibleTraces.count == 1 && !self.enabledMarkerLabel) {
-		/// if  there was no peak label at the clicked point, we present the option to add a peak at the mouse location
-		/// but we first check if the clicked region corresponds to a peak
-		int clickedScan = [self scanForX:self.rightClickedPoint.x];
-		NSPoint point = [self pointForScan:clickedScan];
-		if(point.y > self.rightClickedPoint.y) {
-			/// if the clicked point is below the curve, we do nothing, the user may want to add a missing peak
-			Peak addedPeak = [self.trace missingPeakForScan:clickedScan useRawData:self.showRawData];
-			if(addedPeak.startScan > 0) {					/// this would be 0 if there there is no peak
-				NSMenu *addPeakMenu = NSMenu.new;
-				NSMenuItem *item = [[NSMenuItem alloc]initWithTitle:@"Add Peak here"
-															 action:@selector(addPeakWithMenuItem:)
-													  keyEquivalent:@""];
-				[addPeakMenu addItem:item];
-				/// We add the peak to the menu item.
-				item.representedObject = [NSValue valueWithBytes:&addedPeak objCType:@encode(Peak)];
-				item.target = self;
-				return addPeakMenu;
+	
+	/// If the clicked occurred within a marker range, we use the menu from the corresponding marker label.
+	NSPoint clickedPoint = [self convertPoint:event.locationInWindow fromView:nil];
+	for(RegionLabel *markerLabel in self.markerLabels) {
+		if(NSPointInRect(clickedPoint, markerLabel.frame)) {
+			NSMenu *labelMenu = markerLabel.menu;
+			if(labelMenu.itemArray.count > 0) {
+				if(menu.itemArray.count > 0) {
+					[menu addItem:[NSMenuItem separatorItem]];
+				}
+				NSArray *items = [[NSArray alloc] initWithArray:labelMenu.itemArray copyItems:YES];
+				menu.itemArray = [menu.itemArray arrayByAddingObjectsFromArray:items];
 			}
 		}
 	}
-	/// The user may be trying to right click a curve.
+	
+	/// The user may be trying to right-click a curve.
 	Trace *clickedTrace = nil;
-
+	
 	if(visibleTraces.count > 1 && self.channel >= 0) {
-		clickedTrace = [self closestTraceToPoint:self.rightClickedPoint withinDistance:3];
+		clickedTrace = [self closestTraceToPoint:clickedPoint withinDistance:3];
 		self.clickedTrace = clickedTrace;
 	}
 	
 	if(clickedTrace) {
-		NSMenu *menu = NSMenu.new;
 		NSString *title = self.genotype? @"Highlight Source Genotype" : @"Highlight Source Sample";
 		NSMenuItem *item = [[NSMenuItem alloc]initWithTitle:title
 													 action:@selector(highLightSampleWithMenuItem:)
 											  keyEquivalent:@""];
+		if(menu.itemArray.count > 0) {
+			[menu addItem:[NSMenuItem separatorItem]];
+		}
 		[menu addItem:item];
 		item.offStateImage = [NSImage imageNamed:@"looking left"];
 		item.representedObject = clickedTrace;
 		item.target = self;
 		return menu;
 	}
-	return nil;
+	
+	if(visibleTraces.count == 1 && !self.enabledMarkerLabel) {
+		/// if  there was no peak label at the clicked point, we present the option to add a peak at the mouse location
+		/// but we first check if the clicked region corresponds to a peak
+		int clickedScan = [self scanForX:clickedPoint.x];
+		NSPoint point = [self pointForScan:clickedScan];
+		if(point.y > clickedPoint.y) {
+			/// if the clicked point is below the curve, we do nothing, the user may want to add a missing peak
+			Peak addedPeak = [self.trace missingPeakForScan:clickedScan useRawData:self.showRawData];
+			if(addedPeak.startScan > 0) {					/// this would be 0 if there there is no peak
+				NSMenuItem *item = [[NSMenuItem alloc]initWithTitle:@"Add Peak here"
+															 action:@selector(addPeakWithMenuItem:)
+													  keyEquivalent:@""];
+				if(menu.itemArray.count > 0) {
+					[menu addItem:[NSMenuItem separatorItem]];
+				}
+				[menu addItem:item];
+				/// We add the peak to the menu item.
+				item.representedObject = [NSValue valueWithBytes:&addedPeak objCType:@encode(Peak)];
+				item.target = self;
+			}
+		}
+	}
+	
+	return menu;
+	
 }
 
 
@@ -2954,6 +2996,7 @@ static BOOL pressure = NO; /// to react only upon force click and not after
 		[self scaleToHighestPeakWithAnimation:YES];
 	}
 	self.isMoving = NO;
+	[self.markerView updateNavigationButtonEnabledState];
 	[self _updateTrackingAreas];
 }
 

@@ -35,7 +35,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The alleles may comprise additional fragments which have caused peaks in the marker range.
 /// A new genotype comes with "blank" alleles that have a ``LadderFragment/scan`` of 0 and no ``LadderFragment/name``.
 ///
-/// The ``callAllelesAndAdditionalPeak:`` method can be used to identify the genotype's ``alleles`` in terms of size and name, given the ``Trace/peaks``  found in its sample's trace in the range of its marker.
+/// The ``callAllelesAndAdditionalPeak:`` method can be used to identify the genotype's ``alleles`` in terms of size and name, given the ``FluoTrace/peaks``  found in its sample's trace in the range of its marker.
 @interface Genotype : CodingObject <NSPasteboardWriting>;
 
 
@@ -44,7 +44,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The alleles added to the genotype are created with ``Allele/initWithGenotype:additional:``.
 ///
 /// This method returns `nil` if the `sample` and `marker` do not have the same managed object context, if the sample's ``Chromatogram/panel`` doesn't contain the `marker`, if  the `sample` already has a genotype for the `marker`,
-/// of if `sample` contains no valid ``Chromatogram/trace`` for the ``Mmarker/channel`` of the `marker`.
+/// of if `sample` contains no valid ``Chromatogram/traces`` for the ``Mmarker/channel`` of the `marker`.
 - (nullable instancetype)initWithMarker:(Mmarker *)marker sample:(Chromatogram *)sample;
 
 
@@ -89,7 +89,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Makes the genotype characterize its ``alleles``  optionally containing "additional" ones.
 ///
-/// This method looks for peaks in the range of the genotype's ``marker`` in the trace whose ``Trace/channel`` corresponds to the channel of the marker.
+/// This method looks for peaks in the range of the genotype's ``marker`` in the trace whose ``FluoTrace/channel`` corresponds to the channel of the marker.
 /// It gives each allele the ``LadderFragment/scan`` of a suitable peak, and calls ``Allele/findNameFromBins``.
 /// 
 /// If no suitable peak is found, any assigned allele is given a scan of 0.

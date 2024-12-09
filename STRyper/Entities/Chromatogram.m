@@ -22,11 +22,9 @@
 
 #import "Chromatogram.h"
 #import "ABIFparser.h"
-#import "LadderFragment.h"
 #import "SampleFolder.h"
 #import "SizeStandard.h"
 #import "SizeStandardSize.h"
-#import "Trace.h"
 #import "Mmarker.h"
 #import "Panel.h"
 #import "Genotype.h"
@@ -126,14 +124,22 @@ const float DefaultReadLength = 550.0;
 
 @synthesize sizes = _sizes, readLength = _readLength, minScan = _minScan, maxScan = _maxScan, startSize = _startSize;
 
-/// some arrays of dictionaries we use when importing an ABIF file (see +initialize)
-NSArray *colors;		/// the colors of the dyes in order
-static NSDictionary *itemsToImport, *channelForDyeName;
+
 
 # pragma mark - chromatogram creation
 
-+ (void)initialize {
-	if (self == Chromatogram.class) {
+
+
+
++ (nullable instancetype)chromatogramWithABIFFile:(NSString *)path addToFolder:(SampleFolder *)folder error:(NSError **)error {
+	NSManagedObjectContext *context = folder.managedObjectContext;
+	if(!context) {
+		NSLog(@"The provided folder has no managed object context!");
+		return nil;
+	}
+	
+	static NSDictionary *itemsToImport, *channelForDyeName;
+	if(!itemsToImport) {
 		itemsToImport =
 		///the items that we import from an ABIF file. keys = item name combined with item number (as per ABIF specs). Value = corresponding attribute names of Chromatogram, except for some which are attributes of Trace
 		@{
@@ -170,9 +176,9 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 			@"SpNm1": ChromatogramSampleNameKey,
 			@"STYP1": ChromatogramSampleTypeKey,
 		};
-		
-		colors = @[@"blue", @"green", @"black", @"red", @"orange"];
-		
+	}
+	
+	if(!channelForDyeName) {
 		channelForDyeName =
 		/// correspondence between dye names and numbers. We use incomplete dye names, to be more flexible
 		/// (sometimes, "6-FAM" is preceded by a space in an ABIF file, for instance)
@@ -191,15 +197,6 @@ static NSDictionary *itemsToImport, *channelForDyeName;
 			@"TAMRA": @(orangeChannelNumber),
 			@"LIZ":@(blackChannelNumber)
 		};
-	}
-}
-
-
-+ (nullable instancetype)chromatogramWithABIFFile:(NSString *)path addToFolder:(SampleFolder *)folder error:(NSError **)error {
-	NSManagedObjectContext *context = folder.managedObjectContext;
-	if(!context) {
-		NSLog(@"The provided folder has no managed object context!");
-		return nil;
 	}
 	
 	NSError *contentError;
@@ -574,6 +571,24 @@ void regression (float *x, float *y, NSInteger nPoints, float *slope, float *int
 }
 
 
+void regressionIgnoringPoint (float *x, float *y, NSInteger nPoints, int pointToIgnore, float *slope, float *intercept) {
+	float sumXX=0, sumXY=0, sumX=0, sumY=0;
+	int n = 0;
+	for (int point = 0; point<nPoints; point++) {
+		if(point != pointToIgnore) {
+			sumXX += x[point] * x[point];
+			sumX += x[point];
+			sumY += y[point];
+			sumXY += x[point] * y[point];
+			n++;
+		}
+	}
+	*slope= (n*sumXY - sumX*sumY)/(n*sumXX - pow(sumX, 2));
+	*intercept = (sumY - *slope * sumX)/n;
+}
+
+
+
 /// Fits a polynomial regression of the form y = ax^0 + bx^1 + … + cx^k between two series of values
 /// - Parameters:
 ///   - x: Vector of values of the first variable (the "X axis").
@@ -889,7 +904,7 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 		for(Allele *allele in genotype.alleles) {
 			[allele computeSize];
 		}
-		genotype.status = genotypeStatusSizingChanged;
+		genotype.status = genotype.status == genotypeStatusNoSizing? genotypeStatusNotCalled : genotypeStatusSizingChanged;
 	}
 }
 

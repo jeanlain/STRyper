@@ -61,7 +61,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Imports ``Chromatogram`` objects from abif files.
 ///
-///
 /// The methods spawns a progress window after 1 second if the progress has not reached at least 50%.
 /// Samples are imported in a background queue into a temporary folder. 
 ///

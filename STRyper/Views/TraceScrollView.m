@@ -30,8 +30,6 @@
 {
 	VScaleView *vScaleView;   		/// the vertical scale view is created by the scroll view and added as a subview
 	__weak TraceView *traceView;	/// A shortcut to the document view (if a traceView)
-	
-	
 	RegionLabel *targetLabel;		/// the label of the marker to which we move to after a swipe gesture
 	float previousDeltaX;			/// The scrollingDeltaX of the last scrollWheel event, used to determine if we should move to the next/previous marker.
 }

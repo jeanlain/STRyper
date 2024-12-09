@@ -76,6 +76,11 @@ extern const float markerViewHeight;
 /// If there is no suitable marker to move to, the method returns `nil`
 -(nullable RegionLabel *)moveToNextMarker:(id)sender;
 
+
+/// Enables or disables the view's navigation buttons as appropriate, given the location of marker labels
+/// This method should be called when the trace view has finished scrolling.
+-(void)updateNavigationButtonEnabledState;
+
 @end
 
 NS_ASSUME_NONNULL_END

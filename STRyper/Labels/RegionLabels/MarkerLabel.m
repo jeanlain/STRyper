@@ -55,21 +55,9 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	
 }
 
-/// Images for the action button. CALayer cannot adapt to the app appearance if it uses an NSImage, so we have to specify different images for light and dark mode
-/// We also have difference images for when the button is hovered or not and depending on the marker edit state
-static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *actionCheckHoveredImage,
-*actionRoundDarkImage, *actionRoundHoveredDarkImage, *actionCheckDarkImage, *actionCheckHoveredDarkImage;
 
 # pragma mark - attributes and appearance
 
-+ (void)initialize {
-	if(self == MarkerLabel.class) {
-		actionCheckHoveredImage = [NSImage imageNamed:@"action check hovered"];
-		actionRoundHoveredImage = [NSImage imageNamed:@"action round hovered"];
-		actionCheckImage = [NSImage imageNamed:@"action check"];
-		actionRoundImage = [NSImage imageNamed:@"action round"];
-	}
-}
 
 
 - (BOOL)isMarkerLabel {
@@ -172,6 +160,16 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 -(void)setActionButtonContent {
 	if(actionButtonLayer) {
+		
+		static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *actionCheckHoveredImage;
+		
+		if(!actionRoundImage) {
+			actionCheckHoveredImage = [NSImage imageNamed:@"action check hovered"];
+			actionRoundHoveredImage = [NSImage imageNamed:@"action round hovered"];
+			actionCheckImage = [NSImage imageNamed:@"action check"];
+			actionRoundImage = [NSImage imageNamed:@"action round"];
+		}
+		
 		NSImage *buttonImage;
 		BOOL inEdit = self.editState != editStateNil;
 		if(hoveredActionButton) {
@@ -329,14 +327,18 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 # pragma mark - menu and actions
 
-- (NSString *)description {
-	/// This describes what the action button does
-	if(self.editState == editStateNil) {
-		return @"Show options";
-	} else {
-		return @"End editing";
+
+- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
+	if(tag == toolTipTag) {
+		if(self.editState == editStateNil) {
+			return @"Show options";
+		} else {
+			return @"End editing";
+		}
 	}
+	return @"";
 }
+
 
 - (NSMenu *)menu {
 	_menu = super.menu;
@@ -460,7 +462,6 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 }
 
 
-/// Sets our edit state depending on the tag of the menu item sending this message
 -(void)setEditStateFromMenuItem:(NSMenuItem *)sender {
 	NSInteger tag = sender.tag;
 	Mmarker *marker = self.region;
@@ -608,24 +609,28 @@ enum addBinPopoverTag : NSInteger {
 		NSTextField *startBinTextField = [view viewWithTag:binStartTextFieldTag];
 		NSTextField *endBinTextField = [view viewWithTag:binEndTextFieldTag];
 		NSSlider *binWidthSlider = [view viewWithTag:binWidthSliderTag];
+		NSTextField *binWidthTextField = [view viewWithTag:binWidthTextFieldTag];
 		NSPopUpButton *binSpacingButton = [view viewWithTag:binSpacingButtonTag];
 		
-		if(addBinsPopover.delegate) {
-			[startBinTextField unbind:NSValueBinding];
-			[endBinTextField unbind:NSValueBinding];
-			[binWidthSlider unbind:NSValueBinding];
-			[binSpacingButton unbind:NSSelectedIndexBinding];
+		if(_binSetStart <= 0) {
+			self.binSetStart = ceilf(marker.start) +1;
 		}
-		self.binSetStart = ceilf(marker.start) +1;
-		self.binSetEnd = floorf(marker.end -1);
-		self.binSpacing = marker.motiveLength-1;
-		self.binWidth = 1.0;
+		if(_binSetEnd <= 0) {
+			self.binSetEnd = floorf(marker.end -1);
+		}
+		if(_binSpacing < 1 || _binSpacing > 7) {
+			self.binSpacing = marker.motiveLength-1;
+		}
+		if(_binWidth < 0.5 || _binWidth > 1.5) {
+			self.binWidth = 1.0;
+		}
 		
 		NSDictionary *option = @{NSValidatesImmediatelyBindingOption:@YES};
 		[startBinTextField bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binSetStart)) options:option];
 		[endBinTextField bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binSetEnd)) options:option];
 		[binSpacingButton bind:NSSelectedIndexBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binSpacing)) options:option];
 		[binWidthSlider bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binWidth)) options:option];
+		[binWidthTextField bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binWidth)) options:nil];
 		
 		NSButton *addBinsButton = [view viewWithTag:addBinsButtonTag];
 		addBinsButton.target = self;
@@ -638,6 +643,17 @@ enum addBinPopoverTag : NSInteger {
 	
 }
 
+- (void)popoverDidShow:(NSNotification *)notification {
+	NSPopover *popover = notification.object;
+	if(popover == addBinsPopover) {
+		/// if the popover is spawn via a message sent by the contextual menu, it's text field isn't selected, so we force it.
+		NSTextField *nameTextField = [popover.contentViewController.view viewWithTag:binStartTextFieldTag];
+		[nameTextField selectText:self];
+	} else {
+		[super popoverDidShow:notification];
+	}
+}
+
 
 -(BOOL)validateBinSetStart:(id *)ioValue error:(NSError **)error {
 	NSNumber *start = *ioValue;
@@ -645,8 +661,7 @@ enum addBinPopoverTag : NSInteger {
 		*ioValue = @(_binSetStart);
 		return YES;
 	}
-	NSSlider *binWidthSlider = [addBinsPopover.contentViewController.view viewWithTag:binWidthSliderTag];
-	float halfBinWidth = binWidthSlider.floatValue/2;
+	float halfBinWidth = self.binWidth/2;
 	
 	float startValue = start.floatValue;
 	float min = self.region.start + halfBinWidth + 0.1;

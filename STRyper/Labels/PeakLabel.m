@@ -128,30 +128,49 @@
 
 
 - (nullable NSMenu *)menu {
-	if(trace.isLadder) {
-		if(self.fragment) {
-			NSMenu *menu = NSMenu.new;
-			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Remove from Sizing" action:@selector(removeFragment:) keyEquivalent:@""];
-			item.target = self;
-			[menu addItem:item];
-			return menu;
+	NSMenu *menu = NSMenu.new;
+	
+	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Remove Peak" action:@selector(removeFragment:) keyEquivalent:@""];
+	item.target = self;
+	item.offStateImage = [NSImage imageNamed:@"remove fragment"];
+	[menu addItem:item];
+	
+	item = [[NSMenuItem alloc] initWithTitle:@"Add Allele" action:@selector(attachAllele:) keyEquivalent:@""];
+	item.target = self;
+	item.offStateImage = [NSImage imageNamed:@"allele"];
+	[menu addItem:item];
+	
+	item = [[NSMenuItem alloc] initWithTitle:@"Add Label" action:@selector(attachAdditionalFragment:) keyEquivalent:@""];
+	item.target = self;
+	item.offStateImage = [NSImage imageNamed:@"additional peak"];
+	[menu addItem:item];
+	
+	return menu;
+}
+
+
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	LadderFragment *fragment = self.fragment;
+	if(menuItem.action == @selector(removeFragment:)) {
+		if(!fragment) {
+			menuItem.hidden = YES;
+			return NO;
 		}
-	} else if(self.marker) {
-		LadderFragment *fragment = self.fragment;
-		NSMenu *menu = NSMenu.new;
-		if(fragment) {
-			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Remove Peak" action:@selector(removeFragment:) keyEquivalent:@""];
-			item.target = self;
-			[menu addItem:item];
-		} else {
-			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Add Additional Peak" action:@selector(attachAdditionalFragment:) keyEquivalent:@""];
-			item.target = self;
-			[menu addItem:item];
-			return menu;
+		menuItem.title = trace.isLadder? @"Remove Size" : fragment.additional? @"Delete Label" : @"Remove Allele";
+	}
+	
+	if(menuItem.action == @selector(attachAdditionalFragment:) || menuItem.action == @selector(attachAllele:)) {
+		if(!self.marker || (fragment && (!fragment.additional ||
+		   menuItem.action == @selector(attachAdditionalFragment:)))) {
+			menuItem.hidden = YES;
+			return NO;
 		}
 	}
-	return nil;
+	
+	menuItem.hidden = NO;
+	return YES;
 }
+
 
 # pragma mark - tracking area and geometry
 
@@ -606,14 +625,16 @@ static CALayer *dragLineLayer;
 }
 
 
-/// Allows the user to assign/detach an allele to the peak we represent
-- (void)doubleClickAction:(id)sender {
+-(void)attachAllele:(id)sender {
 	Mmarker *marker = self.marker;
-	LadderFragment *fragment = self.fragment;
-	if(fragment) {
-		/// if we have an fragment at our peak, we remove it
-		[self removeFragment:sender];
-	} else if(marker) {
+	if(marker) {
+		Allele *currentAllele = self.fragment;
+		if(currentAllele.additional) {
+			[currentAllele removeFromGenotypeAndDelete];
+			self.fragment = nil;
+		} else if(currentAllele) {
+			return;
+		}
 		/// else if we are in a marker range, we find an an allele (or alleles) to add to our peak
 		Bin *ourBin;		/// we attach it to the bin at our position, if any
 		float ourSize = self.size;
@@ -624,6 +645,19 @@ static CALayer *dragLineLayer;
 			}
 		}
 		[self attachAllelesWithBin:ourBin];
+	}
+}
+	
+
+/// Allows the user to assign/detach an allele to the peak we represent
+- (void)doubleClickAction:(id)sender {
+	LadderFragment *fragment = self.fragment;
+	if(fragment) {
+		/// if we have an fragment at our peak, we remove it
+		[self removeFragment:sender];
+	} else {
+		/// else if we are in a marker range, we find an an allele (or alleles) to add to our peak
+		[self attachAllele:sender];
 	}
 }
 

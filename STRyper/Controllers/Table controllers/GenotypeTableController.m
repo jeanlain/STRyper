@@ -44,6 +44,9 @@
 
 
 @implementation GenotypeTableController {
+	
+	IBOutlet NSView *exportPanelAccessoryView;
+	BOOL exportSelectionOnly;
 	NSDictionary *columnDescription;
 	BOOL selectedFolderHasChanged;
 	BOOL shouldRefreshTable;				/// To know if we need to refresh of the genotype table.
@@ -69,6 +72,11 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 
 - (NSNibName)nibName {
 	return @"GenotypeTab";
+}
+
+
+- (NSString *)nameForItem:(id)item {
+	return self.entityName;
 }
 
 
@@ -284,33 +292,56 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 
 #pragma mark - user actions on genotypes
 
+
+- (NSArray *)validTargetsOfSender:(id)sender {
+	NSArray *targetGenotypes = [super validTargetsOfSender:sender];
+	BOOL fromContextMenu = [sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == self.tableView.menu;
+	if([sender action] == @selector(binAlleles:) || [sender action] == @selector(callAlleles:)) {
+		if(!fromContextMenu) {
+			/// If the sender is not from the table's contextual menu, its potential targets are all listed genotypes
+			targetGenotypes = self.genotypes.arrangedObjects;
+		}
+		targetGenotypes = [targetGenotypes filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+			/// We don't bin/call alleles of samples that are not sized, or genotypes that have been edited manually, except when called from the contextual menu
+			GenotypeStatus status = genotype.status;
+			return  status != genotypeStatusNoSizing && (fromContextMenu || status != genotypeStatusManual);
+		}]];
+	} else if([sender action] == @selector(removeOffsets:)) {
+		targetGenotypes = [targetGenotypes filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+			/// Only genotypes with an offset are relavant.
+			MarkerOffset offset = genotype.offset;
+			return  offset.intercept != 0.0 || offset.slope != 1.0;
+		}]];
+	} else if([sender action] == @selector(removeAdditionalFragments:)) {
+		targetGenotypes = [targetGenotypes filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return  genotype.additionalFragments.count > 0;
+		}]];
+	} else if([sender action] == @selector(exportSelection:) && !fromContextMenu) {
+		/// All genotypes can be exported.
+		targetGenotypes = self.genotypes.arrangedObjects;
+	}
+	
+	return targetGenotypes.count > 0 ? targetGenotypes : nil;
+}
+
+
+
 - (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
 	/// One cannot drag a row of the table.
 	return nil;
 }
 
-- (nullable NSString *)removeActionTitleForItems:(NSArray *)items {
-	return nil;  /// one cannot remove a genotype. It is removed only when a marker is no longer applied to a sample
+
+- (nullable NSString *)deleteActionTitleForItems:(NSArray *)items {
+	return nil;  /// one cannot remove a genotype. It is removed only when a marker is no longer applied to a sample.
 }
 
+
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	NSArray *genotypes = [self targetItemsOfSender:menuItem];
-	if(menuItem.action == @selector(removeOffsets:)) {
-		/// we hide and disable this item if no target genotype has an offset
-		for(Genotype *genotype in genotypes) {
-			MarkerOffset offset = genotype.offset;
-			if(offset.intercept != 0.0 || offset.slope != 1.0) {
-				menuItem.hidden = NO;
-				return YES;
-			}
-		}
-		menuItem.hidden = YES;
-		return NO;
-	}
-	
 	if(menuItem.action == @selector(pasteOffset:)) {
 		NSDictionary *dic = Chromatogram.markerOffsetDictionaryFromGeneralPasteBoard;
 		if(dic) {
+			NSArray *genotypes = [self validTargetsOfSender:menuItem];
 			NSArray *URIs = dic.allKeys;
 			for(Genotype *genotype in genotypes) {
 				NSString *URI = genotype.marker.objectID.URIRepresentation.absoluteString;
@@ -323,28 +354,6 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 		menuItem.hidden = YES;
 		return NO;
 	}
-	
-	if(menuItem.action == @selector(removeAdditionalFragments:)) {
-		/// we hide and disable this item if no target genotype has an offset
-		for(Genotype *genotype in genotypes) {
-			if(genotype.additionalFragments.count > 0) {
-				menuItem.hidden = NO;
-				return YES;
-			}
-		}
-		menuItem.hidden = YES;
-		return NO;
-	}
-	
-	if(menuItem.action == @selector(callAlleles:) || menuItem.action == @selector(binAlleles:)) {
-		for(Genotype *genotype in genotypes) {
-			if(genotype.sample.sizingQuality.floatValue > 0) {
-				return YES;
-			}
-		}
-		return NO;
-	}
-	
 	return [super validateMenuItem:menuItem];
 }
 
@@ -365,23 +374,15 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 
 
 - (IBAction)binAlleles:(id)sender {
-	/// if the message is sent by the tableView's menu, we call all target genotypes
-	/// else, we will ignore manually edited genotypes
-	BOOL doAll = [sender isKindOfClass:NSMenuItem.class] && [sender topMenu] == self.tableView.menu;
-	
-	NSArray *genotypes = doAll? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
-	
-	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateAdditionalPeaks];
-	
 	[self.undoManager setActionName:@"Bin Alleles"];
+	NSArray *genotypes =  [self validTargetsOfSender:sender];
+	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateAdditionalPeaks];
 	
 	for (Genotype *genotype in genotypes) {
 		GenotypeStatus status = genotype.status;
 		if(status == genotypeStatusNotCalled || status == genotypeStatusNoPeak) {
 			[genotype callAllelesAndAdditionalPeak:annotateSuppPeaks];
-		} else if((doAll || status != genotypeStatusManual)) {
-			/// if genotypeStatusAutomatic, the action should have no effect either (automatic binning is already done) 
-			/// but we do it again as a safety measure.
+		} else {
 			[genotype binAlleles];
 		}
 	}
@@ -394,18 +395,11 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	/// we don't create a managed object context to call alleles as allele call is very quick (less than 1s for 10000 genotypes)
 	/// and is actually slower when we use a child context
 	[self.undoManager setActionName:@"Find Alleles"];
-
-	BOOL doAll = [sender isKindOfClass:NSMenuItem.class] && [sender topMenu] == self.tableView.menu;
-	/// if the message was sent by the tableView's menu, we call the alleles of all target genotypes
-	/// else, we will call alleles only for genotypes that have not been called or edited
-	
-	NSArray *genotypes = doAll? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
+	NSArray *genotypes = [self validTargetsOfSender:sender];
 	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateAdditionalPeaks];
 
 	for (Genotype *genotype in genotypes) {
-		if(doAll || (genotype.status != genotypeStatusAutomatic && genotype.status != genotypeStatusManual)) {
-			[genotype callAllelesAndAdditionalPeak:annotateSuppPeaks];
-		}
+		[genotype callAllelesAndAdditionalPeak:annotateSuppPeaks];
 	}
 	
 	[self checkGenotypesForAdenylation:genotypes];
@@ -505,7 +499,7 @@ static NSInteger genotypeIndex = 0;
 - (IBAction)removeAdditionalFragments:(id)sender {
 	[self.undoManager setActionName:@"Remove Additional Peaks"];
 
-	NSArray *genotypes = self.tableView.clickedRow >= 0? [self targetItemsOfSender:sender] : self.genotypes.arrangedObjects;
+	NSArray *genotypes = [self validTargetsOfSender:sender];
 	
 	for (Genotype *genotype in genotypes) {
 		BOOL edited = NO;
@@ -525,7 +519,7 @@ static NSInteger genotypeIndex = 0;
 - (IBAction)selectSamples:(id)sender {
 	MainWindowController *mainWindowController = MainWindowController.sharedController;
 	mainWindowController.sourceController = SampleTableController.sharedController;		/// we activate the sample tableview
-	[SampleTableController.sharedController.samples setSelectedObjects:[[self targetItemsOfSender:sender] valueForKeyPath:@"@unionOfObjects.sample"]];
+	[SampleTableController.sharedController.samples setSelectedObjects:[[self validTargetsOfSender:sender] valueForKeyPath:@"@unionOfObjects.sample"]];
 	NSTableView *sampleTable = SampleTableController.sharedController.tableView;
 	if(sampleTable) {
 		NSInteger row = sampleTable.selectedRow;
@@ -538,39 +532,81 @@ static NSInteger genotypeIndex = 0;
 
 - (void)removeOffsets:(id)sender {
 	[self.undoManager setActionName:@"Reset Genotype Offset(s)"];
-	NSArray *genotypes = [self targetItemsOfSender:sender];
+	NSArray *genotypes = [self validTargetsOfSender:sender];
 	for(Genotype *genotype in genotypes) {
 		genotype.offsetData = nil;
 	}
 	[AppDelegate.sharedInstance saveAction:self];
 }
 
+#pragma mark - export and copy
 
-- (IBAction)exportGenotypes:(id)sender {
-	NSArray *genotypes = self.genotypes.arrangedObjects;		/// if this is sent from the export button, all genotypes are exported
-	if(self.tableView.clickedRow >= 0) {				/// if sent from the genotype table menu (meaning that a row has been clicked), only selected/clicked genotypes are exported
-		genotypes = [self targetItemsOfSender:sender];
+- (BOOL)canExportItems {
+	return YES;
+}
+
+
+
+- (NSString *)exportActionTitleForItems:(NSArray *)items {
+	return items.count > 0? @"Export Genotype Table…" : nil;
+}
+
+
+- (NSImage *)exportButtonImageForItems:(NSArray *)items {
+	static NSImage * exportImage;
+	if(!exportImage) {
+		exportImage = [NSImage imageNamed:@"export genotypes"];
 	}
-	if (genotypes.count == 0) {
+	return exportImage;
+}
+
+
+-(IBAction)exportSelectionOnly:(NSButton *)sender {
+	exportSelectionOnly = sender.tag == 2;
+}
+
+
+- (IBAction)exportSelection:(id)sender {
+	NSArray *targetGenotypes = [self validTargetsOfSender:sender];
+	NSArray *selectedGenotypes = self.genotypes.selectedObjects;
+
+	if(targetGenotypes.count == 0) {
+		/// Which should not happen
+		[NSApp presentError:[NSError errorWithDescription:@"No genotype to export." suggestion:@""]];
 		return;
 	}
 	
+	BOOL fromContextualMenu = [sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == self.tableView.menu;
+	
 	NSSavePanel* panel = NSSavePanel.savePanel;
-	/// we allow the user to add sample-related information (from the sample table)
-	NSButton* button = [NSButton checkboxWithTitle:@"Add Sample-related Columns" target:nil action:nil];
-	button.toolTip = @"Add columns from the sample table to each genotype";
-	panel.accessoryView = button;
-	button.state = [NSUserDefaults.standardUserDefaults boolForKey:AddSampleInfo];
-	[button setFrameSize:NSMakeSize(button.frame.size.width, 40)];
+	panel.message = @"Export genotype table";
+	
+	if(exportPanelAccessoryView) {
+		panel.accessoryView = exportPanelAccessoryView;
+		NSButton *exportWholeTableRadioButton = [exportPanelAccessoryView viewWithTag:1];
+		NSButton *exportSelectionRadioButton = [exportPanelAccessoryView viewWithTag:2];
+		if(fromContextualMenu || selectedGenotypes.count == 0) {
+			exportWholeTableRadioButton.state = !fromContextualMenu;
+			exportSelectionRadioButton.state = fromContextualMenu;
+			exportWholeTableRadioButton.enabled = NO;
+			exportSelectionRadioButton.enabled = NO;
+		} else {
+			exportWholeTableRadioButton.state = NSControlStateValueOn;
+			exportSelectionRadioButton.state = NSControlStateValueOff;
+			exportWholeTableRadioButton.enabled = YES;
+			exportSelectionRadioButton.enabled = YES;
+		}
+		exportSelectionOnly = exportSelectionRadioButton.state;
+	}
 	
 	panel.nameFieldStringValue = [FolderListController.sharedController.selectedFolder.name stringByAppendingString: @" genotypes.txt"];
 	panel.allowedFileTypes = @[@"public.plain-text"];
 	
 	[panel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
+			NSArray *exportedGenotypes = (self->exportSelectionOnly && !fromContextualMenu) ? selectedGenotypes : targetGenotypes;
 			NSURL* theFile = panel.URL;
-			[NSUserDefaults.standardUserDefaults setBool:button.state forKey:AddSampleInfo];
-			NSString *exportString = [self stringFromGenotypes:genotypes withSampleInfo:button.state];
+			NSString *exportString = [self stringFromGenotypes:exportedGenotypes withSampleInfo:[NSUserDefaults.standardUserDefaults boolForKey:AddSampleInfo]];
 			NSError *error = nil;
 			[exportString writeToURL:theFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
 			if(error) {
@@ -636,7 +672,7 @@ static NSInteger genotypeIndex = 0;
 
 
 - (IBAction)pasteOffset:(id)sender {
-	NSArray *targetGenotypes = [self targetItemsOfSender:sender];
+	NSArray *targetGenotypes = [self validTargetsOfSender:sender];
 	NSDictionary *dic = Chromatogram.markerOffsetDictionaryFromGeneralPasteBoard;
 	if(!dic || targetGenotypes.count < 1) {
 		return;

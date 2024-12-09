@@ -35,17 +35,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// This class provides common methods for controller objects that are delegate/datasource of `NSTableView` objects.
 /// Objects that compose the rows of these tables inherit from ``CodingObject``.
 ///
-/// This class implements methods for the deletion of items representing table rows and to record/restore the selected items in/from the user defaults
+/// This class implements methods for the deletion and export of items representing table rows and to record/restore the selected items in/from the user defaults.
+/// It also performs validation of menu and toolbar items, and determines which items of the table are targets.
 ///
 /// Other methods can populate the tableview with columns and cell views, based on column descriptions provided as a dictionary (see ``columnDescription``).
 /// This dictionary is useful for tables that have too many columns to all be designed in a nib.
 ///
 /// This class implements `-copy` (to the paste board) of the text content of selected rows, for subclasses that provide a ``columnDescription``,
 /// and for the items shown in the table if they implement the `NSPasteBoardWriting` protocol.
-/// This class also implements dragging rows of the table (see ``tableView:pasteboardWriterForRow:``.
+/// This class implements dragging rows of the table (see ``tableView:pasteboardWriterForRow:``.
 ///
 /// This class also provides  a menu for the table header view, to allow hiding/showing columns and sorting via a popover of class ``TableSortPopover``.
-@interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSPopoverDelegate, NSMenuItemValidation, NSViewToolTipOwner> {
+@interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSPopoverDelegate, NSMenuItemValidation, NSToolbarItemValidation, NSViewToolTipOwner> {
 	
 	/// backs the ``tableView`` readonly property.
 	///
@@ -64,6 +65,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The singleton instance, loaded from a nib file.
 + (instancetype)sharedController;
+
+
+#pragma mark - managing the table view
 
 /// The tableview that the receiver manages.
 ///
@@ -121,7 +125,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 @property (readonly, nullable, nonatomic) NSArray<NSTableColumn *>* visibleColumns;
 
 
-/// Returns whether a column of the ``tableView`` can be hidden.
+/// Returns whether a column of the ``tableView`` can be hidden by the user.
 ///
 /// The default implementation returns `YES`.
 /// - Parameter column: The column that may be hidden.
@@ -139,19 +143,18 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /// The default implementation returns `NO`.
 @property (readonly, nonatomic) BOOL shouldMakeTableHeaderMenu;
 
+
 /// Whether the ``tableView`` can be sorted via a sort sheet (see ``showSortCriteria:``).
 ///
 /// The default implementation returns the same value as ``shouldMakeTableHeaderMenu``.
 @property (readonly, nonatomic) BOOL canSortByMultipleColumns;
 
 
-/// Whether items should be deleted from their managed object context with the ``removeItems:`` method on the ``tableContent``.
+/// Whether items should be deleted from their managed object context with the ``deleteItems:`` method on the ``tableContent``.
 ///
 /// The default implementation returns `YES`.
 @property (readonly, nonatomic) BOOL shouldDeleteObjectsOnRemove;
 
-
-/****methods used to manage the selection, addition or deletion of objects shown in the tableview***************/
 
 /// The user-facing name for the type of item populating the table (used in dialogs).
 ///
@@ -185,70 +188,101 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 - (NSInteger) itemNameColumn;
 
 
-/// A generic method that removes target items from the ``tableView``, sent from menus and buttons.
-/// - Parameter sender: The object that sent the message, which determines the target items via ``targetItemsOfSender:``.
+#pragma mark - deleting items
+
+
+/// A generic method that removes target items from the ``tableView`` (and deletes them), sent from menus and buttons.
+/// - Parameter sender: The object that sent the message, which determines the target items via ``validTargetsOfSender:``.
 - (IBAction)remove:(id)sender;
 
 
-/// The items that are the target of an action by a sender.
+/// The items that are valid targets of an action by a sender (e.g. a menu item), among those listed in the ``tableView``.
 ///
 /// If `sender` is an item from the ``tableView``'s `menu`, the target item is the one at the row
-/// that was right-clicked if it is not a selected row. Otherwise, the target items are those that are selected.
+/// that was right-clicked if it is not a selected row (or `nil` if the click occurred outside a row). Otherwise, the target items are those that are selected.
+///	Otherwise, the selected objects are returned.
 ///
+///	Subclass can override this method to perform additional checks of validity, based on the `sender`'s `action` or other properties.
+///	The default implementation never returns `nil`.
 /// - Parameter sender: The object that sent the message, typically an `NSMenuItem`.
-///  - Note: Because this method analyzes the sender to determine which items to remove, not any sender is adequate.
-- (nullable NSArray *) targetItemsOfSender:(id)sender;
+/// - Important: The `sender` must respond to `action` and return a `selector`.
+/// - Important: returning `nil` invalidates the `sender` in this class' implementations of `validateMenuItem:` and `validateToolbarItem:`, which call this method.
+- (nullable NSArray *) validTargetsOfSender:(id)sender;
 
 
 /// Removes items from the ``tableView``.
 ///
 /// The default implementation remove the items from the ``tableContent``.
 /// - Parameter items: The items to remove form the tableview.
-- (void)removeItems:(NSArray *)items;
+- (void)deleteItems:(NSArray *)items;
 
 
-/// An appropriate action title for the removal of items.
+/// An appropriate action title for the deletion of items.
 ///
-/// The returned value will be used for the title a menu item whose action is ``remove:`` and the target is the receiver.
+/// The returned value is used for the title a menu item whose action is ``remove:`` and the target is the receiver.
 /// The default value is "Delete " followed by the the value returned by ``nameForItem:``.
 /// If this returns `nil`, the menu is hidden and removal is prevented.
 ///
 /// The default implementation assumes that every item is shown in the ``tableView``.
-/// - Parameter items: The items that shall be removed.
-- (nullable NSString *) removeActionTitleForItems:(NSArray *)items;
+/// - Parameter items: The items that shall be deleted.
+- (nullable NSString *) deleteActionTitleForItems:(NSArray *)items;
 
 
-/// An alert to be shown to the user trying to remove some items.
-///
-/// The default implementation returns an alert whose informative text is the value returned by ``removeActionTitleForItems:``.
-///- Parameter items: The items that shall be removed.
-- (nullable NSAlert *) cautionAlertForRemovingItems:(NSArray *)items;
-
-
-/// An alert telling the user that some items cannot be removed.
-///
-/// If this method returns `nil`, removal proceeds without showing an alert.
-/// - Parameter items: The items that shall be removed.
-- (nullable NSAlert *) cannotRemoveAlertForItems:(NSArray *)items;
-
-
-/// The informative text to be shown on the ``cautionAlertForRemovingItems:`` alert.
+/// The informative text to be shown on an alert warning the user about the deletion of items.
 ///
 /// The default implementation returns "This action can be undone.".
-- (NSString *) cautionAlertInformativeStringForItems:(NSArray *)items;
+/// If `nil` is returned, no alert is shown and the deletion proceeds.
+/// - Parameter items: The items that shall be deleted.
+- (nullable NSString *) cautionAlertInformativeStringForItems:(NSArray *)items;
 
 
-/// The informative text to be shown on the ``cannotRemoveAlertForItems:`` alert.
+/// The informative text to be shown on an alert telling that items cannot be deleted.
 ///
-/// The default implementation returns `nil`.
-- (nullable NSString *) cannotRemoveInformativeStringForItems:(NSArray *)items;
+/// The default implementation returns `nil`, in which case no alert is shown and the deletion can proceed.
+/// - Parameter items: The items that shall be deleted.
+- (nullable NSString *) cannotDeleteInformativeStringForItems:(NSArray *)items;
 
 
-/// Whether ``cannotRemoveAlertForItems:`` never returns an alert indicating that items cannot be removed from the table.
+
+#pragma mark - exporting items
+
+/// Overridden by subclasses to allow the user to export items shown on their table.
 ///
-/// The default implementation returns `YES`, hence no alert is shown.
-@property (readonly, nonatomic) BOOL canAlwaysRemove;
+/// The default implementation does nothing.
+/// - Parameter sender: The object that sent the message.
+- (IBAction)exportSelection:(id)sender;
 
+
+/// Wether the receiver responds to ``exportSelection:``.
+///
+/// If this property returns `NO`, the controller will not handle ``exportSelection:``,
+/// such that some next responder in the chain may handle it.
+/// The default is `NO`.
+@property (readonly, nonatomic) BOOL canExportItems;
+
+
+/// An appropriate action title for the export of items.
+///
+/// The returned value is used for the title a menu item whose action is ``exportSelection:`` and the target is the receiver.
+/// If this returns `nil`, the menu is hidden and export is prevented.
+///
+/// The default implementation return `nil` if `canExportItems` returns `NO`.
+/// Otherwise, it returns "Export " followed by `nameForItem:`.
+/// - Parameter items: The items that shall be exported.
+- (nullable NSString *) exportActionTitleForItems:(NSArray *)items;
+
+
+/// A suitable image for a toolbar button used to export items shown in the ``tableView``.
+///
+/// The method is used during `validateToolbarItems` and updates the image of the item.
+/// The default image is a rounded square with a up arrow coming out of it. Subclasses can provide
+/// an image that represents the type of items.
+/// - Parameter items: The items that should be exported.
+- (NSImage *) exportButtonImageForItems:(NSArray *)items;
+
+
+
+#pragma mark - editing and selecting table cells
 
 /// The action name to provide to the receiver's undo manager when a cell has been edited.
 ///
@@ -292,9 +326,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /// - Parameter sender: The object that sent this message. The default implementation ignores this parameter.
 - (void)moveSelectionByStep:(id)sender;
 
-
-
-/****methods used to copy objects to the pasteboard ***************/
+#pragma mark - copy/paste
 
 /// Copies the items that are selected in the ``tableView`` to the general pasteboard.
 /// - Parameter sender: The object that sent this message. 
@@ -346,7 +378,7 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 - (NSString *)stringCorrespondingToColumn:(NSTableColumn *)column forObject:(id) object;
 				
 
-/********recording and restoring selection ****/
+#pragma mark - recoding and restoring selection
 
 /// Records the selected items (selected rows) in the user defaults so that selection can be preserved between app launches.
 ///
@@ -379,7 +411,8 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /// Subclass are expected to override this method and call ``restoreSelectedItemsAtKey:``.
 -(void)restoreSelectedItems;
 
-/************filtering ***************/
+
+#pragma mark - filtering items
 
 /// The method below are not much generic, the merely avoid replicating code in two subclasses
 /// that allow filtering the table content.

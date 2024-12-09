@@ -121,8 +121,13 @@
 
 
 - (NSMenu *)menuForEvent:(NSEvent *)event {
-	self.rightClickedPoint = [self convertPoint:event.locationInWindow fromView:nil];
-	return self.activeLabel.menu;
+	NSPoint rightClickedPoint = [self convertPoint:event.locationInWindow fromView:nil];
+	self.rightClickedPoint = rightClickedPoint;
+	ViewLabel *activeLabel = self.activeLabel;
+	if(activeLabel && NSPointInRect(rightClickedPoint, activeLabel.frame)) {
+		return activeLabel.menu;
+	}
+	return nil;
 }
 
 
@@ -234,6 +239,15 @@
 		return NO;
 	}
 	
+	if(menuItem.action == @selector(remove:)) {
+		/// We implement `remove:` to be able to remove labels via the universal trash toolbar button,
+		/// but we do not show the corresponding menu because we use a different key equivalent (hence another menu)
+		/// for `deleteAction:` (simple delete key rather than cmd-delete)
+		/// Showing both menu items would be disturbing.
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
 	if(menuItem.action == @selector(undo:) || menuItem.action == @selector(redo:)) {
 		/// The window itself is apparently the object that validates the undo/redo menu items.
 		return [self.window validateMenuItem:menuItem];
@@ -242,18 +256,31 @@
 	return YES;
 }
 
+
+- (BOOL)validateToolbarItem:(NSToolbarItem *)item {
+	if(item.action == @selector(remove:)) {
+		/// This would be the trash toolbar button.
+		NSString *title = self.activeLabel.deleteActionTitle;
+		if(title) {
+			item.toolTip = title;
+			return YES;
+		}
+		return NO;
+	}
+	return YES;
+}
+
+
 -(void)undo:(id)sender {
-	/// To disable undo/redo menu while a label is dragged, we need to implement this method, otherwise validation will not be asked to us.
-	///
-	/// For reasons I can't understand, no AppKit class implements undo:, even though it is the action of the undo menu item
-	/// which NSWindow is able to validate. No one can manage the message. We have to implement it.
-	if(!draggedLabel) {
+	/// To disable undo/redo menu while a label is dragged, we need to implement this method.
+	if(!draggedLabel && ![self.nextResponder tryToPerform:@selector(undo:) with:sender]) {
+		/// The condition above should in principle not be met, but in case it is, we undo "manually".
 		[self.undoManager undo];
 	}
 }
 
 -(void)redo:(id)sender {
-	if(!draggedLabel) {
+	if(!draggedLabel && ![self.nextResponder tryToPerform:@selector(redo:) with:sender]) {
 		[self.undoManager redo];
 	}
 }
@@ -476,7 +503,12 @@
 
 
 - (void)deleteSelection:(id)sender {
-	
+	/// overridden
+}
+
+-(void)remove:(id)sender {
+	/// Message  sent by the trash toolbar button
+	[self deleteSelection:sender];
 }
 
 # pragma mark - channels

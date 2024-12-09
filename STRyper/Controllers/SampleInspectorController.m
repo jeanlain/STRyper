@@ -64,8 +64,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 	}
 
 	/// the Chromatogram attribute names that we bind to value of NSTextfields that the inspector tab shows
-	sampleKeyPaths = Chromatogram.entity.attributeKeys;
-	sampleKeyPaths = [sampleKeyPaths arrayByAddingObjectsFromArray:@[@"dye1", @"dye2",@"dye3", @"dye4", @"dye5"]];
+	sampleKeyPaths = [Chromatogram.entity.attributeKeys arrayByAddingObjectsFromArray:@[@"dye1", @"dye2",@"dye3", @"dye4", @"dye5"]];
 }
 
 
@@ -243,7 +242,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 				NSPathControl *control = (NSPathControl *)subView;
 				control.action = @selector(pathControlIsClicked:);
 				control.target = self;
-				[subView bind:NSValueBinding toObject:sampleController withKeyPath:@"selection.fileURL" options:nil];
+				[control bind:NSValueBinding toObject:sampleController withKeyPath:@"selection.fileURL" options:nil];
 			}
 		}
 		return rowView;

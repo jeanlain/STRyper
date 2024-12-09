@@ -109,6 +109,9 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	return @"Folder";
 }
 
+- (BOOL)canExportItems {
+	return YES;
+}
 
 - (void)configureTableContent {
 	
@@ -394,9 +397,13 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		}
 		[outlineView reloadItem:destination];
 	} else if(folderWasAdded) {
-		[outlineView insertItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideDown];
-		[outlineView expandItem:source];
-	} else if(folderWasDeleted) {
+		if(sourceExpanded) {
+			[outlineView insertItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideDown];
+		} else {
+			[self openAncestorsOf:source];
+			[outlineView expandItem:source];
+		}
+	} else if(folderWasDeleted && sourceExpanded) {
 		/// On macOS 14, removing the row can cause a freeze if its text field is currently edited.
 		/// This can occur if the user undoes the addition of a folder since the name of a new folder is selected on the view.
 		/// To avoid this, we abort editing.
@@ -719,7 +726,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 
 - (BOOL)outlineView:(NSOutlineView *)outlineView acceptDrop:(id <NSDraggingInfo>)info item:(id)item childIndex:(NSInteger)index {
-	
 	NSPasteboard *pboard = info.draggingPasteboard;
 	if ([pboard.types containsObject:FolderDragType]) {
 		Folder *draggedFolder = [self.managedObjectContext objectForURIString:[pboard stringForType:FolderDragType]
@@ -793,41 +799,45 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 
 
-- (__kindof Folder *)_targetFolderOfSender:(id)sender {
-	return [self targetItemsOfSender:sender].firstObject;
+- (nullable __kindof Folder *)_targetFolderOfSender:(id)sender {
+	Folder *folder = nil;
+	if(![sender respondsToSelector:@selector(topMenu)] || [sender topMenu] != outlineView.menu) {
+		if([sender action] == @selector(addFolder:) || [sender action] == @selector(addSampleOrSmartFolder:)) {
+			/// When adding a folder, the target if the root folder (where a new folder will be added)
+			return self.rootFolder;
+		}
+		return self.selectedFolder;
+	}
+
+	NSInteger clickedRow = outlineView.clickedRow;
+	if(clickedRow >= 0) {
+		folder = [self _folderForItem: [outlineView itemAtRow:clickedRow]];
+	} else if([sender action] == @selector(addFolder:) || [sender action] == @selector(addSampleOrSmartFolder:)) {
+		/// Even if the no row was clicked, we allow adding a folder to the root folder
+		return self.rootFolder;
+	}
+	return folder;
 }
 
 
-- (NSString *)removeActionTitleForItems:(NSArray *)items {
+- (NSString *)deleteActionTitleForItems:(NSArray *)items {
 	Folder *folder = items.firstObject;
 	
 	if(!folder.parent) {
 		/// we cannot remove a folder that has no parent (root folder, trash folder, etc.)
+		/// although such folder should never be a target for deletion (the UI doesn't allow it).
 		return nil;
 	}
 	
-	return [super removeActionTitleForItems:items];
+	return [super deleteActionTitleForItems:items];
 }
 
 
-- (nullable NSArray *) targetItemsOfSender:(id)sender  {
+- (nullable NSArray *) validTargetsOfSender:(id)sender  {
 	/// overridden because the outline view doesn't use an NSArrayController.
 	/// We also use the fact that only one item can be a target (the view doesn't allow multiple selection)
-	Folder *folder = nil;
-	NSInteger row = -1;
-	if(sender == outlineView.menu || ([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == outlineView.menu)) {
-		row = outlineView.clickedRow;
-	} else {
-		row = outlineView.selectedRow;
-	}
-	if(row >= 0) {
-		folder = [self _folderForItem: [outlineView itemAtRow:row]];
-	}
-	if(!folder) {
-		return nil;
-	}
-	return @[folder];
-	
+	Folder *folder = [self _targetFolderOfSender:sender];
+	return folder == nil? nil : @[folder];
 }
 
 
@@ -836,16 +846,9 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		return;
 	}
 
-	Folder *parentFolder; 	/// The folder that will be the parent of the new folder.
-	if([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == outlineView.menu) {
-		parentFolder = [self _targetFolderOfSender:sender];
-	}
+	Folder *parentFolder = [self _targetFolderOfSender:sender];
 	
-	if(!parentFolder) {
-		/// This may happen if the outline view was right-clicked outside of a row.
-		/// In this case, the new folder should be added at the root.
-		parentFolder = self.rootFolder;
-	} else if(parentFolder == self.trashFolder) {
+	if(parentFolder == self.trashFolder) {
 		/// The UI should not allow targeting the trash folder, this a a safety measure.
 		return;
 	}
@@ -861,7 +864,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		if([sender respondsToSelector:@selector(tag)] && [sender tag] == 4) {
 			/// here, this tag tells that we should create a smart folder
 			/// this involve showing the search sheet to the user
-			parentFolder = self.smartFolderContainer;
+			parentFolder = self.smartFolderContainer;	/// For safety, as this should already be the case.
 			SampleSearchHelper *searchHelper = SampleSearchHelper.sharedHelper;
 			[searchHelper beginSheetModalFoWindow:self.view.window withPredicate:nil completionHandler:^(NSModalResponse returnCode) {
 				if(returnCode == NSModalResponseOK) {
@@ -923,7 +926,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 }
 
 
-- (void)removeItems:(NSArray *)items {
+- (void)deleteItems:(NSArray *)items {
 	for(Folder *folder in items) {
 		[self _removeFolderFromTable:folder];
 		[folder.managedObjectContext deleteObject:folder];
@@ -977,10 +980,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	return NO;
 }
 
-
-- (void)exportSelection:(id)sender {
-	/// overridden
-}
 
 
 - (void)dealloc {

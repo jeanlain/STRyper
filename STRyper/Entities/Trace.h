@@ -24,7 +24,7 @@
 
 #import "CodingObject.h"
 
-@class Chromatogram, TraceView, LadderFragment, ViewLabel, PeakLabel, FragmentLabel, Allele;
+@class Chromatogram, LadderFragment;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -125,7 +125,7 @@ typedef struct Peak {
 	/// Indicates saturation or crosstalk in fluorescence at the peak location.
 	///
 	/// A positive value represents the width of the offscale region (see ``Chromatogram/offscaleRegions``) at the peak location.
-	/// A negative value between -1 and -5 represents the opposite of the ``Trace/channel`` that induced crosstalk, minus 1
+	/// A negative value between -1 and -5 represents the opposite of the ``FluoTrace/channel`` that induced crosstalk, minus 1
 	/// (e.g., a value of -3 represents channel 4), meaning that the peak results from crosstalk.
 	int32_t crossTalk;
 } Peak;
@@ -167,9 +167,9 @@ int32_t peakEndScan(const Peak *peakPTR);
 - (Peak)missingPeakForScan:(int)scan useRawData:(BOOL)useRawData;
 
 
-/// Tries to insert a new peak in the ``Trace/peaks`` array and returns whether the peak was inserted.
+/// Tries to insert a new peak in the ``FluoTrace/peaks`` array and returns whether the peak was inserted.
 ///
-/// The peak is inserted at an index that maintains the ascending order of the ``Trace/peaks`` in the array (with respect to their `startScan`).
+/// The peak is inserted at an index that maintains the ascending order of the ``FluoTrace/peaks`` in the array (with respect to their `startScan`).
 /// This method logs an error message and returns `NO` if an existing peak overlaps the peak to insert.
 /// The method does not check if the peak to insert covers a region where the fluorescence actually shows a peak.
 /// - Parameter peak: The peak to insert.
@@ -202,7 +202,7 @@ int32_t peakEndScan(const Peak *peakPTR);
 
 #pragma mark - range and display properties
 
-/// A structure that defines a range in base pairs, which can represent a segment of a ``Trace`` object.
+/// A structure that defines a range in base pairs, which can represent a segment of a ``FluoTrace`` object.
 typedef struct BaseRange {
 	/// The start position of the range.
 	float start;
@@ -258,7 +258,7 @@ extern CodingObjectKey TraceIsLadderKey,
 TracePeaksKey,
 TraceFragmentsKey;
 
-/// The previous name used for the class, which we add to change because Apple started using it in a private framework in macOS sequoia.
+/// The previous name used for the class, which we had to change because Apple started using it in a private framework in macOS sequoia.
 extern NSString * _Nonnull const previousTraceClassName;
 
 @compatibility_alias Trace FluoTrace;

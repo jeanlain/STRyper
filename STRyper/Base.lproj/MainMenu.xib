@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -75,7 +75,7 @@
                             <menuItem isSeparatorItem="YES" id="TrD-Y2-uEy"/>
                             <menuItem title="Import Samples…" keyEquivalent="i" id="Bw7-FT-i3A">
                                 <connections>
-                                    <action selector="showImportSamplePanel:" target="-1" id="mLT-mI-uXE"/>
+                                    <action selector="importSamples:" target="-1" id="mLT-mI-uXE"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Import Archived Folder…" id="478-fi-5u6">
@@ -96,7 +96,7 @@
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="m54-Is-iLE"/>
-                            <menuItem title="Save" keyEquivalent="s" id="ilt-om-Lpe">
+                            <menuItem title="Save" hidden="YES" enabled="NO" keyEquivalent="s" id="ilt-om-Lpe">
                                 <connections>
                                     <action selector="saveAction:" target="Voe-Tx-rLC" id="I97-nv-OEn"/>
                                 </connections>
@@ -307,7 +307,7 @@ CA
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.SynchronizeViews" id="xeP-WO-GjH"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Allow Swipe between Markers " state="on" alternate="YES" id="u2d-e9-cKp">
+                            <menuItem title="Allow Swipe between Markers " state="on" alternate="YES" toolTip="Enable moving from marker to marker via swipe gestures" id="u2d-e9-cKp">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.SwipeBetweenMarkers" id="0qg-tF-nEP"/>
@@ -339,7 +339,7 @@ CA
                                 </menu>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="H2O-sn-gHR"/>
-                            <menuItem title="Peak Information Tooltips" id="RO0-W0-QJw">
+                            <menuItem title="Peak Information Tooltips" toolTip="Shows a tooltip indicating information about a peak that is hovered" id="RO0-W0-QJw">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.ShowPeakTooltips" id="DGy-PY-ega"/>
@@ -351,7 +351,7 @@ CA
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.ShowOffScale" id="Uht-eP-Sef"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Outline Crosstalk Peaks" state="on" alternate="YES" id="vqE-nB-0Xz">
+                            <menuItem title="Outline Crosstalk Peaks" state="on" alternate="YES" toolTip="Fills peaks with the color of the channel that induced crosstalk" id="vqE-nB-0Xz">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <binding destination="OHE-m2-ofX" name="value" keyPath="values.PaintCrosstalkPeaks" id="Y0T-kK-zU3"/>
@@ -375,13 +375,13 @@ CA
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="R5I-Vh-s1D"/>
-                            <menuItem title="Move down selection" keyEquivalent="" identifier="moveDown" id="Ia0-KP-JcQ">
+                            <menuItem title="Move Selection Down" keyEquivalent="" identifier="moveDown" toolTip="Moves the selection one step down while maintaining the number of selected rows" id="Ia0-KP-JcQ">
                                 <modifierMask key="keyEquivalentModifierMask" control="YES"/>
                                 <connections>
                                     <action selector="moveSelectionByStep:" target="-1" id="2ES-pH-P0K"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Move up selection" keyEquivalent="" identifier="moveUp" id="0AY-s9-sTd">
+                            <menuItem title="Move Selection Up" keyEquivalent="" identifier="moveUp" toolTip="Moves the selection one step up while maintaining the number of selected rows" id="0AY-s9-sTd">
                                 <modifierMask key="keyEquivalentModifierMask" control="YES"/>
                                 <connections>
                                     <action selector="moveSelectionByStep:" target="-1" id="y4y-h0-ZFK"/>

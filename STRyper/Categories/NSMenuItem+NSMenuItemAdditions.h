@@ -27,7 +27,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface NSMenuItem (NSMenuItemAdditions)
 
 
-/// Returns the top supermenu of the receiver's menu, which is the menu itself if is has no supermenu.
+/// Returns the top `supermenu of the receiver's `menu`, which is the menu itself if is has no supermenu.
 @property (readonly, nonatomic) NSMenu *topMenu;
 
 @end

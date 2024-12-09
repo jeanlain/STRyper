@@ -46,9 +46,6 @@
 @implementation FileImporter
 
 
-static NSDictionary *standardForKey;		///this is used to deduce the size standard used in the electrophoresis based on a string in the standard name ("StdF" element in the ABIF file)
-
-
 + (instancetype)sharedFileImporter {
 	static FileImporter *sharedImporter = nil;
 	
@@ -64,17 +61,6 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 	return self.importProgress != nil;		
 }
 
-+ (void)initialize {
-	if (self == FileImporter.class) {
-		standardForKey =
-		@{
-			@"500": @"GeneScan-500",
-			@"400": @"GeneScan-400HD",
-			@"350": @"GeneScan-350",
-			@"600": @"GeneScan-600"
-		};
-	}
-}
 
 # pragma mark - sample import
 
@@ -226,6 +212,17 @@ static NSDictionary *standardForKey;		///this is used to deduce the size standar
 	fetchRequest.predicate = [NSPredicate predicateWithFormat:[NSString stringWithFormat:@"%@ LIKE '%@'", SizeStandardNameKey, standardName]];
 	NSArray *fetchedSizeStandard = [sample.managedObjectContext executeFetchRequest:fetchRequest error:nil];
 	if(fetchedSizeStandard.count == 0) {			/// if there is no size standard whose name correspond to the sample attribute, we try to attribute a size standard based on part of the name, in this case the size range
+		
+		static NSDictionary *standardForKey;
+		if(!standardForKey) {
+			standardForKey =
+			@{
+				@"500": @"GeneScan-500",
+				@"400": @"GeneScan-400HD",
+				@"350": @"GeneScan-350",
+				@"600": @"GeneScan-600"
+			};
+		}
 		
 		for (NSString *key in standardForKey) {
 			if ([sample.standardName rangeOfString:key].location != NSNotFound) {

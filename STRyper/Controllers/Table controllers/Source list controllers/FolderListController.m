@@ -281,7 +281,12 @@
 
 
 
-- (BOOL)outlineView:(NSOutlineView *)outlineView acceptDrop:(id <NSDraggingInfo>)info item:(id)item childIndex:(NSInteger)index {
+- (BOOL)outlineView:(NSOutlineView *)outlineView acceptDrop:(id <NSDraggingInfo>)info item:(id)item
+	childIndex:(NSInteger)index {
+	
+	/// For some reason, the drop doesn't trigger a validation of toolbar items, so we force it.
+	[NSApp setWindowsNeedUpdate:YES];
+	
 	NSPasteboard *pboard = info.draggingPasteboard;
 	Folder *destination = [self _folderForItem:item];
 	
@@ -315,40 +320,28 @@
 }
 
 
-- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	BOOL validated = [super validateMenuItem:menuItem];
-	if(!validated) {
-		return NO;
-	}
-	
-	SampleFolder *targetFolder = [self _targetFolderOfSender:menuItem];
-	if(menuItem.action == @selector(addFolder:) && menuItem.topMenu == outlineView.menu) {
-		/// If the menu item belongs to the contextual menu, the new folder would be added to the target folder.
-		/// This folder cannot be a root folder (which isn't clickable/selectable but we check it anyway)
-		/// and cannot be a smart folder.
-		menuItem.hidden = !targetFolder || !targetFolder.parent || targetFolder.isSmartFolder;
-		return !menuItem.hidden;
-	}
-	
-	if(menuItem.action == @selector(editSmartFolder:)) {
-		BOOL disabled = !targetFolder.isSmartFolder;
-		menuItem.hidden = disabled;
-		return !disabled;
-	}
-	
-	if(menuItem.action == @selector(emptyTrash:) && menuItem.topMenu == outlineView.menu) {
-		menuItem.hidden = !targetFolder || targetFolder != self.trashFolder;
-		return !menuItem.hidden;
-	}
-	
-	if(menuItem.action == @selector(exportSelection:)) {
-		if(targetFolder) {
-			menuItem.title = @"Export Folder…";
-			return YES;
-		} else {
-			return NO;
+- (nullable __kindof Folder *)_targetFolderOfSender:(id)sender{
+	Folder *targetFolder = [super _targetFolderOfSender:sender];
+	if([sender action] == @selector(addFolder:)) {
+		/// Here the target folder should be the parent folder of the new folder.
+		if([sender respondsToSelector:@selector(tag)] && [sender tag] == 4) {
+			/// This tag indicates that the new folder will be a smart folder.
+			return self.smartFolderContainer;
+		}
+		/// The parent folder cannot be a smart folder (or the trash)
+		if(targetFolder.isSmartFolder || targetFolder == self.trashFolder) {
+			return nil;
 		}
 	}
+
+	if([sender action] == @selector(editSmartFolder:) && !targetFolder.isSmartFolder) {
+		return nil;
+	}
+	return targetFolder;
+}
+
+
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
 	
 	if(menuItem.action == @selector(paste:)) {
 		NSPasteboard *pboard = NSPasteboard.generalPasteboard;
@@ -356,7 +349,14 @@
 		([pboard.types containsObject:ChromatogramObjectIDPasteboardType] || [pboard.types containsObject:ChromatogramCombinedPasteboardType]);
 	}
 	
-	return YES;
+	Folder *targetFolder = [self _targetFolderOfSender:menuItem];
+	if(targetFolder && menuItem.action == @selector(addFolder:) && menuItem.tag != 4) {
+		menuItem.hidden = NO;
+		menuItem.title = targetFolder == self.rootFolder? @"New Folder" : @"Add Subfolder";
+		return YES;
+	}
+	
+	return [super validateMenuItem:menuItem];
 }
 
 
@@ -366,17 +366,21 @@
 }
 
 
-- (nullable NSAlert *)cautionAlertForRemovingItems:(NSArray *)items {
+- (nullable NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
 	SampleFolder *folder = items.firstObject;
-	if((folder.subfolders.count > 0 || folder.samples.count > 0) && !folder.isSmartFolder) {
-		return [super cautionAlertForRemovingItems:items];
+	if(!folder.isSmartFolder) {
+		NSInteger sampleCount = folder.allSamples.count;
+		if(sampleCount > 0) {
+			if(sampleCount > 1) {
+				return [NSString stringWithFormat: @"%ld samples in the folder will be deleted. \nThis action can be undone.", sampleCount];
+			}
+			return @"1 sample in the folder will be deleted. \nThis action can be undone.";
+		}
+		if(folder.subfolders.count > 0) {
+			return @"This action can be undone.";
+		}
 	}
 	return nil;
-}
-
-
-- (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
-	return @"All samples in the folder and their associated genotypes will be removed. \nThis action can be undone.";
 }
 
 
@@ -455,6 +459,15 @@
 }
 
 
+- (NSImage *)exportButtonImageForItems:(NSArray *)items {
+	static NSImage * exportImage;
+	if(!exportImage) {
+		exportImage = [NSImage imageNamed:@"export folder"];
+	}
+	return exportImage;
+}
+
+
 - (void)exportSelection:(id)sender {
 	if(FileImporter.sharedFileImporter.importOnGoing) {
 		return;
@@ -467,8 +480,8 @@
 	}
 	
 	NSSavePanel* savePanel = NSSavePanel.savePanel;
-	savePanel.prompt = @"Export Folder";
-	savePanel.message = @"Export folder to an archive";
+	
+	savePanel.message = [NSString stringWithFormat:@"Export folder '%@' to an archive", folder.name];
 	if(folder.name) {
 		savePanel.nameFieldStringValue = folder.name;
 	}
@@ -606,7 +619,7 @@
 }
 
 
-- (void)removeItems:(NSArray *)items {
+- (void)deleteItems:(NSArray *)items {
 	for(SampleFolder *folder in items) {
 		[self _removeFolderFromTable:folder];
 		folder.parent = self.trashFolder;

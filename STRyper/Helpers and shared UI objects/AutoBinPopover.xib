@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23094" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23094"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -87,12 +87,12 @@
                 </textField>
                 <popUpButton toolTip="The spacing between successive bins" tag="9" horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="mg7-Gr-ta9">
                     <rect key="frame" x="57" y="60" width="31" height="19"/>
-                    <popUpButtonCell key="cell" type="recessed" title="1" bezelStyle="recessed" alignment="left" lineBreakMode="truncatingTail" state="mixed" borderStyle="border" imageScaling="proportionallyDown" inset="2" selectedItem="9FV-YD-lTA" id="E4C-6Q-vOr">
+                    <popUpButtonCell key="cell" type="recessed" title="1" bezelStyle="recessed" alignment="left" lineBreakMode="truncatingTail" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" selectedItem="9FV-YD-lTA" id="E4C-6Q-vOr">
                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                         <font key="font" metaFont="cellTitle"/>
                         <menu key="menu" id="uTF-jQ-8In">
                             <items>
-                                <menuItem title="1" state="mixed" id="9FV-YD-lTA"/>
+                                <menuItem title="1" state="on" id="9FV-YD-lTA"/>
                                 <menuItem title="2" id="FDp-ma-xxh"/>
                                 <menuItem title="3" id="vwf-Um-hyV"/>
                                 <menuItem title="4" id="9XB-et-zSy"/>
@@ -125,9 +125,6 @@
                         <constraint firstAttribute="width" constant="120" id="Ahd-zm-0PV"/>
                     </constraints>
                     <sliderCell key="cell" controlSize="small" continuous="YES" state="on" alignment="left" minValue="0.5" maxValue="1.5" doubleValue="1" tickMarkPosition="above" numberOfTickMarks="11" allowsTickMarkValuesOnly="YES" sliderType="linear" id="eR3-JS-z9Z"/>
-                    <connections>
-                        <action selector="takeFloatValueFrom:" target="rXk-Dl-jWh" id="efi-Dc-CTe"/>
-                    </connections>
                 </slider>
                 <textField focusRingType="none" horizontalHuggingPriority="750" verticalHuggingPriority="750" tag="11" translatesAutoresizingMaskIntoConstraints="NO" id="rXk-Dl-jWh">
                     <rect key="frame" x="313" y="62" width="22" height="16"/>

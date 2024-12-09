@@ -582,7 +582,7 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 	NSPopover *popover = notification.object;
 	if(popover == regionPopover) {
 		/// if the popover is spawn via a message sent by the contextual menu, it's text field isn't selected, so we force it.
-		NSTextField *nameTextField = [regionPopover.contentViewController.view viewWithTag:3];
+		NSTextField *nameTextField = [popover.contentViewController.view viewWithTag:3];
 		[nameTextField selectText:self];
 	}
 }

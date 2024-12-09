@@ -142,12 +142,12 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This relationship is encoded in ``CodingObject/encodeWithCoder:``  and decoded in ``CodingObject/initWithCoder:``.
 ///
-/// The reverse relationship is ``Trace/chromatogram``.
+/// The reverse relationship is ``FluoTrace/chromatogram``.
 @property (nonatomic, readonly) NSSet<Trace *> *traces;
 																
 /// Return the trace corresponding to a given channel.
 ///
-/// This method will return nil if none of the chromatogram's ``traces`` has a ``Trace/channel`` that matches the argument, which would be an error.
+/// This method will return nil if none of the chromatogram's ``traces`` has a ``FluoTrace/channel`` that matches the argument, which would be an error.
 ///
 /// - Important: A `Chromatogram` must only have one trace per channel.
 /// - Parameter channel: The channel of the trace to retrieve.
@@ -157,7 +157,7 @@ NS_ASSUME_NONNULL_BEGIN
 																
 /// The number of fluorescence data points (scans) recorded for the sample.
 ///
-/// This number must be the same as the number of items (16-bit integer) composing the ``Trace/rawData`` of  each of the  ``traces``.
+/// This number must be the same as the number of items (16-bit integer) composing the ``FluoTrace/rawData`` of  each of the  ``traces``.
 @property (nonatomic, readonly) int32_t nScans;
 
 /// Number of channels, hence of ``traces`` in the chromatogram, as encoded in the ABIF file.
@@ -192,35 +192,35 @@ typedef struct OffscaleRegion {
 -(void) inferOffscaleChannel;
 
 
-/// The name of the dye (molecule) that emitted fluorescence for the first ``Trace/channel``.
+/// The name of the dye (molecule) that emitted fluorescence for the first ``FluoTrace/channel``.
 ///
-/// This property points to the ``Trace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
+/// This property points to the ``FluoTrace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
 @property (nonatomic, readonly, nullable, copy) NSString *dye1,
 
 /// The name of the dye (molecule) that emitted fluorescence for the second ``Trace/channel``.
 ///
-/// This property points to the ``Trace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
+/// This property points to the ``FluoTrace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
 *dye2,
 
 /// The name of the dye (molecule) that emitted fluorescence for the third ``Trace/channel``.
 ///
-/// This property points to the ``Trace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
+/// This property points to the ``FluoTrace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
 *dye3,
 
 /// The name of the dye (molecule) that emitted fluorescence for the fourth ``Trace/channel``.
 ///
-/// This property points to the ``Trace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
+/// This property points to the ``FluoTrace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
 *dye4,
 
 /// The name of the dye (molecule) that emitted fluorescence for the fifth ``Trace/channel``.
 ///
-/// This property points to the ``Trace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
+/// This property points to the ``FluoTrace/dyeName`` attribute of a trace and is not a core data attribute of ``Chromatogram``.
 *dye5;
 
 
 /// Sets ``sizes`` to `nil`.
 ///
-/// This method is intended to reduce the memory footprint of the receiver, as the ``size`` property
+/// This method is intended to reduce the memory footprint of the receiver, as the ``sizes`` property
 /// is by far the one that takes the most memory.
 /// Size will be recomputed the next time ``sizes`` is sent to the receiver.
 -(void)refreshSizeData;
@@ -229,7 +229,7 @@ typedef struct OffscaleRegion {
 
 /// The trace that contains data from the molecular ladder.
 ///
-/// This method returns `nil` if none of the samples ``traces`` returns `YES` to ``Trace/isLadder``, which would be an error.
+/// This method returns `nil` if none of the samples ``traces`` returns `YES` to ``FluoTrace/isLadder``, which would be an error.
 @property (nonatomic, readonly, nullable) Trace *ladderTrace;
 
 
@@ -282,30 +282,30 @@ extern const float DefaultReadLength;
 
 /// A parameter of sizing quality from 0 to 1 (float).
 ///
-/// This attribute evaluates how much the size of ladder peaks (``Trace/fragments`` of the ``ladderTrace``) deviate from the values of ``sizes`` for their scans.
+/// This attribute evaluates how much the size of ladder peaks (``FluoTrace/fragments`` of the ``ladderTrace``) deviate from the values of ``sizes`` for their scans.
 ///
 /// The default value is nil.
 @property (nonatomic, readonly, nullable) NSNumber *sizingQuality;
 
-/// The size at the first recorded scan assuming a linear regression between scan number (x) and size (y) for the ``Trace/fragments`` of the ``ladderTrace``.
+/// The size at the first recorded scan assuming a linear regression between scan number (x) and size (y) for the ``FluoTrace/fragments`` of the ``ladderTrace``.
 ///
 /// If no sizing is available, this method returns 0 or nil.
 /// In this case,  the ``sizes`` and ``coefs`` attributes must not be used to deduce the size of fragments.
 @property (nonatomic, readonly)  float intercept;
 
-/// The slope of the linear relationship between scan number (x) and size (y) for the ``Trace/fragments`` of the ``ladderTrace``.
+/// The slope of the linear relationship between scan number (x) and size (y) for the ``FluoTrace/fragments`` of the ``ladderTrace``.
 ///
 /// If no sizing if available, the method returns `DefaultReadLength` divided by ``nScans``.
 @property (nonatomic, readonly) float sizingSlope;
 
 /// Computes the relationship between sizes in base pairs and scan numbers fo the sample, using its molecular ladder.
 ///
-/// This methods sets the  ``coefs``, ``reverseCoefs``, ``intercept``, and ``sizingSlope`` attributes of the receiver, using the ``Trace/fragments`` of the ``ladderTrace``.
+/// This methods sets the  ``coefs``, ``reverseCoefs``, ``intercept``, and ``sizingSlope`` attributes of the receiver, using the ``FluoTrace/fragments`` of the ``ladderTrace``.
 ///
 /// This method fits a polynomial order based on the ``polynomialOrder`` attribute.
 /// The method also sets the ``sizingQuality`` attribute.
 ///
-///  If the ``ladderTrace`` of the sample has less than 4 ladder ``Trace/fragments``, the method calls ``setLinearCoefsForReadLength:``.
+///  If the ``ladderTrace`` of the sample has less than 4 ladder ``FluoTrace/fragments``, the method calls ``setLinearCoefsForReadLength:``.
 - (void)computeFitting;
 
 /// Sets the ``coefs`` and  the ``reverseCoefs`` attributes using linear regression and assuming that the size at the first scan is 0, and a given read length for the sample.
@@ -388,8 +388,10 @@ extern const float DefaultReadLength;
 
 /// Returns a dictionary representing the marker offsets of the receiver's genotypes for given markers.
 ///
-/// This method can be used to copy marker offsets (see ``Genotype/offset``) to the pasteboard. The returned dictionary only contains data for offsets that differ from `MarkerOffsetNone`.
-/// For each offset, this dictionary has a key that is the absolute string of the objectID of the marker.  The value is the ``Genotype/offsetData`` of the receiver's genotype for the marker.
+/// This method can be used to copy marker offsets (see ``Genotype/offset``) to the pasteboard.
+/// The returned dictionary only contains data for offsets that differ from `MarkerOffsetNone`.
+/// For each offset, this dictionary has a key that is the absolute string of the objectID of the marker.
+/// The value is the ``Genotype/offsetData`` of the receiver's genotype for the marker.
 /// - Parameter markers: The markers for which the returned dictionary should contain offset data. If `nil`, all markers of the receiver's `panel` are used.
 /// `Nil` is returned of none of the markers has an offset for the receiver.
 - (nullable NSDictionary<NSString*, NSData*> *)dictionaryForOffsetsAtMarkers:(nullable NSArray<Mmarker *> *)markers;

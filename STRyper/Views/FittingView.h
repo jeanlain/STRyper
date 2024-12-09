@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The plot takes the whole view frame, as the point of the curve for size 0 occupies its bottom-left corner.
 /// The point of the curve corresponding to the last scan occupies the top-right corner of the frame.
 ///
-/// The plot also shows cross-shaped points representing  ``Trace/fragments`` of the molecular ladder of the sample.
+/// The plot also shows cross-shaped points representing  ``FluoTrace/fragments`` of the molecular ladder of the sample.
 ///
 /// The plot has no graduated axis, but the view shows a horizontal dashed line and a text label
 /// denoting the Y position (in baise pairs) of the mouse cursor.

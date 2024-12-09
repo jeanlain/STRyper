@@ -38,18 +38,46 @@
 }
 
 
+
+- (NSDictionary *)columnDescription {
+	NSDictionary *columnDescription = @{
+		@"sizeColumn":	@{KeyPathToBind: @"size",ColumnTitle: @"Sizes", CellViewID:@"sizeCellView",
+						  IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES,
+						  IsColumnSortingCaseInsensitive: @NO}
+	};
+	
+	return columnDescription;
+}
+
+
+- (NSArray<NSString *> *)orderedColumnIDs {
+	return @[@"sizeColumn"];
+}
+
+
+-(void)viewDidLoad {
+	[super viewDidLoad];
+	NSMenu *menu = NSMenu.new;
+	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Edit Size" action:@selector(rename:) keyEquivalent:@""];
+	item.offStateImage = [NSImage imageNamed:@"edited"];
+	item.target = self;
+	[menu addItem:item];
+	item = [[NSMenuItem alloc] initWithTitle:@"Delete" action:@selector(remove:) keyEquivalent:@""];
+	item.offStateImage = [NSImage imageNamed:@"trash"];
+	item.target = self;
+	[menu addItem:item];
+	self.tableView.menu = menu;
+	menu.delegate = self;
+}
+
 - (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
 	return @"Change Fragment Size";
 }
 
 
-- (BOOL)canAlwaysRemove {
-	return NO;				/// fragments from a non-editable size standard cannot be removed
-}
-
-
-- (nullable NSAlert *)cautionAlertForRemovingItems:(NSArray *)items {
-	return nil;
+- (BOOL)canRenameItem:(id)item {
+	SizeStandard *selectedStandard = SizeStandardTableController.sharedController.tableContent.selectedObjects.firstObject;
+	return selectedStandard.editable;
 }
 
 
@@ -80,18 +108,25 @@
 }
 
 
-- (NSAlert *)cannotRemoveAlertForItems:(NSArray *)items {
+- (NSString *)deleteActionTitleForItems:(NSArray *)items {
+	SizeStandard *selectedStandard = SizeStandardTableController.sharedController.tableContent.selectedObjects.firstObject;
+	if(!selectedStandard.editable) {
+		return nil;
+	}
+	return [super deleteActionTitleForItems:items];
+}
+
+
+- (NSString *)cannotDeleteInformativeStringForItems:(NSArray *)items {
 
 	SizeStandardSize *fragment = items.firstObject;
 	SizeStandard *standard = fragment.sizeStandard;
 	if(standard && (!standard.editable || (standard.sizes.count - items.count < 4))) {
-		NSAlert *alert = [super cannotRemoveAlertForItems:items];
 		NSString *informativeText = @"This size standard cannot be modified.";
 		if(standard.sizes.count - items.count < 4) {
 			informativeText = @"A size standard cannot have less than 4 sizes.\n You may leave at least 4 sizes and modify their values.";
 		}
-		alert.informativeText = informativeText;
-		return alert;
+		return informativeText;
 	}
 	return nil;
 

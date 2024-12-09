@@ -28,11 +28,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// This  menu allowing several actions described in the ``STRyper`` user guide.
 ///
 /// To implement some of these actions, the label must find an label representing its marker among the ``LabelView/markerLabels`` of its marker view's ``MarkerView/traceView``.
-@interface MarkerLabel : RegionLabel <NSMenuDelegate, NSMenuItemValidation>
+@interface MarkerLabel : RegionLabel <NSMenuDelegate, NSViewToolTipOwner>
 
 /// Returns a menu that allows zooming to the range of the marker the the label represents, change some of its attributes,
 /// or perform other actions affecting the label's ``RegionLabel/editState``.
 - (NSMenu *)menu;
+
+/// Makes the label spawn a popover allowing to generate ``Mmarker/bins`` for the marker it represents.
+/// 
+/// One should make sure that the label is shown on its ``ViewLabel/view`` before calling this method.
+/// - Parameter sender: The object that sent this message. It is ignored by the method.
+-(void)spawnAddBinsPopover:(NSMenuItem *)sender;
+
 
 @end
 

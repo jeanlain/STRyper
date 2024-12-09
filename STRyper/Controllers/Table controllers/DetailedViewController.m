@@ -21,9 +21,6 @@
 
 
 #import "DetailedViewController.h"
-#import "Chromatogram.h"
-#import "Trace.h"
-#import "Genotype.h"
 #import "Mmarker.h"
 #import "MainWindowController.h"
 #import "SampleTableController.h"
@@ -660,6 +657,10 @@ static const float maxTraceRowHeight = 1000.0;
 		/// to avoid confusing the user, we disable sorting.
 		[traceOutlineView unbind:NSSortDescriptorsBinding];
 		for (NSTableColumn *column in traceOutlineView.tableColumns) {
+			if([column.identifier isEqualToString:@"sampleNameColumn"]) {
+				/// We change the name of this column to more clearly indicate that the view shows genotypes.
+				column.title = @"Genotype of";
+			}
 			/// We must remove the sort descriptor prototype of each column, otherwise the chevron still appears on the header
 			column.sortDescriptorPrototype = nil;
 		}
@@ -668,6 +669,9 @@ static const float maxTraceRowHeight = 1000.0;
 		/// (when it shows marker, the header is hidden anyway)
 		NSDictionary *columnDescription = self.columnDescription;
 		for (NSTableColumn *column in traceOutlineView.tableColumns) {
+			if([column.identifier isEqualToString:@"sampleNameColumn"]) {
+				column.title = @"Sample";
+			}
 			column.sortDescriptorPrototype = [NSSortDescriptor sortDescriptorWithKey:columnDescription[column.identifier][KeyPathToBind] ascending:YES];
 		}
 		[traceOutlineView bind:NSSortDescriptorsBinding
@@ -1321,6 +1325,8 @@ static const float maxTraceRowHeight = 1000.0;
 				[menu addItem:item];
 			}
 		}
+	} else {
+		[super menuNeedsUpdate:menu];
 	}
 }
 
@@ -1332,10 +1338,27 @@ static const float maxTraceRowHeight = 1000.0;
 		if([traceView respondsToSelector:@selector(loadedTraces)]) {
 			NSArray *samples = [traceView.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
 			if(samples.count > 0) {
+                if(samples.count > 1 && self.stackMode == stackModeSamples && samples.count < _contentArray.count) {
+                    samples = self.contentArray;
+                }
 				[SampleTableController.sharedController applySizeStandard:standard toSamples:samples];
 			}
 		}
 	}
+}
+
+# pragma mark -other
+
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	if(menuItem.action == @selector(moveSelectionByStep:)) {
+		return [MainWindowController.sharedController.sourceController validateMenuItem:menuItem];
+	}
+	return [super validateMenuItem:menuItem];
+}
+
+
+- (void)moveSelectionByStep:(id)sender {
+	[MainWindowController.sharedController.sourceController moveSelectionByStep:sender];
 }
 
 

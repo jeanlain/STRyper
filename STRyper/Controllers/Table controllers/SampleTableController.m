@@ -160,10 +160,7 @@
 	/// we bind buttons that are within our view to relevant keypaths
 	for (NSControl *control in self.view.subviews) {
 		if([control isKindOfClass:NSControl.class]) {
-			if(control.action == @selector(showImportSamplePanel:)) {
-				/// the button to import samples should be disabled when the folder list controller is not in a state that allows importing samples
-				[control bind:NSEnabledBinding toObject:sharedController withKeyPath:@"canImportSamples" options:nil];
-			} else if([control isKindOfClass:NSSearchField.class]) {
+			if([control isKindOfClass:NSSearchField.class]) {
 				NSSearchFieldCell *cell = control.cell;		/// the search field allowing to filter by sample name
 				if(cell.searchButtonCell) {
 					cell.searchButtonCell.image =[NSImage imageNamed:@"filter"];
@@ -216,7 +213,7 @@
 - (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
 	NSArray *genotypes = [items valueForKeyPath:@"@unionOfSets.genotypes"];
 	if(genotypes.count > 0) {
-		return  @"Associated genotypes will be removed as well. \nThis can be undone.";
+		return  @"Associated genotypes will be deleted as well. \nThis can be undone.";
 	}
 	
 	return [super cautionAlertInformativeStringForItems:items];
@@ -283,6 +280,10 @@
 
 
 - (BOOL)tableView:(NSTableView *)tableView acceptDrop:(id<NSDraggingInfo>)info row:(NSInteger)row dropOperation:(NSTableViewDropOperation)dropOperation {
+
+	/// For some reason, the drop doesn't trigger a validation of toolbar items, so we force it.
+	[NSApp setWindowsNeedUpdate:YES];
+	
 	NSPasteboard *pboard = info.draggingPasteboard;
 	if ([pboard.types containsObject:NSPasteboardTypeFileURL] ) {
 		if(self.draggedABIFFilePaths.count > 0) {
@@ -338,40 +339,42 @@
 
 #pragma mark - managing the table's contextual menu
 
+
+- (NSArray *)validTargetsOfSender:(id)sender {
+	NSArray *targetSamples = [super validTargetsOfSender:sender];
+	if([sender action] == @selector(showGenotypes:)) {
+		NSArray *shownGenotypes = GenotypeTableController.sharedController.genotypes.arrangedObjects;
+		if(shownGenotypes.count > 0) {
+			targetSamples = [targetSamples filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Chromatogram *sample, NSDictionary<NSString *,id> * _Nullable bindings) {
+				for(Genotype *genotype in sample.genotypes) {
+					if([shownGenotypes indexOfObject:genotype] != NSNotFound) {
+						return YES;
+					}
+				}
+				return NO;
+			}]];
+		}
+	} else if([sender action] == @selector(callGenotypes:)) {
+		targetSamples = [targetSamples filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Chromatogram *sample, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return  sample.sizingQuality.floatValue > 0 && sample.genotypes.count > 0;
+			}]];
+	}
+	
+	return targetSamples.count > 0? targetSamples : nil;
+}
+
+
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
-	BOOL response = [super validateMenuItem:item];
-	if(item.hidden) {
-		return NO;					/// the item may have been hidden in our superclass
-	}
-	if(!response) {
-		return NO;
+	FolderListController *folderListController = FolderListController.sharedController;
+	
+	if(item.action == @selector(importSamples:)) {
+		return folderListController.canImportSamples;
 	}
 	
-	if(item.action == @selector(showImportSamplePanel:)) {
-		return FolderListController.sharedController.canImportSamples;
-	}
-	
-	NSArray *targets = [self targetItemsOfSender:item];
-	
-	if(item.action == @selector(showGenotypes:)) {
-		NSArray *genotypes = [targets valueForKeyPath:@"@unionOfSets.genotypes"];
-		if(genotypes.count == 0) {
-			return NO;
-		}
-		return [genotypes sharesObjectsWithArray:GenotypeTableController.sharedController.genotypes.arrangedObjects];
-	}
-	
-	if(item.action == @selector(callGenotypes:)) {
-		for(Chromatogram *sample in targets) {
-			if(sample.genotypes.count > 0 && sample.sizingQuality.floatValue > 0) {
-				return YES;
-			}
-		}
-		return NO;
-	}
+	NSArray *targets = [self validTargetsOfSender:item];
 	
 	if(item.action == @selector(revealInParentFolder:)) {
-		if (FolderListController.sharedController.selectedFolder.isSmartFolder) {
+		if (folderListController.selectedFolder.isSmartFolder) {
 			item.hidden = NO;
 			NSArray *folders = [targets valueForKeyPath:@"@distinctUnionOfObjects.folder"];
 			if(folders.count == 1) {
@@ -388,14 +391,14 @@
 	}
 	
 	if(item.action == @selector(paste:)) {
-		return [FolderListController.sharedController validateMenuItem:item];
+		return [folderListController validateMenuItem:item];
 	}
 	
 	if([item.identifier isEqualToString:@"pasteOffsets"]) {
 		/// We check that at least one target sample has marker for the copied offset(s).
 		NSDictionary *dic = Chromatogram.markerOffsetDictionaryFromGeneralPasteBoard;
 		if(dic) {
-			NSArray *samples = [self targetItemsOfSender:item];
+			NSArray *samples = [self validTargetsOfSender:item];
 			NSArray *keys = dic.allKeys;
 			for(Chromatogram *sample in samples) {
 				/// To check if the sample has the right panel, we compare the URIs of its markers to the keys.
@@ -432,12 +435,12 @@
 		return NO;
 	}
 	
-	return YES;
+	return [super validateMenuItem:item];
 }
 
 
 - (void)menuNeedsUpdate:(NSMenu *)menu {
-	NSArray *targetSamples = [self targetItemsOfSender:menu.itemArray.firstObject];
+	NSArray *targetSamples = [self validTargetsOfSender:menu.itemArray.firstObject];
 	if([menu.identifier isEqualToString:@"Standards"]) {
 		/// the submenu allowing to apply a size standard to samples.
 		/// we determine the size standard of target samples so as to set the state of the equivalent menu item to on (tick-mark).
@@ -582,7 +585,7 @@
 	if(!standard) {
 		return;
 	}
-	[self applySizeStandard:standard toSamples:[self targetItemsOfSender:sender]];
+	[self applySizeStandard:standard toSamples:[self validTargetsOfSender:sender]];
 }
 
 
@@ -638,7 +641,7 @@
 		order = 2;
 	}
 	[self.undoManager setActionName:@"Apply Fitting Method"];
-	for(Chromatogram *sample in [self targetItemsOfSender:sender]) {
+	for(Chromatogram *sample in [self validTargetsOfSender:sender]) {
 		sample.polynomialOrder = order;
 	}
 	[AppDelegate.sharedInstance saveAction:self];
@@ -657,7 +660,7 @@
 	if(!panel.isPanel) {
 		return;
 	}
-	[self applyPanel:panel toSamples: [self targetItemsOfSender:sender]];
+	[self applyPanel:panel toSamples: [self validTargetsOfSender:sender]];
 	
 }
 
@@ -712,7 +715,7 @@
 - (IBAction)callGenotypes:(id)sender {
 	BOOL annotateSuppPeaks = [NSUserDefaults.standardUserDefaults boolForKey:AnnotateAdditionalPeaks];
 	
-	NSArray *samples =[self targetItemsOfSender:sender];
+	NSArray *samples =[self validTargetsOfSender:sender];
 	[self.undoManager setActionName:@"Call Genotypes"];
 	for(Chromatogram *sample in samples) {
 		for (Genotype *genotype in sample.genotypes) {
@@ -726,7 +729,7 @@
 
 /// Selects the genotypes associated with target samples
 - (IBAction)showGenotypes:(id)sender {
-	NSArray *genotypes = [[self targetItemsOfSender:sender] valueForKeyPath:@"@unionOfSets.genotypes"];
+	NSArray *genotypes = [[self validTargetsOfSender:sender] valueForKeyPath:@"@unionOfSets.genotypes"];
 	
 	MainWindowController.sharedController.sourceController = GenotypeTableController.sharedController;		/// we activate the genotype table
 	
@@ -744,7 +747,7 @@
 
 - (IBAction) revealInParentFolder:(id)sender {
 	/// if we show the contents of a smart folder, this allows selecting the parent folder of clicked samples, only if they all belong to the same folder
-	NSArray *targetSamples = [self targetItemsOfSender:sender];
+	NSArray *targetSamples = [self validTargetsOfSender:sender];
 	NSArray *folders = [targetSamples valueForKeyPath:@"@distinctUnionOfObjects.folder"];
 	if(folders.count != 1) {
 		return;
@@ -760,7 +763,7 @@
 
 
 /// puts target samples into the trash folder (which is emptied when the application quits)
-- (void)removeItems:(NSArray *)items {
+- (void)deleteItems:(NSArray *)items {
 	NSSet *samples = [NSSet setWithArray:items];
 	SampleFolder *selectedFolder = self.selectedFolder;
 	if([selectedFolder respondsToSelector:@selector(removeSamples:)]) {
@@ -776,7 +779,7 @@
 #pragma mark - importing samples
 
 /// imports samples into the selected folder
-- (void)showImportSamplePanel:(id)sender {
+- (void)importSamples:(id)sender {
 	if(FileImporter.sharedFileImporter.importOnGoing) {
 		return;
 	}
@@ -803,12 +806,26 @@
 		return;
 	}
 	
-	if(!folderListController.selectedFolder) {		/// we only import in the selected folder
+	SampleFolder *selectedFolder = folderListController.selectedFolder;
+	
+	if(!selectedFolder) {		/// we only import in the selected folder
 		NSAlert *alert = NSAlert.new;
 		alert.messageText = @"There is no selected folder to import samples into.";
 		alert.informativeText = @"Please select a folder from the sidebar.";
 		[alert addButtonWithTitle:@"Ok"];
 		[alert beginSheetModalForWindow: window completionHandler:^(NSModalResponse returnCode) {
+			[folderListController showLeftPane];
+		}];
+		return;
+	}
+	
+	if(selectedFolder.isSmartFolder) {
+		NSAlert *alert = NSAlert.new;
+		alert.messageText = @"The selected folder is a smart folder. You cannot import samples into it.";
+		alert.informativeText = @"Please select a folder in the sidebar.";
+		[alert addButtonWithTitle:@"Ok"];
+		[alert beginSheetModalForWindow: window completionHandler:^(NSModalResponse returnCode) {
+			[folderListController showLeftPane];
 		}];
 		return;
 	}
@@ -817,14 +834,12 @@
 		return;
 	}
 	
-	SampleFolder *selectedFolder = folderListController.selectedFolder;
-	
 	
 	NSOpenPanel* panel = NSOpenPanel.openPanel;
 	panel.prompt = @"Import";
 	panel.canChooseDirectories = NO;
 	panel.allowsMultipleSelection = YES;
-	panel.message = @"Select chromatogram files to import into the selected folder.";
+	panel.message = [NSString stringWithFormat: @"Select chromatogram files to import into folder '%@'.", selectedFolder.name];
 	panel.allowedFileTypes = @[@"com.appliedbiosystems.abif.fsa", @"com.appliedbiosystems.abif.hid"];
 	[panel beginSheetModalForWindow:window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
@@ -966,7 +981,7 @@
 
 
 - (IBAction)pasteOffsets:(NSMenuItem *)sender {
-	NSArray *targetSamples = [self targetItemsOfSender:sender];
+	NSArray *targetSamples = [self validTargetsOfSender:sender];
 	if(targetSamples.count < 1) {
 		return;
 	}

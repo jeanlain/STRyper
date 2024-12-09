@@ -41,18 +41,8 @@
 	BOOL showProgress;
 }
 
-static NSArray *observedKeys;			/// the keys that we observe for the progress object
 static void *progressChangedContext = &progressChangedContext;
 
-
-+ (void)initialize {
-	if (self == ProgressWindow.class) {
-		observedKeys = @[NSStringFromSelector(@selector(completedUnitCount)),
-						 NSStringFromSelector(@selector(localizedDescription)),
-						 @"cancellable",		/// there is no selector named "cancellable". Using "isCancellable" does no work.
-						 @"cancelled",];		/// ditto
-	}
-}
 
 
 - (instancetype)init {
@@ -79,6 +69,14 @@ static void *progressChangedContext = &progressChangedContext;
 
 
 - (void)setProgress:(NSProgress *)progress {
+	static NSArray *observedKeys;			
+	if(!observedKeys) {
+		observedKeys = @[NSStringFromSelector(@selector(completedUnitCount)),
+						 NSStringFromSelector(@selector(localizedDescription)),
+						 @"cancellable",		/// there is no selector named "cancellable". Using "isCancellable" does no work.
+						 @"cancelled",];		/// ditto
+	}
+	
 	if(_progress) {
 		for(NSString *key in observedKeys) {
 			[_progress removeObserver:self forKeyPath:key];

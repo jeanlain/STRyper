@@ -136,19 +136,19 @@ MaintainPeakHeights,
 /// Whether trace views show disabled bins (see ``TraceView/showDisabledBins``).
 ShowBins,
 
-/// Whether trace views show data from the first channel (see ``Trace/channel``).
+/// Whether trace views show data from the first channel (see ``FluoTrace/channel``).
 ShowChannel0,
 
-/// Whether trace views show data from the second channel (see ``Trace/channel``).
+/// Whether trace views show data from the second channel (see ``FluoTrace/channel``).
 ShowChannel1,
 
-/// Whether trace views show data from the third channel (see ``Trace/channel``).
+/// Whether trace views show data from the third channel (see ``FluoTrace/channel``).
 ShowChannel2,
 
-/// Whether trace views show data from the forth channel (see ``Trace/channel``).
+/// Whether trace views show data from the forth channel (see ``FluoTrace/channel``).
 ShowChannel3,
 
-/// Whether trace views show data from the fifth channel (see ``Trace/channel``).
+/// Whether trace views show data from the fifth channel (see ``FluoTrace/channel``).
 ShowChannel4,
 
 /// Whether the metadata of chromatograms should be added to genotype data when genotypes are exported to a text file.

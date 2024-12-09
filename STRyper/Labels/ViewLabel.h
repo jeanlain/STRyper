@@ -35,7 +35,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// its labels (see ``LabelView/needsRepositionLabels`` ).
 /// A `ViewLabel` may also notify the view that it needs to be repositioned, typically after an attribute of the object
 /// it represents has changed.
-@interface ViewLabel : NSObject <CALayerDelegate>
+@interface ViewLabel : NSObject <CALayerDelegate, NSMenuItemValidation>
 {
 	/// The base layer that can be used to display the label.
 	///

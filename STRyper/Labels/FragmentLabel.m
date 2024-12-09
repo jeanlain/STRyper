@@ -816,6 +816,22 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 
 # pragma mark - other user actions
 
+- (NSMenu *)menu {
+	NSMenu *menu;
+	if(self.fragment.scan > 0) {
+		menu = NSMenu.new;
+		NSString *title = type == ladderFragmentLabel? @"Remove Size" : @"Delete";
+		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(removeFragment:)
+											   keyEquivalent:[NSString stringWithFormat:@"%c",NSBackspaceCharacter]];
+		item.keyEquivalentModifierMask = 0;
+		item.target = self;
+		[menu addItem:item];
+	}
+	return menu;
+}
+
+
+
 - (void)deleteAction:(id)sender {
 	if(!_dragged) {
 		[self removeFragment:sender];
@@ -828,7 +844,7 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 		case alleleLabel:
 			return @"Delete Allele";
 		case additionalFragmentLabel:
-			return @"Remove Peak";
+			return @"Delete Label";
 		default:
 			return @"Remove Ladder Size";
 	}

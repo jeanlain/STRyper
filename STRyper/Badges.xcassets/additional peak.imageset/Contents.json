@@ -1,0 +1,22 @@
+{
+  "images" : [
+    {
+      "filename" : "additionnalPeakBadgeBlack.pdf",
+      "idiom" : "mac"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "additionnalPeakBadge.pdf",
+      "idiom" : "mac"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

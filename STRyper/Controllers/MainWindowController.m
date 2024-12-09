@@ -36,7 +36,7 @@
 @interface MainWindowController ()
 
 /// Property bound to the active tab number of the tabView
-@property (nonatomic) NSNumber *activeBottomTab;
+@property (nonatomic) NSInteger activeBottomTab;
 
 @end
 
@@ -112,8 +112,7 @@ errorLogWindow = _errorLogWindow;
 	if(genotypeTableController.view) {
 		NSTabViewItem *item = NSTabViewItem.new;
 		item.view =  genotypeTableController.view;
-		[tabView addTabViewItem:item];
-		
+		[tabView addTabViewItem:item];		
 	} else {
 		NSLog(@"failed to load the genotype table.");
 		abort();
@@ -145,13 +144,25 @@ errorLogWindow = _errorLogWindow;
 	
 	/// To remember which tab is shown and to synchronize the NSSegmentedControl button activating tab and the tabView, we use a property set in user defaults.
 	[tabView bind:NSSelectedIndexBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
-	[self bind:@"activeBottomTab" toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
+    _activeBottomTab = -1; /// To force calling the setter in the binding below.
+    [self bind:@"activeBottomTab" toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
 
 	
 	if(!SampleSearchHelper.sharedHelper) {
 		/// we init the search controller as must perform the search in case there are smart folder in the database
 		NSLog(@"failed to load the search helper.");
 		/// but we don't abort if it is absent.
+	}
+	
+	tabView.delegate = self;
+	
+	NSToolbar *toolbar = window.toolbar;
+	if(!toolbar) {
+		toolbar = [[NSToolbar alloc] initWithIdentifier:mainToolbarID];
+		toolbar.allowsUserCustomization = YES;
+		toolbar.delegate = self;
+		toolbar.autosavesConfiguration = YES;
+		window.toolbar = toolbar;
 	}
 }
 
@@ -258,6 +269,135 @@ errorLogWindow = _errorLogWindow;
 
 
 
+static const NSToolbarIdentifier mainToolbarID = @"mainToolbarID";
+static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
+	leftPaneButtonID = @"leftPaneButtonID",
+	undoButtonID = @"undoButtonID",
+	redoButtonID = @"redoButtonID",
+	importSamplesButtonID = @"importSamplesButtonID",
+	importFolderButtonID = @"importFolderButtonID",
+	importPanelButtonID = @"importPanelButtonID",
+	newFolderButtonID = @"newFolderButtonID",
+	deleteSelectionButtonID = @"deleteSelectionButtonID",
+	exportButtonID = @"exportButtonID",
+	sampleSearchButtonID = @"sampleSearchButtonID",
+	rightPaneButtonID = @"rightPaneButtonID";
+
+
+- (NSToolbarItem *)toolbar:(NSToolbar *)toolbar itemForItemIdentifier:(NSToolbarItemIdentifier)itemIdentifier willBeInsertedIntoToolbar:(BOOL)flag {
+	if([itemIdentifier isEqualToString: undoRedoGroup]) {
+		NSToolbarItemGroup *undoRedo = [[NSToolbarItemGroup alloc] initWithItemIdentifier:itemIdentifier];
+		NSToolbarItem *undoButton = [[NSToolbarItem alloc] initWithItemIdentifier:undoButtonID];
+		NSToolbarItem *redoButton = [[NSToolbarItem alloc] initWithItemIdentifier:redoButtonID];
+		undoButton.image = [NSImage imageNamed:@"undo"];
+		undoButton.label = @"Undo";
+		undoButton.action = @selector(undo:);
+		undoButton.target = self;
+		redoButton.image = [NSImage imageNamed:@"redo"];
+		redoButton.label = @"Redo";
+		redoButton.action = @selector(redo:);
+		redoButton.target = self;
+		undoRedo.subitems = @[undoButton, redoButton];
+		if (@available(macOS 10.15, *)) {
+			undoRedo.bordered = YES;
+			undoRedo.selectionMode = NSToolbarItemGroupSelectionModeMomentary;
+		}
+		return undoRedo;
+	}
+	
+	NSToolbarItem *item = [[NSToolbarItem alloc] initWithItemIdentifier:itemIdentifier];
+	if (@available(macOS 10.15, *)) {
+		item.bordered = YES;
+	}
+	item.target = self;
+	
+	if([itemIdentifier isEqualToString:leftPaneButtonID]) {
+		item.image = [NSImage imageNamed:@"sideBar"];
+		item.label = @"Toggle sidebar";
+		item.tag = 0;
+		item.action = @selector(toggleLeftPane:);
+	} else if([itemIdentifier isEqualToString:newFolderButtonID]) {
+		item.image = [NSImage imageNamed:@"new folder"];
+		item.label = @"New folder";
+		item.toolTip = @"New folder";
+		item.action = @selector(addSampleOrSmartFolder:);
+	} else if([itemIdentifier isEqualToString:importSamplesButtonID]) {
+		item.image = [NSImage imageNamed:@"import samples"];
+		item.label = @"Import samples";
+		item.toolTip = @"Import chromatogram files";
+		item.action = @selector(importSamples:);
+	} else if([itemIdentifier isEqualToString:importFolderButtonID]) {
+		item.image = [NSImage imageNamed:@"import folder"];
+		item.label = @"Import archive";
+		item.toolTip = @"Import archived folder";
+		item.action = @selector(importFolder:);
+	} else if([itemIdentifier isEqualToString:importPanelButtonID]) {
+		item.image = [NSImage imageNamed:@"import panel"];
+		item.label = @"Import markers";
+		item.toolTip = @"Import panel(s) of markers";
+		item.action = @selector(importPanels:);
+	} else if([itemIdentifier isEqualToString:sampleSearchButtonID]) {
+		item.image = [NSImage imageNamed:@"loupe"];
+		item.label = @"Sample search";
+		item.toolTip = @"New sample search";
+		item.tag = 4;
+		item.action = @selector(addSampleOrSmartFolder:);
+	} else if([itemIdentifier isEqualToString:rightPaneButtonID]) {
+		item.image = [NSImage imageNamed:@"RightsideBar"];
+		item.label = @"Detailed view";
+		item.tag = 2;
+		item.action = @selector(toggleRightPane:);
+	} else if([itemIdentifier isEqualToString:deleteSelectionButtonID]) {
+		item.image = [NSImage imageNamed:@"large trash"];
+		item.label = @"Delete selection";
+		item.target = nil;
+		item.action = @selector(remove:);
+	} else if([itemIdentifier isEqualToString:exportButtonID]) {
+		item.image = [NSImage imageNamed:@"export large"];
+		item.label = @"Export";
+		item.target = nil;
+		item.action = @selector(exportSelection:);
+	}
+	return item;
+}
+
+
+- (NSArray<NSToolbarItemIdentifier> *)toolbarDefaultItemIdentifiers:(NSToolbar *)toolbar {
+	return @[leftPaneButtonID, undoRedoGroup, NSToolbarSpaceItemIdentifier, newFolderButtonID,
+			 importSamplesButtonID, importFolderButtonID, importPanelButtonID, NSToolbarSpaceItemIdentifier,
+			 exportButtonID, deleteSelectionButtonID, sampleSearchButtonID,
+			 NSToolbarFlexibleSpaceItemIdentifier, rightPaneButtonID]; ;
+}
+
+
+- (BOOL)toolbar:(NSToolbar *)toolbar itemIdentifier:(NSToolbarItemIdentifier)itemIdentifier canBeInsertedAtIndex:(NSInteger)index {
+	return YES;
+}
+
+
+- (NSArray<NSToolbarItemIdentifier> *)toolbarAllowedItemIdentifiers:(NSToolbar *)toolbar {
+	return [self toolbarDefaultItemIdentifiers:self.window.toolbar];
+}
+
+
+- (void)tabView:(NSTabView *)tabView didSelectTabViewItem:(NSTabViewItem *)tabViewItem {
+	/// We make the selected tab the first responder so that menu and toolbar items have appropriate actions.
+	/// For instance, when the user selects the genotype tab, the export button should export genotypes.
+	NSView *view = tabViewItem.view;
+	NSWindow *window = view.window;
+	if(window) {
+		NSView *firstResponder = (NSView*)window.firstResponder;
+		if([firstResponder respondsToSelector:@selector(isDescendantOf:)] && [firstResponder isDescendantOf:view]) {
+			return;
+		}
+		[window makeFirstResponder:view];
+	}
+}
+
+
+- (BOOL)tabView:(NSTabView *)tabView shouldSelectTabViewItem:(NSTabViewItem *)tabViewItem {
+	return YES;
+}
 
 
 # pragma mark - setting the contents of the detailed outline view
@@ -335,7 +475,7 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		return NO;
 	}
 	
-	if(menuItem.action == @selector(showImportSamplePanel:)) {
+	if(menuItem.action == @selector(importSamples:)) {
 		return FolderListController.sharedController.canImportSamples;
 	}
 	
@@ -363,7 +503,8 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 	}
 	
 	if(menuItem.action == @selector(activateTab:)) {
-		/// we show the tick-mark if the menu corresponds to the tab that is active and if the bottom pane is not collapsed. The tag of the menu refers to the index of the tab
+		/// we show the tick-mark if the menu corresponds to the tab that is active and if the bottom pane is not collapsed.
+		/// The tag of the menu refers to the index of the tab
 		BOOL collapsed = self.verticalSplitViewController.splitViewItems.lastObject.isCollapsed;
 		menuItem.state = menuItem.tag == [tabView.tabViewItems indexOfObject: tabView.selectedTabViewItem] && !collapsed? NSControlStateValueOn : NSControlStateValueOff;
 		return YES;
@@ -390,12 +531,26 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		return YES;
 	}
 	
+	if(menuItem.action == @selector(exportSelection:)) {
+		TableViewController *exporter =  self.relevantExporter;
+		if(exporter.canExportItems) {
+			return [exporter validateMenuItem:menuItem];
+		} else {
+			return NO;
+		}
+	}
+	
 	return YES;
 }
 
 
 - (void)deleteSelection:(id)sender {
 	/// We implement this only to be sent the validateMenuItem message to hide the item
+}
+
+
+- (void)exportSelection:(id)sender {
+	[self.relevantExporter exportSelection:sender];
 }
 
 
@@ -439,8 +594,8 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
--(void)showImportSamplePanel:(id)sender {
-	[SampleTableController.sharedController showImportSamplePanel:sender];
+-(void)importSamples:(id)sender {
+	[SampleTableController.sharedController importSamples:sender];
 }
 
 
@@ -508,12 +663,12 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
-- (void)setActiveBottomTab:(NSNumber *)activeBottomTab {
+- (void)setActiveBottomTab:(NSInteger)activeBottomTab {
 	/// We determine if the sample inspector is shown. If not, there is not need to update it (via a binding)
-	/// Note: we use a NSNumber for this property, because using an NSInteger would not call this method
-	/// when the selected tab is zero (???).
+	
+	_activeBottomTab = activeBottomTab;
 	SampleInspectorController *sampleInspectorController = SampleInspectorController.sharedController;
-	if(activeBottomTab.longValue == sampleInspectorTab) {
+	if(activeBottomTab == sampleInspectorTab) {
 		[sampleInspectorController bind:@"samples" toObject:SampleTableController.sharedController.tableContent withKeyPath:NSSelectedObjectsBinding options:nil];
 	} else {
 		[sampleInspectorController unbind:@"samples"];
@@ -522,47 +677,72 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
-/*
- /// an alternative method to update the undo/redo tooltips, but this method is deprecated
-- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
-	NSUndoManager *undoManager = self.window.firstResponder.undoManager;
-	if(tag == undoToolTipTag) {
-		return undoManager.undoMenuItemTitle;
-	}
-	if(tag == redoToolTipTag) {
-		return undoManager.redoMenuItemTitle;
-	}
-	return nil;
-} */
 
-
-- (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
-	NSToolbarItem *theItem = (NSToolbarItem *)item;
+- (BOOL)validateToolbarItem:(NSToolbarItem *)item {
 	if(item.action == @selector(toggleLeftPane:)) {
-		NSToolbarItem *theItem = (NSToolbarItem *)item;
-		theItem.toolTip = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Expand left pane" : @"Collapse left pane";
+		item.toolTip = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Expand left pane" : @"Collapse left pane";
 	} else if(item.action == @selector(toggleRightPane:)) {
-		theItem.toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Expand detailed view" : @"Collapse detailed view";
-	} else if(theItem.action == @selector(undoAction:)) {
+		item.toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Expand detailed view" : @"Collapse detailed view";
+	} else if(item.action == @selector(undo:)) {
 		NSUndoManager *manager = self.window.firstResponder.undoManager;
-		theItem.toolTip = manager.undoMenuItemTitle;
+		item.toolTip = manager.undoMenuItemTitle;
 		return manager.canUndo;
-	} else if(theItem.action == @selector(redoAction:)) {
+	} else if(item.action == @selector(redo:)) {
 		NSUndoManager *manager = self.window.firstResponder.undoManager;
-		theItem.toolTip = manager.redoMenuItemTitle;
+		item.toolTip = manager.redoMenuItemTitle;
 		return manager.canRedo;
+	} else if(item.action == @selector(exportSelection:)) {
+		TableViewController *exporter =  self.relevantExporter;
+		if(exporter.canExportItems) {
+			return [exporter validateToolbarItem:item];
+		} else {
+			return NO;
+		}
 	}
+	
 	return YES;
 }
 
 
--(IBAction)undoAction:(id)sender {
-	[self.window.firstResponder.undoManager undo];
+/// The object that could handle an `exportSelection:` message that has not be handled in the responder chain.
+-(TableViewController *)relevantExporter {
+	/// If the detailed view is active, it is intuitive to export something related to what it shows (markers, samples, genotypes).
+	NSView *firstResponder = (NSView *)self.window.firstResponder;
+	if([firstResponder respondsToSelector:@selector(isDescendantOf:)]) {
+		if([firstResponder isDescendantOf:DetailedViewController.sharedController.view]) {
+			/// The detailed view is active. In this case, what to export pertains to the source controller.
+			TableViewController *sourceController = self.sourceController;
+			if([sourceController isKindOfClass:MarkerTableController.class]) {
+				return PanelListController.sharedController;
+			}
+			if(sourceController == SampleTableController.sharedController) {
+				/// If the detailed view shows samples, it makes sense to be able to export the selected folder.
+				return FolderListController.sharedController;
+			}
+			return sourceController;
+		}
+		if([firstResponder isDescendantOf:PanelListController.sharedController.view]) {
+			return PanelListController.sharedController;
+		}
+	}
+	/// Otherwise, it may make sense to allow exporting the selected folder, at its content is always visible.
+	return FolderListController.sharedController;
 }
 
--(IBAction)redoAction:(id)sender {
-	[self.window.firstResponder.undoManager redo];
+
+-(IBAction)undo:(id)sender {
+	if(![self.window tryToPerform:@selector(undo:) with:sender]) {
+		/// The condition above should avoid calling undo ourselves on the undo manager, but we do it anyway.
+		[self.window.firstResponder.undoManager undo];
+	}
 }
+
+-(IBAction)redo:(id)sender {
+	if(![self.window tryToPerform:@selector(redo:) with:sender]) {
+		[self.window.firstResponder.undoManager redo];
+	}
+}
+
 
 
 # pragma mark - managing the error log window

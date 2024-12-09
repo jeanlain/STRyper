@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
@@ -11,6 +11,7 @@
             <connections>
                 <outlet property="_tableContent" destination="t85-dl-98d" id="5YP-w6-yNc"/>
                 <outlet property="_tableView" destination="EP9-jv-hOU" id="a5B-gm-5Ie"/>
+                <outlet property="exportPanelAccessoryView" destination="9wI-bz-hTD" id="Qj5-Ol-5Gn"/>
                 <outlet property="filterButton" destination="8AM-PB-m6K" id="egw-OP-kbU"/>
                 <outlet property="view" destination="zDR-oD-NhW" id="LUJ-88-jIE"/>
             </connections>
@@ -110,7 +111,7 @@
                         <font key="font" metaFont="systemBold" size="12"/>
                     </buttonCell>
                     <connections>
-                        <action selector="exportGenotypes:" target="-2" id="TNc-6N-HNi"/>
+                        <action selector="exportSelection:" target="-2" id="TNc-6N-HNi"/>
                         <binding destination="t85-dl-98d" name="enabled" keyPath="arrangedObjects.@count" id="d1Z-6Y-MRe"/>
                     </connections>
                 </button>
@@ -158,7 +159,7 @@
                         <action selector="binAlleles:" target="-2" id="3Hb-Ty-dtJ"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Remove additional peaks" offStateImage="removeAdditionalFragmentsBadge" id="boL-bF-Chx">
+                <menuItem title="Remove additional peaks" offStateImage="remove fragment" id="boL-bF-Chx">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="removeAdditionalFragments:" target="-2" id="NBT-dW-rFM"/>
@@ -186,7 +187,7 @@
                 <menuItem title="Export to Text File…" offStateImage="export" id="EcG-k0-wtA">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
-                        <action selector="exportGenotypes:" target="-2" id="Oeo-Wr-dwt"/>
+                        <action selector="exportSelection:" target="-2" id="Oeo-Wr-dwt"/>
                     </connections>
                 </menuItem>
             </items>
@@ -195,6 +196,64 @@
             </connections>
             <point key="canvasLocation" x="-797" y="-104"/>
         </menu>
+        <customView id="9wI-bz-hTD">
+            <rect key="frame" x="0.0" y="0.0" width="472" height="41"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+            <subviews>
+                <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Wyu-Xv-Kzh">
+                    <rect key="frame" x="18" y="14" width="45" height="14"/>
+                    <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Export:" id="sl6-ij-8qZ">
+                        <font key="font" metaFont="smallSystemBold"/>
+                        <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                        <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                    </textFieldCell>
+                </textField>
+                <button toolTip="Export all listed genotypes" tag="1" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="FXa-eh-lb7">
+                    <rect key="frame" x="68" y="13.5" width="84" height="15"/>
+                    <buttonCell key="cell" type="radio" title="Whole table" bezelStyle="regularSquare" imagePosition="left" alignment="left" controlSize="small" state="on" inset="2" id="vTE-ro-bgC">
+                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="smallSystem"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="exportSelectionOnly:" target="-2" id="Ily-78-qAx"/>
+                    </connections>
+                </button>
+                <button toolTip="Export selected genotypes only" tag="2" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="5Pf-gX-cg7">
+                    <rect key="frame" x="159" y="13.5" width="95" height="15"/>
+                    <buttonCell key="cell" type="radio" title="Selected rows" bezelStyle="regularSquare" imagePosition="left" alignment="left" controlSize="small" inset="2" id="Qn9-pa-CFN">
+                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="smallSystem"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="exportSelectionOnly:" target="-2" id="Yqu-Yf-JXb"/>
+                    </connections>
+                </button>
+                <button toolTip="Add columns from the sample table to each genotype" tag="3" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="BFl-Bl-jJl">
+                    <rect key="frame" x="280" y="13" width="172" height="16"/>
+                    <buttonCell key="cell" type="check" title="Add sample-related columns" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="GV2-ax-QoB">
+                        <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                        <font key="font" metaFont="smallSystem"/>
+                    </buttonCell>
+                    <connections>
+                        <binding destination="384-hL-SP4" name="value" keyPath="values.AddSampleInfo" id="aRn-ua-IgO"/>
+                    </connections>
+                </button>
+            </subviews>
+            <constraints>
+                <constraint firstItem="BFl-Bl-jJl" firstAttribute="centerY" secondItem="5Pf-gX-cg7" secondAttribute="centerY" id="6fO-ao-r6g"/>
+                <constraint firstItem="FXa-eh-lb7" firstAttribute="centerY" secondItem="9wI-bz-hTD" secondAttribute="centerY" id="FYP-ig-KxD"/>
+                <constraint firstItem="BFl-Bl-jJl" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="5Pf-gX-cg7" secondAttribute="trailing" constant="8" symbolic="YES" id="FYa-vx-mpA"/>
+                <constraint firstItem="Wyu-Xv-Kzh" firstAttribute="leading" secondItem="9wI-bz-hTD" secondAttribute="leading" constant="20" symbolic="YES" id="SZP-2D-weZ"/>
+                <constraint firstItem="5Pf-gX-cg7" firstAttribute="leading" secondItem="FXa-eh-lb7" secondAttribute="trailing" constant="8" symbolic="YES" id="VD6-Yu-KgE"/>
+                <constraint firstAttribute="trailing" secondItem="BFl-Bl-jJl" secondAttribute="trailing" constant="20" symbolic="YES" id="jZR-xW-dkn"/>
+                <constraint firstItem="5Pf-gX-cg7" firstAttribute="centerY" secondItem="FXa-eh-lb7" secondAttribute="centerY" id="jlq-o1-2XP"/>
+                <constraint firstItem="FXa-eh-lb7" firstAttribute="leading" secondItem="Wyu-Xv-Kzh" secondAttribute="trailing" constant="8" symbolic="YES" id="k5l-29-Rng"/>
+                <constraint firstAttribute="height" relation="greaterThanOrEqual" secondItem="FXa-eh-lb7" secondAttribute="height" constant="20" id="s0U-YL-Q1Q"/>
+                <constraint firstItem="Wyu-Xv-Kzh" firstAttribute="centerY" secondItem="9wI-bz-hTD" secondAttribute="centerY" id="sri-Gl-Jwl"/>
+            </constraints>
+            <point key="canvasLocation" x="-741" y="135.5"/>
+        </customView>
+        <userDefaultsController representsSharedInstance="YES" id="384-hL-SP4"/>
     </objects>
     <resources>
         <image name="bin alleles" width="25" height="20"/>
@@ -209,7 +268,7 @@
         <image name="filterButton" width="25" height="25"/>
         <image name="filterButton On" width="25" height="25"/>
         <image name="paste offset" width="14" height="14"/>
-        <image name="removeAdditionalFragmentsBadge" width="16" height="15"/>
+        <image name="remove fragment" width="16" height="15"/>
         <namedColor name="AccentColor">
             <color red="0.0" green="0.46000000000000002" blue="0.89000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

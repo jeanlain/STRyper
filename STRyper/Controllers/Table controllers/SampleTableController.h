@@ -43,7 +43,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///  Presents an open panel allowing the user to import samples in the selected folder.
 ///
 ///  If the user validates the import, this method calls ``addSamplesFromFiles:toFolder:`` using the ``SourceListController/selectedFolder`` .
-- (IBAction)showImportSamplePanel:(id)sender;
+- (IBAction)importSamples:(id)sender;
 
 
 /// Imports samples (``Chromatogram`` objects) from abif files and adds it to a folder.

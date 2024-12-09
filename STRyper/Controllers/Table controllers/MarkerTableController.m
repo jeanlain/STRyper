@@ -183,10 +183,32 @@ static NSArray *channelColorImages;
 - (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
 	NSArray *genotypes = [items valueForKeyPath:@"@unionOfSets.genotypes"];
 	if(genotypes.count > 0) {
-		return  @"All genotypes at the marker will be removed as well. \nThis action can be undone.";
+		return  @"All genotypes at the marker will be deleted as well. \nThis action can be undone.";
 	}
 	
 	return [super cautionAlertInformativeStringForItems:items];
+}
+
+
+- (NSString *)exportActionTitleForItems:(NSArray *)items {
+	/// We don't export individual markers, but we can export their source panel.
+	Panel *selectedPanel = PanelListController.sharedController.selectedFolder;
+	if(selectedPanel) {
+		return [PanelListController.sharedController exportActionTitleForItems:@[selectedPanel]];
+	}
+	return nil;
+}
+
+
+
+- (NSImage *)exportButtonImageForItems:(NSArray *)items {
+	return [PanelListController.sharedController exportButtonImageForItems:items];
+}
+
+
+
+- (void)exportSelection:(id)sender {
+	[PanelListController.sharedController exportSelection:sender];
 }
 
 # pragma mark - adding markers
@@ -251,7 +273,8 @@ static NSArray *channelColorImages;
 	}
 
 
-	Mmarker *newMarker = [[Mmarker alloc] initWithStart:newMarkerPopover.markerStart end:newMarkerPopover.markerEnd channel:newMarkerPopover.markerChannel ploidy:newMarkerPopover.diploid+1 panel:panel];
+	Mmarker *newMarker = [[Mmarker alloc] initWithStart:newMarkerPopover.markerStart end:newMarkerPopover.markerEnd
+												channel:newMarkerPopover.markerChannel ploidy:newMarkerPopover.diploid+1 panel:panel];
 	newMarker.name = newMarkerPopover.markerName;
 	newMarker.motiveLength = newMarkerPopover.motiveLength;
 	

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -16,35 +16,35 @@
         <window identifier="mainWindow" title="STRyper" separatorStyle="line" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" frameAutosaveName="mainWindowFrame" animationBehavior="default" titlebarAppearsTransparent="YES" toolbarStyle="unified" titleVisibility="hidden" id="Koi-UR-wvR" userLabel="Main Window">
             <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
-            <rect key="contentRect" x="283" y="305" width="1594" height="707"/>
+            <rect key="contentRect" x="283" y="305" width="1594" height="1054"/>
             <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
             <value key="minSize" type="size" width="612" height="500"/>
             <view key="contentView" wantsLayer="YES" id="44z-Es-MQQ">
-                <rect key="frame" x="0.0" y="0.0" width="1594" height="707"/>
+                <rect key="frame" x="0.0" y="0.0" width="1594" height="1054"/>
                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                 <subviews>
                     <splitView identifier="mainSplitView" fixedFrame="YES" autosaveName="" dividerStyle="thin" vertical="YES" translatesAutoresizingMaskIntoConstraints="NO" id="gaa-hU-lEt" userLabel="Main Split View">
-                        <rect key="frame" x="0.0" y="0.0" width="1594" height="707"/>
+                        <rect key="frame" x="0.0" y="0.0" width="1594" height="1054"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <customView fixedFrame="YES" id="EqX-aR-5o3" userLabel="Left Pane">
-                                <rect key="frame" x="0.0" y="0.0" width="190" height="707"/>
+                                <rect key="frame" x="0.0" y="0.0" width="190" height="1054"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                             </customView>
                             <splitView identifier="verticalSplitView" fixedFrame="YES" autosaveName="" dividerStyle="thin" id="i06-N2-hiP" userLabel="Middle Pane">
-                                <rect key="frame" x="191" y="0.0" width="661" height="707"/>
+                                <rect key="frame" x="191" y="0.0" width="661" height="1054"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <subviews>
                                     <customView fixedFrame="YES" id="bcX-CO-E9S" userLabel="Top Pane">
-                                        <rect key="frame" x="0.0" y="0.0" width="661" height="338"/>
+                                        <rect key="frame" x="0.0" y="0.0" width="661" height="685"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                     </customView>
                                     <customView id="nZb-EX-k0Q" userLabel="bottom pane">
-                                        <rect key="frame" x="0.0" y="339" width="661" height="368"/>
+                                        <rect key="frame" x="0.0" y="686" width="661" height="368"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <subviews>
                                             <segmentedControl verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="6sD-5X-sgA" userLabel="tab chooser">
-                                                <rect key="frame" x="259" y="341" width="144" height="23"/>
+                                                <rect key="frame" x="268" y="341" width="125" height="23"/>
                                                 <segmentedCell key="cell" borderStyle="border" alignment="left" segmentDistribution="fillEqually" style="texturedSquare" trackingMode="selectOne" id="RdZ-m9-eau">
                                                     <font key="font" metaFont="system"/>
                                                     <segments>
@@ -77,7 +77,7 @@
                                 </holdingPriorities>
                             </splitView>
                             <customView fixedFrame="YES" id="Ckv-4y-0Vh" userLabel="Right Pane">
-                                <rect key="frame" x="853" y="0.0" width="741" height="707"/>
+                                <rect key="frame" x="853" y="0.0" width="741" height="1054"/>
                                 <autoresizingMask key="autoresizingMask"/>
                             </customView>
                         </subviews>
@@ -89,61 +89,17 @@
                     </splitView>
                 </subviews>
             </view>
-            <toolbar key="toolbar" implicitIdentifier="992D1384-58BF-4610-9705-EEE40FE07499" displayMode="iconOnly" sizeMode="regular" id="331-Tu-7Yy">
-                <allowedToolbarItems>
-                    <toolbarItem implicitItemIdentifier="07D88F48-47D6-4C0D-9298-5FF5BF81B717" label="Toggle sidebar" paletteLabel="Toggle sidebar" toolTip="Collapse/Expand sidebar" image="sideBar" bordered="YES" sizingBehavior="auto" id="G1k-kx-eNg">
-                        <connections>
-                            <action selector="toggleLeftPane:" target="-2" id="3jl-Fe-NOw"/>
-                        </connections>
-                    </toolbarItem>
-                    <toolbarItem implicitItemIdentifier="9657C589-816C-4DC2-AC20-AF1C5C504382" label="Undo" paletteLabel="Undo" tag="-1" image="undo" bordered="YES" sizingBehavior="auto" id="8OM-KQ-zXl">
-                        <connections>
-                            <action selector="undoAction:" target="-2" id="RL2-a6-TVR"/>
-                        </connections>
-                    </toolbarItem>
-                    <toolbarItem implicitItemIdentifier="5B0D1ED7-7D67-4E8A-8113-585557116DE6" label="Redo" paletteLabel="Redo" toolTip="Redo" tag="-1" image="redo" bordered="YES" sizingBehavior="auto" id="04A-oi-9cf">
-                        <connections>
-                            <action selector="redoAction:" target="-2" id="5wM-R1-Ja3"/>
-                        </connections>
-                    </toolbarItem>
-                    <toolbarItem implicitItemIdentifier="97D6F672-6DA8-46A8-B7BE-392296964CEB" label="Sample Search" paletteLabel="Sample Search" toolTip="New Sample Search" tag="4" image="loupe" bordered="YES" sizingBehavior="auto" id="leH-Qc-eZ1">
-                        <connections>
-                            <action selector="addSampleOrSmartFolder:" target="-1" id="sse-MG-IBG"/>
-                        </connections>
-                    </toolbarItem>
-                    <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="YbH-jV-Pu3"/>
-                    <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="MMi-az-ny5"/>
-                    <toolbarItem implicitItemIdentifier="C385BE42-E684-43FD-84F2-E3BFCAD8B8C0" label="Detailed view" paletteLabel="Detailed view" toolTip="Collapse/Expand detailed view" tag="2" image="RightsideBar" bordered="YES" sizingBehavior="auto" id="VaN-gF-m3n">
-                        <connections>
-                            <action selector="toggleRightPane:" target="-2" id="GMf-R8-hB2"/>
-                        </connections>
-                    </toolbarItem>
-                </allowedToolbarItems>
-                <defaultToolbarItems>
-                    <toolbarItem reference="G1k-kx-eNg"/>
-                    <toolbarItem reference="8OM-KQ-zXl"/>
-                    <toolbarItem reference="04A-oi-9cf"/>
-                    <toolbarItem reference="leH-Qc-eZ1"/>
-                    <toolbarItem reference="MMi-az-ny5"/>
-                    <toolbarItem reference="VaN-gF-m3n"/>
-                </defaultToolbarItems>
-            </toolbar>
             <connections>
                 <outlet property="delegate" destination="-2" id="ZzL-jI-dI3"/>
             </connections>
-            <point key="canvasLocation" x="406" y="-160.5"/>
+            <point key="canvasLocation" x="406" y="13"/>
         </window>
         <userDefaultsController representsSharedInstance="YES" id="uJ6-cj-JgE"/>
     </objects>
     <resources>
-        <image name="RightsideBar" width="24" height="24"/>
-        <image name="genotypes" width="25" height="14"/>
+        <image name="genotypes" width="19" height="14"/>
         <image name="inspector" width="14" height="14"/>
-        <image name="loupe" width="24" height="24"/>
         <image name="panelBadge" width="20" height="15"/>
-        <image name="redo" width="24" height="24"/>
-        <image name="sideBar" width="24" height="24"/>
         <image name="sizeStandard" width="15" height="15"/>
-        <image name="undo" width="24" height="24"/>
     </resources>
 </document>

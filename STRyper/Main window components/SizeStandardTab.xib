@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -38,19 +38,8 @@
                                 </binding>
                             </connections>
                         </button>
-                        <button toolTip="Delete size standard" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="DIm-MT-tb4" userLabel="Delete">
-                            <rect key="frame" x="76" y="8" width="15" height="15"/>
-                            <buttonCell key="cell" type="recessed" title="Duplicate" bezelStyle="recessed" image="trash" imagePosition="only" alignment="center" state="on" inset="2" id="PcX-7M-Jxi">
-                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="systemBold" size="12"/>
-                            </buttonCell>
-                            <connections>
-                                <action selector="remove:" target="-2" id="Gd5-Bq-ncS"/>
-                                <binding destination="4TZ-Sm-dWa" name="enabled" keyPath="selection.editable" id="V1W-oW-jMf"/>
-                            </connections>
-                        </button>
                         <popUpButton toolTip="Apply selected size standard to samples" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="FTU-gM-pEU" userLabel="Apply">
-                            <rect key="frame" x="94" y="4" width="72" height="19"/>
+                            <rect key="frame" x="76" y="5" width="72" height="19"/>
                             <popUpButtonCell key="cell" type="recessed" title="Apply To" bezelStyle="recessed" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="AAe-3z-D1L" id="qc0-U5-YBi">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                 <font key="font" metaFont="cellTitle"/>
@@ -179,13 +168,11 @@
                         </scrollView>
                     </subviews>
                     <constraints>
-                        <constraint firstItem="DIm-MT-tb4" firstAttribute="leading" secondItem="mTV-4Q-35K" secondAttribute="trailing" constant="8" symbolic="YES" id="AF3-LV-Vy7"/>
                         <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="FTU-gM-pEU" secondAttribute="trailing" constant="5" id="Hfm-Y4-44s"/>
                         <constraint firstItem="mTV-4Q-35K" firstAttribute="leading" secondItem="x1b-3f-296" secondAttribute="leading" constant="6" id="IW6-mI-S8i"/>
-                        <constraint firstItem="DIm-MT-tb4" firstAttribute="centerY" secondItem="mTV-4Q-35K" secondAttribute="centerY" id="Th4-ta-lk9"/>
-                        <constraint firstItem="FTU-gM-pEU" firstAttribute="leading" secondItem="DIm-MT-tb4" secondAttribute="trailing" constant="3" id="e5l-x9-pnc"/>
+                        <constraint firstItem="FTU-gM-pEU" firstAttribute="centerY" secondItem="mTV-4Q-35K" secondAttribute="centerY" id="RjT-OE-cm9"/>
                         <constraint firstItem="mTV-4Q-35K" firstAttribute="centerY" secondItem="x1b-3f-296" secondAttribute="bottom" constant="-15" id="jtD-Bb-gor"/>
-                        <constraint firstItem="FTU-gM-pEU" firstAttribute="centerY" secondItem="DIm-MT-tb4" secondAttribute="centerY" constant="1" id="vTo-Yn-6or"/>
+                        <constraint firstItem="FTU-gM-pEU" firstAttribute="leading" secondItem="mTV-4Q-35K" secondAttribute="trailing" constant="8" symbolic="YES" id="tMm-QT-ZgB"/>
                     </constraints>
                 </customView>
                 <customView id="Gfr-oI-bve" userLabel="size standard fragment pane">
@@ -205,7 +192,7 @@
                                         <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                         <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                         <tableColumns>
-                                            <tableColumn width="321" minWidth="40" maxWidth="1000" id="ndn-WR-twr">
+                                            <tableColumn identifier="sizeColumn" width="321" minWidth="40" maxWidth="1000" id="ndn-WR-twr">
                                                 <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" title="Sizes">
                                                     <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
                                                     <color key="backgroundColor" name="headerColor" catalog="System" colorSpace="catalog"/>
@@ -218,10 +205,9 @@
                                                     <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                                     <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                                 </textFieldCell>
-                                                <sortDescriptor key="sortDescriptorPrototype" selector="compare:" sortKey="size"/>
                                                 <tableColumnResizingMask key="resizingMask" resizeWithTable="YES"/>
                                                 <prototypeCellViews>
-                                                    <tableCellView id="hq3-Ke-Lyz">
+                                                    <tableCellView identifier="sizeCellView" id="hq3-Ke-Lyz">
                                                         <rect key="frame" x="0.0" y="0.0" width="321" height="0.0"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
@@ -235,11 +221,6 @@
                                                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                                                 </textFieldCell>
                                                                 <connections>
-                                                                    <binding destination="hq3-Ke-Lyz" name="value" keyPath="objectValue.size" id="Bh3-WJ-c7O">
-                                                                        <dictionary key="options">
-                                                                            <bool key="NSValidatesImmediately" value="YES"/>
-                                                                        </dictionary>
-                                                                    </binding>
                                                                     <binding destination="hq3-Ke-Lyz" name="editable" keyPath="objectValue.sizeStandard.editable" id="6hA-az-bKB"/>
                                                                     <outlet property="delegate" destination="yu6-mr-3Yv" id="JNp-IB-qwE"/>
                                                                 </connections>
@@ -283,31 +264,9 @@
                                 <binding destination="4TZ-Sm-dWa" name="enabled" keyPath="selection.editable" id="w6X-Es-1vF"/>
                             </connections>
                         </button>
-                        <button toolTip="Remove selected size(s)" tag="4" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="6qz-XH-bEA" userLabel="-">
-                            <rect key="frame" x="28" y="8" width="14" height="14"/>
-                            <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="remove" imagePosition="only" alignment="center" state="on" inset="2" id="W3F-ho-xng">
-                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                <font key="font" metaFont="systemBold" size="12"/>
-                            </buttonCell>
-                            <connections>
-                                <action selector="remove:" target="yu6-mr-3Yv" id="aFZ-xt-KSb"/>
-                                <binding destination="3Ev-Uu-1iX" name="enabled2" keyPath="selectedObjects.@count" previousBinding="tPM-Mr-ahO" id="503-wX-Xbm">
-                                    <dictionary key="options">
-                                        <integer key="NSMultipleValuesPlaceholder" value="-1"/>
-                                        <integer key="NSNoSelectionPlaceholder" value="-1"/>
-                                        <integer key="NSNotApplicablePlaceholder" value="-1"/>
-                                        <integer key="NSNullPlaceholder" value="-1"/>
-                                    </dictionary>
-                                </binding>
-                                <binding destination="4TZ-Sm-dWa" name="enabled" keyPath="selection.editable" id="tPM-Mr-ahO"/>
-                            </connections>
-                        </button>
                     </subviews>
                     <constraints>
                         <constraint firstItem="UyL-7K-phw" firstAttribute="leading" secondItem="Gfr-oI-bve" secondAttribute="leading" constant="6" id="3mM-cZ-eKN"/>
-                        <constraint firstItem="6qz-XH-bEA" firstAttribute="centerY" secondItem="UyL-7K-phw" secondAttribute="centerY" id="GsC-f7-qvV"/>
-                        <constraint firstItem="6qz-XH-bEA" firstAttribute="trailing" relation="lessThanOrEqual" secondItem="Gfr-oI-bve" secondAttribute="trailing" constant="-5" id="eaU-eR-X8i"/>
-                        <constraint firstItem="6qz-XH-bEA" firstAttribute="leading" secondItem="UyL-7K-phw" secondAttribute="trailing" constant="8" symbolic="YES" id="goo-4l-nTk"/>
                         <constraint firstItem="UyL-7K-phw" firstAttribute="centerY" secondItem="Gfr-oI-bve" secondAttribute="bottom" constant="-15" id="koA-Qs-lYp"/>
                     </constraints>
                 </customView>
@@ -341,6 +300,5 @@
         <image name="add" width="14" height="14"/>
         <image name="padlock" width="14" height="14"/>
         <image name="remove" width="14" height="14"/>
-        <image name="trash" width="15" height="15"/>
     </resources>
 </document>

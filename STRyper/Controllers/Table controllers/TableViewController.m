@@ -73,6 +73,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 	return _tableContent;
 }
 
+
 - (NSTableView *)viewForCellPrototypes {
 	if(!_viewForCellPrototypes) {
 		return self.tableView;
@@ -161,23 +162,27 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 	}
 	NSTableView *tableView = self.tableView;
 	NSDictionary *columnDescription = self.columnDescription;
-	for (NSString *ID in self.orderedColumnIDs) {
-		NSTableColumn *col = [[NSTableColumn alloc] initWithIdentifier:ID];
+	for (NSUserInterfaceItemIdentifier ID in self.orderedColumnIDs) {
+		NSTableColumn *col = [tableView tableColumnWithIdentifier:ID];
+		BOOL alreadyInTable = col != nil;
+		if(!alreadyInTable) {
+			col = [[NSTableColumn alloc] initWithIdentifier:ID];
+		}
 		NSDictionary *colDescription = columnDescription[ID];
 		col.title = colDescription[ColumnTitle];
 		NSString *keyPath = colDescription[KeyPathToBind];
 		BOOL caseInsensitiveSorting = [colDescription[IsColumnSortingCaseInsensitive] boolValue];
 		
 		if(keyPath) {
-			col.sortDescriptorPrototype = caseInsensitiveSorting ? [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)] : [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES];
+			col.sortDescriptorPrototype = caseInsensitiveSorting ? [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)] :
+			[NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES];
 		}
-		
-		[tableView addTableColumn:col];
-		
-		col.width = col.headerCell.cellSize.width + 10;
-		col.minWidth = col.headerCell.cellSize.width ;
-		col.hidden = ![colDescription[IsColumnVisibleByDefault] boolValue];
-		
+		if(!alreadyInTable) {
+			[tableView addTableColumn:col];
+			col.width = col.headerCell.cellSize.width + 10;
+			col.minWidth = col.headerCell.cellSize.width ;
+		}
+		col.hidden = [colDescription.allKeys containsObject:IsColumnVisibleByDefault] && ![colDescription[IsColumnVisibleByDefault] boolValue];
 	}
 }
 
@@ -429,7 +434,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 
 - (IBAction)copy:sender {
 	/// we copy a string representing selected objects, we can be pasted to text editors or spreadsheets
-	NSArray *items = [self targetItemsOfSender:sender];
+	NSArray *items = [self validTargetsOfSender:sender];
 	[self copyItems:(NSArray *) items ToPasteBoard:NSPasteboard.generalPasteboard];
 }
 
@@ -493,7 +498,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 										  atRowIndexes:rowIndexes forPoint:screenPoint];
 }
 
-# pragma mark - renaming, adding and removing items
+# pragma mark - renaming, adding, removing and exporting items
 
 - (IBAction)rename:(id)sender {
 	NSInteger row = -1;
@@ -532,25 +537,30 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 }
 
 
-- (nullable NSArray *) targetItemsOfSender:(id)sender {
-	if(!self.tableContent) {
+- (nullable NSArray *) validTargetsOfSender:(id)sender {
+	NSArrayController *tableContent = self.tableContent;
+	NSTableView *tableView = self.tableView;
+	if(!tableContent || !tableView) {
 		return nil;
 	}
-	if([sender respondsToSelector:@selector(topMenu)]) {
-		NSInteger clickedRow = self.tableView.clickedRow;
-		if([sender topMenu] == self.tableView.menu && clickedRow >= 0) {
+	if([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == tableView.menu) {
+		NSInteger clickedRow = tableView.clickedRow;
+		if(clickedRow >= 0) {
 			/// the target may be at the clicked row, which can differ from the selected row(s)
-			NSArray *arrangedObjects = self.tableContent.arrangedObjects;
+			NSArray *arrangedObjects = tableContent.arrangedObjects;
+			NSArray *selectedObjects = tableContent.selectedObjects;
 			if(arrangedObjects.count >= clickedRow) {
 				id clickedItem = arrangedObjects[clickedRow];
-				if([self.tableContent.selectedObjects indexOfObjectIdenticalTo:clickedItem] != NSNotFound) {
-					return self.tableContent.selectedObjects;
+				if([selectedObjects indexOfObjectIdenticalTo:clickedItem] != NSNotFound) {
+					return selectedObjects;
 				}
 				return clickedItem == nil? nil : @[clickedItem];
 			}
+		} else {
+			return nil;
 		}
 	}
-	return self.tableContent.selectedObjects;
+	return tableContent.selectedObjects;
 }
 
 
@@ -559,39 +569,39 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 	if(FileImporter.sharedFileImporter.importOnGoing) {
 		return;
 	}
-	NSArray *items = [self targetItemsOfSender:sender];
+	NSArray *items = [self validTargetsOfSender:sender];
 	if(items.count == 0) {
 		return;
 	}
 	NSAlert *alert;
-	alert = [self cannotRemoveAlertForItems:items];
+	alert = [self cannotDeleteAlertForItems:items];
 	if(alert) {
 		[alert beginSheetModalForWindow: self.view.window completionHandler:^(NSModalResponse returnCode) {
 		}];
 		return;
 	}
 	
-	NSString *actionName = [self removeActionTitleForItems:items];
+	NSString *actionName = [self deleteActionTitleForItems:items];
 	alert = [self cautionAlertForRemovingItems:items];
 	if(alert) {
 		[alert beginSheetModalForWindow: self.view.window completionHandler:^(NSModalResponse returnCode) {
 			if(returnCode == NSAlertFirstButtonReturn) {
 				/// [self removeSelectedObjects:objects];  // before we remove the objects, we remove them from the selection. This is because the detailed view shows selected samples, which are somehow not removed from the selection after being deleted (although they get removed from the selection at some point).
 				[self.undoManager setActionName:actionName];
-				[self removeItems:items];
+				[self deleteItems:items];
 			}
 		}];
 		return;
 	}
 	
 	[self.undoManager setActionName:actionName];
-	[self removeItems:items];
+	[self deleteItems:items];
 	[AppDelegate.sharedInstance saveAction:self];
 	
 }
 
 
-- (nullable NSString *)removeActionTitleForItems:(NSArray *)items {
+- (nullable NSString *)deleteActionTitleForItems:(NSArray *)items {
 	if(items.count == 0) {
 		return nil;
 	}
@@ -603,7 +613,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 }
 
 
-- (void)removeItems:(NSArray *)items {
+- (void)deleteItems:(NSArray *)items {
 
 	if(self.tableContent) {
 		/// here, we assume that the tableContent controller has the "delete object on remove" active if its content is bound to a relationship
@@ -619,13 +629,16 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 
 
 - (nullable NSAlert *)cautionAlertForRemovingItems:(NSArray *)items {
-	NSString *actionName = [self removeActionTitleForItems:items];
+	NSString *informativeText = [self cautionAlertInformativeStringForItems:items];
+	if(!informativeText) {
+		return nil;
+	}
 	
+	NSString *actionName = [self deleteActionTitleForItems:items];
 	NSAlert *alert = NSAlert.new;
 	alert.messageText =  [actionName stringByAppendingString:@"?"];
 	[alert addButtonWithTitle:actionName];
 	[alert addButtonWithTitle:@"Cancel"];
-	NSString *informativeText = [self cautionAlertInformativeStringForItems:items];
 	if(informativeText) {
 		alert.informativeText = informativeText;
 	}
@@ -634,8 +647,9 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 }
 
 
-- (nullable NSAlert *)cannotRemoveAlertForItems:(NSArray *)items {
-	if([self canAlwaysRemove]) {
+- (nullable NSAlert *)cannotDeleteAlertForItems:(NSArray *)items {
+	NSString *informativeText = [self cannotDeleteInformativeStringForItems:items];
+	if(!informativeText) {
 		return nil;
 	}
 	NSAlert *alert = NSAlert.new;
@@ -643,8 +657,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 	if(items.count > 1) {
 		itemNames = [itemNames stringByAppendingString:@"s"];
 	}
-	alert.messageText = [NSString stringWithFormat: @"The %@ cannot be removed.", itemNames];
-	NSString *informativeText = [self cannotRemoveInformativeStringForItems:items];
+	alert.messageText = [NSString stringWithFormat: @"The %@ cannot be deleted.", itemNames];
 	if(informativeText) {
 		alert.informativeText = informativeText;
 	}
@@ -659,17 +672,58 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 }
 
 
-- (nullable NSString *)cannotRemoveInformativeStringForItems:(NSArray *)items {
+- (nullable NSString *)cannotDeleteInformativeStringForItems:(NSArray *)items {
 	return nil;
 }
 
 
-- (BOOL)canAlwaysRemove {
-	return YES;
-}
 
 - (BOOL)shouldDeleteObjectsOnRemove {
 	return YES;
+}
+
+
+
+- (BOOL)canExportItems {
+	return NO;
+}
+
+
+- (BOOL)respondsToSelector:(SEL)aSelector {
+	if(aSelector == @selector(exportSelection:)) {
+		return self.canExportItems;
+	}
+	return [super respondsToSelector:aSelector];
+}
+
+
+- (NSString *)exportActionTitleForItems:(NSArray *)items {
+	NSString *title;
+	if(self.canExportItems && items.count > 0) {
+		title = [@"Export Selected " stringByAppendingString: [self nameForItem:items.firstObject]];
+		NSString *end = items.count > 1? @"s…" : @"…";
+		title = [title stringByAppendingString:end];
+	}
+	return title;
+}
+
+
+- (NSImage *)defaultExportButtonImage {
+	static NSImage * exportImage;
+	if(!exportImage) {
+		exportImage = [NSImage imageNamed:@"export large"];
+	}
+	return exportImage;
+}
+
+
+- (NSImage *)exportButtonImageForItems:(NSArray *)items {
+	return self.defaultExportButtonImage;
+}
+
+
+- (void)exportSelection:(id)sender {
+	
 }
 
 
@@ -852,36 +906,6 @@ static NSString *const KeypathKey = @"KeypathKey";
 
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	if(menuItem.action == @selector(remove:)) {
-		/// we give a contextual title to the menu that removes an item.
-		NSString *title = [self removeActionTitleForItems:[self targetItemsOfSender:menuItem]];
-		if(title) {
-			if(menuItem.topMenu == NSApp.menu) {
-				menuItem.title = title;
-			}
-			menuItem.hidden = NO;
-			return YES;
-		}
-		menuItem.title = @"Delete";
-		menuItem.hidden = YES;
-		/// absence of title means there is nothing to remove, so we disable the menu item
-		/// (which in this case should be from the main application menu, as we hide all items from the contextual menu if there is no clicked item)
-		return NO;
-	}
-	
-	if(menuItem.action == @selector(rename:)) {
-		/// we give a contextual title to the menu that renames an item.
-		id item = [self targetItemsOfSender:menuItem].firstObject;
-		if([self canRenameItem:item]) {
-			if(menuItem.topMenu == NSApp.menu) {
-				menuItem.title = [@"Rename " stringByAppendingString: [self nameForItem:[self targetItemsOfSender:menuItem].firstObject]];
-			}
-			menuItem.hidden = NO;
-			return YES;
-		}
-		menuItem.hidden = YES;
-		return NO;
-	}
 	
 	if(menuItem.action == @selector(showSortCriteria:)) {
 		return [self canSortByMultipleColumns];
@@ -889,15 +913,6 @@ static NSString *const KeypathKey = @"KeypathKey";
 	
 	if(menuItem.action == @selector(moveSelectionByStep:)) {
 		return self.tableContent.selectedObjects.count > 0;
-	}
-	
-	NSInteger clickedRow = self.tableView.clickedRow;
-
-	if(menuItem.action == @selector(copy:)) {
-		if(menuItem.topMenu == self.tableView.menu) {
-			return clickedRow >= 0;
-		}
-		return self.columnDescription && self.tableContent.selectedObjects.count > 0;
 	}
 	
 	if(menuItem.action == @selector(hideColumn:)) {
@@ -916,7 +931,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 				return YES;
 			}
 		}
-		menuItem.title = @"Can't hide column";
+		menuItem.title = @"Cannot hide column";
 		return NO;
 	}
 	
@@ -936,6 +951,76 @@ static NSString *const KeypathKey = @"KeypathKey";
 		return self.visibleColumns.count < self.tableView.tableColumns.count;
 	}
 	
+	NSArray *targets = [self validTargetsOfSender:menuItem];
+	if(!targets) {
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
+	BOOL remove = menuItem.action == @selector(remove:);
+	if(remove || menuItem.action == @selector(exportSelection:)) {
+
+		/// we give a contextual title to the menu that removes an item.
+		NSString *title = remove? [self deleteActionTitleForItems: targets] : [self exportActionTitleForItems:targets];
+		if(title) {
+			if(menuItem.topMenu == NSApp.menu) {
+				menuItem.title = title;
+			}
+			menuItem.hidden = NO;
+			return YES;
+		}
+		menuItem.hidden = YES;
+		/// absence of title means there is nothing to remove or export, so we hide the menu item
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(rename:)) {
+		/// we give a contextual title to the menu that renames an item.
+		id item = targets.firstObject;
+		if([self canRenameItem:item]) {
+			if(menuItem.topMenu == NSApp.menu) {
+				menuItem.title = [@"Rename " stringByAppendingString: [self nameForItem:[self validTargetsOfSender:menuItem].firstObject]];
+			}
+			menuItem.hidden = NO;
+			return YES;
+		}
+		menuItem.hidden = YES;
+		return NO;
+	}
+	
+	if(menuItem.action == @selector(copy:)) {
+		return self.columnDescription != nil;
+	}
+	
+	menuItem.hidden = NO;
+	return YES;
+}
+
+
+- (BOOL)validateToolbarItem:(NSToolbarItem *)item {
+	BOOL export = item.action == @selector(exportSelection:);
+	if(export || item.action == @selector(remove:)) {
+		NSArray *targets = [self validTargetsOfSender:item];
+		NSString *title = export? [self exportActionTitleForItems: targets] : [self deleteActionTitleForItems:targets];
+		if(title) {
+			if(export) {
+				NSImage *exportImage = [self exportButtonImageForItems:targets];
+				if(item.image != exportImage) {
+					item.image = exportImage;
+				}
+			}
+			item.toolTip = title;
+			return YES;
+		}
+		if(export) {
+			NSImage *defaultImage = self.defaultExportButtonImage;
+			if(item.image != defaultImage) {
+				item.image = defaultImage;
+			}
+		}
+		item.toolTip = @"";
+		return NO;
+	}
 	return YES;
 }
 
@@ -947,7 +1032,8 @@ static NSString *const KeypathKey = @"KeypathKey";
 }
 
 
-- (void)tableViewIsClicked:(NSTableView *)sender {	/// when our tableview is clicked, we set ourselves as source for the content of the detailed outline view
+- (void)tableViewIsClicked:(NSTableView *)sender {
+	/// when our tableview is clicked, we set ourselves as source for the content of the detailed outline view
 	MainWindowController.sharedController.sourceController = self;
 }
 

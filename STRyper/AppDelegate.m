@@ -108,6 +108,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   ShowChannel3: @YES,
 							   ShowChannel4: @YES,
 							   AddSampleInfo: @NO,
+							   BottomTab: @0,
 							   AutoDetectSizeStandard:@NO,
 							   DubiousAlleleName:@"?",
 							   MissingAlleleName:@"",
@@ -178,7 +179,11 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	/// When the app quits, the trash is normally emptied. But if the app has crashed or was killed (or perhaps for other reasons), the trash may contain items.
 	/// We propose to restore them		(MOVE THAT to FolderListController.m ? TO TEST)
 	SampleFolder *trashFolder = FolderListController.sharedController.trashFolder;
-	if(trashFolder.subfolders.count >0 || trashFolder.samples.count > 0) {
+	NSOrderedSet *deletedSampleFolders = [trashFolder.subfolders
+										  filteredOrderedSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Folder *folder , NSDictionary<NSString *,id> * _Nullable bindings) {
+		return !folder.isSmartFolder;
+	}]];
+	if(deletedSampleFolders.count >0 || trashFolder.samples.count > 0) {
 		NSAlert *alert = NSAlert.new;
 		alert.messageText = @"Some deleted items were detected.";
 		alert.informativeText = @"Do you wish to restore them?";

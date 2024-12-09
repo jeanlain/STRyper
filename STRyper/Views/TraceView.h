@@ -27,19 +27,19 @@
 #import "Panel.h"
 #import "TraceViewDelegate.h"
 
-@class MarkerView, Genotype, VScaleView;
+@class MarkerView, Genotype, VScaleView, FragmentLabel, PeakLabel;
 
 NS_ASSUME_NONNULL_BEGIN
 
 /// A view that shows traces and associated labels (``ViewLabel`` objects) for peaks, fragments, markers and bins.
 ///
-/// A trace view shows the fluorescence data of ``Trace`` objects as curves whose colors reflect the trace ``Trace/channel``.
+/// A trace view shows the fluorescence data of ``FluoTrace`` objects as curves whose colors reflect the trace ``FluoTrace/channel``.
 /// The view draws a plot in which the x axis represent the size in base pairs, and the y axis the trace fluorescence level, using the view coordinates system.
 /// By default, the trace view has its bound y origin set to -0.5, such that the 1-point-thick curve at a fluorescence level of 0 sits just above the bottom edge.
 ///
 /// This view also shows ``Chromatogram/offscaleRegions`` as colored rectangles behind the curves.
 ///
-/// A trace view can show several traces at once. These could be all traces of a given  ``Trace/chromatogram`` ("sample"), or of several samples.
+/// A trace view can show several traces at once. These could be all traces of a given  ``FluoTrace/chromatogram`` ("sample"), or of several samples.
 /// Alternatively, this view can show a marker only (no trace).
 ///
 /// - Important: A trace view must be a document view of an `NSScrollView` (subclass). It will not work otherwise.
@@ -79,7 +79,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Makes the view load and show some content.
 ///
-/// The `object` must either be a ``Trace``, an array of ``Trace`` objects of the same ``Trace/channel``,
+/// The `object` must either be a ``FluoTrace``, an array of ``FluoTrace`` objects of the same ``FluoTrace/channel``,
 /// an object of class ``Genotype``, ``Mmarker`` or ``Chromatogram``.
 /// The managed object context of any loaded Chromatogram, Trace, Marker or Genotype must be the view context of the application.
 ///
@@ -116,7 +116,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Otherwise this property is `nil`.
 @property (nonatomic, readonly, nullable) Mmarker *marker;
 
-/// The ``Trace/channel`` of the trace(s) or marker shown by the view, from 0 to 4.
+/// The ``FluoTrace/channel`` of the trace(s) or marker shown by the view, from 0 to 4.
 ///
 /// The returned value is -1 if the view shows traces from different channels (i.e., if a ``Chromatogram`` was loaded).
 /// This property may not reflect the ``displayedChannels`` property.
@@ -128,7 +128,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The fragment labels that the view shows.
 ///
-/// These labels represent the ``Trace/fragments`` of the view's ``trace``.
+/// These labels represent the ``FluoTrace/fragments`` of the view's ``trace``.
 /// The view only shows fragment labels it it shows a single trace.
 @property (nonatomic, readonly, nullable) NSArray<FragmentLabel *> *fragmentLabels;
 
@@ -196,14 +196,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 ///********************** display settings properties (KVO compliant) that have visual effects if changed******************
 
-/// Whether off-scale regions of the ``trace``'s ``Trace/chromatogram`` are shown (as colored rectangles).
+/// Whether off-scale regions of the ``trace``'s ``FluoTrace/chromatogram`` are shown (as colored rectangles).
 ///
 /// See ``Chromatogram/offscaleRegions``for more information.
 ///
 /// The default value is `YES`.
 @property (nonatomic) BOOL showOffscaleRegions;
 
-/// Whether the views shows tooltips indicating information about the ``trace``'s ``Trace/peaks``.
+/// Whether the views shows tooltips indicating information about the ``trace``'s ``FluoTrace/peaks``.
 ///
 /// The default value is `NO`.
 @property (nonatomic) BOOL showPeakTooltips;
@@ -215,7 +215,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Whether the view plots raw fluorescence data.
 ///
-/// If `YES`, the view uses the trace's ``Trace/rawData`` property to draw curves.
+/// If `YES`, the view uses the trace's ``FluoTrace/rawData`` property to draw curves.
 /// Otherwise, it uses the fluorescence data with subtracted baseline.
 ///
 /// The default value is `NO`.
@@ -233,7 +233,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Whether peaks resulting from crosstalk should painted with the color of the channel that induced crosstalk.
 ///
-/// Peaks resulting from crosstalk are painted only if the view shows ``peakLabels``, hence if a single ``Trace`` was loaded.
+/// Peaks resulting from crosstalk are painted only if the view shows ``peakLabels``, hence if a single ``FluoTrace`` was loaded.
 /// The default value is `YES`.
 @property (nonatomic) BOOL paintCrosstalkPeaks;
 
@@ -286,7 +286,7 @@ ShowPeakTooltipsBinding;
 /// The `start` component of the range is used to set the ``visibleOrigin`` of the trace view. Its `len` conditions the horizontal scale ``LabelView/hScale`` of the view.
 /// Settings this  property thus makes the view show the range in its visible rectangle, resizing and scrolling the view as necessary.
 ///
-/// Setting a new value for this property  sends `-viewDidChangeVisibleRange:`  to the view's ``delegate``. If the value hasn't changed, the delegate is not notified. The view also sets this value for the ``Trace/visibleRange`` of each trace of its ``loadedTraces``.
+/// Setting a new value for this property  sends `-viewDidChangeVisibleRange:`  to the view's ``delegate``. If the value hasn't changed, the delegate is not notified. The view also sets this value for the ``FluoTrace/visibleRange`` of each trace of its ``loadedTraces``.
 ///
 /// This allows other views to show this trace at the visible range that was set by the user, accounting for the fact that a trace may move between views in the reuse queue of an `NSTableView`.
 @property (nonatomic) BaseRange visibleRange;
@@ -365,7 +365,7 @@ ShowPeakTooltipsBinding;
 ///
 /// The effective value is constrained to the interval [20, 35000].
 ///
-/// When given a new value for this property, the view sets it for the ``Trace/topFluoLevel`` of each trace among its ``loadedTraces`` and for its ``genotype``.
+/// When given a new value for this property, the view sets it for the ``FluoTrace/topFluoLevel`` of each trace among its ``loadedTraces`` and for its ``genotype``.
 /// This allows other views to show this trace/genotype at the vertical scale that was set by the user, accounting for the fact that a trace/genotype may move between views in the reuse queue of an `NSTableView`.
 @property (nonatomic) float topFluoLevel;
 

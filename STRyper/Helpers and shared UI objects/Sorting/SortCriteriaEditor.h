@@ -51,7 +51,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// The sort descriptors that the receiver shows as rows.
 ///
 /// The `selector` of each sort descriptor is ignored.
-///
 /// - Important: The `key` of each sort descriptor must be used by one of the `sortDescriptors` set in ``configureWithSortDescriptors:titles:``.
 @property (nonatomic, copy) NSArray<NSSortDescriptor *>* sortDescriptors;
 

@@ -27,22 +27,22 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// A  label that represents a peak in fluorescence data on a view.
 ///
-/// A peak label represents a the range in base pairs occupied by a peak in a ``Trace``.
-/// The peak data is extracted from the ``Trace/peaks`` attribute of the trace.
+/// A peak label represents a the range in base pairs occupied by a peak in a ``FluoTrace``.
+/// The peak data is extracted from the ``FluoTrace/peaks`` attribute of the trace.
 ///
 /// A peak label is invisible even if ``ViewLabel/highlighted`` (its host view draws the peak), 
 /// but its ``ViewLabel/frame`` takes the whole height of the trace view.
 /// Its width is the range of the peak that the label represents.
 ///
-/// A peak label does not have a ``ViewLabel/representedObject`` but shows in a tooltip containing its ``description`` 
+/// A peak label does not have a ``ViewLabel/representedObject`` but shows in a tooltip describing basic peak information.
 /// when the label is ``ViewLabel/hovered`` and if its view returns `YES` to ``TraceView/showPeakTooltips``.
 @interface PeakLabel : ViewLabel <NSViewLayerContentScaleDelegate, NSViewToolTipOwner>
 
 /// Returns an peak label configured with the attributes of the peak it should represents.
 /// - Parameters:
 ///   - peak: The peak that the label will represent.
-///   - view: The view on which the label will show. It must return a ``Trace`` object for its ``TraceView/trace`` property.
-/// The method assumes that the `peak` is among the ``Trace/peaks`` of the trace.
+///   - view: The view on which the label will show. It must return a ``FluoTrace`` object for its ``TraceView/trace`` property.
+/// The method assumes that the `peak` is among the ``FluoTrace/peaks`` of the trace.
 - (instancetype)initWithPeak:(Peak)peak view:(nullable TraceView *)view NS_DESIGNATED_INITIALIZER;
 
 
@@ -68,21 +68,21 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The position/size in base pairs corresponding to the label's ``scan``.
 ///
-/// This value is returned by ``Trace/sizeForScan:``.
+/// This value is returned by ``FluoTrace/sizeForScan:``.
 @property (readonly, nonatomic) float size;
 
 
 /// Set the label's properties to that of a peak.
 ///
-/// The method assumes that the `peak` is among the ``Trace/peaks`` of the ``TraceView/trace`` that the ``ViewLabel/view`` shows.
+/// The method assumes that the `peak` is among the ``FluoTrace/peaks`` of the ``TraceView/trace`` that the ``ViewLabel/view`` shows.
 /// - Parameter peak: The peak that the label will represent.
 - (void)setPeak:(Peak)peak;
 
 
 /// The marker whose range comprises the ``size`` of the label, or `nil` if there is no such marker.
 ///
-/// The marker is searched among those of the ``Chromatogram/panel`` applied to the ``Trace/chromatogram`` of the ``TraceView/trace`` that the view shows,
-/// for the appropriate ``Trace/channel``.
+/// The marker is searched among those of the ``Chromatogram/panel`` applied to the ``FluoTrace/chromatogram`` of the ``TraceView/trace`` that the view shows,
+/// for the appropriate ``FluoTrace/channel``.
 @property (weak, readonly, nonatomic, nullable) Mmarker *marker;
 
 /// Removes the tooltip rectangle used by the label, if any.

@@ -23,7 +23,9 @@
 #import "Bin.h"
 #import "BinLabel.h"
 #import "Mmarker.h"
+#import "MarkerLabel.h"
 #import "NSArray+NSArrayAdditions.h"
+#import "MarkerView.h"
 
 @interface TraceViewMarkerLabel ()
 
@@ -60,14 +62,6 @@
 
 # pragma mark - attributes and appearance
 
-static NSImage *anchorImage;
-
-
-+ (void)initialize {
-	if (self == TraceViewMarkerLabel.class) {
-		anchorImage = [NSImage imageNamed:@"anchor"];
-	}
-}
 
 
 - (BOOL)isMarkerLabel {
@@ -241,6 +235,52 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 }
 
 
+- (NSMenu *)menu {
+	NSMenu *menu = NSMenu.new;
+	RegionLabel *targetLabel;
+	for(RegionLabel *label in self.view.markerView.markerLabels) {
+		if (label.region == self.region) {
+			targetLabel = label;
+			break;
+		}
+	}
+	NSMenuItem *item;
+	Mmarker *marker = self.region;
+	NSString *title = [NSString stringWithFormat:@"Generate Bins for '%@'", marker.name];
+	item = [[NSMenuItem alloc] initWithTitle:title action:@selector(spawnAddBinsPopover:) keyEquivalent:@""];
+	item.target = targetLabel;
+	[item setOffStateImage:[NSImage imageNamed:@"binset"]];
+	[menu addItem:item];
+
+	item = [[NSMenuItem alloc] initWithTitle:@"Edit Bins Manually" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
+	item.target = self;
+	item.tag = editStateBins;
+	[item setOffStateImage:[NSImage imageNamed:@"edit bins"]];
+	[menu addItem:item];
+	
+	item = [[NSMenuItem alloc] initWithTitle:@"Move Bin Set" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
+	item.target = self;
+	item.tag = editStateBinSet;
+	[item setOffStateImage:[NSImage imageNamed:@"move bins"]];
+	[menu addItem:item];
+	
+	return menu;
+}
+
+
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	if(menuItem.action == @selector(setEditStateFromMenuItem:)) {
+		if(menuItem.tag == self.editState || (menuItem.tag == editStateBinSet &&
+		   ((Mmarker*)self.region).bins.count == 0)) {
+			menuItem.hidden = YES;
+			return NO;
+		}
+	}
+	menuItem.hidden = NO;
+	return YES;
+}
+
+
 - (void)setClicked:(BOOL)clicked {
 	/// overridden to show our anchorLayer when appropriate
 	if(clicked != self.clicked) {
@@ -266,6 +306,12 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 
 
 - (void)updateForTheme {
+	
+	static NSImage *anchorImage;
+	if(!anchorImage) {
+		anchorImage = [NSImage imageNamed:@"anchor"];
+	}
+	
 	TraceView *view = self.view;
 	layer.borderColor = view.regionLabelEdgeColor;
 	layer.backgroundColor = self.enabled? view.traceViewMarkerLabelBackgroundColor : nil;
@@ -279,6 +325,32 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 }
 
 # pragma mark -  actions / dragging
+
+
+-(void)setEditStateFromMenuItem:(NSMenuItem *)sender {
+	NSInteger tag = sender.tag;
+	Mmarker *marker = self.region;
+	if(tag <= editStateBins) {
+		/// We transfer the edit state to our marker, hence to all labels representing it (via KVO)
+		marker.editState = tag;
+	} else {
+		/// Otherwise, the state relates to an offset that is specific to target samples (and not to the marker in general)
+		/// all labels representing the marker should end their edit state (otherwise, the user may get confused about the various states of enabled labels)
+		/// This is a safety measure, as the menu items allowing to enter an edit states are disabled if the marker is already in an edit state
+		marker.editState = editStateNil;
+		self.editState = tag;
+	}
+	if(tag != editStateNil) {
+		/// only one marker per view at a time can be in an edit state
+		for(Mmarker *aMarker in [marker.panel markersForChannel:marker.channel]) {
+			if(aMarker != marker) {
+				aMarker.editState = editStateNil;
+			}
+		}
+	}
+}
+
+
 
 - (CALayer *)innerLayer {
 	if(!_innerLayer) {

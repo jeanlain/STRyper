@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -18,14 +18,14 @@
             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
             <subviews>
                 <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="24" horizontalPageScroll="10" verticalLineScroll="24" verticalPageScroll="10" usesPredominantAxisScrolling="NO" id="kIw-ih-zT4" userLabel="Source list scrollView">
-                    <rect key="frame" x="0.0" y="30" width="200" height="449"/>
+                    <rect key="frame" x="0.0" y="0.0" width="200" height="479"/>
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     <clipView key="contentView" drawsBackground="NO" id="pBa-hc-Lwg">
-                        <rect key="frame" x="0.0" y="0.0" width="200" height="449"/>
+                        <rect key="frame" x="0.0" y="0.0" width="200" height="479"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <outlineView identifier="folderOutlineView" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="sourceList" selectionHighlightStyle="sourceList" columnReordering="NO" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" typeSelect="NO" rowHeight="24" rowSizeStyle="automatic" viewBased="YES" floatsGroupRows="NO" indentationPerLevel="13" autosaveExpandedItems="YES" outlineTableColumn="eJ2-dQ-Okr" id="qea-AI-75q" userLabel="folder outline view">
-                                <rect key="frame" x="0.0" y="0.0" width="200" height="449"/>
+                            <outlineView identifier="folderOutlineView" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="sourceList" selectionHighlightStyle="sourceList" columnReordering="NO" columnResizing="NO" multipleSelection="NO" emptySelection="NO" autosaveColumns="NO" rowHeight="24" rowSizeStyle="automatic" viewBased="YES" floatsGroupRows="NO" indentationPerLevel="13" autosaveExpandedItems="YES" outlineTableColumn="eJ2-dQ-Okr" id="qea-AI-75q" userLabel="folder outline view">
+                                <rect key="frame" x="0.0" y="0.0" width="200" height="479"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <size key="intercellSpacing" width="3" height="0.0"/>
                                 <color key="backgroundColor" name="_sourceListBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -174,38 +174,7 @@
                         <autoresizingMask key="autoresizingMask"/>
                     </scroller>
                 </scrollView>
-                <button toolTip="Import folder from archive" focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="751" translatesAutoresizingMaskIntoConstraints="NO" id="WzN-eb-kBb" userLabel="Import">
-                    <rect key="frame" x="10" y="7" width="15" height="16"/>
-                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="import" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="2Qa-8d-QrT">
-                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="systemBold" size="12"/>
-                    </buttonCell>
-                    <connections>
-                        <action selector="importFolder:" target="-1" id="gOn-BN-VPn"/>
-                    </connections>
-                </button>
-                <button toolTip="Export selected folder to an archive" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="8Z7-9B-R9A" userLabel="Export">
-                    <rect key="frame" x="33" y="7" width="15" height="17"/>
-                    <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="export" imagePosition="only" alignment="center" refusesFirstResponder="YES" state="on" focusRingType="none" inset="2" id="foc-YP-eLN">
-                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="systemBold" size="12"/>
-                    </buttonCell>
-                    <connections>
-                        <action selector="exportSelection:" target="-2" id="N4e-09-Rgx"/>
-                        <binding destination="-2" name="enabled" keyPath="selectedFolder" id="XBl-TX-Tpe">
-                            <dictionary key="options">
-                                <string key="NSValueTransformerName">NSIsNotNil</string>
-                            </dictionary>
-                        </binding>
-                    </connections>
-                </button>
             </subviews>
-            <constraints>
-                <constraint firstItem="8Z7-9B-R9A" firstAttribute="centerY" secondItem="WzN-eb-kBb" secondAttribute="centerY" id="3zM-VY-4mE"/>
-                <constraint firstItem="WzN-eb-kBb" firstAttribute="leading" secondItem="bm4-Tg-F3B" secondAttribute="leading" constant="10" id="KYO-5l-kIr"/>
-                <constraint firstAttribute="bottom" secondItem="WzN-eb-kBb" secondAttribute="bottom" constant="7" id="ogt-W1-j40"/>
-                <constraint firstItem="8Z7-9B-R9A" firstAttribute="leading" secondItem="WzN-eb-kBb" secondAttribute="trailing" constant="8" symbolic="YES" id="tAx-kI-xvn"/>
-            </constraints>
             <point key="canvasLocation" x="168" y="279.5"/>
         </customView>
         <menu id="xH1-t8-NTf" userLabel="folder outlineview menu">
@@ -216,7 +185,7 @@
                         <action selector="rename:" target="-2" id="gVO-Dr-z2U"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Add Subfolder" offStateImage="add" tag="1" id="RrO-0U-rPx">
+                <menuItem title="Add Subfolder" offStateImage="folderBadge" tag="1" id="RrO-0U-rPx">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="addFolder:" target="-2" id="p4N-sX-VUi"/>
@@ -250,10 +219,9 @@
     </objects>
     <resources>
         <image name="Smart folder" width="25" height="20"/>
-        <image name="add" width="14" height="14"/>
         <image name="edited" width="15" height="15"/>
         <image name="export" width="15" height="17"/>
-        <image name="import" width="15" height="16"/>
+        <image name="folderBadge" width="20" height="15"/>
         <image name="loupeBadge" width="15" height="15"/>
         <image name="trash" width="15" height="15"/>
     </resources>

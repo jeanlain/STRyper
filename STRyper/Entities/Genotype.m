@@ -59,22 +59,10 @@ allele1 = _allele1, allele2 = _allele2, additionalFragmentString = _additionalFr
 additionalFragments = _additionalFragments, sortedAlleles = _sortedAlleles,
 leftAdenylationRatio = _leftAdenylationRatio, rightAdenylationRatio = _rightAdenylationRatio, scanOfPossibleAllele = _scanOfPossibleAllele,
 sortedAdditionalFragments = _sortedAdditionalFragments;
-
-
-/// global variable use by all instances
-static NSArray<NSString *> *statusTexts;		/// the text for the different statuses
 	
 
 + (void)initialize {
 	if(self == Genotype.class) {
-		
-		statusTexts = @[@"Genotype not called",
-						@"No peak detected",
-						@"Genotype called",
-						@"Sample sizing has changed!",
-						@"Marker has been edited",
-						@"Genotype edited manually",
-						@"Sample is not sized!"];
 		
 		assignedAllelePredicate = [NSPredicate predicateWithBlock:^BOOL(Allele * allele, NSDictionary<NSString *,id> * _Nullable bindings) {
 			return allele.additional == NO;
@@ -206,6 +194,17 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 
 
 - (nullable NSString *)statusText {
+	static NSArray<NSString *> *statusTexts;
+	if(!statusTexts) {
+		statusTexts = @[@"Genotype not called",
+						@"No peak detected",
+						@"Genotype called",
+						@"Sample sizing has changed!",
+						@"Marker has been edited",
+						@"Genotype edited manually",
+						@"Sample is not sized!"];
+	}
+	
 	if(self.status < statusTexts.count) {
 		return statusTexts[self.status];
 	}

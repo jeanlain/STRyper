@@ -29,7 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An entity that represents an allele of a molecular marker.
 ///
-/// An allele defines a genetic variant of a molecular marker, or more specifically, an amplicon of such variant that induces a peak in the fluorescence data of a ``Trace``, at a specific size in base pairs.
+/// An allele defines a genetic variant of a molecular marker, or more specifically, an amplicon of such variant that induces a peak in the fluorescence data of a ``FluoTrace``, at a specific size in base pairs.
 ///
 /// The alleles of an individual (``Chromatogram`` object) at a marker constitute a genotype (``Genotype`` object).
 @interface Allele : LadderFragment
@@ -47,7 +47,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// or if the `genotype` already has enough (non-additional) alleles given the ``Mmarker/ploidy`` of its ``Genotype/marker``.
 ///
 /// These conditions denotes the fact that the ``LadderFragment/trace`` and the ``genotype`` relationships of an allele should not be modified after its creation.
-/// Doing so may lead to validation errors, for instance the ``Trace/channel`` of the ``LadderFragment/trace`` differing from the genotype's ``Genotype/marker``.
+/// Doing so may lead to validation errors, for instance the ``FluoTrace/channel`` of the ``LadderFragment/trace`` differing from the genotype's ``Genotype/marker``.
 /// 
 /// One should generally not call this method directly, since alleles are added by creating a ``Genotype`` object with ``Genotype/initWithMarker:sample:``, which calls this method.
 /// - Parameter genotype: The genotype to which the allele will be added.

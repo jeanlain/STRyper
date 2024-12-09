@@ -346,7 +346,8 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 			NSSize imageSize = rowImage.size;
 			[draggingItem setDraggingFrame:NSMakeRect(-viewPoint.x, draggingItem.draggingFrame.origin.y, imageSize.width, imageSize.height)
 								  contents:rowImage];
-			
+		} else {
+			*stop = true;
 		}
 	}];
 }

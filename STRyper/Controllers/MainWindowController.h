@@ -30,8 +30,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// A singleton class that controls  ``STRyper``'s main window, which it populates by loading other controller objects owning nib files.
 ///
 /// The singleton object is the responder of event messages not consumed before they reach the main window.
-/// It also determines which ``TableViewController`` object provides content to the detailed outline view (``DetailedViewController``), and when to update the content to display in this view.
-@interface MainWindowController : NSWindowController <NSWindowDelegate, NSMenuItemValidation>
+/// It also determines which ``TableViewController`` object provides content to the detailed outline view (``DetailedViewController``),
+/// and when to update the content to display in this view.
+@interface MainWindowController : NSWindowController <NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, NSToolbarItemValidation, NSTabViewDelegate>
 
 /// Returns the singleton object loaded from a nib.
 +(instancetype)sharedController;
@@ -53,6 +54,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Only the ``SampleTableController``, the ``GenotypeTableController`` and the ``MarkerTableController`` are valid sources.
 @property (weak, nonatomic) TableViewController *sourceController;
 
+/// Records the ``sourceController`` so that it can be restore in the next application launch.
 -(void)recordSourceController;
 
 /// A panel that can be used to show an error log.
@@ -68,9 +70,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter sender: The object that sent this message. It is ignored by the method.
 - (IBAction)showErrorLogWindow:(id)sender;
 
-/// Populates the text content of the ``errorLogWindow`` with the failure reason of error.
+/// Populates the text content of the ``errorLogWindow`` with the failure reason of an error.
 ///
-/// If the error `userInfo` dictionary contains errors at the `NSDetailedErrorsKey`, the failure reasons for these errors are logged.
+/// If the `error`'s `userInfo` dictionary contains errors at the `NSDetailedErrorsKey`, the failure reasons for these errors are logged.
 /// - Parameter error: The error that should be shown in the log window.
 /// - Returns: The string shown in the ``errorLogWindow``.
 -(NSString *)populateErrorLogWithError:(NSError *)error;
@@ -106,8 +108,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// The tab number to activate is obtained from the sender `tag`.
 - (IBAction)activateTab:(id)sender;
 
-/// Calls ``SampleTableController/showImportSamplePanel:``.
-- (IBAction)showImportSamplePanel:(id)sender;
+/// Calls ``SampleTableController/importSamples:``.
+- (IBAction)importSamples:(id)sender;
 
 /// Calls ``FolderListController/importFolder:``.
 - (IBAction)importFolder:(id)sender;
@@ -120,6 +122,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Calls ``FolderListController/editSmartFolder:``.
 - (IBAction)editSmartFolder:(id)sender;
+
+/// Call ``TableViewController/exportSelection:`` on a relevant target.
+- (IBAction)exportSelection:(id)sender;
 
 /// Restored the selected items and source controller saved in the user defaults
 -(void) restoreSelection;

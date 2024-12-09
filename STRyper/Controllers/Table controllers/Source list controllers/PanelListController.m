@@ -92,6 +92,10 @@
 
 
 - (BOOL)outlineView:(NSOutlineView *)outlineView acceptDrop:(id <NSDraggingInfo>)info item:(id)item childIndex:(NSInteger)index {
+
+	/// For some reason, the drop doesn't trigger a validation of toolbar items, so we force it.
+	[NSApp setWindowsNeedUpdate:YES];
+
 	NSPasteboard *pboard = info.draggingPasteboard;
 	if ([pboard.types containsObject:MarkerPasteboardType]) {  /// markers are dragged between folders
 		Folder *destination = [self _folderForItem:item];
@@ -194,79 +198,106 @@
 }
 
 
+- (__kindof Folder *)_targetFolderOfSender:(id)sender {
+	Folder *targetFolder = [super _targetFolderOfSender:sender];
+	if(([sender action] == @selector(importPanels:) || [sender action] == @selector(addFolder:)) && targetFolder.isPanel) {
+		/// A panel cannot be parent of a panel.
+		return nil;
+	}
+	if([sender action] == @selector(importBinSet:) && !(targetFolder.isPanel && ((Panel *)targetFolder).markers.count > 0)) {
+		/// A bin set can only be imported into a panel that has markers.
+		return nil;
+	}
+	if([sender action] == @selector(paste:)) {
+		/// We can only paste markers into a panel.
+		NSPasteboard *pboard = NSPasteboard.generalPasteboard;
+		if(!self.selectedFolder.isPanel || ![pboard.types containsObject:MarkerPasteboardType]) {
+			return nil;
+		}
+	}
+	return targetFolder;
+}
+
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	BOOL validated = [super validateMenuItem:menuItem];
-	if(!validated) {
-		return NO;
-	}
-	
-	if(menuItem.action == @selector(paste:)) {
-		NSPasteboard *pboard = NSPasteboard.generalPasteboard;
-		return self.selectedFolder.isPanel && [pboard.types containsObject:MarkerPasteboardType];
-	}
-	
 	PanelFolder *targetFolder = [self _targetFolderOfSender:menuItem];
-	if(targetFolder.isPanel) {
-		if(menuItem.action == @selector(addFolder:) || menuItem.action == @selector(importPanels:)) {
-			/// we can't add a folder or import a panel into a panel
-			menuItem.hidden = YES;
-			return NO;
-		}
-	} else if(menuItem.action == @selector(addFolder:)) {
+	if(menuItem.action == @selector(paste:)) {
+		return targetFolder != nil;
+	}
+	
+	if(targetFolder && menuItem.action == @selector(addFolder:)) {
 		menuItem.hidden = NO;
 		if(menuItem.tag == 4) { /// The item to add a panel
-			menuItem.title = targetFolder? @"Add Panel" : @"New Panel";
+			menuItem.title = targetFolder == self.rootFolder? @"New Panel" : @"Add Panel";
 		} else {
-			menuItem.title = targetFolder? @"Add Subfolder" : @"New Folder";
+			menuItem.title = targetFolder == self.rootFolder? @"New Folder" : @"Add Subfolder";
 		}
 		return YES;
 	}
 	
-	
-	if(menuItem.action == @selector(exportSelection:)) {
-		if(targetFolder.panels.count == 1) {
-			menuItem.title = @"Export Panel to File…";
-		} else if(targetFolder.panels.count > 1) {
-			menuItem.title = @"Export Panels to File…";
-		} else {
-			menuItem.hidden = YES;
-			return NO;
-		}
-	} else if(menuItem.action == @selector(importBinSet:)) {
-		if(!targetFolder.isPanel || ((Panel *)targetFolder).markers.count == 0) {
-			menuItem.hidden = YES;
-			return NO;
-		}
-	}
-	
-	menuItem.hidden = NO;
-	return YES;
+	return [super validateMenuItem:menuItem];
 }
 
 
-- (NSAlert *)cautionAlertForRemovingItems:(NSArray *)items {
-	Folder *folder = items.firstObject;
-	
-	if(folder.subfolders.count > 0) {
-		/// we don't post an alert if the folder to remove is empty
-		return [super cautionAlertForRemovingItems:items];
-	} else if(folder.isPanel) {
-		Panel *panel = (Panel *)folder;
-		if(panel.markers.count >0) {
-			return [super cautionAlertForRemovingItems:items];
-		}
+- (NSString *)exportActionTitleForItems:(NSArray *)items {
+	PanelFolder *targetFolder = items.firstObject;
+	if(targetFolder.panels.count == 1) {
+		return @"Export Selected Panel to File…";
+	} else if(targetFolder.panels.count > 1) {
+		return @"Export Selected Panels to File…";
 	}
 	return nil;
 }
 
 
-- (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
-	Folder *folder = items.firstObject;
-	if(folder.isPanel) {
-		return @"All markers and associated genotypes will be removed. \nThis action can be undone.";
+
+- (NSImage *)exportButtonImageForItems:(NSArray *)items {
+	static NSImage * exportImage;
+	if(!exportImage) {
+		exportImage = [NSImage imageNamed:@"export panel"];
 	}
-	return @"All panels in the folder, their markers and associated genotypes will be removed. \nThis action can be undone.";
+	return exportImage;
+}
+
+
+- (nullable NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
+	Folder *folder = items.firstObject;
+	if(folder.subfolders.count == 0 && !folder.isPanel) {
+		return nil;
+	}
+	NSSet *panels;
+	if(folder.isPanel) {
+		panels = [NSSet setWithObject:folder];
+	} else {
+		panels = [folder.allSubfolders filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Folder *folder, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return folder.isPanel;
+		}]];
+	}
+	NSMutableString *base = NSMutableString.new;
+	NSInteger panelCount = panels.count;
+	if(panelCount > 0) {
+		NSInteger nGenotypes = 0, nMarkers = 0;
+		for(Panel *panel in panels) {
+			NSInteger markerCount = panel.markers.count;
+			nMarkers += panel.markers.count;
+			nGenotypes += markerCount * panel.samples.count;
+		}
+		if(!folder.isPanel) {
+			[base appendFormat: @"%ld panel%@", panelCount, panelCount>1? @"s":@""];
+			if(nMarkers > 0) {
+				[base appendString:nGenotypes == 0? @" and " : @", "];
+			}
+		}
+		if(nMarkers > 0) {
+			[base appendFormat:@"%ld marker%@", nMarkers, nMarkers == 1? @"" : @"s"];
+			if(nGenotypes > 0) {
+				[base appendFormat:@" and %ld genotype%@", nGenotypes, nGenotypes == 1? @"" : @"s"];
+			}
+		}
+		[base appendString:@" will be deleted.\n"];
+	}
+	return [base stringByAppendingString:@"This action can be undone."];
+	
 }
 
 
@@ -305,9 +336,12 @@
 
 
 - (IBAction)importPanels:(id)sender {
-	PanelFolder *folder = [[self targetItemsOfSender:sender] firstObject];
-	if(folder.class != PanelFolder.class) {
-		folder = (PanelFolder *)folder.parent;
+	PanelFolder *folder;
+	if([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == self.tableView.menu) {
+		folder = [[self validTargetsOfSender:sender] firstObject];
+		if(folder.class != PanelFolder.class) {
+			folder = (PanelFolder *)folder.parent;
+		}
 	}
 	
 	if(!folder) {
@@ -318,7 +352,7 @@
 	openPanel.prompt = @"Import";
 	openPanel.canChooseDirectories = NO;
 	openPanel.allowsMultipleSelection = NO;
-	openPanel.message = @"Import panels from a text file";
+	openPanel.message = @"Import marker panels from a text file";
 	openPanel.allowedFileTypes = @[@"public.plain-text"];
 	[openPanel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
@@ -349,7 +383,7 @@
 		return;
 	}
 	
-	[folder addPanelsFromTextFile:url.path error:&error];
+	Folder *decodedFolder = [folder addPanelsFromTextFile:url.path error:&error];
 		
 	if(error) {
 		[MainWindowController.sharedController showAlertForError:error];
@@ -370,8 +404,14 @@
 				
 		[AppDelegate.sharedInstance saveAction:self];
 		
-		/// We make sure that the tab showing or view is displayed if a folder is added.
+		/// We make sure that the tab showing the folder list is displayed if a folder is added, and we select the folder.
 		[MainWindowController.sharedController activateTabNumber:2];
+		[temporaryContext obtainPermanentIDsForObjects:@[decodedFolder] error:nil];
+		decodedFolder = [self.rootFolder.managedObjectContext existingObjectWithID:decodedFolder.objectID error:&error];
+		if(decodedFolder) {
+			[self selectFolder:decodedFolder];
+		}
+		
 	}
 }
 
@@ -385,7 +425,7 @@
 
 
 - (IBAction)importBinSet:(id)sender {
-	Panel *panel = [[self targetItemsOfSender:sender] firstObject];
+	Panel *panel = [[self validTargetsOfSender:sender] firstObject];
 	if(panel.isPanel && panel.markers.count > 0) {
 		NSOpenPanel* openPanel = NSOpenPanel.openPanel;
 		openPanel.prompt = @"Import";

@@ -100,7 +100,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 
 
-- (BOOL) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
+- (nullable __kindof Folder *) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
 	
 	NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath: path error:nil];
 	if( attributes.fileSize > 1e6) {
@@ -114,7 +114,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 				NSFilePathErrorKey: path
 			}];
 		}
-		return NO;
+		return nil;
 	}
 	
 	NSError *readError = nil;
@@ -123,7 +123,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 		if (error != NULL) {
 			*error = readError;
 		}
-		return NO;
+		return nil;
 	}
 	
 	/// Will contain errors founds, to report as many as possible to the user, so they can correct all without retrying.
@@ -139,6 +139,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 	noPanelErrors = 0,
 	noMarkerErrors = 0;
 	
+	NSMutableOrderedSet *decodedPanels = NSMutableOrderedSet.new;
 	
 	/// we prepare pointers to entities that will be created at each row of the file (one row = one object)
 	Panel *panel;
@@ -173,7 +174,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 				if(error != NULL) {
 					*error = [NSError fileReadErrorWithFileName:path Errors:errors];
 				}
-				return NO;
+				return nil;
 			}
 			continue;
 		}
@@ -208,8 +209,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 		
 		if([obj isKindOfClass: Panel.class]) {
 			panel = (Panel *)obj;
-			panel.parent = self;
-			[panel autoName];
+			[decodedPanels addObject:panel];
 			
 		} else if ([obj isKindOfClass: Mmarker.class]) {
 			if(!panel) {
@@ -276,7 +276,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 		}
 	}
 	
-	if(!panel) {
+	if(decodedPanels.count == 0) {
 		if(error != NULL) {
 			NSString *reason = [NSString stringWithFormat:@"No panel was found in the file."];
 			*error = [NSError fileReadErrorWithDescription:reason
@@ -285,7 +285,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 															   reason:reason];
 
 		}
-		return NO;
+		return nil;
 	}
 	
 	if(errors.count > 0) {
@@ -297,7 +297,27 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 			}
 		}
 	}
-	return errors.count == 0;
+	
+	PanelFolder *parent = self;
+	if(decodedPanels.count > 1) {
+		/// If the file describes more than one panel, we put them into a folder named after the file.
+		NSString *fileName = [[path lastPathComponent] stringByDeletingPathExtension];
+		parent = [[PanelFolder alloc] initWithContext:self.managedObjectContext];
+		parent.name = fileName;
+		parent.parent = self;
+		[parent autoName];
+	}
+	
+	for(Panel *panel in decodedPanels) {
+		panel.parent = parent;
+		[panel autoName];  /// To avoid validation errors in case of duplicate names
+	}
+	
+	if(decodedPanels.count > 1) {
+		return parent;
+	}
+	
+	return decodedPanels.firstObject;
 }
 
 /// Returns an array of fields component from a string that should represent a panel.
