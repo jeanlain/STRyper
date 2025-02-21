@@ -688,12 +688,13 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	NSPasteboard *pboard = info.draggingPasteboard;
 	if ([pboard.types containsObject:FolderDragType]) {
 		/// a folder is dragged
-		Folder *draggedFolder = [self.managedObjectContext objectForURIString:[pboard stringForType:FolderDragType]
-																expectedClass:Folder.class];
-		if(!destination.parent && index == -1) {
+			if(!destination.parent && index == -1) {
 			/// we don't allow dropping folders onto sections
 			return NSDragOperationNone;
 		}
+		
+		Folder *draggedFolder = [self.managedObjectContext objectForURIString:[pboard stringForType:FolderDragType]
+																expectedClass:Folder.class];
 		
 		if(draggedFolder.parentFolderClass != destination.class) {
 			/// this ensures that folders are dropped into folders that can accept them
@@ -740,7 +741,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		}
 		
 		/// we check if the destination can take the folder (which it cannot if it has a subfolder with the same name).
-		/// We did not prevent that in validateDrop: as we want to explain the user why this is not permitted
+		/// We did not prevent that in validateDrop: as we want to explain the user why this is not permitted.
 		NSError *validationError = nil;
 		if(destination != draggedFolder.parent) {
 			[draggedFolder validateValue:&destination forKey:@"parent" error:&validationError];
@@ -769,7 +770,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 			/// We must also remove it from the parent before inserting it at the new index (otherwise, insertion has no effect)
 			/// I haven't found a coreData method that moves objects within on ordered relationship.
 			[originalParent removeSubfoldersObject:draggedFolder];
-			/// Reordering within the same parent causes temporary nullification of folder attributes upon save, but I haven't found
+			/// Reordering within the same parent turns some folders into faults upon save, but I haven't found
 			/// a way to prevent this. Moving the dragged folder to another parent, then immediately to the destination doesn't work.
 		}
 		
@@ -803,7 +804,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	Folder *folder = nil;
 	if(![sender respondsToSelector:@selector(topMenu)] || [sender topMenu] != outlineView.menu) {
 		if([sender action] == @selector(addFolder:) || [sender action] == @selector(addSampleOrSmartFolder:)) {
-			/// When adding a folder, the target if the root folder (where a new folder will be added)
+			/// When adding a folder, the target is the root folder (where a new folder will be added)
 			return self.rootFolder;
 		}
 		return self.selectedFolder;
@@ -813,7 +814,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	if(clickedRow >= 0) {
 		folder = [self _folderForItem: [outlineView itemAtRow:clickedRow]];
 	} else if([sender action] == @selector(addFolder:) || [sender action] == @selector(addSampleOrSmartFolder:)) {
-		/// Even if the no row was clicked, we allow adding a folder to the root folder
+		/// Even if no row was clicked, we allow adding a folder to the root folder.
 		return self.rootFolder;
 	}
 	return folder;

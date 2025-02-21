@@ -37,7 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (weak) IBOutlet id<SortCriteriaEditorDelegate> delegate;
 
 
-/// Configures the receiver with available key paths for sorting, corresponding selectors, and user-facing titles.
+/// Configures the receiver with available sort descriptors for sorting, and user-facing titles.
 ///
 /// The `titles` will be those of the menu items of popup buttons allowing the user to define sort criteria.
 /// - Important: The `count` of `titles` and `sortDescriptors` must be the same and ≥ 2, otherwise an exception is thrown.
@@ -50,8 +50,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The sort descriptors that the receiver shows as rows.
 ///
-/// The `selector` of each sort descriptor is ignored.
+/// Setting this property reloads the table, such that visible sort criteria match the sort descriptors in the array.
+/// The`selector` of each sort descriptor is ignored.
 /// - Important: The `key` of each sort descriptor must be used by one of the `sortDescriptors` set in ``configureWithSortDescriptors:titles:``.
+/// Otherwise an exception is thrown. 
 @property (nonatomic, copy) NSArray<NSSortDescriptor *>* sortDescriptors;
 
 /// The table view that contains the rows representing sort descriptors.

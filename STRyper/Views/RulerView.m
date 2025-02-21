@@ -61,7 +61,7 @@ static NSColor *rulerLabelColor;
 @implementation RulerView {
 	BOOL altKeyDown;					/// Whether the option key is being pressed
 	NSPoint mouseLocation;
-	BOOL mouseDown;						/// tells if the user as clicked the view (and the button is still down)
+	BOOL mouseDown;						/// tells if the user has clicked the view (and the button is still down)
 	BOOL isDraggingForZoom;        		/// tells if the user is performing a zoom by dragging the mouse
 	float startPoint;   				/// the location of the last mouseDown event, used to compute the area that is covered by a mouse drag
 	float startSize;
@@ -71,6 +71,7 @@ static NSColor *rulerLabelColor;
 	NSMenu *menu;						/// the view's contextual menu (allowing to zoom to the default range)
 	NSTimeInterval startScrollTime;		/// The start time of a scroll action, which we use to interpret a swipe event
 	float horizontalScrollAmount;
+	NSButton *zoomToFitButton;
 }
 
 @synthesize applySizeStandardButton = _applySizeStandardButton;
@@ -161,6 +162,11 @@ static NSColor *rulerLabelColor;
 																	options: NSTrackingMouseEnteredAndExited | NSTrackingInVisibleRect | NSTrackingActiveInKeyWindow
 																	  owner:self userInfo:nil];
 		[self addTrackingArea:trackingArea];
+//		[self addSubview:self.zoomToFitButton];
+//		[[zoomToFitButton.leftAnchor constraintEqualToAnchor:self.leftAnchor constant:(30-zoomToFitButton.frame.size.width)/2+1] setActive:YES];
+//		[[zoomToFitButton.bottomAnchor constraintEqualToAnchor:self.bottomAnchor] setActive:YES];
+
+//		zoomToFitButton.hidden = YES;
 	}
 	return self;
 }
@@ -182,6 +188,21 @@ static NSColor *rulerLabelColor;
 	return _applySizeStandardButton;
 }
 
+
+- (NSButton *)zoomToFitButton {
+	if(!zoomToFitButton) {
+		zoomToFitButton = [NSButton buttonWithImage:[NSImage imageNamed:@"zoomToFit"] target:self action:@selector(zoomToFit:)];
+		[zoomToFitButton setFrame:NSMakeRect(0, 0, 30, ruleThickness)];
+		zoomToFitButton.bezelStyle = NSBezelStyleRecessed;
+		zoomToFitButton.bordered = NO;
+		zoomToFitButton.showsBorderOnlyWhileMouseInside = YES;
+		zoomToFitButton.imagePosition = NSImageOnly;
+		zoomToFitButton.imageScaling = NSImageScaleNone;
+		zoomToFitButton.translatesAutoresizingMaskIntoConstraints = NO;
+		zoomToFitButton.toolTip = @"Zoom to default range";
+	}
+	return zoomToFitButton;
+}
 
 - (BOOL)isOpaque {
 	return YES;
@@ -241,11 +262,6 @@ static NSColor *rulerLabelColor;
 	}
 }
 
-
-- (void)updateTrackingAreas {
-	
-	[super updateTrackingAreas];
-}
 
 
 #pragma mark - indicating positions
@@ -502,15 +518,18 @@ int rulerLabelIncrementForHScale(float hScale) {
 }
 
 - (void)mouseEntered:(NSEvent *)event {
+	zoomToFitButton.hidden = NO;
 	/// We track if the alt key is pressed to set the loupe cursor as appropriate
 	/// We don't use `keyDown:` because the view may not receive this message, yet it should be able to show the correct cursor in any situation.
-	eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskFlagsChanged
-														 handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
-		
-		self->altKeyDown = (event.modifierFlags & NSEventModifierFlagOption) != 0;
-		[self.window invalidateCursorRectsForView:self];
-		return event;
-	}];
+	if(!eventMonitor) {
+		eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskFlagsChanged
+															 handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
+			
+			self->altKeyDown = (event.modifierFlags & NSEventModifierFlagOption) != 0;
+			[self.window invalidateCursorRectsForView:self];
+			return event;
+		}];
+	}
 	
 	/// We determine whether the alt key is pressed when the mouse enters the view.
 	BOOL altKeyPressed = (event.modifierFlags & NSEventModifierFlagOption) != 0;
@@ -527,6 +546,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 		[NSEvent removeMonitor:eventMonitor];
 		eventMonitor = nil;
 	}
+	zoomToFitButton.hidden = YES;
 }
 
 - (void)mouseDown:(NSEvent *)event   {

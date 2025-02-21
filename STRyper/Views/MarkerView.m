@@ -630,7 +630,6 @@ enum ButtonTag : NSUInteger {
 	/// when the user drags the mouse, they may be adding or resizing a marker
 	NSPoint point =  [self convertPoint:event.locationInWindow fromView:nil];
 	self.mouseLocation = point;
-	self.rulerView.currentPosition  = [self sizeForX:point.x];
 
 	if(self.inAddMode & !hoveredMarkerLabel && mouseIn) {
 		/// The user adds a new marker by dragging in an empty area (no label is clicked).
@@ -670,6 +669,7 @@ enum ButtonTag : NSUInteger {
 		[self.activeLabel mouseDraggedInView];
 	} else {
 		[draggedLabel mouseDraggedInView];
+		self.rulerView.currentPosition  = [self sizeForX:point.x];
 	}
 }
 

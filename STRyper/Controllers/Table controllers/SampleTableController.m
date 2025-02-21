@@ -183,8 +183,10 @@
 	
 	
 	/// We allow dropping files from the Finder to the sample table and panels from the panel outline view
-	[self.tableView registerForDraggedTypes: @[NSPasteboardTypeFileURL, FolderDragType, SizeStandardDragType]];
-	
+	[self.tableView registerForDraggedTypes: @[NSPasteboardTypeFileURL, FolderDragType, SizeStandardDragType, ChromatogramObjectIDPasteboardType]];
+	self.tableView.verticalMotionCanBeginDrag = NO;
+	///To convey the notion that a dragged sample changes folder, we use this style:
+	//self.tableView.draggingDestinationFeedbackStyle = NSTableViewDraggingDestinationFeedbackStyleGap;
 }
 
 
@@ -225,6 +227,27 @@
 }
 
 # pragma mark - managing drag & drop of samples (chromatograms)
+
+- (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint forRowIndexes:(NSIndexSet *)rowIndexes {
+	
+	[super tableView:tableView draggingSession:session willBeginAtPoint:screenPoint forRowIndexes:rowIndexes];
+	
+	/// We hide the dragged rows to convey the notion that samples dragged to another folder will be removed from the table.
+	/// We do this "manually" because the dragging style gap appears buggy (doesn't work well when dragging several rows).
+	[rowIndexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL * _Nonnull stop) {
+		NSTableRowView *rowView = [tableView rowViewAtRow:idx makeIfNecessary:NO];
+		rowView.hidden = YES;
+	}];
+}
+
+
+- (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session endedAtPoint:(NSPoint)screenPoint operation:(NSDragOperation)operation {
+	[tableView enumerateAvailableRowViewsUsingBlock:^(__kindof NSTableRowView * _Nonnull rowView, NSInteger row) {
+		if(rowView.hidden) {
+			rowView.hidden = NO;
+		}
+	}];
+}
 
 
 - (NSDragOperation)tableView:(NSTableView *)tableView validateDrop:(id<NSDraggingInfo>)info proposedRow:(NSInteger)row proposedDropOperation:(NSTableViewDropOperation)dropOperation {
@@ -274,7 +297,7 @@
 		return NSDragOperationCopy;
 	}
 	
-	return NO;
+	return NSDragOperationNone;
 }
 
 

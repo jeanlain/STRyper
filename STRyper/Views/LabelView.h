@@ -72,7 +72,7 @@ NS_ASSUME_NONNULL_BEGIN
 	/// The label that is being dragged
 	ViewLabel *draggedLabel;
 	
-	/// The labels that need to be repositioned in -layout
+	/// The labels that need to be repositioned in `-updateLayer`
 	NSMutableSet *labelsToReposition;
 	
 	/// Whether the mouse has entered the view and not yet exited.
@@ -178,7 +178,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Notifies the view that a ``ViewLabel``  needs to be repositioned.
 ///
-/// This method may be called by a label to defer its repositioning in its  ``ViewLabel/view``'s  `-layout` method,
+/// This method may be called by a label to defer its repositioning in its  ``ViewLabel/view``'s  `-updateLayer` method,
 /// and to avoid redundant repositioning in the same cycle.
 /// - Parameter viewLabel: The label that needs to be repositioned.
 - (void)labelNeedsRepositioning:(ViewLabel *)viewLabel;

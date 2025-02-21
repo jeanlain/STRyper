@@ -100,7 +100,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   SynchronizeViews: @YES,
 							   SwipeBetweenMarkers: @YES,
 							   ShowRawData: @NO,
-							   MaintainPeakHeights: @YES,
+							   MaintainPeakHeights: @NO,
 							   ShowBins: @YES,
 							   ShowChannel0: @YES,
 							   ShowChannel1: @YES,

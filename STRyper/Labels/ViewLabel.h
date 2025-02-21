@@ -106,7 +106,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Sent by a ``LabelView`` to a label on `mouseDragged:`.
 ///
-/// The default implementation calls ``drag`` on the label is it is ``clicked``.
+/// The default implementation calls ``drag`` on the label if it is ``clicked``.
 /// - Note: This message should be received after the ``LabelView/mouseLocation`` is updated.
 -(void)mouseDraggedInView;
 

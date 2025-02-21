@@ -31,7 +31,7 @@
 
 @implementation SortCriteriaEditor {
 	__weak IBOutlet NSTableView *sortCriteriaTable;				/// the tableview showing the sort criteria on the sheet (designed in a nib)
-																
+	
 	/// The dictionaries represented by the rows of the sortCriteriaTable.
 	/// We cannot use NSSortDescriptor objects to bind to the table celles, as these objects are immutable.
 	NSMutableArray<NSMutableDictionary *> *sortDictionaries;
@@ -68,6 +68,7 @@
 			scrollView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;
 			[self addSubview:scrollView];
 		}
+	//	sortCriteriaTable.draggingDestinationFeedbackStyle = NSTableViewDraggingDestinationFeedbackStyleGap;
 		[sortCriteriaTable registerForDraggedTypes: @[CriteriaDragType]];		/// for when the user drags row to change the sort
 	}
 }
@@ -301,6 +302,10 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 
 
 - (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
+	if(tableView.numberOfRows < 2) {
+		/// Rows can be dragged to reorder criteria. There is not point in dragging if there are less than 2 rows.
+		return nil;
+	}
 	NSPasteboardItem *item = NSPasteboardItem.new;
 	/// We actually don't use the pasteboard, as we just record the dragged row at the beginning of the drag session.
 	[item setString:@"" forType:CriteriaDragType];
@@ -317,6 +322,24 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 	
 	[self.class setRowImagesForDraggingSession:session fromTableView:tableView atRowIndexes:rowIndexes forPoint:screenPoint];
 	
+	/// We hide the dragged rows to convey the notion that they will be moved.
+	/// We do this "manually" because the dragging style gap appears buggy.
+	[rowIndexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL * _Nonnull stop) {
+		NSTableRowView *rowView = [tableView rowViewAtRow:idx makeIfNecessary:NO];
+		rowView.hidden = YES;
+		*stop = YES;
+	}];
+}
+
+
+
+
+- (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session endedAtPoint:(NSPoint)screenPoint operation:(NSDragOperation)operation {
+[tableView enumerateAvailableRowViewsUsingBlock:^(__kindof NSTableRowView * _Nonnull rowView, NSInteger row) {
+	if(rowView.hidden) {
+		rowView.hidden = NO;
+	}
+}];
 }
 
 
@@ -344,7 +367,8 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 		if(idx < imageComponents.count) {
 			NSImage *rowImage = imageComponents[idx];
 			NSSize imageSize = rowImage.size;
-			[draggingItem setDraggingFrame:NSMakeRect(-viewPoint.x, draggingItem.draggingFrame.origin.y, imageSize.width, imageSize.height)
+			float offset = tableView.draggingDestinationFeedbackStyle == NSTableViewDraggingDestinationFeedbackStyleGap? imageSize.height : 0;
+			[draggingItem setDraggingFrame:NSMakeRect(-viewPoint.x, draggingItem.draggingFrame.origin.y - offset, imageSize.width, imageSize.height)
 								  contents:rowImage];
 		} else {
 			*stop = true;
@@ -356,6 +380,7 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 - (NSDragOperation)tableView:(NSTableView *)tableView validateDrop:(id<NSDraggingInfo>)info proposedRow:(NSInteger)row proposedDropOperation:(NSTableViewDropOperation)dropOperation {
 	if(NSCursor.currentCursor != NSCursor.closedHandCursor) {
 		/// it's not clear why, but upon first drag in the session, the arrow cursor is set. So we restore the appropriate cursor
+		/// Doing so in `draggingSession:willBeginAtPoint:` doesn't work.
 		[NSCursor.closedHandCursor push];
 	}
 	if(row == draggedRow || row-1 == draggedRow || dropOperation == NSTableViewDropOn) {
@@ -379,7 +404,7 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 	[sortDictionaries insertObject:movedItem atIndex:row];
 	
 	NSAnimationContext *animationContext = NSAnimationContext.currentContext;
-	animationContext.duration = 0.2;			/// the default move animation is way too slow.
+	animationContext.duration = 0.3;			/// the default move animation is too slow.
 	[NSAnimationContext beginGrouping];
 	[tableView moveRowAtIndex:draggedRow toIndex:row];
 	[NSAnimationContext endGrouping];
