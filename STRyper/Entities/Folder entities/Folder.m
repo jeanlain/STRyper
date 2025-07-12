@@ -104,7 +104,7 @@
 	for(Folder *folder in self.subfolders) {
 		[subfolders unionSet:[folder allSubfolders]];
 	}
-	return [NSSet setWithSet:subfolders];
+	return subfolders.copy;
 }
 
 
@@ -143,7 +143,9 @@
 	NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:self.entity.name];
 	NSArray *folders = [self.managedObjectContext executeFetchRequest:request error:nil];
 	if(!folders) return NSArray.new;
-	return [folders filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"parent == nil"]];
+	return [folders filteredArrayUsingBlock:^BOOL(Folder*  _Nonnull folder, NSUInteger idx){
+		return folder.parent == nil;
+	}];
 
 }
 
@@ -151,9 +153,9 @@
 	if(!self.parent) {
 		return NSArray.new;
 	}
-	NSMutableArray *siblings = [NSMutableArray arrayWithArray: self.parent.subfolders.array];
-	[siblings removeObject:self];
-	return [siblings filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"folderType == %@", self.folderType]];
+	return [self.parent.subfolders.array filteredArrayUsingBlock:^BOOL(Folder*  _Nonnull folder, NSUInteger idx) {
+		return folder != self && [folder.folderType isEqualToString:self.folderType];
+	}];
 }
   
 
@@ -200,6 +202,9 @@
 
 
 - (BOOL)validateName:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {
+	if(!self.parent) {
+		return YES;
+	}
 	NSString *name = *value;
 	
 	if(name.length == 0) {

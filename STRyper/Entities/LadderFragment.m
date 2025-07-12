@@ -51,6 +51,9 @@ LadderFragmentOffsetKey = @"offset";
 - (NSString *)string {
 	
 	float size = self.size;
+	if(size <= -1000) {
+		return @"???";
+	}
 	if(size == roundf(size)) { 				/// if its size is integer (typical for ladder fragment), we show it as is
 		return [NSString stringWithFormat:@"%.f", size];
 	} else {								/// else we round it to the nearest decimal

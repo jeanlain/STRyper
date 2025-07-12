@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -21,11 +21,11 @@
             <value key="minSize" type="size" width="316" height="262"/>
             <value key="maxSize" type="size" width="316" height="262"/>
             <view key="contentView" id="q0D-D5-1Ni">
-                <rect key="frame" x="0.0" y="0.0" width="316" height="284"/>
+                <rect key="frame" x="0.0" y="0.0" width="316" height="304"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="uSe-Tg-Rtm">
-                        <rect key="frame" x="18" y="263" width="82" height="14"/>
+                        <rect key="frame" x="18" y="283" width="82" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Sample sizing" id="EPG-kP-9zS">
                             <font key="font" metaFont="smallSystemBold"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -33,7 +33,7 @@
                         </textFieldCell>
                     </textField>
                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9YE-VV-kHo">
-                        <rect key="frame" x="19" y="245" width="184" height="16"/>
+                        <rect key="frame" x="19" y="265" width="184" height="16"/>
                         <buttonCell key="cell" type="check" title="Detect size standard on import" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="mm8-J8-0jb">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                             <font key="font" metaFont="smallSystem"/>
@@ -47,7 +47,7 @@
                         </connections>
                     </button>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jEe-KA-BXs" userLabel="Default sizing method:">
-                        <rect key="frame" x="18" y="224" width="123" height="14"/>
+                        <rect key="frame" x="18" y="244" width="123" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default sizing method:" id="eiT-aF-Jqe">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -55,7 +55,7 @@
                         </textFieldCell>
                     </textField>
                     <popUpButton verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="WhM-o5-Scp">
-                        <rect key="frame" x="143" y="219" width="157" height="22"/>
+                        <rect key="frame" x="143" y="239" width="157" height="22"/>
                         <popUpButtonCell key="cell" type="push" title="3rd-order polynomial" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" imageScaling="proportionallyDown" inset="2" selectedItem="Yc3-MI-mBl" id="57P-PN-rED">
                             <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
                             <font key="font" metaFont="smallSystem"/>
@@ -78,7 +78,7 @@
                         </connections>
                     </popUpButton>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9yZ-ev-Uc4" userLabel="Genotyping">
-                        <rect key="frame" x="18" y="202" width="69" height="14"/>
+                        <rect key="frame" x="18" y="222" width="69" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Genotyping" id="Xbn-5O-8SE" userLabel="Genotyping">
                             <font key="font" metaFont="smallSystemBold"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -86,7 +86,7 @@
                         </textFieldCell>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="3Sd-10-UKi">
-                        <rect key="frame" x="18" y="185" width="222" height="14"/>
+                        <rect key="frame" x="18" y="205" width="222" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default name for missing/uncalled alleles:" id="TaH-4W-Qy6">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -94,7 +94,7 @@
                         </textFieldCell>
                     </textField>
                     <textField focusRingType="none" verticalHuggingPriority="750" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="D7S-ET-8Vx">
-                        <rect key="frame" x="246" y="183" width="50" height="19"/>
+                        <rect key="frame" x="246" y="203" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="Gev-iN-e94"/>
                         </constraints>
@@ -113,7 +113,7 @@
                         </connections>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="QCa-pv-ImL">
-                        <rect key="frame" x="18" y="163" width="224" height="14"/>
+                        <rect key="frame" x="18" y="183" width="224" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default name for non-binned alleles:" id="Yoc-mJ-Ya8">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -121,7 +121,7 @@
                         </textFieldCell>
                     </textField>
                     <textField focusRingType="none" verticalHuggingPriority="750" tag="1" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="8do-CE-iUa">
-                        <rect key="frame" x="246" y="161" width="50" height="19"/>
+                        <rect key="frame" x="246" y="181" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="cH2-Z3-6jq"/>
                         </constraints>
@@ -140,7 +140,7 @@
                         </connections>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="fHg-LG-cUI">
-                        <rect key="frame" x="18" y="119" width="176" height="14"/>
+                        <rect key="frame" x="18" y="139" width="176" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default visible range of traces:" id="pra-yw-mTb">
                             <font key="font" metaFont="smallSystemBold"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -148,7 +148,7 @@
                         </textFieldCell>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Mlm-cG-fgS">
-                        <rect key="frame" x="18" y="102" width="34" height="14"/>
+                        <rect key="frame" x="18" y="122" width="34" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Start:" id="gSI-HU-hAD">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -156,7 +156,7 @@
                         </textFieldCell>
                     </textField>
                     <stepper horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="DNH-7g-HI8" userLabel="Start stepper">
-                        <rect key="frame" x="51" y="97" width="15" height="22"/>
+                        <rect key="frame" x="51" y="117" width="15" height="22"/>
                         <stepperCell key="cell" controlSize="small" continuous="YES" alignment="left" increment="10" maxValue="1200" id="XFF-8r-e2b"/>
                         <connections>
                             <binding destination="-2" name="value" keyPath="self.defaultStartSize" id="r1s-YR-VFI">
@@ -168,7 +168,7 @@
                         </connections>
                     </stepper>
                     <textField focusRingType="none" verticalHuggingPriority="750" tag="2" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="FCR-zr-HMJ">
-                        <rect key="frame" x="65" y="100" width="50" height="19"/>
+                        <rect key="frame" x="65" y="120" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="00s-TN-w7N"/>
                         </constraints>
@@ -188,7 +188,7 @@
                         </connections>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jSL-5l-Wfa">
-                        <rect key="frame" x="115" y="102" width="57" height="14"/>
+                        <rect key="frame" x="115" y="122" width="57" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="bp     End:" id="mDU-hD-QxM">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -196,7 +196,7 @@
                         </textFieldCell>
                     </textField>
                     <stepper horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Sd7-OA-qgH" userLabel="End stepper">
-                        <rect key="frame" x="171" y="97" width="15" height="22"/>
+                        <rect key="frame" x="171" y="117" width="15" height="22"/>
                         <stepperCell key="cell" controlSize="small" continuous="YES" alignment="left" increment="10" maxValue="1200" id="mTT-Oe-NUl"/>
                         <connections>
                             <binding destination="-2" name="value" keyPath="self.defaultEndSize" id="jzg-bk-8qA">
@@ -208,7 +208,7 @@
                         </connections>
                     </stepper>
                     <textField focusRingType="none" verticalHuggingPriority="750" tag="3" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Th6-Yh-gLJ">
-                        <rect key="frame" x="185" y="100" width="50" height="19"/>
+                        <rect key="frame" x="185" y="120" width="50" height="19"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="50" id="Pp5-Po-W67"/>
                         </constraints>
@@ -229,7 +229,7 @@
                         </connections>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="r7V-4r-Krv">
-                        <rect key="frame" x="235" y="102" width="18" height="14"/>
+                        <rect key="frame" x="235" y="122" width="18" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="bp" id="zWA-uE-hBV">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -237,7 +237,7 @@
                         </textFieldCell>
                     </textField>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="EAx-VE-G92" userLabel="When scaling views to highest peak:">
-                        <rect key="frame" x="18" y="78" width="213" height="14"/>
+                        <rect key="frame" x="18" y="98" width="213" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="When scaling views to highest peaks:" id="Gtl-BN-0Ce">
                             <font key="font" metaFont="smallSystemBold"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
@@ -245,7 +245,7 @@
                         </textFieldCell>
                     </textField>
                     <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="VMp-rg-KYi" userLabel="Ignore crosstalk">
-                        <rect key="frame" x="19" y="60" width="213" height="16"/>
+                        <rect key="frame" x="19" y="80" width="213" height="16"/>
                         <buttonCell key="cell" type="check" title="Ignore peaks resuting from crosstalk" bezelStyle="regularSquare" imagePosition="left" controlSize="small" inset="2" id="UXg-rF-FzA">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                             <font key="font" metaFont="smallSystem"/>
@@ -258,7 +258,7 @@
                             </binding>
                         </connections>
                     </button>
-                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="pmw-k5-0yM" userLabel="When scaling views to highest peak:">
+                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="pmw-k5-0yM" userLabel="When subtracting baseline fluo">
                         <rect key="frame" x="18" y="39" width="233" height="14"/>
                         <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="When subtracting baseline fluorescence:" id="u7J-W6-7eV">
                             <font key="font" metaFont="smallSystemBold"/>
@@ -266,7 +266,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="boi-tZ-CEl" userLabel="Ignore crosstalk">
+                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="boi-tZ-CEl" userLabel="maintain peak heights">
                         <rect key="frame" x="19" y="19" width="185" height="16"/>
                         <buttonCell key="cell" type="check" title="Maintain absolute peak heights" bezelStyle="regularSquare" imagePosition="left" controlSize="small" inset="2" id="rFz-Zi-ix2">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
@@ -281,7 +281,7 @@
                         </connections>
                     </button>
                     <button toolTip="Puts labels above peaks that may require attention" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="66q-69-92X" userLabel="Annotate supp peaks">
-                        <rect key="frame" x="19" y="140" width="139" height="16"/>
+                        <rect key="frame" x="19" y="160" width="139" height="16"/>
                         <buttonCell key="cell" type="check" title="Label additional peaks" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="ysz-Xy-BPu">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                             <font key="font" metaFont="smallSystem"/>
@@ -294,13 +294,27 @@
                             </binding>
                         </connections>
                     </button>
+                    <button toolTip="Whether automatic vertical scaling ignores peaks from other colors when viewing genotypes" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="JV4-Jh-Fo3" userLabel="Ignore other channels">
+                        <rect key="frame" x="19" y="60" width="197" height="16"/>
+                        <buttonCell key="cell" type="check" title="Ignore peaks from other channels" bezelStyle="regularSquare" imagePosition="left" controlSize="small" inset="2" id="XmD-vc-3XX">
+                            <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
+                            <font key="font" metaFont="smallSystem"/>
+                        </buttonCell>
+                        <connections>
+                            <binding destination="oXY-Ga-9dS" name="value" keyPath="values.IgnoreOtherChannels" id="wcF-zU-ebH">
+                                <dictionary key="options">
+                                    <bool key="NSValidatesImmediately" value="YES"/>
+                                </dictionary>
+                            </binding>
+                        </connections>
+                    </button>
                 </subviews>
                 <constraints>
                     <constraint firstItem="VMp-rg-KYi" firstAttribute="leading" secondItem="EAx-VE-G92" secondAttribute="leading" id="1Ph-un-on7"/>
                     <constraint firstItem="9YE-VV-kHo" firstAttribute="top" secondItem="uSe-Tg-Rtm" secondAttribute="bottom" constant="3" id="1rP-rb-Mqy"/>
                     <constraint firstItem="D7S-ET-8Vx" firstAttribute="trailing" secondItem="8do-CE-iUa" secondAttribute="trailing" id="5gd-Zt-tvq"/>
                     <constraint firstItem="FCR-zr-HMJ" firstAttribute="centerY" secondItem="DNH-7g-HI8" secondAttribute="centerY" id="6DT-lg-v1F"/>
-                    <constraint firstItem="pmw-k5-0yM" firstAttribute="top" secondItem="VMp-rg-KYi" secondAttribute="bottom" constant="8" symbolic="YES" id="85E-VE-ILD"/>
+                    <constraint firstItem="pmw-k5-0yM" firstAttribute="top" secondItem="JV4-Jh-Fo3" secondAttribute="bottom" constant="8" symbolic="YES" id="85E-VE-ILD"/>
                     <constraint firstItem="3Sd-10-UKi" firstAttribute="top" secondItem="9yZ-ev-Uc4" secondAttribute="bottom" constant="3" id="8BP-vQ-kuL"/>
                     <constraint firstItem="8do-CE-iUa" firstAttribute="centerY" secondItem="QCa-pv-ImL" secondAttribute="centerY" id="Ayg-8J-dQm"/>
                     <constraint firstItem="r7V-4r-Krv" firstAttribute="bottom" secondItem="jSL-5l-Wfa" secondAttribute="bottom" id="Ba1-Pn-Apr"/>
@@ -319,6 +333,7 @@
                     <constraint firstItem="uSe-Tg-Rtm" firstAttribute="leading" secondItem="q0D-D5-1Ni" secondAttribute="leading" constant="20" symbolic="YES" id="Ssb-iU-O2L"/>
                     <constraint firstAttribute="bottom" secondItem="boi-tZ-CEl" secondAttribute="bottom" constant="20" symbolic="YES" id="Sy2-dt-lQB"/>
                     <constraint firstItem="66q-69-92X" firstAttribute="top" secondItem="QCa-pv-ImL" secondAttribute="bottom" constant="8" symbolic="YES" id="TBb-oS-M10"/>
+                    <constraint firstItem="JV4-Jh-Fo3" firstAttribute="top" secondItem="VMp-rg-KYi" secondAttribute="bottom" constant="6" symbolic="YES" id="Tmt-Xu-Uxv"/>
                     <constraint firstItem="uSe-Tg-Rtm" firstAttribute="top" secondItem="q0D-D5-1Ni" secondAttribute="top" constant="7" id="Vg9-na-tgd"/>
                     <constraint firstItem="Sd7-OA-qgH" firstAttribute="leading" secondItem="jSL-5l-Wfa" secondAttribute="trailing" constant="3" id="Vzd-x8-ezv"/>
                     <constraint firstItem="DNH-7g-HI8" firstAttribute="leading" secondItem="Mlm-cG-fgS" secondAttribute="trailing" constant="3" id="WHk-wO-rXg"/>
@@ -330,6 +345,7 @@
                     <constraint firstItem="9yZ-ev-Uc4" firstAttribute="leading" secondItem="uSe-Tg-Rtm" secondAttribute="leading" id="i8P-9d-olE"/>
                     <constraint firstItem="3Sd-10-UKi" firstAttribute="leading" secondItem="9yZ-ev-Uc4" secondAttribute="leading" id="nxw-Yg-UC3"/>
                     <constraint firstItem="Th6-Yh-gLJ" firstAttribute="leading" secondItem="Sd7-OA-qgH" secondAttribute="trailing" constant="1" id="ou2-KX-fSE"/>
+                    <constraint firstItem="JV4-Jh-Fo3" firstAttribute="leading" secondItem="VMp-rg-KYi" secondAttribute="leading" id="phr-ZG-mOC"/>
                     <constraint firstItem="WhM-o5-Scp" firstAttribute="centerY" secondItem="jEe-KA-BXs" secondAttribute="centerY" id="qI5-LU-47a"/>
                     <constraint firstItem="VMp-rg-KYi" firstAttribute="top" secondItem="EAx-VE-G92" secondAttribute="bottom" constant="3" id="qRX-zk-vB5"/>
                     <constraint firstItem="Mlm-cG-fgS" firstAttribute="leading" secondItem="QCa-pv-ImL" secondAttribute="leading" id="qfA-Yf-S29"/>

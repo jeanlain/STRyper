@@ -21,6 +21,7 @@
 
 #import "SizeStandardTableController.h"
 #import "SizeStandard.h"
+#import "Chromatogram.h"
 #import "SizeStandardSize.h"
 #import "SampleTableController.h"
 #import "MainWindowController.h"
@@ -65,15 +66,15 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 	[super viewDidLoad];
 	NSMenu *menu = NSMenu.new;
 	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Duplicate" action:@selector(duplicateStandard:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:@"copy"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameCopy];
 	item.target = self;
 	[menu addItem:item];
 	item = [[NSMenuItem alloc] initWithTitle:@"Rename" action:@selector(rename:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:@"edited"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameEdited];
 	item.target = self;
 	[menu addItem:item];
 	item = [[NSMenuItem alloc] initWithTitle:@"Delete" action:@selector(remove:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:@"trash"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameTrash];
 	item.target = self;
 	[menu addItem:item];
 	self.tableView.menu = menu;
@@ -174,11 +175,13 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 		[self.undoManager setActionName:@"Duplicate Size Standard"];
 		SizeStandard *initialStandard = selectedObjects.firstObject;
 		SizeStandard *duplicateStandard = [initialStandard copy];
-		duplicateStandard.editable = YES;
-		[duplicateStandard autoName];
-		[self.tableContent addObject:duplicateStandard];
-		[self.tableContent rearrangeObjects];
-		[self selectItemName:duplicateStandard];
+		if(duplicateStandard) {
+			duplicateStandard.editable = YES;
+			[duplicateStandard autoName];
+			[self.tableContent addObject:duplicateStandard];
+			[self.tableContent rearrangeObjects];
+			[self selectItemName:duplicateStandard];
+		}
 	}
 }
 
@@ -194,5 +197,57 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 		}
 	}
 }
+
+
+
+-(void) detectAndApplySizeStandardOnSample:(Chromatogram *)sample {
+	NSString *standardName = sample.standardName;
+	if(standardName.length < 3) {
+		return;
+	}
+	NSArray<SizeStandard *> *sizeStandards = self.tableContent.content;
+	if(sizeStandards.count > 0) {
+		NSArray<NSString *> *standardNames = [sizeStandards valueForKeyPath:@"@unionOfObjects.name"];
+		NSInteger standardIndex = [standardNames indexOfObjectPassingTest:^BOOL(NSString * _Nonnull name, NSUInteger idx, BOOL * _Nonnull stop) {
+			return [name compare:standardName options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch] == NSOrderedSame;
+		}];
+		
+		if(standardIndex == NSNotFound) {
+			static NSDictionary *standardForKey;
+			if(!standardForKey) {
+				standardForKey =
+				@{
+					@"(?<!\\d)600(?!\\d)": @"GeneScan-600",
+					@"(?<!\\d)500(?!\\d)": @"GeneScan-500",
+					@"(?<!\\d)400(?!\\d)": @"GeneScan-400HD",
+					@"(?<!\\d)350(?!\\d)": @"GeneScan-350"
+					/// These patterns are based on common size standards. 
+					/// I 'd rather not make deductions for less common ones.
+				};
+			}
+			for (NSString *key in standardForKey) {
+				if ([standardName rangeOfString:key options:NSRegularExpressionSearch].location != NSNotFound) {
+					standardName = standardForKey[key];
+					standardIndex = [standardNames indexOfObject:standardName];
+					break;
+				}
+			}
+		}
+		
+		if(standardIndex != NSNotFound && standardIndex < sizeStandards.count) {
+			SizeStandard *sizeStandard = sizeStandards[standardIndex];
+			NSManagedObjectContext *MOC = sample.managedObjectContext;
+			if(sizeStandard.managedObjectContext != MOC) {
+				sizeStandard = [MOC existingObjectWithID:sizeStandard.objectID error:nil];
+			}
+			if(sizeStandard) {
+				[MOC performBlockAndWait:^{
+					sample.appliedSizeStandard = sizeStandard;
+				}];
+			}
+		}
+	}
+}
+
 
 @end

@@ -29,6 +29,10 @@
 #import "MainWindowController.h"
 #import "HoveredTableRowView.h"
 #import "GenotypeTableController.h"
+#import "PanelListController.h"
+#import "SizeStandardTableController.h"
+#import "PanelFolder.h"
+#import "SizeStandard.h"
 
 
 @interface FolderListController ()
@@ -48,6 +52,8 @@
 	NSProgress *exportProgress;					/// to monitor the progress of folder export
 	NSUInteger totalSamplesToProcess;
 	NSUInteger totalSamplesProcessed;
+	NSURL *draggedFolderArchiveURL;       	/// paths of folder archive being dragged
+
 }
 
 
@@ -181,7 +187,7 @@
 		HoveredTableRowView *rowView = [outlineView makeViewWithIdentifier:@"groupRowView" owner:self];
 		if(!rowView) {
 			rowView = HoveredTableRowView.new;
-			NSButton *button = [NSButton buttonWithImage:[NSImage imageNamed:@"addCircleStroke"] target:nil action:nil];
+			NSButton *button = [NSButton buttonWithImage:[NSImage imageNamed:ACImageNameAddCircleStroke] target:nil action:nil];
 			button.bezelStyle = NSBezelStyleRecessed;
 			button.bordered = NO;
 			button.showsBorderOnlyWhileMouseInside = YES;
@@ -274,6 +280,23 @@
 			}
 		}
 	}
+	if((destination == nil || destination.parent || destination == self.rootFolder) && !destination.isSmartFolder) {
+		if([pboard.types containsObject:NSPasteboardTypeFileURL]) {
+			NSArray *fileURLs = [pboard readObjectsForClasses:@[[NSURL class]] options:nil];
+			if(fileURLs.count == 1) {
+				NSURL *url = fileURLs.firstObject;
+				NSString *type;
+				if ([url getResourceValue:&type forKey:NSURLTypeIdentifierKey error:nil]) {
+					NSWorkspace *workspace = NSWorkspace.sharedWorkspace;
+					if ([workspace type:type conformsToType:@"org.jpeccoud.stryper.folderarchive"]) {
+						draggedFolderArchiveURL = url;
+						return NSDragOperationCopy;
+					}
+				}
+			}
+		}
+	}
+
 	
 	return [super outlineView:outlineView validateDrop:info proposedItem:item proposedChildIndex:index];
 }
@@ -312,8 +335,16 @@
 	}
 	
 	if ([pboard.types containsObject:NSPasteboardTypeFileURL] ) {
-		[SampleTableController.sharedController addSamplesFromFiles:draggedABIFFilePaths toFolder:(SampleFolder *)destination];
-		return YES;
+		if(draggedABIFFilePaths.count > 0) {
+			[SampleTableController.sharedController addSamplesFromFiles:draggedABIFFilePaths toFolder:(SampleFolder *)destination];
+			draggedABIFFilePaths = nil;
+			return YES;
+		}
+		if(draggedFolderArchiveURL && (destination == nil || destination.parent || destination == self.rootFolder) && !destination.isSmartFolder) {
+			[self importFolderFromURL:draggedFolderArchiveURL intoFolder:(SampleFolder *)destination atIndex:index];
+			draggedFolderArchiveURL = nil;
+			return YES;
+		}
 	}
 	
 	return [super outlineView:outlineView acceptDrop:info item:item childIndex:index];
@@ -411,15 +442,18 @@
 		if (result == NSModalResponseOK) {
 			NSURL* url = openPanel.URLs.firstObject;
 			if(url) {
-				[self importFolderFromURL:url];
+				[self importFolderFromURL:url intoFolder:nil atIndex:-1];
 			}
 		}
 	}];
 }
 
 
--(void) importFolderFromURL:(NSURL *)url {
+-(void) importFolderFromURL:(NSURL *)url intoFolder:(nullable SampleFolder *)parentFolder atIndex:(NSInteger)index {
 	NSManagedObjectContext *MOC = self.managedObjectContext;
+	if(!parentFolder) {
+		parentFolder = self.rootFolder;
+	}
 	if(MOC.hasChanges && ![MOC save:nil]) {
 		NSError *error = [NSError errorWithDescription:@"The folder could not be imported because an inconsistency in the database." suggestion:@"You may quit the application and try again."];
 		[[NSAlert alertWithError: error] beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
@@ -427,32 +461,129 @@
 		
 		return;
 	}
-	
-	[FileImporter.sharedFileImporter importFolderFromURL:url completionHandler:^(NSError * _Nullable error, SampleFolder * _Nullable importedFolder) {
+	CDUndoManager *undoManager = (CDUndoManager *)MOC.undoManager;
+	[MOC processPendingChanges];
+	if(undoManager.isUndoRegistrationEnabled) {
+		[undoManager disableUndoRegistration];
+	}
+	NSProgress *importProgress = NSProgress.new;
+	ProgressWindow *progressWindow = ProgressWindow.new;
+	[progressWindow showProgressWindowForProgress:importProgress afterDelay:0.2 modal:YES parentWindow:self.view.window];
+
+	[FileImporter.sharedFileImporter importFolderFromURL:url progress:importProgress completionHandler:^(NSError * _Nullable error, SampleFolder * _Nullable importedFolder) {
+		if(!parentFolder.managedObjectContext || parentFolder.isDeleted) {
+			error = [NSError errorWithDescription:@"Import failed because the destination folder is invalid" suggestion:@""];
+		}
+		importProgress.cancellable = NO;
 		if(!error && importedFolder) {
-			
 			SampleFolder *theFolder = [MOC existingObjectWithID:importedFolder.objectID error:&error];
-			if(!error) {
-				[self.undoManager setActionName:@"Import Folder"];
-				theFolder.parent = self.rootFolder;
+			if(!error && theFolder) {
+				if(index < 0 || index > parentFolder.subfolders.count) {
+					theFolder.parent = parentFolder;
+				} else {
+					[parentFolder insertObject:theFolder inSubfoldersAtIndex:index];
+				}
 				[theFolder autoName];
 				[self _addFolderToTable:theFolder];
 				[self selectFolder:theFolder];
+				
+				PanelFolder *importedPanelFolder;
+				NSArray *importedSamples = theFolder.allSamples.allObjects;
+				NSArray *importedPanels = [importedSamples valueForKeyPath:@"@distinctUnionOfObjects.panel"];
+				
+				if(importedPanels.count > 0) {
+					NSMutableArray *retainedPanels = importedPanels.mutableCopy;
+					NSArray<Panel *> *existingPanels = [PanelListController.sharedController.rootFolder.allSubfolders.allObjects filteredArrayUsingBlock:^BOOL(Folder *  _Nonnull folder, NSUInteger idx) {
+						return folder.isPanel;
+					}];
+					if(existingPanels.count > 0) {
+						for (Panel *panel in importedPanels) {
+							for(Panel *replacementPanel in existingPanels) {
+								if([replacementPanel isEquivalentTo:panel]) {
+									for (Chromatogram *sample in panel.samples.copy) {
+										[sample _wirePanel:replacementPanel];
+									}
+									[retainedPanels removeObjectIdenticalTo:panel];
+									NSArray *parents = panel.ancestors;
+									panel.parent = nil;
+									[MOC deleteObject:panel];
+									for(PanelFolder *parent in parents) {
+										if(parent.allPanels.count == 0) {
+											[MOC deleteObject:parent];
+										} else {
+											break;
+										}
+									}
+									break;
+								}
+							}
+						}
+					}
+					
+					NSArray *importedPanelFolders = [retainedPanels valueForKeyPath:@"@distinctUnionOfObjects.topAncestor"];
+					if(importedPanelFolders.count > 0) {
+						importedPanelFolder = [[PanelFolder alloc] initWithContext:MOC];
+						importedPanelFolder.name = [theFolder.name stringByAppendingString:@" - imported panels"];
+						importedPanelFolder.subfolders = [NSOrderedSet orderedSetWithArray:importedPanelFolders];
+						importedPanelFolder.parent = PanelListController.sharedController.rootFolder;
+						[importedPanelFolder autoName];
+						[PanelListController.sharedController _addFolderToTable:importedPanelFolder];
+					}
+					
+
+				}
+				
+				
+				NSMutableArray *retainedStandards;
+				NSArray *importedSizeStandards = [importedSamples valueForKeyPath:@"@distinctUnionOfObjects.sizeStandard"];
+				if(importedSizeStandards.count >0) {
+					retainedStandards = importedSizeStandards.mutableCopy;
+					NSArray *existingStandards = SizeStandardTableController.sharedController.tableContent.content;
+					for(SizeStandard *sizeStandard in importedSizeStandards) {
+						for(SizeStandard *replacementStandard in existingStandards) {
+							if([replacementStandard isEquivalentTo:sizeStandard]) {
+								for (Chromatogram *sample in sizeStandard.samples.copy) {
+									sample.sizeStandard = replacementStandard;
+								}
+								[retainedStandards removeObjectIdenticalTo:sizeStandard];
+								[sizeStandard.managedObjectContext deleteObject:sizeStandard];
+								break;
+							}
+						}
+					}
+				}
+				
 				[AppDelegate.sharedInstance saveAction:self];
+				[NSApp setWindowsNeedUpdate:YES]; /// To update the undo/redo tooltips.
+
+				if(!undoManager.isUndoRegistrationEnabled) {
+					[undoManager enableUndoRegistration];
+				}
+				if([undoManager respondsToSelector:@selector(forceActionName:)]) {
+					[undoManager forceActionName:@"Import Folder"];
+				} else {
+					[undoManager setActionName:@"Import Folder"];
+				}
+				[undoManager registerUndoWithTarget:self handler:^(FolderListController*  _Nonnull controller) {
+					[self deleteItems:@[theFolder]];
+					if(importedPanelFolder) {
+						[PanelListController.sharedController deleteItems:@[importedPanelFolder]];
+					}
+					[SizeStandardTableController.sharedController deleteItems:retainedStandards];
+				}];
+
 			} else {
 				error = [NSError errorWithDescription:@"The folder could not be imported because of an unexpected error." suggestion:@""];
 			}
 		}
-		
+		[progressWindow stopShowingProgressAndClose];
+
 		if(error) {
-			NSManagedObjectContext *folderContext = importedFolder.managedObjectContext;
-			if(folderContext) {
-				[folderContext performBlockAndWait:^{
-					[folderContext deleteObject:importedFolder];
-				}];
-			}
 			[[NSAlert alertWithError: error] beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
 			}];
+		}
+		if(!undoManager.isUndoRegistrationEnabled) {
+			[undoManager enableUndoRegistration];
 		}
 	}];
 	
@@ -462,7 +593,7 @@
 - (NSImage *)exportButtonImageForItems:(NSArray *)items {
 	static NSImage * exportImage;
 	if(!exportImage) {
-		exportImage = [NSImage imageNamed:@"export folder"];
+		exportImage = [NSImage imageNamed:ACImageNameExportFolder];
 	}
 	return exportImage;
 }
@@ -536,7 +667,7 @@
 	ProgressWindow *progressWindow = ProgressWindow.new;
 	NSWindow *window = self.tableView.window;
 	/// we export the folder in the background (private queue)
-	NSManagedObjectContext *MOC = [[AppDelegate.sharedInstance persistentContainer] newBackgroundContext];
+	NSManagedObjectContext *MOC = AppDelegate.sharedInstance.persistentContainer.newBackgroundContext;
 	NSOperationQueue *callingQueue = NSOperationQueue.currentQueue;
 	
 	[MOC performBlock:^{
@@ -566,7 +697,7 @@
 			NSData *archive = archiver.encodedData;
 			
 			if(progress.isCancelled) {		/// the progress may have been cancelled by the user
-				error = [NSError cancelOperationErrorWithDescription:@"The export has been cancelled by the user." suggestion:@""];
+				error = [NSError cancelOperationErrorWithDescription:@"The export has been cancelled." suggestion:@""];
 			} else {
 				progress.localizedDescription = @"Writing archive to file…";
 				progress.cancellable = NO;
@@ -632,47 +763,46 @@
 	SampleFolder *trashFolder = self.trashFolder;
 	if(trashFolder.subfolders.count > 0 || trashFolder.samples.count > 0) {
 		/// We delete the trash content it in the background to show a process window, in case deletion takes time (lots of items in the trash)
-		NSManagedObjectContext *backgroundContext = ((AppDelegate*)NSApp.delegate).persistentContainer.newBackgroundContext;
+		NSManagedObjectContext *backgroundContext = AppDelegate.sharedInstance.persistentContainer.newBackgroundContext;
 		ProgressWindow *progressWindow = ProgressWindow.new;
-		progressWindow.operationTextField.stringValue = @"Removing deleted items from the database…";
-		progressWindow.stopButton.hidden = YES;		/// this operation cannot be cancelled
 		NSWindow *window = self.view.window;
 		NSOperationQueue *callingQueue = NSOperationQueue.currentQueue;
 		[backgroundContext performBlock:^{
-			NSUserDefaults *userDefaults = NSUserDefaults.standardUserDefaults;
-			/// if some folders are deleted, we remove their entries from the genotype filters.
-			NSMutableDictionary *genotypeFilters = [userDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
-			UserDefaultKey selectedSampleKey = SampleTableController.sharedController.userDefaultKeyForSelectedItemIDs;
-			UserDefaultKey selectedGenotypeKey = GenotypeTableController.sharedController.userDefaultKeyForSelectedItemIDs;
-			NSMutableDictionary *selectedSamples = [userDefaults dictionaryForKey:selectedSampleKey].mutableCopy;
-			NSMutableDictionary *selectedGenotypes = [userDefaults dictionaryForKey:selectedGenotypeKey].mutableCopy;
-			BOOL modified = NO;
 			NSError *error;
-			/// we don't set an `NSProgress` as it would be difficult to monitor the progress of deletion
-			[progressWindow showProgressWindowForProgress:nil afterDelay:1.0 modal:YES parentWindow:window];
 			SampleFolder *trash = [backgroundContext existingObjectWithID:trashFolder.objectID error:&error];
 			if(!error) {
-				for(Chromatogram *sample in trash.samples) {
+				/// We delete samples before deleting folders, which allows better granularity in progress tracking
+				/// and in saving to the store (avoids a big memory spike that would occur if we saved after deleting a folder with many files).
+				NSSet *allSamples = trash.allSamples;
+				NSUInteger samplesToDelete = allSamples.count;
+				NSProgress *progress = [NSProgress progressWithTotalUnitCount:samplesToDelete];
+				progress.cancellable = NO;
+				progress.localizedDescription = @"Cleaning the database…";
+				[progress becomeCurrentWithPendingUnitCount:1];
+				[progressWindow showProgressWindowForProgress:progress afterDelay:0.5 modal:YES parentWindow:window];
+				NSUInteger nDeleteSamples = 0, nDeletedSamplesInBatch = 0, reportCount = samplesToDelete/100 +1;
+				for(Chromatogram *sample in allSamples) {
 					[backgroundContext deleteObject:sample];
+					nDeleteSamples++;
+					nDeletedSamplesInBatch++;
+					if(nDeleteSamples % reportCount == 0) {
+						progress.completedUnitCount = nDeleteSamples;
+					}
+					if(nDeletedSamplesInBatch == 100 || nDeleteSamples == samplesToDelete) {
+						nDeletedSamplesInBatch = 0;
+						if(![backgroundContext save:&error]) {
+							break;
+						}
+					}
 				}
 				for(Folder *folder in trash.subfolders) {
-					if(!folder.objectID.isTemporaryID) {
-						NSString *key = folder.objectID.URIRepresentation.absoluteString;
-						[genotypeFilters removeObjectForKey:key];
-						[selectedSamples removeObjectForKey:key];
-						[selectedGenotypes removeObjectForKey:key];
-						modified = YES;
-					}
 					[backgroundContext deleteObject:folder];
 				}
-				if(modified) {
-					[userDefaults setObject:genotypeFilters forKey:GenotypeFiltersKey];
-					[userDefaults setObject:selectedSamples forKey:selectedSampleKey];
-					[userDefaults setObject:selectedGenotypes forKey:selectedGenotypeKey];
-				}
+
 				if(backgroundContext.hasChanges) {
 					[backgroundContext save:&error];
 				}
+				[progress resignCurrent];
 			}
 			[progressWindow stopShowingProgressAndClose];
 			[callingQueue addOperationWithBlock:^{

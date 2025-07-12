@@ -24,6 +24,7 @@
 
 #import "TracePreviewView.h"
 #include <sys/sysctl.h>
+#import "GeneratedAssetSymbols.h"
 
 @interface TracePreviewView ()
 
@@ -53,8 +54,8 @@ static NSColor *backgroundColor;
 		char string[size];
 		sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
 		appleSilicon = strncmp(string, "Apple", 5) == 0;
-		colorsForChannel = @[[NSColor colorNamed:@"BlueChannelColor"], [NSColor colorNamed:@"GreenChannelColor"], [NSColor colorNamed:@"BlackChannelColor"], [NSColor colorNamed:@"RedChannelColor"], [NSColor colorNamed:@"OrangeChannelColor"]];
-		backgroundColor = [NSColor colorNamed:@"traceViewBackgroundColor"];
+		colorsForChannel = @[[NSColor colorNamed:ACColorNameBlueChannelColor], [NSColor colorNamed:ACColorNameGreenChannelColor], [NSColor colorNamed:ACColorNameBlackChannelColor], [NSColor colorNamed:ACColorNameRedChannelColor], [NSColor colorNamed:ACColorNameOrangeChannelColor]];
+		backgroundColor = [NSColor colorNamed:ACColorNameTraceViewBackgroundColor];
 	}
 }
 
@@ -142,7 +143,7 @@ static NSColor *backgroundColor;
 
 		const int16_t *fluo = fluoData.bytes;
 		long nRecordedScans = fluoData.length/sizeof(int16_t);
-		int maxScan = nRecordedScans < endScan ? (int)nRecordedScans : endScan;
+		int maxScan = (int)MIN(nRecordedScans, endScan);
 		
 		NSColor *curveColor = colorsForChannel[color];
 		CGContextSetStrokeColorWithColor(ctx, curveColor.CGColor);
@@ -203,7 +204,7 @@ static NSColor *backgroundColor;
 
 
 - (BOOL)isOpaque {
-	return NO;
+	return YES;
 }
 
 
@@ -253,7 +254,7 @@ static NSColor *backgroundColor;
 
 
 - (void)setTraces:(NSArray<NSData *> *)traces {
-	_traces = traces;
+	_traces = traces.copy;
 	maxFluo = 0;
 	totScans = 0;
 	for(NSData *traceData in traces) {

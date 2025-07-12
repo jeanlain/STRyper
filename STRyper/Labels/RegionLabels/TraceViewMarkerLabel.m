@@ -57,7 +57,6 @@
 	CALayer *anchorSymbolLayer;		/// A symbol that conveys the notion that the anchor won't move during resizing.
 	Genotype *observedGenotype; 	/// The genotype we observe to react to a change of its offset.
 	BOOL needsUpdateBinLabels;
-	BOOL disableBinLabelAnimation;
 }
 
 # pragma mark - attributes and appearance
@@ -85,7 +84,6 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	self = [super init];
 	if (self) {
 		layer.anchorPoint = CGPointMake(0, 0);
-		layer.actions = @{NSStringFromSelector(@selector(sublayers)): NSNull.null};
 		
 		/// Our layer represents the range of our region and is a light pink rectangle with black borders
 		layer.zPosition = -1;  				/// this makes sure we show behind bin labels
@@ -135,7 +133,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
 	if (context == markerBinsChangedContext) {
 		needsUpdateBinLabels = YES;
-		[self.view labelNeedsRepositioning:self];
+		self.needsUpdateAppearance = YES;
 	} else if(context == viewTraceChangedContext) {
 		[self observeGenotype];
 	} else if(context == genotypeOffsetChangedContext) {
@@ -195,20 +193,19 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 
 
 - (void)updateAppearance {
+	if(needsUpdateBinLabels) {
+		[self updateBinLabels];
+		self.allowsAnimations = NO;
+		[BinLabel arrangeLabels:self.binLabels withRepositioning:YES];
+		self.allowsAnimations = YES;
+	}
+	
 	/// The label has no background color when no enabled.
 	layer.backgroundColor = self.enabled? self.view.traceViewMarkerLabelBackgroundColor : nil;
 	if(!self.highlighted) {
 		_anchorLayer.hidden = YES;
 	}
 	[super updateAppearance];
-}
-
-
-- (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == _innerLayer || layer == _outerLayer || ((layer == _anchorLayer || layer == anchorSymbolLayer) && self.clicked) || [event isEqualToString:@"hidden"]) {
-		return NSNull.null;
-	}
-	return [super actionForLayer:layer forKey:event];
 }
 
 
@@ -249,19 +246,19 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	NSString *title = [NSString stringWithFormat:@"Generate Bins for '%@'", marker.name];
 	item = [[NSMenuItem alloc] initWithTitle:title action:@selector(spawnAddBinsPopover:) keyEquivalent:@""];
 	item.target = targetLabel;
-	[item setOffStateImage:[NSImage imageNamed:@"binset"]];
+	[item setOffStateImage:[NSImage imageNamed:ACImageNameBinset]];
 	[menu addItem:item];
 
 	item = [[NSMenuItem alloc] initWithTitle:@"Edit Bins Manually" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
 	item.target = self;
 	item.tag = editStateBins;
-	[item setOffStateImage:[NSImage imageNamed:@"edit bins"]];
+	[item setOffStateImage:[NSImage imageNamed:ACImageNameEditBins]];
 	[menu addItem:item];
 	
-	item = [[NSMenuItem alloc] initWithTitle:@"Move Bin Set" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
+	item = [[NSMenuItem alloc] initWithTitle:@"Move all Bins" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
 	item.target = self;
 	item.tag = editStateBinSet;
-	[item setOffStateImage:[NSImage imageNamed:@"move bins"]];
+	[item setOffStateImage:[NSImage imageNamed:ACImageNameMoveBins]];
 	[menu addItem:item];
 	
 	return menu;
@@ -309,7 +306,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	
 	static NSImage *anchorImage;
 	if(!anchorImage) {
-		anchorImage = [NSImage imageNamed:@"anchor"];
+		anchorImage = [NSImage imageNamed:ACImageNameAnchor];
 	}
 	
 	TraceView *view = self.view;
@@ -681,12 +678,13 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 
 - (void)setDragged:(BOOL)dragged {
 	if(dragged != self.dragged) {
+		_dragged = dragged;
 		if(!dragged) {
 			/// We hide inner and outer layers when dragging ends. It's easier to do it now
 			/// than deferring it to `updateAppearance`, as `setDragged` should not be called several times per cycle.
 			/// This avoids cluttering the `updateAppearance` method, which is called more often.
-			_outerLayer.hidden = YES;
-			_innerLayer.hidden = YES;
+			self.outerLayer.hidden = YES;
+			self.innerLayer.hidden = YES;
 			if(self.editState == editStateBinSet) {
 				/// we move the bin set at the end of a drag
 				if([self moveBinSet]) {
@@ -705,14 +703,9 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			[self performSelector:@selector(_updateHoveredState) withObject:nil afterDelay:0.05];
 		} else {
 			/// when dragged or resized, we show layers indicating the limits
-			if(self.clickedEdge != betweenEdges) {
-				self.innerLayer.hidden = NO;
-			} else {
-				_innerLayer.hidden = YES;
-			}
+			self.innerLayer.hidden = self.clickedEdge == betweenEdges;
 			self.outerLayer.hidden = NO;
 		}
-		_dragged = dragged;
 	}
 }
 
@@ -742,6 +735,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		float startSize = binLabel.start;
 		float endSize = binLabel.end;
 		if(startSize < start || endSize > end) {
+			/// We don't notify the user with an error because it would not be their fault. Hopefully, this should never happen.
 			NSLog(@"bin '%@' edge position is out or marker '%@' range! Not applying move.", binLabel.region.name, self.region.name);
 			return NO;
 		}
@@ -753,8 +747,19 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			}
 		}
 	}
+	
+	/// We check that all the marker's bin are represented by our labels.
+	/// If not, we cannot guaranty that all bins will have valid coordinates after the move.
+	NSArray *representedBins = [binLabels valueForKeyPath:@"@unionOfObjects.region"];
+	Mmarker *marker = self.region;
+	NSArray *ghostBins = [marker.bins.allObjects arrayByRemovingObjectsIdenticalInArray:representedBins];
+	if(ghostBins.count > 0) {
+		NSLog(@"Marker '%@' has %ld bin(s) not represented by labels! Not applying move.", marker.name, ghostBins.count);
+		return NO;
+	}
+	
 	BOOL binUpdated = NO;
-	for(BinLabel *binLabel in self.binLabels) {
+	for(BinLabel *binLabel in binLabels) {
 		Bin *bin = binLabel.region;
 		float start = bin.start;
 		float startSize = binLabel.start;
@@ -767,7 +772,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		}
 	}
 	if(binUpdated) {
-		[self.view.undoManager setActionName:@"Move Bin Set"];
+		[self.view.undoManager setActionName:@"Move Bins"];
 	}
 	return binUpdated;
 }
@@ -778,7 +783,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (void)reposition {
 	TraceView *view = self.view;
 	float hScale = view.hScale;
-	if(hScale <= 0 || self.hidden) {
+	if(hScale <= 0) {
 		return;
 	}
 	
@@ -816,12 +821,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		}
 	}
 	
-	if(needsUpdateBinLabels) {
-		[self updateBinLabels];
-	}
-	
-	[BinLabel arrangeLabels:self.binLabels withRepositioning:YES allowAnimations:self.allowsAnimations && !_dragged &&!disableBinLabelAnimation];
-	disableBinLabelAnimation = NO;
+	[BinLabel arrangeLabels:self.binLabels withRepositioning:YES];
 }
 
 
@@ -884,6 +884,8 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (nullable __kindof RegionLabel*)labelWithNewBinByDraggingWithError:( NSError * _Nullable *)error {
 	BinLabel *binLabel = [RegionLabel regionLabelWithNewRegionByDraggingInView:self.view error:error];
 	if(binLabel) {
+		/// We add the label to the binLabel array, because this array won't update automatically since the bin
+		/// is added in another context.
 		binLabel.parentLabel = self;
 		if(!_binLabels) {
 			self.binLabels = @[binLabel];
@@ -935,8 +937,6 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	if(_highlighted && binLabels.count == 0) {
 		self.editState = editStateNil;
 	}
-	[self.view labelNeedsRepositioning:self];
-	disableBinLabelAnimation = YES; /// We don't want bin labels to animate after we get new labels.
 }
 
 
@@ -961,6 +961,39 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		[binLabel _shiftByOffset:offset];
 	}
 	[self.view labelNeedsRepositioning:self];
+}
+
+
+- (void)doubleClickAction:(id)sender {
+	if(self.editState == editStateBins) {
+		Mmarker *marker = self.region;
+		TraceView *view = self.view;
+		if(marker && view) {
+			float size = [view sizeForX:view.mouseUpPoint.x];
+			float slope = self.offset.slope;
+			float intercept = self.offset.intercept;
+			size = (size-intercept)/slope;    /// the position of the mouse in base pairs (in marker coordinates)
+
+			Bin *newBin = [Bin binForMarker:marker desiredMidSize:size desiredWidth:1.0];
+			if(newBin) {
+				[newBin autoName];
+				[view.undoManager setActionName:@"Add Bin"];
+				/// We let some time for the bin labels to update before spawning the region popover for the new bin.
+				/// There is no bin label for the new bin yet.
+				[self performSelector:@selector(spawnRegionPopoverForNewBin:) withObject:newBin afterDelay:0.05];
+			}
+		}
+	}
+}
+
+
+-(void)spawnRegionPopoverForNewBin:(Bin *)bin {
+	for(BinLabel *binLabel in self.binLabels) {
+		if(binLabel.region == bin) {
+			[binLabel spawnRegionPopover:self];
+			return;
+		}
+	}
 }
 
 

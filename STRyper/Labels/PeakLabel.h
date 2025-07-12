@@ -50,7 +50,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// or `nil` if there is no such fragment at the peak.
 ///
 /// ``ViewLabel/representedObject`` also returns this object.
-@property (weak, nonatomic, readonly, nullable) __kindof LadderFragment *fragment;
+@property (nonatomic, readonly, nullable) __kindof LadderFragment *fragment;
 
 /************ properties that are derived from the Peak structure *****/
 

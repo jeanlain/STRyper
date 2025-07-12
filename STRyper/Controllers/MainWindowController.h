@@ -23,6 +23,7 @@
 
 
 @import Cocoa;
+#import "GeneratedAssetSymbols.h"
 @class TableViewController;
 
 NS_ASSUME_NONNULL_BEGIN

@@ -88,7 +88,7 @@ typedef NS_ENUM(int16_t, Ploidy) {
 @property (nonatomic, nullable) NSSet <Bin *> *bins;
 
 
-/// The marker's ``bins`` sorted by ``Region/start``.
+/// The marker's ``bins`` sorted by ``Region/start`` in ascending order.
 ///
 /// This property is generated dynamically on demand.
 @property (nonatomic, nullable, readonly) NSArray<Bin *> *sortedBins;
@@ -98,7 +98,7 @@ typedef NS_ENUM(int16_t, Ploidy) {
 /// This comprises the genotypes of all samples whose ``Chromatogram/panel`` contains the marker.
 ///
 /// The reverse relationship is ``Genotype/marker``.
-@property (nonatomic, readonly) NSSet <Genotype *> *genotypes;
+@property (nonatomic, readonly, nullable) NSSet <Genotype *> *genotypes;
 
 /// The panel containing the marker.
 ///

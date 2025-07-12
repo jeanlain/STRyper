@@ -39,7 +39,7 @@ static NSColor *rulerLabelColor;
 
 + (void)initialize {	
 	if (self == VScaleView.class) {
-		rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
+		rulerLabelColor = [NSColor colorNamed:ACColorNameRulerLabelColor];
 		NSDictionary *labelFontStyle = @{NSFontAttributeName: [NSFont labelFontOfSize:8.0], NSForegroundColorAttributeName: rulerLabelColor};
 		
 		/// we populate the dictionary.
@@ -73,6 +73,7 @@ static NSColor *rulerLabelColor;
 
 
 -(void)setAttributes {
+	_backgroundColor = NSColor.windowBackgroundColor;
 	self.wantsLayer = YES;
 	_width = 30.0;
 	self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawBeforeViewResize;
@@ -117,7 +118,7 @@ static NSColor *rulerLabelColor;
 
 
 - (void)drawRect:(NSRect)dirtyRect {
-	[NSColor.windowBackgroundColor setFill];
+	[_backgroundColor setFill];
 	NSRect bounds = self.bounds;
 	NSRectFill(bounds);
 	TraceView *traceView = self.traceView;
@@ -187,6 +188,7 @@ int rulerLabelIncrementForVScale(float vScale) {
 
 
 - (void)mouseDown:(NSEvent *)theEvent {
+	NSLog(@"bounds: %f", self.bounds.origin.y);
 	mouseLocation = [self convertPoint:theEvent.locationInWindow fromView:nil];
 	if(mouseLocation.y >= 0) {
 		[NSCursor.closedHandCursor set];

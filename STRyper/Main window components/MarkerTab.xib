@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23504" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23504"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -77,7 +77,7 @@
                         <action selector="importPanels:" target="-2" id="ehO-WY-a9T"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Add Bins from File" offStateImage="binset" tag="1" id="F1A-Nu-04u">
+                <menuItem title="Import Bins from File…" offStateImage="binset" tag="1" id="F1A-Nu-04u">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="importBinSet:" target="-2" id="bMi-Z2-IDn"/>
@@ -97,8 +97,8 @@
                     <rect key="frame" x="0.0" y="0.0" width="258" height="328"/>
                     <subviews>
                         <popUpButton toolTip="New panel/folder" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="T6b-gG-WBE" userLabel="+">
-                            <rect key="frame" x="1" y="8" width="38" height="14"/>
-                            <popUpButtonCell key="cell" type="recessed" bezelStyle="recessed" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="FVo-Kf-QHh" id="xEx-lV-DlA">
+                            <rect key="frame" x="1" y="8" width="34" height="14"/>
+                            <popUpButtonCell key="cell" type="recessed" bezelStyle="recessed" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" id="xEx-lV-DlA">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                 <font key="font" metaFont="cellTitle"/>
                                 <menu key="menu" autoenablesItems="NO" id="PYj-qF-yhZ">
@@ -118,13 +118,19 @@
                                                 <action selector="addFolder:" target="-2" id="cKj-Wd-f07"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem title="Import Panels from File" offStateImage="import" id="lVV-u0-zrA">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="importPanels:" target="-2" id="ELo-Ga-LnW"/>
+                                            </connections>
+                                        </menuItem>
                                     </items>
                                 </menu>
                             </popUpButtonCell>
                             <color key="contentTintColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
                         </popUpButton>
                         <popUpButton toolTip="Apply selected panel to samples" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="A2d-Dv-MtO" userLabel="Apply">
-                            <rect key="frame" x="49" y="5" width="72" height="19"/>
+                            <rect key="frame" x="45" y="5" width="72" height="19"/>
                             <popUpButtonCell key="cell" type="recessed" title="Apply To" bezelStyle="recessed" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="xAM-s1-8KM" id="PhL-9Q-I9X">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                 <font key="font" metaFont="cellTitle"/>
@@ -351,7 +357,7 @@
                             </tableHeaderView>
                         </scrollView>
                         <button toolTip="New marker" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="S4B-gN-1PE" userLabel="+">
-                            <rect key="frame" x="6" y="8" width="14" height="14"/>
+                            <rect key="frame" x="6" y="36" width="14" height="14"/>
                             <buttonCell key="cell" type="recessed" bezelStyle="recessed" image="add" imagePosition="only" alignment="center" state="on" imageScaling="proportionallyDown" inset="2" id="l7E-R5-IzX">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>
@@ -362,7 +368,7 @@
                             </connections>
                         </button>
                         <button toolTip="Import bins from Genemapper file" tag="5" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jSp-0o-5pJ" userLabel="import bin set">
-                            <rect key="frame" x="28" y="5" width="104" height="19"/>
+                            <rect key="frame" x="28" y="33" width="104" height="19"/>
                             <buttonCell key="cell" type="recessed" title="Import Bins" bezelStyle="recessed" image="binset" imagePosition="leading" alignment="center" state="on" borderStyle="border" inset="2" id="Y05-AJ-eq4">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                 <font key="font" metaFont="systemBold" size="12"/>

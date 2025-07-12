@@ -20,7 +20,7 @@
 
 
 #import "NSError+NSErrorAdditions.h"
-@import CoreData;
+@import Cocoa;
 
 @implementation NSError (NSErrorAdditions)
 

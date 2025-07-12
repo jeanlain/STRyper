@@ -23,8 +23,9 @@
 #import "Panel.h"
 #import "Mmarker.h"
 
-@implementation LabelView
-
+@implementation LabelView {
+	NSArray<NSColor*>* originalColorsForChanels;
+}
 
 
 - (instancetype)initWithCoder:(NSCoder *)coder {
@@ -58,7 +59,7 @@
 
 
 - (BOOL)layer:(CALayer *)layer shouldInheritContentsScale:(CGFloat)newScale fromWindow:(NSWindow *)window {
-	return YES;
+	return layer.contentsScale <= 2;
 }
 
 
@@ -208,7 +209,7 @@
 
 
 - (BOOL)wantsUpdateLayer {
-	return YES;
+	return self.wantsLayer;
 }
 
 - (void)updateLayer {
@@ -217,6 +218,55 @@
 	if(labelsToReposition.count > 0) {
 		[labelsToReposition removeAllObjects];
 	}
+	self.allowsAnimations = YES;
+}
+
+
+- (void)drawRect:(NSRect)dirtyRect {
+	static BOOL isDrawing = NO; /// To prevent recursion, in case `renderInContext:` bellow calls `drawRect`. 
+								/// It should not if the backgroundLayer is not the view's `layer`.
+	if(isDrawing) {
+		return;
+	}
+	isDrawing = YES;
+	
+	/// This is only used for printing, as appkit should not call this method when drawing on screen.
+	/// We try to render labels or other layers in way that avoid rasterizing text.
+	NSGraphicsContext *context = NSGraphicsContext.currentContext;
+	CGContextRef ctx = context.CGContext;
+		
+	if(ctx) {
+		if(self.needsRepositionLabels) {
+			[self updateLayer];
+		}
+		
+		CALayer *mainLayer = self.backgroundLayer;
+		[mainLayer layoutIfNeeded];
+				
+		/// We render the view's layer but only after hiding all CATextLayer descendants, to avoid producing rasterized text.
+		/// These will be rendered differently.
+		NSMutableSet<CALayer *> *textLayers = NSMutableSet.new;
+		for(CALayer *layer in mainLayer.allSublayers) {
+			if([layer isKindOfClass:CATextLayer.class] && layer.isVisibleOnScreen) {
+				layer.hidden = YES;
+				[textLayers addObject:layer];
+			}
+		}
+		[mainLayer renderInContext:ctx];
+		
+		/// We then draw text layers. Note: this assumes that they were not behind layers already rendered
+		/// but since this method is intended for printing, this should be acceptable.
+		for(CALayer *layer in textLayers) {
+			layer.hidden = NO;
+			[layer drawStringInRect:dirtyRect ofLayer:mainLayer withClipping:YES];;
+		}
+	}
+	isDrawing = NO;
+}
+
+
+- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
+	/// We implement this method so that `renderLayer:inContext` does not call `-drawRect`, to avoid recursion (see `drawRect:`)
 }
 
 # pragma mark - validation and undo
@@ -299,14 +349,16 @@
 		NSMutableArray *newLabels = [NSMutableArray arrayWithCapacity:regions.count ];
 		for(Region *region in regions) {
 			RegionLabel *label = [RegionLabel regionLabelWithRegion:region view:self];
-			[newLabels addObject:label];
+			if(label) {
+				[newLabels addObject:label];
+			}
 		}
-		return [NSArray arrayWithArray:newLabels];
+		return newLabels.copy;
 	}
 	
-	NSArray *reusedAsIsLabels = [labels filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(RegionLabel *label, NSDictionary<NSString *,id> * _Nullable bindings) {
+	NSArray *reusedAsIsLabels = [labels filteredArrayUsingBlock:^BOOL(RegionLabel*  _Nonnull label, NSUInteger idx) {
 		return [regions indexOfObjectIdenticalTo:label.region] != NSNotFound;
-	}]];
+	}];
 	NSInteger reusedCounts = reusedAsIsLabels.count;
 	if(reusedCounts < regions.count) {
 		NSArray *regionsWithLabels = [reusedAsIsLabels valueForKeyPath:@"@unionOfObjects.region"];
@@ -328,7 +380,9 @@
 				} else {
 					regionLabel = [RegionLabel regionLabelWithRegion:region view:self];
 				}
-				[newLabels addObject:regionLabel];
+				if(regionLabel) {
+					[newLabels addObject:regionLabel];
+				}
 			}
 		}
 		reusedAsIsLabels = [reusedAsIsLabels arrayByAddingObjectsFromArray:newLabels];
@@ -342,9 +396,9 @@
 		BOOL notMoving = !self.isMoving;
 		for (ViewLabel *label in labels) {
 			[label reposition];
-			if(notMoving && !label.dragged) {
+			if(notMoving && !draggedLabel) {
 				/// if the view is not moving, we reposition tracking areas
-				/// (the view updates tracking areas after it stops moving and the label updates its tracking area after the drag)
+				/// (the view updates tracking areas after it stops moving and the dragged label updates its tracking area after the drag)
 				[label updateTrackingArea];
 			}
 		}
@@ -382,15 +436,22 @@
 - (void)setNeedsRepositionLabels:(BOOL)needsRepositionLabels {
 	_needsRepositionLabels = needsRepositionLabels;
 	if(needsRepositionLabels) {
+		self.allowsAnimations = NO;
 		self.needsDisplay = YES;
 	}
 }
 
 
 - (void)labelNeedsRepositioning:(ViewLabel *)viewLabel {
-	if(!_needsRepositionLabels) {
-		[labelsToReposition addObject:viewLabel];
-		self.needsDisplay = YES;
+	if(viewLabel) {
+		if(!_needsRepositionLabels) {
+			if(viewLabel.dragged) {
+				[viewLabel reposition];
+			} else {
+				[labelsToReposition addObject:viewLabel];
+				self.needsDisplay = YES;
+			}
+		}
 	}
 }
 
@@ -479,26 +540,26 @@
 
 
 - (void)labelDidUpdateNewRegion:(RegionLabel *)label {
-
+	
 	Region *region = label.region;
 	NSManagedObjectContext *regionContext = region.managedObjectContext;
 	NSManagedObjectContext *panelContext = self.panel.managedObjectContext;
-						
-		if([region isKindOfClass:Mmarker.class]) {
-			Mmarker *marker = (Mmarker *)region;
-			[marker createGenotypesWithAlleleName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
+	
+	if([region isKindOfClass:Mmarker.class]) {
+		Mmarker *marker = (Mmarker *)region;
+		[marker createGenotypesWithAlleleName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
+	}
+	
+	if(regionContext.hasChanges) {
+		NSError *error;
+		[self.undoManager setActionName:[@"Add " stringByAppendingString:region.entity.name]];
+		[regionContext save:&error];
+		if(error || !(panelContext.hasChanges && [panelContext save:nil])) {
+			NSString *description = [NSString stringWithFormat:@"The %@ could not be added because of an error in the database", region.entity.name.lowercaseString];
+			[NSApp presentError:[NSError errorWithDescription:description suggestion:@""]];
+			[label removeFromView];
 		}
-		
-		if(regionContext.hasChanges) {
-			NSError *error;
-			[self.undoManager setActionName:[@"Add " stringByAppendingString:region.entity.name]];
-			[regionContext save:&error];
-			if(error || !(panelContext.hasChanges && [panelContext save:nil])) {
-				NSString *description = [NSString stringWithFormat:@"The %@ could not be added because of an error in the database", region.entity.name.lowercaseString];
-				[NSApp presentError:[NSError errorWithDescription:description suggestion:@""]];
-				[label removeFromView];
-			}
-		}
+	}
 }
 
 
@@ -514,24 +575,48 @@
 # pragma mark - channels
 
 
-static NSArray *_colorsForChannels;
+static NSArray *_defaultColorsForChannels;
 
-+ (NSArray<NSColor *> *)colorsForChannels {
++ (NSArray<NSColor *> *)defaultColorsForChannels {
+	if(!_defaultColorsForChannels) {
+		_defaultColorsForChannels = @[[NSColor colorNamed:ACColorNameBlueChannelColor],
+							   [NSColor colorNamed:ACColorNameGreenChannelColor],
+							   [NSColor colorNamed:ACColorNameBlackChannelColor],
+							   [NSColor colorNamed:ACColorNameRedChannelColor],
+							   [NSColor colorNamed:ACColorNameOrangeChannelColor]];
+	}
+	return _defaultColorsForChannels;
+}
+
+
+- (NSArray<NSColor *> *)colorsForChannels {
 	if(_colorsForChannels.count < 5) {
-		_colorsForChannels = @[[NSColor colorNamed:@"BlueChannelColor"], [NSColor colorNamed:@"GreenChannelColor"], [NSColor colorNamed:@"BlackChannelColor"], [NSColor colorNamed:@"RedChannelColor"], [NSColor colorNamed:@"OrangeChannelColor"]];
+		if(originalColorsForChanels.count < 5) {
+			originalColorsForChanels = [self.class defaultColorsForChannels];
+		}
+		[self updateColorsForChannels];
 	}
 	return _colorsForChannels;
 }
 
 
-+ (void)setColorsForChannels:(NSArray<NSColor *> *)colorsForChannels {
+- (void)updateColorsForChannels {
+	NSColorSpace *colorSpace = NSColorSpace.deviceRGBColorSpace;
+	_colorsForChannels = NSArray.new;
+	for(NSColor *color in originalColorsForChanels) {
+		_colorsForChannels = [_colorsForChannels arrayByAddingObject:[color colorUsingColorSpace:colorSpace]];
+	}
+}
+
+
+- (void)setColorsForChannels:(NSArray<NSColor *> *)colorsForChannels {
 	NSArray *colors = NSArray.new;
 	for(id item in colorsForChannels) {
 		if([item isKindOfClass:NSColor.class]) {
 			colors = [colors arrayByAddingObject:[item copy]];
 		}
 	}
-	_colorsForChannels = colors;
+	originalColorsForChanels = colors;
 }
 
 

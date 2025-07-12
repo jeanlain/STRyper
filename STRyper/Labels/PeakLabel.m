@@ -33,8 +33,7 @@
 
 @interface PeakLabel ()
 
-/// property redeclared as readwrite.
-@property (weak, nonatomic, nullable) LadderFragment *fragment;
+
 @property (nonatomic) NSPoint dragHandleEndPosition;
 
 @end
@@ -100,17 +99,14 @@
 
 
 - (LadderFragment *)fragment {
-	if(!_fragment || _fragment.scan != self.scan) {
-		_fragment = nil;
-		for (LadderFragment *fragment in trace.fragments) {
-			if (fragment.scan == self.scan) {
-				_fragment = fragment;
-				return _fragment;
-			}
+	for (LadderFragment *fragment in trace.fragments) {
+		if (fragment.scan == self.scan) {
+			return fragment;
 		}
 	}
-	return _fragment;
+	return nil;
 }
+
 
 
 -(nullable Mmarker *) marker {
@@ -132,17 +128,17 @@
 	
 	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Remove Peak" action:@selector(removeFragment:) keyEquivalent:@""];
 	item.target = self;
-	item.offStateImage = [NSImage imageNamed:@"remove fragment"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameRemoveFragment];
 	[menu addItem:item];
 	
 	item = [[NSMenuItem alloc] initWithTitle:@"Add Allele" action:@selector(attachAllele:) keyEquivalent:@""];
 	item.target = self;
-	item.offStateImage = [NSImage imageNamed:@"allele"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameAllele];
 	[menu addItem:item];
 	
 	item = [[NSMenuItem alloc] initWithTitle:@"Add Label" action:@selector(attachAdditionalFragment:) keyEquivalent:@""];
 	item.target = self;
-	item.offStateImage = [NSImage imageNamed:@"additional peak"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameAdditionalPeak];
 	[menu addItem:item];
 	
 	return menu;
@@ -236,14 +232,6 @@
 		return string;
 	}
 	return @"";
-}
-
-
-- (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == dragLineLayer) {
-		return NSNull.null;
-	}
-	return [super actionForLayer:layer forKey:event];
 }
 
 
@@ -420,7 +408,7 @@ static CALayer *dragLineLayer;
 		TraceView *view = self.view;
 		NSPoint mouseLocation = view.mouseLocation;
 		if(dragged) {
-			if(!view.showDisabledBins) {
+			if(!view.showDisabledBins || !view.panel) {
 				/// The user would do nothing with the handle if there is no bin.
 				return;
 			}
@@ -452,7 +440,7 @@ static CALayer *dragLineLayer;
 			startPoint.y -=2;	/// this makes the handle closer to the cursor arrow tip
 			startPoint.x = [self.view xForScan:self.scan];
 			dragLineLayer.delegate = self;
-			[self.view.layer addSublayer:dragLineLayer];
+			[self.view.backgroundLayer addSublayer:dragLineLayer];
 		} else {
 			/// here the mouse has been released after we were dragged
 			targetBinLabel.hovered = NO;
@@ -515,9 +503,6 @@ static CALayer *dragLineLayer;
 		}
 		
 		for(Allele *allele in allelesWeTake) {
-			if(!self.fragment) {
-				self.fragment = allele;
-			}
 			allele.scan = scan;
 			allele.name = name;
 		}
@@ -620,31 +605,32 @@ static CALayer *dragLineLayer;
 		genotype.status = genotypeStatusManual;
 		[self.view.undoManager setActionName:@"Edit Genotype"];
 	}
-	
-	self.fragment = nil;
 }
 
 
 -(void)attachAllele:(id)sender {
-	Mmarker *marker = self.marker;
-	if(marker) {
-		Allele *currentAllele = self.fragment;
-		if(currentAllele.additional) {
-			[currentAllele removeFromGenotypeAndDelete];
-			self.fragment = nil;
-		} else if(currentAllele) {
-			return;
-		}
-		/// else if we are in a marker range, we find an an allele (or alleles) to add to our peak
-		Bin *ourBin;		/// we attach it to the bin at our position, if any
-		float ourSize = self.size;
-		for(Bin *bin in marker.bins) {
-			if(bin.start <= ourSize && bin.end >= ourSize) {
-				ourBin = bin;
-				break;
+	if(self.view.panel) {
+		/// The view may not show a panel even thought the sample has a panel (but sizing failed).
+		/// We don't allow manual genotyping when a panel is not shown.
+		Mmarker *marker = self.marker;
+		if(marker) {
+			Allele *currentAllele = self.fragment;
+			if(currentAllele.additional) {
+				[currentAllele removeFromGenotypeAndDelete];
+			} else if(currentAllele) {
+				return;
 			}
+			/// else if we are in a marker range, we find an an allele (or alleles) to add to our peak
+			Bin *ourBin;		/// we attach it to the bin at our position, if any
+			float ourSize = self.size;
+			for(Bin *bin in marker.bins) {
+				if(bin.start <= ourSize && bin.end >= ourSize) {
+					ourBin = bin;
+					break;
+				}
+			}
+			[self attachAllelesWithBin:ourBin];
 		}
-		[self attachAllelesWithBin:ourBin];
 	}
 }
 	

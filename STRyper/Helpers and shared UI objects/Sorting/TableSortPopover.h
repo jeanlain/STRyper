@@ -20,7 +20,7 @@
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-#import <Cocoa/Cocoa.h>
+@import Cocoa;
 #import "SortCriteriaEditor.h"
 #import "SortCriteriaEditorDelegate.h"
 

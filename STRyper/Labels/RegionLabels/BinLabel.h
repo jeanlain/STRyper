@@ -41,8 +41,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameters:
 ///   - binLabels: The bin labels to rearrange. They are assumed to be hosted by the same view and ordered from left to right in the array.
 ///   - reposition: whether bin labels should be repositioned. If `NO`, only the visibility of bin names is managed.
-///   - allowAnimations: Whether the repositioning of the bin labels should allow animations.
-+ (void)arrangeLabels:(NSArray<BinLabel *> *)binLabels withRepositioning:(BOOL)reposition allowAnimations:(BOOL)allowAnimations;
++ (void)arrangeLabels:(NSArray<BinLabel *> *)binLabels withRepositioning:(BOOL)reposition;
 
 /// The label that represents the marker containing the bin represented by the label.
 ///

@@ -25,6 +25,8 @@
 #import "MainWindowController.h"
 #import "PanelFolder.h"
 #import "SampleTableController.h"
+#import "Chromatogram.h"
+#import "FolderListController.h"
 
 @implementation PanelListController {
 	IBOutlet MarkerTableController *_markerTableController;
@@ -184,7 +186,7 @@
 			NSString *description = [NSString stringWithFormat:@"%ld markers could not be added to the panel.", errorCounts];
 			error = [NSError errorWithDomain:STRyperErrorDomain
 										code:NSManagedObjectValidationError
-									userInfo:@{NSDetailedErrorsKey: [NSArray arrayWithArray:validationErrors],
+									userInfo:@{NSDetailedErrorsKey: validationErrors.copy,
 											   NSLocalizedDescriptionKey: NSLocalizedString(description, nil),
 											   NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(@"See the error log for details.", nil)
 												}];
@@ -200,6 +202,9 @@
 
 - (__kindof Folder *)_targetFolderOfSender:(id)sender {
 	Folder *targetFolder = [super _targetFolderOfSender:sender];
+	if([sender action] == @selector(importPanels:) && targetFolder == nil) {
+		targetFolder = self.rootFolder;
+	}
 	if(([sender action] == @selector(importPanels:) || [sender action] == @selector(addFolder:)) && targetFolder.isPanel) {
 		/// A panel cannot be parent of a panel.
 		return nil;
@@ -241,9 +246,10 @@
 
 - (NSString *)exportActionTitleForItems:(NSArray *)items {
 	PanelFolder *targetFolder = items.firstObject;
-	if(targetFolder.panels.count == 1) {
+	NSSet *panels = targetFolder.allPanels;
+	if(panels.count == 1) {
 		return @"Export Selected Panel to File…";
-	} else if(targetFolder.panels.count > 1) {
+	} else if(panels.count > 1) {
 		return @"Export Selected Panels to File…";
 	}
 	return nil;
@@ -254,7 +260,7 @@
 - (NSImage *)exportButtonImageForItems:(NSArray *)items {
 	static NSImage * exportImage;
 	if(!exportImage) {
-		exportImage = [NSImage imageNamed:@"export panel"];
+		exportImage = [NSImage imageNamed:ACImageNameExportPanel];
 	}
 	return exportImage;
 }
@@ -276,11 +282,15 @@
 	NSMutableString *base = NSMutableString.new;
 	NSInteger panelCount = panels.count;
 	if(panelCount > 0) {
+		Folder *trash = FolderListController.sharedController.trashFolder;
 		NSInteger nGenotypes = 0, nMarkers = 0;
 		for(Panel *panel in panels) {
 			NSInteger markerCount = panel.markers.count;
 			nMarkers += panel.markers.count;
-			nGenotypes += markerCount * panel.samples.count;
+			NSArray *samples = [panel.samples.allObjects filteredArrayUsingBlock:^BOOL(Chromatogram *  _Nonnull sample, NSUInteger idx) {
+				return sample.topAncestor != trash;
+			}];
+			nGenotypes += markerCount * samples.count;
 		}
 		if(!folder.isPanel) {
 			[base appendFormat: @"%ld panel%@", panelCount, panelCount>1? @"s":@""];
@@ -306,23 +316,23 @@
 
 - (IBAction)exportSelection:(id)sender {
 	PanelFolder *folder = [self _targetFolderOfSender:sender];
-	if(folder.panels.count > 0) {
-		[self exportPanel:(Panel *)folder];
+	if(folder.allPanels.count > 0) {
+		[self exportPanel:folder];
 	}
 }
 
 
-- (void)exportPanel:(Panel *)panel {
+- (void)exportPanel:(PanelFolder *)folder {
 	NSSavePanel* savePanel = NSSavePanel.savePanel;
-	savePanel.prompt = panel.panels.count > 1? @"Export Panels" : @"Export Panel";
+	savePanel.prompt = folder.allPanels.count > 1? @"Export Panels" : @"Export Panel";
 
-	savePanel.message = panel.isPanel? @"Export panel to a tab-delimited text file" : @"Export panel(s) to a tab-delimited text file";
-	savePanel.nameFieldStringValue = panel.name;
+	savePanel.message = folder.isPanel? @"Export panel to a tab-delimited text file" : @"Export panel(s) to a tab-delimited text file";
+	savePanel.nameFieldStringValue = folder.name;
 	savePanel.allowedFileTypes = @[@"public.plain-text"];
 	[savePanel beginSheetModalForWindow:outlineView.window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
 			NSURL* theFile = savePanel.URL;
-			NSString *exportString = panel.exportString;
+			NSString *exportString = folder.exportString;
 			NSError *error = nil;
 			[exportString writeToURL:theFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
 			if(error) {

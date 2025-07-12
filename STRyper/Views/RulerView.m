@@ -48,10 +48,8 @@ static void * const sampleSizeStandardChangedContext = (void*)&sampleSizeStandar
 
 /// strings that can be displayed if the sample shown by the traceView is not sized
 /// they replaces the labels in the display
-static NSAttributedString *noSizing;			/// when no size standard is applied
-static NSAttributedString *failedSizing;
-static float noSizingWidth;						/// we will compute their width just once. We use it to center these strings in the view.
-static float failedSizingWidth;
+static NSAttributedString *noSizing, *failedSizing, *poorSizing;
+static float noSizingWidth, failedSizingWidth, poorSizingWidth; /// To avoid computation during drawing.
 
 /// the layer showing the current position of the mouse using a vertical line. We use a global instance as only one view at a time shows this layer
 static CALayer *currentPositionMarkerLayer;
@@ -72,6 +70,7 @@ static NSColor *rulerLabelColor;
 	NSTimeInterval startScrollTime;		/// The start time of a scroll action, which we use to interpret a swipe event
 	float horizontalScrollAmount;
 	NSButton *zoomToFitButton;
+	CATextLayer *perfLayer;
 }
 
 @synthesize applySizeStandardButton = _applySizeStandardButton;
@@ -88,13 +87,13 @@ static NSColor *rulerLabelColor;
 + (void)initialize {
 	if (self == RulerView.class) {
 		
-		rulerLabelColor = [NSColor colorNamed:@"rulerLabelColor"];
+		rulerLabelColor = [NSColor colorNamed:ACColorNameRulerLabelColor];
 		
-		NSImage *cursorImage = [NSImage imageNamed:@"loupeCursorBordered"];
+		NSImage *cursorImage = [NSImage imageNamed:ACImageNameLoupeCursorBordered];
 		cursorImage.size = NSMakeSize(15, 20);
 		loupeCursor = [[NSCursor alloc]initWithImage:cursorImage hotSpot:NSMakePoint(6.1, 5.9)];
 		
-		cursorImage = [NSImage imageNamed:@"loupeCursorMinus"];
+		cursorImage = [NSImage imageNamed:ACImageNameLoupeCursorMinus];
 		cursorImage.size = NSMakeSize(15, 20);
 		loupeCursorMinus = [[NSCursor alloc]initWithImage:cursorImage hotSpot:NSMakePoint(6.1, 5.9)];
 
@@ -117,16 +116,18 @@ static NSColor *rulerLabelColor;
 			[tempRed addObject:rulerLabelRed];
 			
 		}
-		sizeArray = [NSArray arrayWithArray:temp];
-		sizeArrayRed = [NSArray arrayWithArray:tempRed];
+		sizeArray = temp.copy;
+		sizeArrayRed = tempRed.copy;
 		
 		NSDictionary *fontAttributes = @{NSFontAttributeName: [NSFont labelFontOfSize:10], NSForegroundColorAttributeName: NSColor.secondaryLabelColor};
 		
 		noSizing = [[NSAttributedString alloc]initWithString:@"No size standard applied" attributes:fontAttributes];
 		failedSizing = [[NSAttributedString alloc]initWithString:@"Sample sizing failed" attributes:fontAttributes];
+		poorSizing = [[NSAttributedString alloc]initWithString:@"Sizing too poor" attributes:fontAttributes];
 		noSizingWidth = noSizing.size.width;
 		failedSizingWidth = failedSizing.size.width;
-		
+		poorSizingWidth = poorSizing.size.width;
+
 		
 		/// we initialize the layers that show the current mouse position
 		/// the base layer only shows a vertical line at the position
@@ -156,8 +157,8 @@ static NSColor *rulerLabelColor;
 - (instancetype)initWithFrame:(NSRect)frameRect {
 	self = [super initWithFrame:frameRect];
 	if (self) {
+		_backgroundColor = NSColor.windowBackgroundColor;
 		/// we initialize the offset. There is one per size label.
-		offsets = calloc(MAX_TRACE_LENGTH, sizeof(float));
 		NSTrackingArea *trackingArea = [[NSTrackingArea alloc] initWithRect:frameRect
 																	options: NSTrackingMouseEnteredAndExited | NSTrackingInVisibleRect | NSTrackingActiveInKeyWindow
 																	  owner:self userInfo:nil];
@@ -191,7 +192,7 @@ static NSColor *rulerLabelColor;
 
 - (NSButton *)zoomToFitButton {
 	if(!zoomToFitButton) {
-		zoomToFitButton = [NSButton buttonWithImage:[NSImage imageNamed:@"zoomToFit"] target:self action:@selector(zoomToFit:)];
+		zoomToFitButton = [NSButton buttonWithImage:[NSImage imageNamed:ACImageNameZoomToFit] target:self action:@selector(zoomToFit:)];
 		[zoomToFitButton setFrame:NSMakeRect(0, 0, 30, ruleThickness)];
 		zoomToFitButton.bezelStyle = NSBezelStyleRecessed;
 		zoomToFitButton.bordered = NO;
@@ -225,7 +226,7 @@ static NSColor *rulerLabelColor;
 
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == currentPositionMarkerLayer || layer == self.layer) {
+	if(layer == currentPositionMarkerLayer || layer == self.layer || layer == perfLayer) {
 		return NSNull.null;
 	}
 	return nil;
@@ -276,21 +277,25 @@ static NSColor *rulerLabelColor;
 
 
 - (void)updateOffsets {
-	free(offsets);
-	///  there is one offset per size label. It indicates the shift in base pairs compared to the position without offset.
-	offsets = calloc(MAX_TRACE_LENGTH, sizeof(float));
+	if(offsets) {
+		free(offsets);
+		offsets = NULL;
+	}
+	
 	for(RegionLabel *markerLabel in traceView.markerLabels) {
 		float intercept = markerLabel.offset.intercept;
 		float slope = markerLabel.offset.slope;
 		if(slope != 1.0 || intercept != 0.0) {
+			///  there is one offset per size label. It indicates the shift in base pairs compared to the position without offset.
+			if(!offsets) {
+				offsets = calloc(MAX_TRACE_LENGTH, sizeof(float));
+			}
+			
 			int start = (int)(markerLabel.start + 0.9);
 			if(start < 0) {
 				start = 0;
 			}
-			int end =  (int)(markerLabel.end);
-			if(end > MAX_TRACE_LENGTH) {
-				end = MAX_TRACE_LENGTH;
-			}
+			int end =  MIN((int)(markerLabel.end), MAX_TRACE_LENGTH);
 			for (int i = start; i < end; i++) {
 				float newI = i * slope + intercept;
 				if(newI < start || newI > end) {
@@ -303,9 +308,24 @@ static NSColor *rulerLabelColor;
 	}
 }
 
+- (void)showTime:(NSString *)time {
+	if(!perfLayer) {
+		perfLayer = CATextLayer.new;
+		perfLayer.contentsScale = 3.0;	/// this makes text sharper (a non-retina display would require 2.0, so it's overkill in this situation)
+		perfLayer.bounds = CGRectMake(0, 0, 60, 12);					/// this ensures that the layer hides the ruler labels and tick-marks behind it (25 is larger than any string it can show)
+		perfLayer.fontSize = 10.0;
+		perfLayer.anchorPoint = NSMakePoint(0.5, 1);
+		perfLayer.backgroundColor = NSColor.redColor.CGColor;
+		[self.layer addSublayer:perfLayer];
+		perfLayer.zPosition = 3;
+		NSRect bounds = self.bounds;
+		perfLayer.position = CGPointMake(NSMidX(bounds), NSMaxY(bounds)-1);
+	}
+	perfLayer.string = time;
+}
 
 - (void)setCurrentPosition:(float)position {
-	if(traceView.trace && traceView.trace.chromatogram.sizingQuality == nil) {
+	if(traceView.trace && traceView.trace.chromatogram.sizingQuality.floatValue <= 0) {
 		if(_currentPosition <= -1000) {
 			/// if the sample is not sized, we make sure the current position layer does not show
 			return;
@@ -318,7 +338,7 @@ static NSColor *rulerLabelColor;
 	
 	/// we need to consider the offset of a marker in which the position may lie
 	if(i > 0 && i < MAX_TRACE_LENGTH) {
-		float offset = offsets[i];
+		float offset = offsets? offsets[i]:0;
 		if(offset > -999) {			/// -1000 is an offset to ignore
 			positionToShow -= offset;
 		}
@@ -386,7 +406,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 	
 	NSRect bounds = self.bounds;
 	
-	[NSColor.windowBackgroundColor setFill];
+	[_backgroundColor setFill];
 	NSRectFill(bounds);
 	float topY = NSMaxY(bounds);
 	
@@ -424,14 +444,18 @@ int rulerLabelIncrementForHScale(float hScale) {
 	}
 	
 	Chromatogram *sample = traceView.trace.chromatogram;
-	
-	if(sample && sample.sizingQuality == nil) {
+	NSNumber *sizingQuality = sample.sizingQuality;
+	if(sample && sizingQuality.floatValue <= 0) {
 		if(!sample.sizeStandard) {
 			if(!_applySizeStandardButton) {
 				[noSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - noSizingWidth/2, topY-15)];
 			}
 		} else {
-			[failedSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - failedSizingWidth/2, topY-15)];
+			if(sizingQuality != nil) {
+				[poorSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - poorSizingWidth/2, topY-15)];
+			} else {
+				[failedSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - failedSizingWidth/2, topY-15)];
+			}
 		}
 		return;
 	}
@@ -455,7 +479,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 	float previousX = traceView.leftInset - 1;
 	for (int size = 0; size <= endSize; size+=labelIncrement) {
 		/// we cannot start at startSize since it's a float and size must be an index, and we need to start at a given increment
-		float offset= offsets[size];
+		float offset= offsets? offsets[size]:0;
 		if(offset <= -1000.0) {
 			continue;
 		}
@@ -657,7 +681,9 @@ int rulerLabelIncrementForHScale(float hScale) {
 		[NSEvent removeMonitor:eventMonitor];
 		eventMonitor = nil;
 	}
-	free(offsets);
+	if(offsets) {
+		free(offsets);
+	}
 	if(traceView) {
 		[traceView removeObserver:self forKeyPath:@"trace.chromatogram.sizeStandard"];
 	}

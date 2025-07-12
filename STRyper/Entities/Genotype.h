@@ -107,6 +107,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// The longer allele for a diploid genotype, or `nil` for a haploid.
 @property (nonatomic, readonly, nullable) Allele *allele2;
 
+/// Internal method called after attributes of alleles are changed, to update the ``allele1`` and ``allele2`` properties.
+- (void) _alleleAttributeDidChange;
+
 /// The maximum height ratio (in RFU) measured between peaks that represent adenylation and alleles, for peaks that are at the right of alleles.
 ///
 /// This property is zero if ``callAllelesAndAdditionalPeak:`` was not called after the genotype was inserted/fetched.
@@ -117,7 +120,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This property is zero if ``callAllelesAndAdditionalPeak:`` was not called after the genotype was inserted/fetched.
 @property (readonly) float rightAdenylationRatio;
 
-/// The scan of a peak that could represent and allele.
+/// The scan of a peak that could represent an allele.
 ///
 /// This property is zero if ``callAllelesAndAdditionalPeak:`` was not called after the genotype was inserted/fetched.
 @property (readonly) int scanOfPossibleAllele;
@@ -170,7 +173,7 @@ typedef NS_ENUM(int32_t, GenotypeStatus) {
 		
 #pragma mark - marker offset
 
-/// A structure that defines the offset that alleles sizes of a genotype may have, compared to references sizes.
+/// A structure that defines the offset that allele sizes may have, compared to references sizes.
 ///
 /// A marker offset addresses the fact that the same allele may migrate differently (hence appear at different sizes) between sequencing runs.
 ///
@@ -239,7 +242,7 @@ extern const MarkerOffset MarkerOffsetNone;
 -(void)managedObjectOriginal_setStatus:(int32_t)status; /// Used internally, but we may as well leave this here since we have this extension in the header.
 -(void)managedObjectOriginal_setOffsetData:(nullable NSData *)offsetData;
 
-/// The sample of a genotype should not be changed by other objects after its creation, except during copy or import.
+/// The sample of a genotype should not be changed after its creation, except during copy or import.
 -(void)managedObjectOriginal_setSample:(nullable Chromatogram *)sample;
 
 

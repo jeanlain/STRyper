@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -12,7 +12,7 @@
             <windowStyleMask key="styleMask" titled="YES" closable="YES" resizable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="283" y="305" width="460" height="136"/>
-            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1415"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="1512" height="944"/>
             <view key="contentView" id="P2F-l3-KRc">
                 <rect key="frame" x="0.0" y="0.0" width="460" height="136"/>
                 <autoresizingMask key="autoresizingMask"/>
@@ -35,15 +35,15 @@
                                 <popUpMenus>
                                     <menu id="wbs-y0-tOD">
                                         <items>
-                                            <menuItem title="Any" state="on" id="FOu-a2-7G4">
+                                            <menuItem title="Any" state="on" localization="NO" mirroring="NO" id="FOu-a2-7G4">
                                                 <modifierMask key="keyEquivalentModifierMask"/>
                                                 <integer key="representedObject" value="2"/>
                                             </menuItem>
-                                            <menuItem title="All" id="z59-hb-Wjc">
+                                            <menuItem title="All" localization="NO" mirroring="NO" id="z59-hb-Wjc">
                                                 <modifierMask key="keyEquivalentModifierMask"/>
                                                 <integer key="representedObject" value="1"/>
                                             </menuItem>
-                                            <menuItem title="None" id="nyT-o1-zvD">
+                                            <menuItem title="None" localization="NO" mirroring="NO" id="nyT-o1-zvD">
                                                 <modifierMask key="keyEquivalentModifierMask"/>
                                                 <integer key="representedObject" value="0"/>
                                             </menuItem>
@@ -51,7 +51,7 @@
                                     </menu>
                                     <menu id="uDq-rV-qEg">
                                         <items>
-                                            <menuItem title="of the following are true" state="on" id="SRl-4n-sWw">
+                                            <menuItem title="of the following are true" state="on" localization="NO" mirroring="NO" id="SRl-4n-sWw">
                                                 <modifierMask key="keyEquivalentModifierMask"/>
                                             </menuItem>
                                         </items>

@@ -19,7 +19,7 @@
 
 
 
-#import <CoreData/CoreData.h>
+@import CoreData;
 
 NS_ASSUME_NONNULL_BEGIN
 

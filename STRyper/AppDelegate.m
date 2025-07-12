@@ -27,6 +27,7 @@
 #import "SampleTableController.h"
 #import "GenotypeTableController.h"
 #import "DetailedViewController.h"
+#import "SmartFolder.h"
 
 @interface AppDelegate ()
 
@@ -61,9 +62,11 @@ TraceRowsPerWindow = @"TraceRowsPerWindow",
 TraceStackMode = @"StackMode",
 PaintCrosstalkPeaks = @"PaintCrosstalkPeaks",
 IgnoreCrosstalkPeaks = @"IgnoreCrossTalkPeaks",
+IgnoreOtherChannels = @"IgnoreOtherChannels",
 MaintainPeakHeights = @"MaintainPeakHeights",
 SynchronizeViews = @"SynchronizeViews",
 SwipeBetweenMarkers = @"SwipeBetweenMarkers",
+AlwaysShowScrollers = @"AlwaysShowScrollers",
 TraceTopFluoMode = @"TraceTopFluoMode",
 ShowRawData = @"ShowRawData",
 ShowBins = @"ShowBins",
@@ -72,6 +75,11 @@ ShowChannel1 = @"Channel1",
 ShowChannel2 = @"Channel2",
 ShowChannel3 = @"Channel3",
 ShowChannel4 = @"Channel4",
+ShowChannel0G = @"Channel0G",
+ShowChannel1G = @"Channel1G",
+ShowChannel2G = @"Channel2G",
+ShowChannel3G = @"Channel3G",
+ShowChannel4G = @"Channel4G",
 AddSampleInfo = @"AddSampleInfo",
 AutoDetectSizeStandard = @"AutoDetectSizeStandard",
 DubiousAlleleName = @"DubiousAlleleName",
@@ -97,8 +105,10 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   TraceTopFluoMode: @0,
 							   PaintCrosstalkPeaks : @YES,
 							   IgnoreCrosstalkPeaks : @NO,
+							   IgnoreOtherChannels : @YES,
 							   SynchronizeViews: @YES,
 							   SwipeBetweenMarkers: @YES,
+							   AlwaysShowScrollers: @NO,
 							   ShowRawData: @NO,
 							   MaintainPeakHeights: @NO,
 							   ShowBins: @YES,
@@ -107,6 +117,11 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   ShowChannel2: @YES,
 							   ShowChannel3: @YES,
 							   ShowChannel4: @YES,
+							   ShowChannel0G: @NO,
+							   ShowChannel1G: @NO,
+							   ShowChannel2G: @NO,
+							   ShowChannel3G: @NO,
+							   ShowChannel4G: @NO,
 							   AddSampleInfo: @NO,
 							   BottomTab: @0,
 							   AutoDetectSizeStandard:@NO,
@@ -125,7 +140,12 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
 
 + (instancetype)sharedInstance {
-	return (AppDelegate *)NSApp.delegate;
+	static AppDelegate *delegate = nil;
+	static dispatch_once_t once;
+	dispatch_once(&once, ^{
+		delegate = (AppDelegate *)NSApp.delegate;
+	});
+	return delegate;
 }
 
 
@@ -183,6 +203,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 										  filteredOrderedSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Folder *folder , NSDictionary<NSString *,id> * _Nullable bindings) {
 		return !folder.isSmartFolder;
 	}]];
+		
 	if(deletedSampleFolders.count >0 || trashFolder.samples.count > 0) {
 		NSAlert *alert = NSAlert.new;
 		alert.messageText = @"Some deleted items were detected.";
@@ -365,14 +386,14 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							}
 							return;
 						}
-						NSArray *folderContent = [manager contentsOfDirectoryAtPath:folder error:&fileError];
+						NSArray<NSString *> *folderContent = [manager contentsOfDirectoryAtPath:folder error:&fileError];
 						if(!fileError) {
 							/// we will propose to continue by using a new database. We will move the existing one elsewhere.
 							NSString *databasePrefix = storeDescription.URL.lastPathComponent;
 							/// We extract the paths of the various files of the database
-							folderContent = [folderContent filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
-								return [evaluatedObject rangeOfString:databasePrefix].location != NSNotFound;
-							}]];
+							folderContent = [folderContent filteredArrayUsingBlock:^BOOL(id  _Nonnull obj, NSUInteger idx) {
+								return [obj rangeOfString:databasePrefix].location != NSNotFound;
+							}];
 													
 							alert.messageText = @"The database could not be read.";
 							alert.informativeText = @"You may quit or continue with a new database. The previous one will be backed-up.";
@@ -593,7 +614,52 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	}
 	
 	/// we delete items that are in the trash before quitting
-	SampleFolder *trashFolder = FolderListController.sharedController.trashFolder;
+	FolderListController *folderListController = FolderListController.sharedController;
+	SampleFolder *trashFolder = folderListController.trashFolder;
+	
+	/// If there are some orphan (invisible) folders (which happens if one undoes the import of a folder – this is a bug), we put them to the trash for removal.
+	NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"Folder"];
+	NSArray<Folder *> *folders = [self.managedObjectContext executeFetchRequest:request error:nil];
+	NSArray<NSString *> *baseFolderNames = [@[trashFolder, folderListController.rootFolder, PanelListController.sharedController.rootFolder, folderListController.smartFolderContainer] valueForKeyPath:@"@unionOfObjects.name"];
+		
+		for(Folder *folder in folders) {
+			if(!folder.parent && ![baseFolderNames containsObject:folder.name]) {
+				NSLog(@"ghost %@: %@", folder.entity.name, folder.name);
+				if([folder isKindOfClass:SampleFolder.class] || [folder isKindOfClass:SmartFolder.class]) {
+					[trashFolder addSubfoldersObject:folder];
+				} else {
+					/// If a panel or panel folder has not parent (which should not happen), we do not remove it.
+					/// Doing so may delete genotypes. We just place it at the root.
+					folder.parent = PanelListController.sharedController.rootFolder;
+					folder.name = [folder.name stringByAppendingString:@"-restored"];
+				}
+				[folder autoName];
+			}
+		}
+	
+	/// We remove preference entries related to folders that were deleted
+	/// For that obtain folders that are NOT deleted.
+	folders = [folders filteredArrayUsingBlock:^BOOL(Folder*  _Nonnull folder, NSUInteger idx) {
+		return ([folder isKindOfClass: SampleFolder.class] || [folder isKindOfClass:SmartFolder.class]) && folder.topAncestor != trashFolder;
+	}];
+	
+	NSArray *folderIDs = [folders valueForKeyPath:@"@unionOfObjects.objectID.URIRepresentation.absoluteString"];
+	NSUserDefaults *userDefaults = NSUserDefaults.standardUserDefaults;
+	UserDefaultKey selectedSampleKey = SampleTableController.sharedController.userDefaultKeyForSelectedItemIDs;
+	UserDefaultKey selectedGenotypeKey = GenotypeTableController.sharedController.userDefaultKeyForSelectedItemIDs;
+
+	for(UserDefaultKey key in @[GenotypeFiltersKey, selectedSampleKey, selectedGenotypeKey]) {
+		NSMutableDictionary *dic = [userDefaults dictionaryForKey:key].mutableCopy;
+		if(dic) {
+			NSArray *keysToRemove = [dic.allKeys arrayByRemovingObjectsInArray:folderIDs];
+			if(keysToRemove.count > 0) {
+				[dic removeObjectsForKeys:keysToRemove];
+				[userDefaults setObject:dic forKey:key];
+			}
+		}
+	}
+		
+	[context save:nil];
 	if(trashFolder.subfolders.count > 0 || trashFolder.samples.count > 0) {
 		[FolderListController.sharedController emptyTrashWithCompletionHandler:^(NSError * error) {
 			if(error) {
@@ -603,7 +669,6 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 			[NSApp terminate:self];
 		}];
 		
-
 		/// the method above launches a block that likely finishes some time after the method has returned.
 		/// We therefore cancel the termination, otherwise the app would quit in the middle of the operation
 		return NSTerminateCancel;

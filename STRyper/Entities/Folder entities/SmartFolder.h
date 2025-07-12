@@ -59,7 +59,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Returns a predicated based on the ``searchPredicate`` property, but with dates comparisons corresponding to a full day rather than a specific time within this day.
 ///
 /// This method uses `predicateWithFullDayComparisons`.
-@property (nonatomic, readonly) NSPredicate *predicatedWithRoundedDates;
+@property (nonatomic, readonly, nullable) NSPredicate *predicatedWithRoundedDates;
 
 /// Returns samples found using the search predicate.
 ///

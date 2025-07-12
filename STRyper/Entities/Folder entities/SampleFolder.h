@@ -25,6 +25,8 @@
 #import "Folder.h"
 @class Chromatogram;
 
+NS_ASSUME_NONNULL_BEGIN
+
 /// A folder containing other folders of the same class and/or ``Chromatogram`` objects.
 ///
 /// A sample folder allows the user to organize  ``Chromatogram`` objects.
@@ -35,7 +37,7 @@
 /// The reverse relationship is ``Chromatogram/folder``.
 ///
 /// This relationship is encoded in ``CodingObject/encodeWithCoder:``  and decoded in ``CodingObject/initWithCoder:``.
-@property (nonatomic) NSSet <Chromatogram *> *samples;
+@property (nonatomic, nullable) NSSet <Chromatogram *> *samples;
 
 /// Return all samples contained in the receiver, including those present in its ``Folder/subfolders``.
 @property (nonatomic, readonly) NSSet <Chromatogram *> *allSamples;
@@ -52,3 +54,5 @@ extern NSNotificationName const SampleFolderSubfoldersDidChangeNotification;
 -(void)removeSamples:(NSSet *)samples;
 
 @end
+
+NS_ASSUME_NONNULL_END

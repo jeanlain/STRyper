@@ -40,7 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This view also shows ``Chromatogram/offscaleRegions`` as colored rectangles behind the curves.
 ///
 /// A trace view can show several traces at once. These could be all traces of a given  ``FluoTrace/chromatogram`` ("sample"), or of several samples.
-/// Alternatively, this view can show a marker only (no trace).
+/// Alternatively, this view can show a marker only (the maker's ``Mmarker/bins``, but no trace).
 ///
 /// - Important: A trace view must be a document view of an `NSScrollView` (subclass). It will not work otherwise.
 /// It is designed to scroll only horizontally. It resizes itself to fit its clipview vertically.
@@ -48,7 +48,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A trace view interacts with a ``MarkerView`` to show the range of molecular markers of its ``LabelView/panel``, a ``RulerView`` to indicate the horizontal scale it base pairs,
 /// and a ``VScaleView`` to show the vertical scale in fluorescence units.
 ///
-/// This view implements internal methods allowing the user to add/edit bins (class ``Bin``) by click & drag and to add a missing peak to a trace by right-clicking.
+/// This view implements internal methods allowing the user to add/edit bins (class ``Bin``) by click & drag, and to add a missing peak to a trace, or to highlight a curve, by right-clicking or deep press.
 @interface TraceView : LabelView <CALayerDelegate>
 
 /// The view showing the fluorescence level representing the vertical scale of of the curves plotted by the trace view.
@@ -87,8 +87,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// If the `object` is a chromatogram, the view will show its  ``Chromatogram/traces``  (depending of the ``displayedChannels``).
 ///
-/// If the `object` is a genotype, the view will show the trace associated with the ``Mmarker/channel`` of the genotype's ``Genotype/marker``,
-/// and will set its ``visibleRange``  to the range of this marker.
+/// If the `object` is a genotype, the view will show the traces associated the genotype's ``Genotype/sample``,
+/// and will set its ``visibleRange``  to the range of its ``Genotype/marker``.
 ///
 /// If the `object` is a marker, the view will show no trace and and will set its ``visibleRange``  to the range of the marker.
 /// The marker's ``Mmarker/bins`` will also be shown if it has any.
@@ -100,10 +100,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// This array will contain no more than 400 traces.
 @property (nonatomic, readonly, nullable) NSArray<Trace *> *loadedTraces;
 
-/// The longest trace (in base pairs) among the ``loadedTraces``, or `nil`  if there is none.
+/// One of the``loadedTraces``, or `nil`  if there is none.
 ///
-/// In most cases, the view shows a single trace, so having a direct pointer it is useful.
-/// This property helps the implementation even if the view shows several traces.
+/// If the view has loaded traces of different samples, this property will be the trace with longest ``Chromatogram/readLength``.
+/// If the views has loaded a ``Genotype``, it will be the trace of the corresponding ``Genotype/marker``.
 @property (nonatomic, readonly, nullable, weak) Trace *trace;
 
 /// The genotype the view has loaded .
@@ -118,7 +118,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The ``FluoTrace/channel`` of the trace(s) or marker shown by the view, from 0 to 4.
 ///
-/// The returned value is -1 if the view shows traces from different channels (i.e., if a ``Chromatogram`` was loaded).
+/// The returned value is -1 if the view shows traces from different channels and a``Chromatogram`` was loaded.
+/// If the view has loaded a ``Genotype``, the value is the ``Mmarker/channel`` of its ``Genotype/marker``.
 /// This property may not reflect the ``displayedChannels`` property.
 @property (nonatomic, readonly) ChannelNumber channel;
 
@@ -242,14 +243,23 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default value is `NO`.
 @property (nonatomic) BOOL ignoreCrosstalkPeaks;
 
+
+/// Whether peaks in other channels than ``channel`` should be ignored by ``topFluoForRange:``.
+///
+/// The default value is `NO`.
+@property (nonatomic) BOOL ignoreOtherChannels;
+
+
 /// The ``visibleRange`` that the view takes by default.
 ///
 /// The `len` component cannot be negative and `start` + `len` is constrained to [2; 1000]
 @property (nonatomic) BaseRange defaultRange;
 
-/// The channels the view displays if it has loaded a sample with ``loadContent:``.
+
+/// The channels of the traces the view displays if it has loaded a sample or a genotype in ``loadContent:``.
 ///
-/// The value of this property has an effect on the traces shown by the view only if the view has loaded a sample.
+/// The value of this property has a visible effect only if the view has loaded a ``Chromatogram`` or a ``Genotype``.
+/// If a genotype was loaded, the corresponding trace will show regardless of this property.
 @property (nonatomic, copy) NSArray<NSNumber *>* displayedChannels;
 
 /// strings used for binding the properties defined above
@@ -261,6 +271,7 @@ AutoScaleToHighestPeakBinding,
 DisplayedChannelsBinding,
 PaintCrosstalkPeakBinding,
 IgnoreCrossTalkPeaksBinding,
+IgnoreOtherChannelsBinding,
 DefaultRangeBinding,
 ShowPeakTooltipsBinding;
 
@@ -271,6 +282,8 @@ ShowPeakTooltipsBinding;
 ///
 /// This property determines the ``visibleOrigin`` and reflects the ``VScaleView/width`` of the ``vScaleView``.
 @property (nonatomic) float leftInset;
+
+- (void)getRangeAndScale;
 
 /// The x origin of the visible rectangle of the view.
 ///

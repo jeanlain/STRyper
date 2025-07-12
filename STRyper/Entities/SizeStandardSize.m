@@ -47,8 +47,8 @@
 
 - (void)autoSize {
 	int16_t size = self.size;
-	if(size < 20) {
-		size = 20;
+	if(size < 10) {
+		size = 10;
 	}
 	NSMutableSet *siblings = [NSMutableSet setWithSet: self.sizeStandard.sizes];
 	[siblings removeObject:self];
@@ -82,10 +82,10 @@
 	}
 	
 	int16_t size = sizeNumber.shortValue;
-	if(size < 20) {
+	if(size < 10) {
 		if (error != NULL) {
 			NSString *description = [NSString stringWithFormat:@"The size is too short."];
-			NSString *reason = [NSString stringWithFormat:@"A size must be at least 20 bp."];
+			NSString *reason = [NSString stringWithFormat:@"A size must be at least 10 bp."];
 			*error = [NSError managedObjectValidationErrorWithDescription:description suggestion:reason object:self reason:reason];
 		}
 		return NO;

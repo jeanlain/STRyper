@@ -98,7 +98,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 /// Returns all the receiver's subfolders, recursively, which includes the subfolders of subfolders.
-@property (nonatomic, readonly) NSSet<Folder *> *allSubfolders;
+@property (nonatomic, readonly, nullable) NSSet<Folder *> *allSubfolders;
 
 /// The folder's successive ancestors, in order of ancestry.
 ///

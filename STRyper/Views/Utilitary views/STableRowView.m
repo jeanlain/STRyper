@@ -36,7 +36,14 @@
 	}
 }
 
-
+- (void)setEmbeddedScrollView:(NSScrollView *)mainSubView {
+	if(_embeddedScrollView) {
+		[_embeddedScrollView removeFromSuperview];
+	}
+	_embeddedScrollView = mainSubView;
+	[self addSubview:mainSubView];
+	self.needsLayout = YES;
+}
 
 
 -(void)layout {
@@ -47,6 +54,11 @@
 
 /// Makes our first subview as wide as the tableview's clip view.
 -(void)setSubviewFrame:(NSNotification *)notification {
+	NSView *subview = self.embeddedScrollView;
+
+	if(!subview) {
+		return;
+	}
 	/// We obtain the visible width of our tableview
 	/// for that, we use the clipview of the tableview's scrollview.
 	NSView *clipView = self.enclosingScrollView.contentView;
@@ -57,11 +69,6 @@
 	float xOrigin = clipView.bounds.origin.x;
 	if(xOrigin < 0) {
 		xOrigin = 0;
-	}
-
-	NSView *subview = self.subviews.firstObject;
-	if(!subview) {
-		return;
 	}
 	
 	NSRect frame = NSMakeRect(xOrigin, 0, clipView.frame.size.width, self.frame.size.height);

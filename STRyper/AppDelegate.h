@@ -121,11 +121,17 @@ PaintCrosstalkPeaks,
 /// Whether peaks resulting from crosstalk should be ignored when trace views adjust their vertical scales to highest visible peaks.
 IgnoreCrosstalkPeaks,
 
+/// Whether peaks resulting from other channels should be ignored when trace views adjust their vertical scales to highest visible peaks.
+IgnoreOtherChannels,
+
 /// Whether the horizontal positions and scales of trace views should be synchronized.
 SynchronizeViews,
 
 /// Whether a scroll gesture on the top ruler allows moving between markers
 SwipeBetweenMarkers,
+
+/// Whether a horizontal scroller are always visible below trace views
+AlwaysShowScrollers,
 
 /// Whether trace views plot raw fluorescence data (see ``TraceView/showRawData``.
 ShowRawData,
@@ -151,6 +157,21 @@ ShowChannel3,
 /// Whether trace views show data from the fifth channel (see ``FluoTrace/channel``).
 ShowChannel4,
 
+/// Whether trace views show data from the first channel when showing genotypes (see ``FluoTrace/channel``).
+ShowChannel0G,
+
+/// Whether trace views show data from the second channel when showing genotypes (see ``FluoTrace/channel``).
+ShowChannel1G,
+
+/// Whether trace views show data from the third channel when showing genotypes (see ``FluoTrace/channel``).
+ShowChannel2G,
+
+/// Whether trace views show data from the forth channel when showing genotypes (see ``FluoTrace/channel``).
+ShowChannel3G,
+
+/// Whether trace views show data from the fifth channel when showing genotypes (see ``FluoTrace/channel``).
+ShowChannel4G,
+
 /// Whether the metadata of chromatograms should be added to genotype data when genotypes are exported to a text file.
 AddSampleInfo,
 
@@ -172,7 +193,7 @@ DefaultSizingOrder,
 /// The index of the tab that is shown in the bottom pane, which contains an `NSTabView`.
 BottomTab,
 
-/// Whether sample search (see ``SampleSearchHelper``) should be case sensitive.
+/// Whether sample search should be case sensitive.
 CaseSensitiveSampleSearch;
 
 

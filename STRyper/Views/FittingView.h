@@ -60,25 +60,25 @@ NS_ASSUME_NONNULL_BEGIN
 /// The string that the ``textField`` shows when the ``samples`` array does not contain any sample.
 ///
 /// The default value is "No sample selected".
-@property (nonatomic) NSString *noSampleString;
+@property (nonatomic, copy) NSString *noSampleString;
 
 
 /// The string that the ``textField`` shows when the ``samples`` array contains several samples.
 ///
 /// The default value is "Multiple samples selected".
-@property (nonatomic) NSString *multipleSampleString;
+@property (nonatomic, copy) NSString *multipleSampleString;
 
 
 /// The string that the ``textField`` shows when the sample is not sized.
 ///
 /// The default value is "Sample not sized".
-@property (nonatomic) NSString *noSizingString;
+@property (nonatomic, copy) NSString *noSizingString;
 
 
 /// The string that the ``textField`` shows if sizing failed for the sample.
 ///
 /// The default value is "Sample sizing failed".
-@property (nonatomic) NSString *failedSizingString;
+@property (nonatomic, copy) NSString *failedSizingString;
 
 
 @end

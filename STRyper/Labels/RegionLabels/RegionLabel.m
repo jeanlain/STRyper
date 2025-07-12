@@ -48,7 +48,6 @@ static void * const regionStartChangedContext = (void*)&regionStartChangedContex
 static void * const regionEndChangedContext = (void*)&regionEndChangedContext;
 static void * const regionEditStateChangedContext = (void*)&regionEditStateChangedContext;
 static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
-static void * const regionWillBeDeletedContext = (void*)&regionWillBeDeletedContext;
 static void * const popoverDelegateChangedContext = (void*)&popoverDelegateChangedContext;
 static NSManagedObjectContext *temporaryContext;
 
@@ -100,8 +99,8 @@ static NSManagedObjectContext *temporaryContext;
 		return nil;
 	}
 		
-	float start = (position < clickedPosition) ? position:clickedPosition;
-	float end = (position < clickedPosition) ? clickedPosition:position;
+	float start = MIN(position, clickedPosition);
+	float end = MAX(clickedPosition, position);
 	
 	temporaryContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
 
@@ -157,19 +156,11 @@ static NSManagedObjectContext *temporaryContext;
 		layer.delegate = self;
 		layer.opaque = YES;
 		if(![self isKindOfClass:TraceViewMarkerLabel.class]) {
-			layer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
-							  NSStringFromSelector(@selector(borderWidth)):NSNull.null};
-
 			bandLayer = CALayer.new;
-			bandLayer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
-								  NSStringFromSelector(@selector(borderWidth)):NSNull.null,
-								  NSStringFromSelector(@selector(hidden)):NSNull.null};
 			bandLayer.delegate = self;
 			bandLayer.opaque = YES;
 
 			stringLayer = CATextLayer.new;
-			stringLayer.actions = @{@"contents":NSNull.null}; /// `actionForLayer:ForKey:` on a text layer is deferred,
-															  /// which prevents determining if we should allow animation. So we don't.
 			stringLayer.contentsScale = 2.0;
 			stringLayer.delegate = self;
 			stringLayer.drawsAsynchronously = YES;  			/// maybe that helps a bit (not noticeable)
@@ -183,7 +174,6 @@ static NSManagedObjectContext *temporaryContext;
 
 - (void)setRegion:(__kindof Region *)region {
 	if(_region) {
-		[_region removeObserver:self forKeyPath:willBeDeletedKey];
 		[_region removeObserver:self forKeyPath:regionStartKey];
 		[_region removeObserver:self forKeyPath:regionEndKey];
 		if(!self.isBinLabel) {
@@ -200,9 +190,7 @@ static NSManagedObjectContext *temporaryContext;
 	if(region) {
 		/// We observe the region rather than self for @"region.start" (in `init`) for instance, because that causes crashes when undoing
 		/// the deletion of a marker, for reasons I could not identify (observers were properly removed in dealloc).
-		[region addObserver:self forKeyPath:willBeDeletedKey
-					options:NSKeyValueObservingOptionNew
-					context:regionWillBeDeletedContext];
+
 		[region addObserver:self forKeyPath:regionStartKey
 					options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
 					context:regionStartChangedContext];
@@ -228,7 +216,7 @@ static NSManagedObjectContext *temporaryContext;
 - (BOOL)highlightedOnMouseUp {
 	/// These labels are only highlighted on mouseUp, to avoid unwanted dragging (of bins, in particular).
 	/// The user has to select them, release the mouse, and then drag edges or the whole bin
-	return YES;
+	return NO;
 }
 
 
@@ -289,9 +277,10 @@ static NSManagedObjectContext *temporaryContext;
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-	if(context == regionWillBeDeletedContext) {
-		self.region = nil; /// which remove observations to avoid reacting to change in a region that will be deleted.
-	} else if(context == regionEditStateChangedContext) {
+	if(object == _region && _region.isDeleted) {
+		return;
+	}
+	if(context == regionEditStateChangedContext) {
 		self.editState = self.region.editState;
 	} else if(context == regionNameChangedContext){
 		if(self.isBinLabel) {
@@ -361,19 +350,29 @@ static NSManagedObjectContext *temporaryContext;
 	}
 	
 	TraceView *view = self.view;
-	
+	NSPoint clickedPoint = view.clickedPoint;
 	/// we determine if the user has clicked an edge
+	/// Computing edge rects is redundant if the label was already highlighted, but required if it was not
+	NSRect frame = self.frame;
+	leftEdgeRect =  NSMakeRect(frame.origin.x, 0, 5, frame.size.height);
+	rightEdgeRect =  NSMakeRect(NSMaxX(frame)-5, 0, 5, frame.size.height);
 	self.clickedEdge = noEdge;	/// the default value
 	if(clicked && self.highlighted) {
-		if(NSPointInRect(view.clickedPoint, leftEdgeRect)) {
+		if(NSPointInRect(clickedPoint, leftEdgeRect)) {
 			self.clickedEdge = leftEdge;
 		} else {
-			if(NSPointInRect(view.clickedPoint, rightEdgeRect)) {
+			if(NSPointInRect(clickedPoint, rightEdgeRect)) {
 				self.clickedEdge = rightEdge;
 			} else {
 				self.clickedEdge = betweenEdges;
 			}
 		}
+	}
+	if(self.hoveredEdge & !clicked) {
+		NSPoint mouseLocation = view.mouseLocation;
+		/// If the mouse exits an edge tracking area while still clicked (i.e., dragged), no mouseExit even is sent,
+		/// so hoveredEdge would not have been set to NO as it should.
+		self.hoveredEdge = NSPointInRect(mouseLocation, leftEdgeRect)  || NSPointInRect(mouseLocation, rightEdgeRect);
 	}
 	
 	super.clicked = clicked;
@@ -501,7 +500,7 @@ static NSManagedObjectContext *temporaryContext;
 	if(_menu == nil) {
 		_menu = NSMenu.new;
 		[_menu addItemWithTitle:@"Edit Name and Range" action:@selector(spawnRegionPopover:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"edited"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameEdited]];
 		for(NSMenuItem *item in self.menu.itemArray) {
 			item.target = self;
 		}
@@ -601,10 +600,12 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 
 - (void)drag {
 	/// Default implementation used by BinLabel and MarkerLabel, which resizes or moves their region
-	self.dragged = YES;
+	
+	TraceView *view = self.view;
+	NSPoint mouseLocation = view.mouseLocation;
 
 	/// We determine the position of the mouse in base pairs (trace coordinates)
-	float mousePos = [self.view sizeForX:self.view.mouseLocation.x];
+	float mousePos = [view sizeForX:mouseLocation.x];
 	float slope = self.offset.slope;
 	float intercept = self.offset.intercept;
 	float pos = (mousePos-intercept)/slope;    /// the position of the mouse in base pairs (in marker coordinates)
@@ -617,10 +618,21 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 	}
 	
 	if(self.clickedEdge == leftEdge) {
+		self.dragged = YES;
 		self.start = pos;
 	} else if(self.clickedEdge == rightEdge) {
+		self.dragged = YES;
 		self.end = pos;
 	} else if(self.clickedEdge == betweenEdges && self.isBinLabel) {
+		if(!self.dragged) {
+			/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
+			/// This avoids moving the bin after a simple click
+			if(fabs(mouseLocation.x - view.clickedPoint.x) < 2) {
+				return;
+			}
+			self.dragged = YES;
+		}
+		
 		/// If the user has clicked between the edges, we move both edges at the same time => we move the label. We only allow that for bins
 		/// this requires a bit of computation to deduce where the edges should go, since they are not at the mouse exact location
 		TraceView *view = self.view;
@@ -671,55 +683,65 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 }
 
 
-/// Transfers start and end positions to that of our region.
+/// Transfers start and end positions to that of the region.
 - (void)updateRegion {
 	
 	Region *region = self.region;
 	float start = self.start, end = self.end;
-	BOOL validNewStart = NO, validNewEnd = NO, invalid = NO;
-	
-	if(start != region.start) {
-		if(start >= leftLimit && start <= rightLimit) {
-			validNewStart = YES;
-		} else {
-			invalid = YES;
-			/// We don't use the validation methods of the region, because when both start and end are changed (dragged),
-			/// both may be considered invalid, as validation of start relies on the end (to check the region width) and vice versa.
-			/// Our current safeguards should be sufficient but it would be safer to use a more robust solution.
-			/// We don't throw an error at the user because it wouldn't be their fault. This would be a programmer error (we could throw an exception to catch...)
-			NSLog(@"Start position %f of %@ '%@' is out of allowed range! Not updating region.", start, region.entity.name, region.name);
-		}
-	}
-	
-	if(end != region.end) {
-		if(end >= leftLimit && end <= rightLimit) {
-			validNewEnd = YES;
-		} else {
-			invalid = YES;
-			NSLog(@"End position %f of %@ '%@' is out of allowed range! Not updating region.", end, region.entity.name, region.name);
-		}
-	}
-	
-	if(invalid) {
-		self.start = region.start;
-		self.end = region.end;
+	if(start == region.start && end == region.end) {
 		return;
 	}
 	
-	if(validNewStart) {
-		region.start = start;
+	NSError *databaseError;
+	NSManagedObjectContext *MOC = region.managedObjectContext;
+	BOOL newRegion = MOC == temporaryContext; /// When the region is in a temporary context, it means it has been just created via click & drag
+	if(!newRegion) {
+		if(MOC.hasChanges) {
+			[MOC save:&databaseError];
+		}
+		
+		/// We will update the region coordinates on a child context to validate them.
+		/// This is because we have to update both start and end for the validation to work.
+		/// And we don't want to change the coordinates in the view context in case they are invalid. This would generate undo actions, among other nuisances.
+		MOC = AppDelegate.sharedInstance.newChildContextOnMainQueue;
+		region = [MOC existingObjectWithID:region.objectID error:&databaseError];
 	}
 	
-	if(validNewEnd) {
+	if(!databaseError) {
+		float originalStart = region.start, originalEnd = region.end;
+		region.start = start;
 		region.end = end;
-	}
-	if(region.managedObjectContext == temporaryContext) {
-		[region autoName];
-		if(self.isBinLabel) {
-			[self.view labelDidUpdateNewRegion:self];
-		} else if(self.isMarkerLabel) {
-			[self spawnRegionPopover:self];
+		if(![region validateForUpdate:nil]) {
+			/// We don't throw the error at the user because it wouldn't be their fault. This would be a programmer error (we could throw an exception to catch...)
+			NSLog(@"%@ '%@' is out of allowed range! Not updating region.", region.entity.name, region.name);
+			if(newRegion) {
+				[self removeFromView]; 
+			} else {
+				/// We restore the original coordinates, so that the drag is undone.
+				self.start = originalStart;
+				self.end = originalEnd;
+			}
+			return;
 		}
+		
+		if(newRegion) {
+			[region autoName];
+			if(self.isBinLabel) {
+				[self.view labelDidUpdateNewRegion:self];
+			}
+			[self performSelector:@selector(spawnRegionPopover:) withObject:self afterDelay:0.05];
+			
+		} else if(MOC.hasChanges) {
+			[MOC save:&databaseError];
+		}
+	}
+	if(databaseError) {
+		/// We undo the drag.
+		self.start = region.start;
+		self.end = region.end;
+		NSString *description = [NSString stringWithFormat:@"The %@ could not be modified because of a database error.", region.entity.name];
+		databaseError = [NSError errorWithDescription:description suggestion:@"You may try to restart the application."];
+		[[NSAlert alertWithError:databaseError] runModal];
 	} else {
 		NSString *actionName = self.isBinLabel? @"Edit Bin" : @"Resize Marker";
 		[self.view.undoManager setActionName:actionName];
@@ -747,11 +769,11 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 		return NO;
 	}
 	
-	NSArray *genotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
+	NSArray<Genotype *> *genotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
 	
-	genotypes = [genotypes filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+	genotypes = [genotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
 		return genotype.marker == marker;
-	}]];
+	}];
 	
 	if(genotypes.count > 0) {
 		NSData *offsetCoefs = [NSData dataWithBytes:&offset length:sizeof(offset)];

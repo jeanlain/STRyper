@@ -84,7 +84,10 @@ errorLogWindow = _errorLogWindow;
 - (void)windowDidLoad {
 	[super windowDidLoad];
 	NSWindow *window = self.window;
-	[window makeKeyAndOrderFront:self];
+	window.titlebarAppearsTransparent = NO;
+//	window.styleMask |= NSWindowStyleMaskFullSizeContentView;
+	
+	[window orderFront:self];
 	[window makeMainWindow];
 	window.acceptsMouseMovedEvents = NO;
 	
@@ -164,6 +167,8 @@ errorLogWindow = _errorLogWindow;
 		toolbar.autosavesConfiguration = YES;
 		window.toolbar = toolbar;
 	}
+	
+	[self restoreSelection];
 }
 
 
@@ -289,11 +294,11 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 		NSToolbarItemGroup *undoRedo = [[NSToolbarItemGroup alloc] initWithItemIdentifier:itemIdentifier];
 		NSToolbarItem *undoButton = [[NSToolbarItem alloc] initWithItemIdentifier:undoButtonID];
 		NSToolbarItem *redoButton = [[NSToolbarItem alloc] initWithItemIdentifier:redoButtonID];
-		undoButton.image = [NSImage imageNamed:@"undo"];
+		undoButton.image = [NSImage imageNamed:ACImageNameUndo];
 		undoButton.label = @"Undo";
 		undoButton.action = @selector(undo:);
 		undoButton.target = self;
-		redoButton.image = [NSImage imageNamed:@"redo"];
+		redoButton.image = [NSImage imageNamed:ACImageNameRedo];
 		redoButton.label = @"Redo";
 		redoButton.action = @selector(redo:);
 		redoButton.target = self;
@@ -312,48 +317,48 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 	item.target = self;
 	
 	if([itemIdentifier isEqualToString:leftPaneButtonID]) {
-		item.image = [NSImage imageNamed:@"sideBar"];
+		item.image = [NSImage imageNamed:ACImageNameSideBar];
 		item.label = @"Toggle sidebar";
 		item.tag = 0;
 		item.action = @selector(toggleLeftPane:);
 	} else if([itemIdentifier isEqualToString:newFolderButtonID]) {
-		item.image = [NSImage imageNamed:@"new folder"];
+		item.image = [NSImage imageNamed:ACImageNameNewFolder];
 		item.label = @"New folder";
 		item.toolTip = @"New folder";
 		item.action = @selector(addSampleOrSmartFolder:);
 	} else if([itemIdentifier isEqualToString:importSamplesButtonID]) {
-		item.image = [NSImage imageNamed:@"import samples"];
+		item.image = [NSImage imageNamed:ACImageNameImportSamples];
 		item.label = @"Import samples";
 		item.toolTip = @"Import chromatogram files";
 		item.action = @selector(importSamples:);
 	} else if([itemIdentifier isEqualToString:importFolderButtonID]) {
-		item.image = [NSImage imageNamed:@"import folder"];
+		item.image = [NSImage imageNamed:ACImageNameImportFolder];
 		item.label = @"Import archive";
 		item.toolTip = @"Import archived folder";
 		item.action = @selector(importFolder:);
 	} else if([itemIdentifier isEqualToString:importPanelButtonID]) {
-		item.image = [NSImage imageNamed:@"import panel"];
+		item.image = [NSImage imageNamed:ACImageNameImportPanel];
 		item.label = @"Import markers";
 		item.toolTip = @"Import panel(s) of markers";
 		item.action = @selector(importPanels:);
 	} else if([itemIdentifier isEqualToString:sampleSearchButtonID]) {
-		item.image = [NSImage imageNamed:@"loupe"];
+		item.image = [NSImage imageNamed:ACImageNameLoupe];
 		item.label = @"Sample search";
 		item.toolTip = @"New sample search";
 		item.tag = 4;
 		item.action = @selector(addSampleOrSmartFolder:);
 	} else if([itemIdentifier isEqualToString:rightPaneButtonID]) {
-		item.image = [NSImage imageNamed:@"RightsideBar"];
+		item.image = [NSImage imageNamed:ACImageNameRightsideBar];
 		item.label = @"Detailed view";
 		item.tag = 2;
 		item.action = @selector(toggleRightPane:);
 	} else if([itemIdentifier isEqualToString:deleteSelectionButtonID]) {
-		item.image = [NSImage imageNamed:@"large trash"];
+		item.image = [NSImage imageNamed:ACImageNameLargeTrash];
 		item.label = @"Delete selection";
 		item.target = nil;
 		item.action = @selector(remove:);
 	} else if([itemIdentifier isEqualToString:exportButtonID]) {
-		item.image = [NSImage imageNamed:@"export large"];
+		item.image = [NSImage imageNamed:ACImageNameExportLarge];
 		item.label = @"Export";
 		item.target = nil;
 		item.action = @selector(exportSelection:);
@@ -376,7 +381,7 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 
 
 - (NSArray<NSToolbarItemIdentifier> *)toolbarAllowedItemIdentifiers:(NSToolbar *)toolbar {
-	return [self toolbarDefaultItemIdentifiers:self.window.toolbar];
+	return [self toolbarDefaultItemIdentifiers:toolbar];
 }
 
 
@@ -420,14 +425,13 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		/// we do it even if it was already the active table, as it could have been masked since then
 		[self activateTabNumber: genotypeTab];
 	}
-	if(controller == self.sourceController) {
-		return;
-	}
-	_sourceController = controller;
+	if(controller != self.sourceController) {
+		_sourceController = controller;
 		
-	NSTableView *activeTableView = controller.tableView;
-	if(activeTableView.window.firstResponder != activeTableView) {
-		[activeTableView.window makeFirstResponder:activeTableView];
+		NSTableView *activeTableView = controller.tableView;
+		if(activeTableView.window.firstResponder != activeTableView) {
+			[activeTableView.window makeFirstResponder:activeTableView];
+		}
 	}
 }
 
@@ -532,12 +536,16 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 	}
 	
 	if(menuItem.action == @selector(exportSelection:)) {
-		TableViewController *exporter =  self.relevantExporter;
+		TableViewController *exporter = self.relevantExporter;
 		if(exporter.canExportItems) {
 			return [exporter validateMenuItem:menuItem];
 		} else {
 			return NO;
 		}
+	}
+	
+	if(menuItem.action == @selector(printTraces:)) {
+		return DetailedViewController.sharedController.tableView.numberOfRows > 0;
 	}
 	
 	return YES;
@@ -679,18 +687,15 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 
 
 - (BOOL)validateToolbarItem:(NSToolbarItem *)item {
+	NSString *toolTip;
 	if(item.action == @selector(toggleLeftPane:)) {
-		item.toolTip = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Expand left pane" : @"Collapse left pane";
+		toolTip = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Expand left pane" : @"Collapse left pane";
 	} else if(item.action == @selector(toggleRightPane:)) {
-		item.toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Expand detailed view" : @"Collapse detailed view";
+		toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Expand detailed view" : @"Collapse detailed view";
 	} else if(item.action == @selector(undo:)) {
-		NSUndoManager *manager = self.window.firstResponder.undoManager;
-		item.toolTip = manager.undoMenuItemTitle;
-		return manager.canUndo;
+		toolTip = self.window.firstResponder.undoManager.undoMenuItemTitle;
 	} else if(item.action == @selector(redo:)) {
-		NSUndoManager *manager = self.window.firstResponder.undoManager;
-		item.toolTip = manager.redoMenuItemTitle;
-		return manager.canRedo;
+		toolTip = self.window.firstResponder.undoManager.redoMenuItemTitle;
 	} else if(item.action == @selector(exportSelection:)) {
 		TableViewController *exporter =  self.relevantExporter;
 		if(exporter.canExportItems) {
@@ -699,7 +704,16 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 			return NO;
 		}
 	}
+	if(toolTip && ![item.toolTip isEqualToString:toolTip]) {
+		item.toolTip = toolTip;
+	}
 	
+	if(item.action == @selector(undo:)) {
+		return self.window.firstResponder.undoManager.canUndo;
+	}
+	if(item.action == @selector(redo:)) {
+		return self.window.firstResponder.undoManager.canRedo;
+	}
 	return YES;
 }
 
@@ -743,6 +757,10 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 	}
 }
 
+
+-(IBAction)printTraces:(id)sender {
+    [DetailedViewController.sharedController print:sender];
+}
 
 
 # pragma mark - managing the error log window
@@ -804,7 +822,7 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		}
 		string = [string stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
 		
-		if(![strings containsObject:string]) {
+		if(![strings containsObject:string] && string != nil) {
 			/// we avoid redundant error messages.
 			[strings addObject:string];
 		}
@@ -835,12 +853,9 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 
 - (BOOL)windowShouldClose:(NSWindow *)sender {
 	if(sender == self.window) {
-		/// we quit if the main window closes
-		BOOL canQuit = [NSApp.delegate applicationShouldTerminate:NSApp] == NSTerminateNow;
-		if(canQuit) {
-			[NSApp terminate:self];
-		}
-		return canQuit;
+		/// We quit if the main window closes.
+		[NSApp terminate:self];
+		return NO; /// The window will close when the app quits, but if the app didn't (for some reason), it should not.
 	}
 	return YES;
 }

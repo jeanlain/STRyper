@@ -23,7 +23,9 @@
 
 @import Cocoa;
 #import "NSMenuItem+NSMenuItemAdditions.h"
+#import "NSArray+NSArrayAdditions.h"
 #import "AppDelegate.h"
+#import "GeneratedAssetSymbols.h"
 @class MainWindowController;
 
 
@@ -32,7 +34,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An abstract class that implements methods used by several singleton subclasses managing tableviews in  ``STRyper``.
 ///
-/// This class provides common methods for controller objects that are delegate/datasource of `NSTableView` objects.
+/// This class provides common methods for controller objects that are delegates/datasources of `NSTableView` objects.
 /// Objects that compose the rows of these tables inherit from ``CodingObject``.
 ///
 /// This class implements methods for the deletion and export of items representing table rows and to record/restore the selected items in/from the user defaults.
@@ -58,6 +60,14 @@ NS_ASSUME_NONNULL_BEGIN
 	/// It is used so subclasses can modify it.
 	IBOutlet NSArrayController *_tableContent;
 	
+	/// backs the ``tableContent`` property.
+	///
+	/// It is used so subclasses can modify it.
+	NSArray *_contentArray;
+	
+	/// Used to avoid successive reloads of the table.
+	BOOL _needLoadContent;
+	
 	/// A popover allowing to define the filter on the table content
 	NSPopover *filterPopover;
 }
@@ -74,6 +84,30 @@ NS_ASSUME_NONNULL_BEGIN
 /// This view may differ from the `view` property of the receiver, but in this case, it must be a subview of it,
 /// otherwise, the receiver may not receive messages resulting from user actions on this table.
 @property (weak, readonly, nonatomic) NSTableView *tableView;
+
+
+/// The content that the ``tableView`` should load.
+///
+/// This property is intended to be used for its setter, which buffers successive changes
+/// to avoid reloading the table redundantly in the same cycle, and calls `_loadContent` just once.
+///
+/// - Note: The getter is not guaranteed to return the elements show in the ``tableView``.
+/// One may instead rely on ``tableContent``'s `arrangedObjects`.
+@property (nonatomic, copy) NSArray* contentArray;
+
+/// Biding name to bind the `contentArray` property.
+extern NSBindingName const ContentArrayBinding;
+
+/// Internal method that loads the ``contentArray`` to show its items in the table.
+///
+/// This method should not be called directly, but can be overridden.
+/// It is called some time after ``contentArray`` has been set.
+/// The default implementation set  ``contentArray`` as `content` of the
+/// ``tableContent`` `NSArrayController`.
+///
+/// - Note: If default implement assumes that the `content` property of ``tableContent`` is not bound,
+/// and that `arrangedObjets`  is bound to the ``tableView``'s content.
+-(void)_loadContent;
 
 ///The controller objet providing content to the ``tableView``.
 @property (readonly, nullable, nonatomic) NSArrayController *tableContent;
@@ -97,14 +131,37 @@ NS_ASSUME_NONNULL_BEGIN
 /// The keys are the column identifiers, the values are itself dictionaries describing the cell views (keys are of type ``ColumnDescriptorKey``).
 @property (readonly, nullable, nonatomic) NSDictionary<NSString *, NSDictionary *> *columnDescription;
 
-/// Keys of the NSDictionary describing cells that populate a given column the ``TableViewController/tableView``.
+/// Keys of the `columnDescription` NSDictionary describing cells that populate a given column of the ``TableViewController/tableView``.
 typedef NSString *const ColumnDescriptorKey;
-extern ColumnDescriptorKey KeyPathToBind, /// the keyPath to bind to the textField value of the cells. Value must be an NSString.
-IsTextFieldEditable,		/// Whether the cell text field is editable. The value must be an NSNumber (bool).
-CellViewID,					/// the identifier of the cell view, which `viewForCellPrototypes` should be able to make. Value must be an NSString.
-ColumnTitle,				/// the title the column should have. Value must be an NSString.
-IsColumnVisibleByDefault, 	/// Whether the column is visible by default. Value must be an NSNumber (bool).
-IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensitive.
+
+/// The keyPath to bind to the `textField` value of the cells.
+///
+/// The value must be an `NSString`.
+extern ColumnDescriptorKey KeyPathToBind,
+/// Whether the cell text field is editable.
+///
+/// The value for this key must be an NSNumber (bool).
+IsTextFieldEditable,
+
+/// The identifier of the cell view, which `viewForCellPrototypes` should be able to make.
+///
+/// The value for this key must be an `NSString`.
+CellViewID,
+
+/// The title the column should have.
+///
+/// The value for this key must be an `NSString`.
+ColumnTitle,
+
+/// Whether the column is visible by default.
+///
+/// The value for this key must be an `NSNumber` (bool).
+IsColumnVisibleByDefault,
+
+/// Whether the column sorting is case-insensitive.
+///
+/// The value for this key must be an `NSNumber` (bool).
+IsColumnSortingCaseInsensitive;
 
 
 /// The tableview that contains the prototypes for table cell view (by default, the receiver's ``tableView``).
@@ -124,6 +181,14 @@ IsColumnSortingCaseInsensitive; 	/// Whether the column sorting is case-insensit
 /// The visible columns of the ``tableView``.
 @property (readonly, nullable, nonatomic) NSArray<NSTableColumn *>* visibleColumns;
 
+
+/// The sort descriptor prototype to use for a table column.
+///
+/// This method is called once during the initial creation of the table columns.
+/// The default implementation returns a sort descriptor whose `key` is the value at the
+/// ``KeyPathToBind`` key of the ``columnDescription`` dictionary.
+/// - Parameter column: A column composing the table.
+- (nullable NSSortDescriptor *)sortDescriptorPrototypeForTableColumn:(NSTableColumn *)column;
 
 /// Returns whether a column of the ``tableView`` can be hidden by the user.
 ///

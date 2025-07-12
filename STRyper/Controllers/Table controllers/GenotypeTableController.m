@@ -30,7 +30,6 @@
 #import "IndexImageView.h"
 #import "AggregatePredicateEditorRowTemplate.h"
 #import "Allele.h"
-#import "NSArray+NSArrayAdditions.h"
 #import "MarkerTableController.h"
 
 @interface GenotypeTableController ()
@@ -48,15 +47,10 @@
 	IBOutlet NSView *exportPanelAccessoryView;
 	BOOL exportSelectionOnly;
 	NSDictionary *columnDescription;
-	BOOL selectedFolderHasChanged;
-	BOOL shouldRefreshTable;				/// To know if we need to refresh of the genotype table.
 	NSArray<NSImage *> *statusImages;		/// The images that represent the different genotype statuses.
 	NSMutableDictionary *filterDictionary;	/// To save filters to the user defaults, for each folder that has a filter
+	__weak SampleFolder *currentFolder; 	/// To update filters and selected rows, which are associated to sample folders
 }
-
-/// pointers giving context to a KVO notification
-static void * const selectedFolderChangedContext = (void*)&selectedFolderChangedContext;
-static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedContext;
 
 
 + (instancetype)sharedController {
@@ -83,43 +77,21 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 - (void)viewDidLoad {
 	[super viewDidLoad];
 	/// the order of the image in the array corresponds to genotypeStatus property of genotypes (an integer)
-	statusImages = @[[NSImage imageNamed:@"circle"],
-					 [NSImage imageNamed:@"zero"],
-					 [NSImage imageNamed:@"filled circle"],
-					 [NSImage imageNamed:@"danger"],
+	statusImages = @[[NSImage imageNamed:ACImageNameCircle],
+					 [NSImage imageNamed:ACImageNameZero],
+					 [NSImage imageNamed:ACImageNameFilledCircle],
+					 [NSImage imageNamed:ACImageNameDanger],
 					 [NSImage imageNamed:NSImageNameStatusPartiallyAvailable],
-					 [NSImage imageNamed:@"edited round"],
-					 [NSImage imageNamed:@"stop sign"]];
+					 [NSImage imageNamed:ACImageNameEditedRound],
+					 [NSImage imageNamed:ACImageNameStopSign]];
 	
 	if(SampleTableController.sharedController.samples) {
 		
-		/// We once used to bind the genotypes NSArrayController contents to the @unionOfSets.genotypes keypaths of the samples shown in the table
-		/// however, this caused severe performance issues when a panel was applied to thousands of samples, as this creates genotypes for every sample successively, which refreshes the genotype table at each step.
-		/// So we bind to our dedicated property, and then update the genotype table "manually". The genotypes NSArrayController still has its arranged objects, sort descriptors and selection indexes bounds to the table's content (as it is convenient for sorting)
-		/// but the content of the controller itself is what we set at appropriate times.
-		[self bind:NSStringFromSelector(@selector(genotypeContent))
+		[self bind:ContentArrayBinding
 		  toObject:SampleTableController.sharedController.samples
 	   withKeyPath:@"content.@unionOfSets.genotypes" options:nil];
-		/// We dont bind to the samples `arrangedObjects` key because we don't need to update the genotype table when the sorting of samples change, for instance.
-		
-		/// Since the samples `content` is not changed when samples are filtered, we observe the filter predicate use to filter samples.
-		[SampleTableController.sharedController.samples addObserver:self
-														 forKeyPath:NSStringFromSelector(@selector(filterPredicate))
-															options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
-															context:sampleFilterChangedContext];
-		
-		/// We need to know when the selected folder change, to apply the filter on genotypes (which is specific to a folder).
-		[FolderListController.sharedController addObserver:self
-												forKeyPath:NSStringFromSelector(@selector(selectedFolder))
-												   options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
-												   context:selectedFolderChangedContext];
 		
 	}
-	/// We observe when the context commits changes, as it is the right time to update the table.
-	/// Updating just after each notification would waste resources and lead to errors (especially during undo/redo)
-	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(contextDidChange:) name:NSManagedObjectContextObjectsDidChangeNotification object:self.genotypes.managedObjectContext];
-	
-	[self refreshTable];
 }
 
 
@@ -161,6 +133,25 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 	/// We don't add it to the identifiers
 	return @[@"genotypeSampleColumn", @"genotypePanelColumn",@"genotypeMarkerColumn",/* @"genotypeScan1Column", @"genotypeScan2Column", */
 			 @"genotypeSize1Column",@"genotypeSize2Column", @"genotypeAllele1Column", @"genotypeAllele2Column", @"genotypeOffsetColumn", @"additionalFragmentsColumn", @"genotypeNotesColumn"];
+}
+
+
+- (BOOL)canHideColumn:(NSTableColumn *)column {
+	NSString *ID = column.identifier;
+	return ![ID isEqualToString: @"genotypeSampleColumn"] && ![ID isEqualToString: @"genotypeStatusColumn"];
+}
+
+
+- (NSSortDescriptor *)sortDescriptorPrototypeForTableColumn:(NSTableColumn *)column {
+	if([column.identifier isEqualToString:@"genotypeSampleColumn"]) {
+		return [NSSortDescriptor sortDescriptorWithKey:@"sample.uniqueName" ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)];
+	}
+	
+	if([column.identifier isEqualToString:@"genotypeStatusColumn"]) {
+		return [NSSortDescriptor sortDescriptorWithKey:@"status" ascending:YES];
+	}
+
+	return [super sortDescriptorPrototypeForTableColumn:column];
 }
 
 
@@ -234,61 +225,15 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 }
 
 
-
-#pragma mark - keeping the genotype table up-to-date
-
-
-
-- (void)setGenotypeContent:(NSArray *)genotypeContent {
-	/// We don't set any iVar because we retrieve the genotype to show during refreshTable.
-	if(selectedFolderHasChanged) {
-		/// if this was called after a change in selected folder, we refresh the genotype table immediately.
-		[self refreshTable];
+- (void)_loadContent {
+	[super _loadContent];
+	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
+	if(selectedFolder && selectedFolder != currentFolder) {
+		currentFolder = selectedFolder;
 		[self restoreSelectedItems];
-	} else {
-		/// If not, the method must have been called due to a change in the folder content on in the markers applied to samples that are shown.
-		/// In this case the managed object context has changes, so defer the update until all changed are processed.
-		shouldRefreshTable = YES;
-	}
-}
-
-
--(void)contextDidChange:(NSNotification *)notification {
-	if(shouldRefreshTable) {
-		[self refreshTable];
-		shouldRefreshTable = NO;
-	}
-}
-
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
-	if(context == sampleFilterChangedContext) {
-		[self refreshTable];
-	} else if (context == selectedFolderChangedContext) {
-		/// We don't refresh the table as the content of samples NSArrayController is not updated yet.
-		selectedFolderHasChanged = YES;
 		[self filterGenotypesOfSelectedFolder];
-	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-}
-
-
--(void)refreshTable {
-	/// The genotypes to show are those of the sample's arrangedObject (not content) because the samples may be filtered.
-	/// We  check if the content to show has changed, to avoid unnecessary updates.
-	selectedFolderHasChanged = NO;
-	NSArray *genotypes = [SampleTableController.sharedController.samples.arrangedObjects valueForKeyPath:@"@unionOfSets.genotypes"];
-	NSArray *content = self.genotypes.content;
-	BOOL refresh = NO;
-	if(content.count != genotypes.count) {
-		refresh = YES;
-	} else {
-		refresh = [genotypes sharesObjectsWithArray:content];
 	}
-	if(refresh) {
-		self.genotypes.content = genotypes;
-	} 
 }
-
 
 #pragma mark - user actions on genotypes
 
@@ -301,21 +246,21 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 			/// If the sender is not from the table's contextual menu, its potential targets are all listed genotypes
 			targetGenotypes = self.genotypes.arrangedObjects;
 		}
-		targetGenotypes = [targetGenotypes filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+		targetGenotypes = [targetGenotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
 			/// We don't bin/call alleles of samples that are not sized, or genotypes that have been edited manually, except when called from the contextual menu
 			GenotypeStatus status = genotype.status;
 			return  status != genotypeStatusNoSizing && (fromContextMenu || status != genotypeStatusManual);
-		}]];
+		}];
 	} else if([sender action] == @selector(removeOffsets:)) {
-		targetGenotypes = [targetGenotypes filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+		targetGenotypes = [targetGenotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
 			/// Only genotypes with an offset are relavant.
 			MarkerOffset offset = genotype.offset;
 			return  offset.intercept != 0.0 || offset.slope != 1.0;
-		}]];
+		}];
 	} else if([sender action] == @selector(removeAdditionalFragments:)) {
-		targetGenotypes = [targetGenotypes filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Genotype *genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+		targetGenotypes = [targetGenotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx){
 			return  genotype.additionalFragments.count > 0;
-		}]];
+		}];
 	} else if([sender action] == @selector(exportSelection:) && !fromContextMenu) {
 		/// All genotypes can be exported.
 		targetGenotypes = self.genotypes.arrangedObjects;
@@ -402,7 +347,7 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 		[genotype callAllelesAndAdditionalPeak:annotateSuppPeaks];
 	}
 	
-	[self checkGenotypesForAdenylation:genotypes];
+	//[self checkGenotypesForAdenylation:genotypes]; /// deactivated for now, as this may cause genotyping errors.
 	[AppDelegate.sharedInstance saveAction:self];
 	
 }
@@ -419,25 +364,25 @@ static void * const sampleFilterChangedContext = (void*)&sampleFilterChangedCont
 			continue;
 		}
 		
-		NSArray *genotypesAtMarker = [genotypes filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype*  _Nullable genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+		NSArray *genotypesAtMarker = [genotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
 			return genotype.marker == marker;
-		}]];
+		}];
 		
 		if(genotypesAtMarker.count < 3) {
 			continue;
 		}
 		
-		NSArray *possibleHeterozygotes = [genotypesAtMarker filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype*  _Nullable genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+		NSArray *possibleHeterozygotes = [genotypesAtMarker filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
 			return genotype.scanOfPossibleAllele > 0;
-		}]];
+		}];
 		
 		if(possibleHeterozygotes.count == 0) {
 			continue;
 		}
 		
-		NSArray *heterozygotes = [genotypesAtMarker filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Genotype*  _Nullable genotype, NSDictionary<NSString *,id> * _Nullable bindings) {
+		NSArray *heterozygotes = [genotypesAtMarker filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
 			return genotype.scanOfPossibleAllele == -1;
-		}]];
+		}];
 		
 		if(heterozygotes.count < 2 && heterozygotes.count == genotypesAtMarker.count) {
 			continue;
@@ -555,7 +500,7 @@ static NSInteger genotypeIndex = 0;
 - (NSImage *)exportButtonImageForItems:(NSArray *)items {
 	static NSImage * exportImage;
 	if(!exportImage) {
-		exportImage = [NSImage imageNamed:@"export genotypes"];
+		exportImage = [NSImage imageNamed:ACImageNameExportGenotypes];
 	}
 	return exportImage;
 }
@@ -620,7 +565,7 @@ static NSInteger genotypeIndex = 0;
 
 /// creates a string from an array of genotypes based on the table columns
 - (NSString *) stringFromGenotypes:(NSArray *)genotypes withSampleInfo: (BOOL)addSampleInfo {
-	
+	/// THIS MAY CRASH IF THERE IS NO VISIBLE COLUMN
 	NSMutableArray<NSString *> *rows = NSMutableArray.new; /// The strings for all rows
 
 	/// The fields at each row will be added to an array, the first row being the column titles.
@@ -963,11 +908,10 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 #pragma mark - other
 
 - (void)dealloc {
-	[NSNotificationCenter.defaultCenter removeObserver:self];
-	[SampleTableController.sharedController.samples removeObserver:self forKeyPath:NSStringFromSelector(@selector(content))];
-	[SampleTableController.sharedController.samples removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
-	[FolderListController.sharedController removeObserver:self forKeyPath:NSStringFromSelector(@selector(selectedFolder))];
-	[self.genotypes removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
+	@try {
+		[NSNotificationCenter.defaultCenter removeObserver:self];
+	} @catch (NSException *exception) {
+	}
 }
 
 @end

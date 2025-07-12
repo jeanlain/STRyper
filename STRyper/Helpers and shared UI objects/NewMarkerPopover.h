@@ -18,7 +18,7 @@
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-#import <Cocoa/Cocoa.h>
+@import Cocoa;
 #import "Mmarker.h"
 @class Panel;
 
@@ -57,7 +57,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) float markerEnd;
 
 /// The ``Region/name``  of the new marker.
-@property (nonatomic) NSString *markerName;
+@property (nonatomic, copy) NSString *markerName;
 
 /// The  ``Mmarker/channel`` of the new marker.
 @property (nonatomic) ChannelNumber markerChannel;

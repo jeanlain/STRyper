@@ -25,7 +25,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// An entity that represents a particular region defined in base pairs.
+/// An entity that represents a range defined in base pairs.
 ///
 /// A region represents a range in base pairs, with a start and end coordinate, and has a name.
 ///
@@ -89,7 +89,7 @@ typedef NS_ENUM(NSUInteger, RegionEdge) {
 /// The minimum with the region can have.
 ///
 /// This value is used during validation of ``start`` and ``end`` attributes.
-@property (nonatomic, readonly) float minimumWidth;
+@property (nonatomic, readonly, class) float minimumWidth;
 
 /// Tests whether a region overlaps with the receiver, based on their ``start`` and ``end`` attributes.
 /// - Parameter region: The region for which to test the overlap with the receiver.

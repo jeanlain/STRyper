@@ -50,6 +50,63 @@
 }
 
 
++ (instancetype)binForMarker:(Mmarker *)marker desiredMidSize:(float)midSize desiredWidth:(float)width {
+	if(!marker.managedObjectContext || width < self.minimumWidth) {
+		return nil;
+	}
+	
+	float margin = self.minimumWidth/2;
+	if(midSize <= marker.start || midSize >= marker.end) {
+		/// Bin out of marker range
+		return nil;
+	}
+	
+	/// The maximum start and minimum end the bin can take.
+	float minStart = marker.start + margin, maxEnd = marker.end - margin;
+
+	for(Bin *bin in marker.bins) {
+		float extendedBinEnd = bin.end + margin;
+		float extendedBinStart = bin.start - margin;
+		if(extendedBinEnd >= midSize && extendedBinStart <= midSize) {
+			/// Another bin overlaps the desired mid size
+			return nil;
+		}
+		
+		if(midSize - extendedBinEnd > 0 && extendedBinEnd > minStart) {
+			minStart = extendedBinEnd;
+		}
+		
+		if(midSize - extendedBinStart < 0 && extendedBinStart < maxEnd) {
+			maxEnd = extendedBinStart;
+		}
+	}
+	
+	if(maxEnd - minStart < margin*2) {
+		/// Not enough room for the bin.
+		return nil;
+	}
+	
+	float binStart = midSize - width/2, binEnd = midSize + width/2; /// The ideal bin range
+	if(maxEnd - minStart < width) {
+		binStart = minStart;
+		binEnd = maxEnd;
+	} else {
+		if(binStart < minStart) {
+			binStart = minStart;
+			binEnd = binStart + width;
+		}
+		
+		if(binEnd > maxEnd) {
+			binEnd = maxEnd;
+			binStart = binEnd - width;
+		}
+	}
+	
+	return [[Bin alloc] initWithStart:binStart end:binEnd marker:marker];
+
+}
+
+
 - (NSArray *)siblings {
 	if(self.marker) {
 		return self.marker.bins.allObjects;
@@ -167,7 +224,7 @@
 }
 
 
-- (float)minimumWidth {
++ (float)minimumWidth {
 	return 0.1;
 }
 

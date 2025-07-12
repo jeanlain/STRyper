@@ -46,7 +46,7 @@
 	if (self) {
 		_enabled = NO;			/// bin labels are disabled by default
 		
-		layer.zPosition = -0.5;
+		layer.zPosition = -0.5; /// To show being traces in the host view.
 		layer.geometryFlipped = YES; /// This helps placing the bandLayer at the top of the layer.
 
 	
@@ -68,10 +68,12 @@
 - (void)setView:(TraceView *)view {
 	super.view = view;
 	if(view && layer) {
-		layer.backgroundColor = view.binLabelColor;
-		layer.borderColor = view.regionLabelEdgeColor;
-		bandLayer.backgroundColor = view.binNameBackgroundColor;
-		bandLayer.borderColor = view.hoveredBinLabelColor;
+		if(!view.needsUpdateLabelAppearance) {
+			layer.backgroundColor = view.binLabelColor;
+			layer.borderColor = view.regionLabelEdgeColor;
+			bandLayer.backgroundColor = view.binNameBackgroundColor;
+			bandLayer.borderColor = view.hoveredBinLabelColor;
+		}
 		[view.backgroundLayer addSublayer:bandLayer];
 	}
 }
@@ -128,9 +130,9 @@
 		/// To avoid overlaps of bin names, we arrange other labels.
 		/// We do it immediately rather than asking the view to reposition the parent label, because the call of this method is already deferred
 		/// and this should be executed only once per cycle (when the user hovers a label or selects/deselects it).
-		[self.class arrangeLabels:_parentLabel.binLabels withRepositioning:NO allowAnimations:NO];
+		[self.class arrangeLabels:_parentLabel.binLabels withRepositioning:NO];
 	}
-	bandLayer.zPosition = self.hovered? 1.11 : self.highlighted? 1.1 : 1.0;
+	bandLayer.zPosition = hovered? 1.11 : highlighted? 1.1 : 1.0;
 	[super updateAppearance];
 }
 
@@ -201,6 +203,11 @@
 }
 
 
+- (BOOL)allowsAnimations {
+	return _allowsAnimations && _parentLabel.allowsAnimations;
+}
+
+
 - (void)_shiftByOffset:(MarkerOffset)offset {
 	Bin *bin = self.region;
 	float midBinLabelPos = (bin.end + bin.start)/2 * offset.slope + offset.intercept;
@@ -221,11 +228,10 @@
 }
 
 
-+ (void)arrangeLabels:(NSArray *)binLabels withRepositioning:(BOOL)reposition allowAnimations:(BOOL)allowAnimations {
++ (void)arrangeLabels:(NSArray *)binLabels withRepositioning:(BOOL)reposition {
 	float currentMaxX = 0;
 	for(BinLabel *binLabel in binLabels) {
 		if(!binLabel.hidden) {
-			binLabel.allowsAnimations = allowAnimations;
 			if(reposition) {
 				[binLabel reposition];
 			}
@@ -254,7 +260,6 @@
 					}
 				}
 			}
-			binLabel.allowsAnimations = YES;
 		}
 	}
 }
@@ -270,7 +275,7 @@
 	if(_menu.itemArray.count < 2) {
 		/// we just add a menu item allowing to delete our bin
 		[_menu addItemWithTitle:@"Delete" action:@selector(deleteAction:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"trash"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameTrash]];
 		for(NSMenuItem *item in self.menu.itemArray) {
 			item.target = self;
 		}

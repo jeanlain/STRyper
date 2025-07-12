@@ -21,6 +21,7 @@
 
 
 #import "TableViewController.h"
+@class Chromatogram;
 
 extern NSPasteboardType _Nonnull const SizeStandardDragType;
 
@@ -34,6 +35,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// and to apply a size standard by dragging it onto the sample table managed by the ``SampleTableController`` shared instance.
 @interface SizeStandardTableController : TableViewController
 
+/// Applies a ``SizeStandard`` on a sample, based on its ``Chromatogram/standardName`` attribute.
+/// 
+/// The method tries to find an exact match. If it can't, it uses a pattern based on a number like "500" in "Genescan-500".
+/// - Parameter sample: The sample to which the size standard should be applied. It need not be managed by the view context.
+- (void)detectAndApplySizeStandardOnSample:(Chromatogram *)sample;
 
 @end
 

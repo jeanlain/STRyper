@@ -37,7 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The samples on which the inspector should show information.
 ///
 /// Setting this property automatically shows sample information.
-@property (nonatomic, nullable) NSArray<Chromatogram *> *samples;
+@property (nonatomic, copy, nullable) NSArray<Chromatogram *> *samples;
 
 @end
 

@@ -27,6 +27,7 @@
 #import "SizeStandard.h"
 #import "SizeStandardSize.h"
 #import "LadderFragment.h"
+#include <sys/sysctl.h>
 
 @import Accelerate;
 
@@ -36,11 +37,14 @@ TraceFragmentsKey = @"fragments";
 
 NSString * _Nonnull const previousTraceClassName = @"Trace";
 
-@interface Trace ()
+@interface Trace () {
+	CGMutablePathRef  path;          /// C array of CGPathRef
+	CGPoint *pointsForPath;
+	NSUInteger pointCount;
+}
+
 /// Fluorescence data (array of 16-bit integers) with baseline "noise" removed.
-///
 /// This attribute can be used to draw fluorescence curves in which peaks stand out more.
-///
 /// This is not a core data attribute.
 @property (nonatomic, readonly, nullable) NSData *adjustedData;
 
@@ -92,6 +96,22 @@ BaseRange MakeBaseRange(float start, float len) {
 
 
 
+static BOOL appleSilicon;			/// whether the Mac running the application has an Apple SoC.
+									/// We use it for drawing optimisations.
+
++ (void)initialize {
+	if (self == [FluoTrace class]) {
+		/// We determine if the SoC is from Apple by reading the CPU brand.
+		/// There may be a better way by reading the architecture.
+		size_t size = 100;		/// To make sure that we can read the whole CPU name.
+		char string[size];
+		sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
+		appleSilicon = strncmp(string, "Apple", 5) == 0;
+
+	}
+}
+
+
 - (instancetype)initWithRawData:(NSData *)rawData addToChromatogram:(Chromatogram *)sample channel:(ChannelNumber)channel {
 	if(!sample.managedObjectContext) {
 		NSLog(@"the provided sample ('%@') has no managed object context!", sample.sampleName);
@@ -133,7 +153,7 @@ int32_t peakEndScan(const Peak *peakPTR) {
 	[self findPeaks];
 	[self findCrossTalk];
 	/// as we may have found new peaks, we look for new ladder fragments
-	[self findLadderFragmentsAndComputeSizing];
+	[SizeStandard sizeSample:self.chromatogram];
 }
 
 
@@ -172,9 +192,10 @@ int32_t peakEndScan(const Peak *peakPTR) {
 	}
 	
 	free(isMin);
+	isMin = NULL;
 	
 	if(nPeaks == 0) {
-		free(peaks); free(adjusted);
+		free(peaks); free(adjusted); peaks = NULL; adjusted = NULL;
 		return;
 	}
 	
@@ -225,6 +246,8 @@ int32_t peakEndScan(const Peak *peakPTR) {
 	[self managedObjectOriginal_setPeaks:[NSData dataWithBytes:peaks length:nPeaks*sizeof(Peak)]];
 	free(peaks);
 	free(adjusted);
+	peaks = NULL;
+	adjusted = NULL;
 }
 
 
@@ -573,8 +596,8 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 				int overlappingPeakTip = overlappingPeakStart + overlappingPeak->scansToTip;
 				int overlappingPeakEnd = peakEndScan(overlappingPeak);
 				float sourcePeakTipFluo = otherTraceFluo[overlappingPeakTip];
-				int firstScan = peak.startScan < overlappingPeakStart ? peak.startScan : overlappingPeakStart;
-				int lastScan = endScan > overlappingPeakEnd ? endScan : overlappingPeakEnd;
+				int firstScan = MIN(peak.startScan, overlappingPeakStart);
+				int lastScan = MAX(endScan, overlappingPeakEnd);
 				
 				float ratio = 0, offset = 0, offset2 = 0, combinedAreas = 0, addedAreas = 0; /// Indices that indicate how much peaks are aligned
 				
@@ -591,9 +614,9 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 					combinedAreas = 1;
 				} else {
 					for (int k = firstScan; k <= lastScan; k++) {
-						float currentPeakHeight = fluo[k] > startFluo? fluo[k] - startFluo : 0;
-						float currentOverlappingPeakHeight = otherTraceFluo[k] > startFluoOvPeak? (otherTraceFluo[k] - startFluoOvPeak) * heightRatio : 0;
-						combinedAreas += currentPeakHeight > currentOverlappingPeakHeight ? currentPeakHeight : currentOverlappingPeakHeight;
+						float currentPeakHeight = MAX(fluo[k] - startFluo, 0);
+						float currentOverlappingPeakHeight = MAX((otherTraceFluo[k] - startFluoOvPeak) * heightRatio, 0);
+						combinedAreas += MAX(currentPeakHeight, currentOverlappingPeakHeight);
 						addedAreas += currentPeakHeight + currentOverlappingPeakHeight;
 						
 						float diffHeight = currentPeakHeight - currentOverlappingPeakHeight;
@@ -638,7 +661,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 							if(region->channel == otherTrace.channel) {
 								/// If the other peak has saturated the camera, we check the scan that is at the left of the saturated region.
 								/// Supposedly, its fluorescence is reliable.
-								int leftScan = region->startScan > 0? region->startScan-1 : 0;
+								int leftScan = MAX(region->startScan-1, 0);
 								if(heightRatioAtPeak >= 1 && fluo[leftScan] < peakTipFluo * heightRatio/2) {
 									peak.crossTalk = 0;
 									break;
@@ -656,7 +679,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	[self managedObjectOriginal_setPeaks:[NSData dataWithBytes:newPeaks length:nPeaks*sizeof(Peak)]];
 	
 	free(newPeaks);
-	
+	newPeaks = NULL;
 }
 
 
@@ -777,6 +800,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 			if((i > 0 && peakEndScan(&peaks[i-1]) > newPeak.startScan) || (i < nPeaks && peakI->startScan < peakEndScan(&newPeak)) ) {
 				NSLog(@"No room to insert new peak!");
 				free(newPeaks);
+				newPeaks = NULL;
 				return NO;
 			}
 			
@@ -791,6 +815,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	[self managedObjectOriginal_setPeaks:[NSData dataWithBytes:newPeaks length:(nPeaks+1)*sizeof(Peak)]];
 	
 	free(newPeaks);
+	newPeaks = NULL;
 	return YES;
 	
 }
@@ -812,479 +837,216 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 }
 
 
-#pragma mark - ladderFragment creation
 
-/// A structure that describes a peak in the ladder.
-typedef  struct LadderPeak {
-	int scan;						/// the scan corresponding to the peak tip
-	int width;						/// the width of the peak in scans
-	short height;					/// its height in fluorescence level
-	int area;						/// the area of the peak = sum of fluorescence levels from first scan to last scan within the peak
-	float size;						/// the size in base pairs that is assigned to the peak. Negative is no size is assigned
-	float offset;					/// difference between size and the size computed given the scan and sizing properties of the trace
-	int crossTalk;					/// see equivalent property in `Peak` struct
-	
-} LadderPeak;
+#pragma mark - drawing
 
-
-
-LadderPeak LadderPeakFromPeak(const Peak *peak, Trace *trace) {
-	LadderPeak ladderPeak;
-	ladderPeak.scan = peak->startScan + peak->scansToTip;
-	ladderPeak.width = peakEndScan(peak) - peak->startScan;
-	NSData *fluoData = trace.adjustedData;
+- (void)prepareDrawPathFromSize:(float)startSize toSize:(float)endSize vScale:(float)vScale hScale:(float)hScale leftOffset:(float)leftOffset useRawData:(BOOL)useRawData maintainPeakHeights:(BOOL)maintainPeakHeights minY:(CGFloat)minY {
+		
+	Chromatogram *sample = self.chromatogram;
+	NSData *fluoData = useRawData? self.primitiveRawData : [self adjustedDataMaintainingPeakHeights:maintainPeakHeights];
 	const int16_t *fluo = fluoData.bytes;
-	long nScans = fluoData.length/sizeof(int16_t);
-	ladderPeak.area = 0;
-	int endScan = peakEndScan(peak);
-	if(endScan >= nScans) {
-		ladderPeak.crossTalk = 0;
-		ladderPeak.size = 0;
-		ladderPeak.offset = 0;
-		return ladderPeak;
+	long nRecordedScans = fluoData.length/sizeof(int16_t);
+
+	NSData *sizeData = sample.sizes;
+	long nScanWithSizes = sizeData.length/sizeof(float);
+	if(nScanWithSizes < nRecordedScans) {
+		/// this would indicate an error.
+		return;
 	}
-	for(int scan = peak->startScan; scan <= endScan; scan++) {
-		ladderPeak.area += fluo[scan];
+
+	const float	*sizes = sizeData.bytes;
+		
+	/// we never draw scans that are after the maxScan, as they have lower sizes than the maxScan.
+	/// The curve would go back to the left and overlap itself
+	int	maxScan = sample.maxScan;
+	if(maxScan >= nRecordedScans) {
+		maxScan = (int)nRecordedScans -1;
 	}
-	ladderPeak.height = fluo[ladderPeak.scan];
-	ladderPeak.crossTalk = peak->crossTalk;
-	ladderPeak.size = -1.0;
-	ladderPeak.offset = 0.0;
-	return ladderPeak;
+		
+	/// the first scan for which me may draw the fluorescence is the before the startSize
+	int	startScan = [sample scanForSize:startSize]-1;
+	if(startScan < sample.minScan) {
+		/// but for the reason stated above, we don't draw scans before the minScan
+		startScan = sample.minScan;
+	}
+	if(startScan >= maxScan) {
+		return;
+	}
+		
+	size_t maxPointsInCurve = 40;
+	CGPoint *pointArray = NULL;
+	
+	/// On apple Silicon, curves are drawn using CGPath with 40-point-long subpaths.
+	/// On intel and if we draw to screen, we will draw separate line segments, which is faster (but slower on Apple silicon)
+	const BOOL useCGPath = appleSilicon || ![NSGraphicsContext currentContextDrawingToScreen];
+	
+	if(!useCGPath){
+		if(pointsForPath) {
+			free(pointsForPath);
+		}
+		maxPointsInCurve = (maxScan-startScan +2)*2;
+		pointsForPath = malloc(maxPointsInCurve*sizeof(CGPoint));
+		pointArray = pointsForPath;
+	} else {
+		CGPoint temp[40];
+		pointArray = temp;
+		CGPathRelease(path);
+		path = CGPathCreateMutable();
+	}
+	
+	/// We add the first point to draw to the array
+	CGFloat lastX = (sizes[startScan] - leftOffset)*hScale;
+	CGFloat y = fluo[startScan]*vScale;
+	if (y < minY) {
+		y = minY -1;
+	}
+	const int16_t lowerFluo = minY / vScale; 	/// to quickly evaluate if some scans should be drawn
+		
+	pointArray[0] = CGPointMake(lastX, y);
+	pointCount = 1;
+	BOOL outside = NO;			/// whether a scan is after maxSize. Used to determine when to stop drawing.
+	int scan = startScan+1;
+	
+	while(!outside && scan <= maxScan) {
+		float size = sizes[scan];
+		if(size > endSize) {
+			outside = YES;
+		}
+		float x = (size - leftOffset) * hScale;
+		
+		int16_t scanFluo = fluo[scan];
+		if (scan < maxScan) {
+			/// we may skip a point that is too close from previously drawn scans and not a local minimum / maximum
+			/// or that is lower than the fluo threshold
+			int16_t previousFluo = fluo[scan-1];
+			int16_t nextFluo = fluo[scan+1];
+			if((x-lastX < 1 && (previousFluo < scanFluo || nextFluo <= scanFluo) &&
+				(previousFluo > scanFluo || nextFluo >= scanFluo)) || scanFluo < lowerFluo) {
+				/// and that is not the first/last of a series of scans under the lower threshold
+				if((scanFluo > lowerFluo || (previousFluo <= lowerFluo && nextFluo <= lowerFluo))) {
+					/// We must draw the first point and the last point outside the dirty rect
+					if(!outside) {
+						scan++;
+						continue;
+					}
+				}
+			}
+		}
+		lastX = x;
+		y = scanFluo * vScale;
+		if (y < minY) {
+			y = minY -1;
+		}
+		
+		CGPoint point = CGPointMake(x, y);
+		pointArray[pointCount++] = point;
+		if((pointCount == maxPointsInCurve || outside || scan == maxScan)) {
+			if(useCGPath) {
+				CGPathAddLines(path, NULL, pointArray, pointCount);
+				pointArray[0] = point; /// The first point of the next subpath is the last point of the previous one.
+				pointCount = 1;
+			}
+		} else if(!useCGPath) {
+			/// Here, each point is duplicated in the array because a segment ends where the next begins.
+			pointArray[pointCount++] = point;
+		}
+		
+		scan++;
+	}
 }
 
 
-typedef struct LadderSize {			/// describes a size in a size standard
-	float size;						/// in base pairs
-	LadderPeak *ladderPeakPTR;		/// pointer to the LadderPeak assigned to this size
-	
-} LadderSize;
 
-
-
-- (void)findLadderFragmentsAndComputeSizing {
-	if(!self.isLadder) {
-		return;
-	}
+- (void)drawCrosstalkPeaksInContext:(CGContextRef)ctx FromSize:(float)startSize toSize:(float)endSize vScale:(float)vScale hScale:(float)hScale leftOffset:(float)leftOffset useRawData:(BOOL)useRawData maintainPeakHeights:(BOOL)maintainPeakHeights offScaleColors:(NSArray<NSColor *> *)offScaleColors {
 	
 	Chromatogram *sample = self.chromatogram;
-	SizeStandard *sizeStandard = sample.sizeStandard;
-	if(!sizeStandard) {
-		return;
-	}
-	
-	int nSizes = (int)sizeStandard.sizes.count;
-	if(nSizes < 4){
-		/// this should not happen in principle, as we enforce at least 4 sizes per size standard
-		/// but if there are fewer, we remove all ladder fragments
+	NSData *fluoData = useRawData? self.primitiveRawData : [self adjustedDataMaintainingPeakHeights:maintainPeakHeights];
+	const int16_t *fluo = fluoData.bytes;
+	long nRecordedScans = fluoData.length/sizeof(int16_t);
+
+	NSData *sizeData = sample.sizes;
+	const float	*sizes = sizeData.bytes;
 		
-		self.fragments = NSSet.new;
-		/// we still size the sample to get "dummy" sizing parameters, otherwise the sample cannot be displayed
-		[sample setLinearCoefsForReadLength:DefaultReadLength];
-		return;
+	/// we never draw scans that are after the maxScan, as they have lower sizes than the maxScan.
+	/// The curve would go back to the left and overlap itself
+	int	maxScan = sample.maxScan;
+	if(maxScan >= nRecordedScans) {
+		maxScan = (int)nRecordedScans -1;
+	}
+		
+	/// the first scan for which me may draw the fluorescence is the before the startSize
+	int	startScan = [sample scanForSize:startSize]-1;
+	if(startScan < sample.minScan) {
+		/// but for the reason stated above, we don't draw scans before the minScan
+		startScan = sample.minScan;
 	}
 	
-	/// we retrieve the sizes of fragments in the size standard in ascending order to create an array of LadderSize struct
-	NSArray *sortedFragments = [sizeStandard.sizes.allObjects sortedArrayUsingComparator:^NSComparisonResult(SizeStandardSize *size1, SizeStandardSize *size2) {
-		if(size1.size < size2.size) {
-			return NSOrderedAscending;
-		} else {
-			return NSOrderedDescending;
-		}
-	}];
-	
-	LadderSize ladderSizes[nSizes];									/// we use a variable-length array for this, as nSizes will never be very large
-	int i = 0;
-	for(SizeStandardSize *fragment in sortedFragments) {
-		LadderSize size = {.size = (float)fragment.size, .ladderPeakPTR = NULL};
-		ladderSizes[i++] = size;
-	}
+	NSInteger colorCount = offScaleColors.count;
+	const float lowerY = 1;
+	NSColor *currentOffscaleColor;
 	
 	NSData *peakData = self.peaks;
-	int nPeaks = (int)peakData.length/sizeof(Peak);  			/// number of peaks in the ladder.
-	
-	if (nPeaks < self.fragments.count /3 || nPeaks < 3) {
-		/// if we don't have enough peaks, we don't assign them
-		/// we still create ladder fragments, which will have no scan but can still assigned manually on a traceView
-		[self setLadderFragmentsWithSizes:ladderSizes nSizes:nSizes];
-		[sample setLinearCoefsForReadLength:ladderSizes[nSizes-1].size + 50.0];
-		return;
-	}
-	
-	LadderPeak ladderPeaks[nPeaks]; 	/// Array of LadderPeak structs based on the peaks of the trace
-	
-	/// to select among competing peaks later on, we also record the mean height and area of peaks that presumably represent the ladder, excluding artifacts.
-	/// for height, we need to access the fluorescence level
-	float heights[nPeaks];		/// as we will store peaks by decreasing sizes, we will store heights in this array
-	vDSP_Length nHeights = 0;
-	
-	int maxFluo = 0;
 	const Peak *peaks = peakData.bytes;
-	
-	/// We determine a scan before which we may ignore peaks that are abnormally high (artefacts near the start of the trace).
-	float firstPeakScan = peaks[0].startScan;
-	int refScan = firstPeakScan + (sample.nScans - firstPeakScan)/5;
-	
-	for (int i = nPeaks-1; i >= 0; i--) {
-		/// we enumerate peaks from last to first (in scan number), as the first peaks are usually artifacts
-		const Peak *peakPTR = &peaks[i];
-		LadderPeak newLadderPeak = LadderPeakFromPeak(peakPTR, self);
-		
-		if(peakPTR->crossTalk >= 0) {
-			/// We ignore crosstalk peaks
-			short height = newLadderPeak.height;
-			if(!(height > maxFluo *2 && peakEndScan(peakPTR) < refScan)) {
-				/// and those that are much higher than the current max and are near the start of trace
-				heights[nHeights] = newLadderPeak.height;
-				nHeights++;
-				if(height > maxFluo){
-					maxFluo = height;
-				}
-			}
-		}
-		ladderPeaks[i] = newLadderPeak;
-	}
-	
-	vDSP_vsort(heights, nHeights, -1);
-	float meanHeight = 0;
-	int n = 0, sumHeight = 0;
-	float minHeight = heights[nHeights-1];		/// the minimum height of the peaks that probably correspond to the ladder (those we use to compute meanHeight)
-	
-	for (int i = 1; i < nHeights; i++) {
-		if(n >= nSizes +3 || (i < nHeights -1 && i > 2 && heights[i] > 3 * heights[i+1])) {
-			break;		/// We stop considering peaks if a peak is much shorter than the previous one. This helps to exclude noise.
-						/// Also, we stop when we have reached the number of expected ladder fragments (+3 for safety)
-		}
-		sumHeight += heights[i];
-		minHeight = heights[i];
-		n++;
-	}
-	
-	if(n == 0) {
-		[self setLadderFragmentsWithSizes:ladderSizes nSizes:nSizes];;
-		[sample setLinearCoefsForReadLength:ladderSizes[nSizes-1].size + 50.0];
-		return;
-	}
-	meanHeight = sumHeight/n;
-	
-	LadderPeak *ladderPeakPTRs[nPeaks];  	/// Pointers to the peaks that will be used for the sizing.
-	n = 0;
-	
+	NSInteger nPeaks = peakData.length / sizeof(Peak);
 	for (int i = 0; i < nPeaks; i++) {
-		LadderPeak *ladderPeakPTR = &ladderPeaks[i];
-		if(ladderPeakPTR->height*2 >= minHeight && ladderPeakPTR->crossTalk >= 0) {
-			/// We ignore peaks resulting from crosstalk although the code afterwards still checks for crosstalk for peak selection,
-			/// as the code was previously considering crosstalk peaks.I left these checks in the code in case we need them.
-			/// A peak resulting from crosstalk could be valid if a ladder fragment has the same size as a fragment in another channel.
-			/// But currently, this peak is ignored. I believe it is safer to let the user assign it manually.
-			ladderPeakPTRs[n] = ladderPeakPTR;
-			n++;
-		}
-	}
-	
-	if (n < 3) {
-		[self setLadderFragmentsWithSizes:ladderSizes nSizes:nSizes];
-		[sample setLinearCoefsForReadLength:ladderSizes[nSizes-1].size + 50.0];
-		return;
-	}
-	
-	int nRetainedPeaks = n;
-	
-	/// We assign the first peak (in scan number) to the first size, the last peak to the last size.
-	/// Using a 2-point line obtained from this assignment, we assign other intermediate peaks to intermediate sizes (based on proximity).
-	/// We then measure the offset between assigned sizes and peak positions (deduced from the slope of the line) as a sizing quality score
-	/// We reiterate this by incrementing the first peak and decrementing the last peak, in case they were wrong (very common for first peaks, due to artifact at the start of the trace).
-	/// We also decrement the last size to assign, which may be missing (electrophoresis might have stopped too soon and the longer fragments may be missing).
-	
-	int minNSizes = 2; 					/// minimum number of assigned sizes to consider the results
-	const float threshold = 100; 		/// threshold for good quality score (see how we compute it below)
-	
-	LadderPeak assignedPeaks[nSizes];											/// the LadderPeaks that are assigned to ladder sizes in the current iteration
-	NSData *assignments[nSizes +1];												/// the above array will be copied in an NSData and stored in this array at an index corresponding to the number assigned sizes.
-	float bestScores[nSizes+1];													/// the best quality score for a given number of sizes assigned (this number is the index of the array, hence the +1)
-	float fill = 0;
-	vDSP_vfill(&fill, bestScores, 1, nSizes+1);
-	
-	for (int last = nRetainedPeaks-1; last+1 >= minNSizes; last--) {		  		  	/// decrementing last peak index
-		for (int lastSize = nSizes-1; lastSize+1 >= minNSizes; lastSize--) {  	/// decrementing last size index
-			LadderPeak *lastPeakPTR = ladderPeakPTRs[last];
-			lastPeakPTR->size = ladderSizes[lastSize].size;
-			for (int first = 0;  first <= last - minNSizes + 1; first++) {	  	/// incrementing first peak index
-				LadderPeak *firstPeakPTR = ladderPeakPTRs[first];
-				/// we compute the slope and intercept of the line passing through the first and last peak (x = scan number, y = size)
-				float slope = (lastPeakPTR->size - firstPeakPTR->size) / (lastPeakPTR->scan - firstPeakPTR->scan);
-				float intercept = (lastPeakPTR->size + firstPeakPTR->size)/2 - slope * (lastPeakPTR->scan + firstPeakPTR->scan)/2;
-				
-				/// we define a local slope and intercept, which we will use to predict the location of a ladder fragment
-				/// (the relationship with size and scan may not be linear)
-				/// we initialize them with the parameters based on the first and last peaks
-				float localSlope = slope;
-				float localIntercept = intercept;
-				/// these parameters will then be based on two adjacent ladder fragments assigned to two sizes
-				int rightAssignedSize = lastSize;
-				int leftAssignedSize = lastSize;
-				
-				for (int i = 0; i < nSizes; i++) {
-					/// for this, we must deassign all intermediate sizes that were assigned in previous iterations
-					ladderSizes[i].ladderPeakPTR = NULL;
-				}
-				ladderSizes[lastSize].ladderPeakPTR = lastPeakPTR;
-				
-				
-				int sizeIndex = lastSize-1;		/// the index of the size the peak will be assigned to
-				
-				/// we assign peaks to sizes from right to left. This is because the left part of the trace often contains noise
-				for(int i = last-1; i >= 0; i--) {
-					LadderPeak *ladderPeakPTR = ladderPeakPTRs[i];
-					ladderPeakPTR->offset = INFINITY;
-					for(int j = sizeIndex; j >= 0; j--) {
-						/// we inspect sizes from right to left to see which is the most suitable for the peak
-						/// to predict the location of the peak to a lower size than the last assigned one, we use the  slope and intercept
-						float predictedSize = (j < leftAssignedSize)? localSlope*ladderPeakPTR->scan + localIntercept : slope*ladderPeakPTR->scan + intercept;
-						float offset = ladderSizes[j].size - predictedSize;
-						float offsetRatio = offset / ladderPeakPTR->offset ;
-						if(fabs(offsetRatio) < 1) {
-							/// if the peak is closer to the current size than the previous size
-							if(offsetRatio <= -0.3 && ladderPeakPTR->offset > -10) {
-								/// we do further inspection if the current size isn't much closer (not more than 3x closer) and if the previous offset is not too large.
-								/// The negative ratio means that the peak is between both sizes (previous offset is negative, current is positive)
-								/// We do these checks to make sure the previous size isn't skipped with no peak assigned
-								LadderSize previousSize = ladderSizes[j+1];
-								/// if the previous size has no peak or has a peak of poor quality peak (crosstalk, etc.), we don't take the current size and keep the previous
-								if (previousSize.ladderPeakPTR == NULL) {
-									break;
-								}
-								LadderPeak previous = *previousSize.ladderPeakPTR;
-								if(previous.crossTalk < 0 || previous.height < meanHeight / 3 || (previous.area/previous.height) > (ladderPeakPTR->area/ladderPeakPTR->height)*2) {
-									break;
-								}
-							}
-							if(j == leftAssignedSize -1 && leftAssignedSize != lastSize) {
-								/// if the peak appears to correspond to a size that is lower than the last assigned,
-								/// we replace the current slope with the local slope (same for intercept)
-								slope = localSlope;
-								intercept = localIntercept;
-							}
-							ladderPeakPTR->offset = offset;
-							sizeIndex = j;
-						} else {
-							break;  /// when the offset starts to get higher than the previous one, we can exit (since sizes are decreasing)
-						}
-					}
-					/// based on the offset, we assign the peak to the size (assignment is not guaranteed because some other peaks may be better)
-					BOOL assigned = assignPeakToSize(ladderPeakPTR, &ladderSizes[sizeIndex], meanHeight);
-					/// if the peak is assigned, we compute the local slope and intercept based on the peaks assigned to this size and to the previous size										}
-					if(assigned && 	fabsf(ladderPeakPTR->offset) < 30)  {
-						if(sizeIndex < leftAssignedSize) {
-							rightAssignedSize = leftAssignedSize;
-							leftAssignedSize = sizeIndex;
-						}
-						LadderPeak leftPeak = *ladderPeakPTR;
-						LadderPeak rightPeak = *ladderSizes[rightAssignedSize].ladderPeakPTR;
-						
-						localSlope = (rightPeak.size - leftPeak.size) / (rightPeak.scan - leftPeak.scan);
-						localIntercept = (rightPeak.size + leftPeak.size)/2 - localSlope * (rightPeak.scan + leftPeak.scan)/2;
-					}
-				}
-				
-				/// we store assigned peaks in the designated array
-				int nAssigned = 0, nMissed = 0;
-				for (int i = first; i < nRetainedPeaks; i++) {
-					LadderPeak *ladderPeakPTR = ladderPeakPTRs[i];
-					if(ladderPeakPTR->size >= 0 && i <= last) {
-						assignedPeaks[nAssigned] = *ladderPeakPTR;
-						nAssigned++;
-					} else if(ladderPeakPTR->height > minHeight && ladderPeakPTR->crossTalk >= 0) {
-						/// if a peak has a good height and has no size assigned (or is beyond the last peak),
-						/// we consider that the assigned to the size has been missed
-						nMissed++;
-					}
-				}
-				if(nMissed > nSizes - nAssigned) {
-					nMissed = nSizes - nAssigned;
-				}
-				
-				if(nAssigned < minNSizes) {
-					continue;
-				}
-				/// we compute the sizing quality score. It is based on a regression line computed with all assigned peaks (not just the first and last, this time)
-				slope = regressionForPeaks(assignedPeaks, nAssigned, 0, &intercept);
-				for (int i = 0; i < nAssigned; i++) {
-					assignedPeaks[i].offset = assignedPeaks[i].size -  (slope*assignedPeaks[i].scan + intercept);
-				}
-				
-				float meanOffset = 0.0;
-				for (int i = 0; i < nAssigned -1; i++) {
-					/// the score is based on the difference of offset between successive peaks, considering their distance (in scans)
-					/// two peaks that are close must have similar offsets, otherwise it means a peak has not be properly assigned
-					meanOffset += fabs(assignedPeaks[i].offset - assignedPeaks[i+1].offset) / abs(assignedPeaks[i].scan - assignedPeaks[i+1].scan);
-				}
-				
-				meanOffset /= (nAssigned-1);
-				float r = 1/meanOffset * (nAssigned - nMissed)/nAssigned;
-				
-				if(r > bestScores[nAssigned]) {		/// if the fit is better than the best so far, for this number of assigned fragments
-					bestScores[nAssigned] = r;
-					/// we add results to the array
-					assignments[nAssigned] = [NSData dataWithBytes:ladderSizes length:nSizes*sizeof(LadderSize)];
+		const Peak *peakPTR = &peaks[i];
+		int32_t endScan = peakEndScan(peakPTR);
+		if(endScan >= startScan) {
+			if(endScan >= maxScan) {
+				break;
+			}
+			int peakStartScan = peakPTR->startScan;
+			float peakStartSize = sizes[peakStartScan];
+			if(peakStartSize <= endSize && peakStartScan < endScan) {
+				int offScaleChannel = -(peakPTR->crossTalk + 1);
+				if(offScaleChannel >= 0 && offScaleChannel <= colorCount) {
+					float x = (peakStartSize- leftOffset)*hScale;
+					float y = -1;
+					CGPoint pointArray[endScan - peakStartScan + 3];
+					pointArray[0] = CGPointMake(x, y);
+					int nPointsInPath = 1;
 					
-				}
-				
-				if(r >= threshold) {				/// if we consider that the assignment is good enough, we won't look for iterations involving a lower number of sizes
-					minNSizes = nAssigned;
-				}
-			}
-		}
-	}
-	
-	
-	NSData *bestAssignment = assignments[nSizes];		/// by default, we keep results from the largest number of sizes;
-	float topScore = 0;
-	int nAssignedSizes;
-	for (nAssignedSizes = nSizes; nAssignedSizes >= minNSizes; nAssignedSizes--) {
-		if(bestScores[nAssignedSizes] >= threshold) {
-			bestAssignment = assignments[nAssignedSizes];
-			break;
-		} else {
-			if(bestScores[nAssignedSizes] * nAssignedSizes/nSizes > topScore) {
-				topScore = bestScores[nAssignedSizes] * nAssignedSizes/nSizes;
-				bestAssignment = assignments[nAssignedSizes];;
-			}
-		}
-	}
-	
-	const LadderSize *assigned = bestAssignment.bytes;
-	
-	[self setLadderFragmentsWithSizes:assigned nSizes:nSizes];
-	
-	[sample computeFitting];
-}
-
-
-/// Tries to assign a ladder peak to a size and returns whether the assignment was made.
-///
-/// Depending on the `ladderPeakPTR` member of `ladderSizePTR`,
-/// the method may not replace it by `candidatePeakPTR` (if this peak appear less suited) and may return `NO`.
-/// - Parameters:
-///   - candidatePeakPTR: Pointer to the peak to assign to the size.
-///   - ladderSizePTR: Pointer to the size that may be assigned to the peak pointed by `candidatePeakPTR`.
-///   - meanHeight: A mean value of peak height that is used to asses peak quality.
-BOOL assignPeakToSize(LadderPeak  *candidatePeakPTR, LadderSize *ladderSizePTR, float meanHeight) {
-	candidatePeakPTR->size = -1;				/// we deassign the peak
-	if(fabs(candidatePeakPTR->offset) > 15) {
-		/// if the peak offset is just too large, we cannot assign it
-		return NO;
-	}
-	/// we check if a previously inspected peak is assigned to this size
-	if(ladderSizePTR->ladderPeakPTR != NULL) {
-		LadderPeak candidate = *candidatePeakPTR;
-		/// in that case, the candidate may replace the resident for this size
-		LadderPeak resident = *ladderSizePTR->ladderPeakPTR;
-		/// we use the "shape" of the peaks, which represents their flatness (area/height). A peak that is too flat may represent an artifact.
-		
-		float residentShape = (float)resident.area / resident.height;
-		float candidateShape = (float)candidate.area / candidate.height;
-		bool replace = false ;				/// will be true if the resident peak needs to be replaced by the candidate
-		bool closer = fabs(candidate.offset) < fabs(resident.offset);
-		bool crossTalk = candidate.crossTalk < 0;
-		if(resident.crossTalk < 0) {
-			if(!crossTalk || closer) {
-				/// this is the case if the resident is crosstalk and the candidate isn't or is closer
-				replace = true;
-			}
-		} else if(residentShape > candidateShape*3 && resident.height < meanHeight/2) {
-			/// if the resident peak isn't crosstalk, but is too flat or too short
-			if(!crossTalk && ((candidateShape <= residentShape*3 && candidate.height >= meanHeight/3) || closer)) {
-				replace = true;				/// the candidate replaces it doesn't have these defects, or is closer
-			}
-		} else if(!crossTalk && candidateShape <= residentShape*3 && candidate.height >= meanHeight/3 && closer) {
-			replace = true;					/// else the candidate must have no defect, no crosstalk and be closer
-		}
-		if(replace) {
-			/// if the resident is replaced, we de-assign it
-			ladderSizePTR->ladderPeakPTR->size = -1;
-		} else {
-			return NO;
-		}
-	}
-	ladderSizePTR->ladderPeakPTR = candidatePeakPTR;
-	candidatePeakPTR->size = ladderSizePTR->size;
-	return YES;
-	
-}
-
-/// returns slope between scan and size of peaks using ordinary least squares
-float regressionForPeaks (const LadderPeak *peaks, int nPeaks, int first, float *intercept) {
-	float sumXX=0, sumXY=0, sumX=0, sumY=0, slope;
-	for (int i = first; i < nPeaks+first; i++) {
-		sumXX += peaks[i].scan * peaks[i].scan;
-		sumX += peaks[i].scan;
-		sumY += peaks[i].size;
-		sumXY += peaks[i].scan * peaks[i].size;
-	}
-	slope= (nPeaks*sumXY - sumX*sumY)/(nPeaks*sumXX - pow(sumX, 2));
-	*intercept = (sumY - slope*sumX)/nPeaks;
-	return slope;
-}
-
-
-/// Sets the `fragments` relationship of the receiver given the LadderSizes provided in an array.
-///
-/// This method assumes that the receiver is a ladder. If creates `LadderFragments` objects if required.
-/// - Parameters:
-///   - sizes: An array of sizes to be represented by ladder fragments.
-///   - nSizes: The number of elements in the `sizes` array.
-- (void)setLadderFragmentsWithSizes:(const LadderSize *)sizes nSizes:(NSUInteger)nSizes {
-	NSSet *ladderFragments = self.fragments;
-	bool *alreadyAssigned = calloc(nSizes, sizeof(bool));
-	NSMutableSet *reusedFragments = NSMutableSet.new;
-	NSMutableArray *remainingFragments = [NSMutableArray arrayWithArray:ladderFragments.allObjects];
-	
-	/// We try to assign a size to a ladder fragment that already has this size (if any).
-	for(LadderFragment *fragment in ladderFragments) {
-		for (NSInteger i = 0; i < nSizes; i++) {
-			if(!alreadyAssigned[i]) {
-				const LadderSize *ladderSize = &sizes[i];
-				float size = ladderSize->size;
-				if(size == fragment.size) {
-					alreadyAssigned[i] = true;
-					int scan = ladderSize->ladderPeakPTR != NULL? ladderSize->ladderPeakPTR->scan : 0;
-					if(scan != fragment.scan) {
-						fragment.scan = scan;
+					for (int scan = peakStartScan; scan <= endScan; scan++) {
+						x = (sizes[scan] - leftOffset) * hScale;
+						y = fluo[scan] * vScale;
+						if(y < lowerY) {
+							y = lowerY -1;
+						}
+						pointArray[nPointsInPath++] = CGPointMake(x, y);
 					}
-					[reusedFragments addObject:fragment];
-					[remainingFragments removeObject:fragment];
-					break;
+					x = (sizes[endScan] - leftOffset) * hScale;
+					pointArray[nPointsInPath++] = CGPointMake(x, -1);
+					
+					NSColor *color = offScaleColors[offScaleChannel];
+					if(color !=currentOffscaleColor) {
+						currentOffscaleColor = color;
+						CGContextSetFillColorWithColor(ctx, color.CGColor);
+					}
+					CGContextBeginPath(ctx);
+					CGContextAddLines(ctx, pointArray, nPointsInPath);
+					CGContextClosePath(ctx);
+					CGContextFillPath(ctx);
 				}
+			} else {
+				break;
 			}
 		}
 	}
-	
-	NSInteger nRemainingFragments = remainingFragments.count;
-	if(reusedFragments.count < nSizes) {
-		for (int i = 0; i < nSizes; i++) {
-			if(!alreadyAssigned[i]) {
-				const LadderSize *ladderSize = &sizes[i];
-				LadderFragment *fragment;
-				if(nRemainingFragments > 0) {
-					fragment = remainingFragments[nRemainingFragments-1];
-					nRemainingFragments--;
-				} else {
-					fragment = [[LadderFragment alloc] initWithEntity:LadderFragment.entity insertIntoManagedObjectContext:self.managedObjectContext];
-				}
-				int scan = ladderSize->ladderPeakPTR != NULL? ladderSize->ladderPeakPTR->scan : 0;
-				if(scan != fragment.scan) {
-					fragment.scan = scan;
-				}
-				fragment.size = ladderSize->size;
-				[reusedFragments addObject:fragment];
-			}
-		}
-	}
-	
-	free(alreadyAssigned);
-	self.fragments = reusedFragments;
+}
 
+
+- (void)drawInContext:(CGContextRef)ctx {
+	if(path) {
+		CGContextAddPath(ctx, path);
+		CGContextStrokePath(ctx);
+		CGPathRelease(path);
+		path = NULL;
+	} else if(pointsForPath && pointCount > 0) {
+		CGContextStrokeLineSegments(ctx, pointsForPath, pointCount);
+		free(pointsForPath);
+		pointsForPath = NULL;
+		pointCount = 0;
+	}
 }
 
 
@@ -1322,6 +1084,14 @@ float regressionForPeaks (const LadderPeak *peaks, int nPeaks, int first, float 
 		_adjustedDataMaintainingPeakHeights = nil;
 		previousPeaks = nil;
 		previousPeaksM = nil;
+}
+
+
+- (void)dealloc {
+	CGPathRelease(path);
+	if(pointsForPath) {
+		free(pointsForPath);
+	}
 }
 
 @end

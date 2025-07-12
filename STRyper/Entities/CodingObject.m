@@ -21,16 +21,9 @@
 
 #import "CodingObject.h"
 
-@interface CodingObject ()
-
-@property (nonatomic) BOOL willBeDeleted;
-
-@end
-
 
 @implementation CodingObject
 
-@synthesize willBeDeleted;
 
 +(BOOL)supportsSecureCoding {
 	return YES;
@@ -59,7 +52,7 @@
 	}
 	
 	if(!delegate) {
-		delegate = NSApp.delegate;
+		delegate = AppDelegate.sharedInstance;
 	}
 	
 	if ([delegate respondsToSelector:@selector(childContext)]) {
@@ -136,12 +129,6 @@
 	return result;
 }
 
-
-CodingObjectKey willBeDeletedKey = @"willBeDeleted";
-
-- (void)prepareForDeletion {
-	self.willBeDeleted = YES;
-}
 
 
 - (nullable id)copy {

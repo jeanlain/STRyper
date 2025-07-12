@@ -50,7 +50,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This relationship is encoded/decoded in ``CodingObject/encodeWithCoder:``  /  ``CodingObject/initWithCoder:``.
 /// It is also used in ``CodingObject/isEquivalentTo:``, to compare panels.
-@property (nonatomic) NSSet <Mmarker *> *markers;
+@property (nonatomic, nullable) NSSet <Mmarker *> *markers;
 
 
 /// Returns the ``markers`` of a specific channel.
@@ -69,7 +69,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The samples using the panel.
 ///
 /// The reverse relationship is ``Chromatogram/panel`` .
-@property (nonatomic) NSSet <Chromatogram *> *samples;
+@property (nonatomic, nullable) NSSet <Chromatogram *> *samples;
 
 /// Returns the receiver in an array.
 ///

@@ -69,6 +69,11 @@
 /// This property is set as appropriate and avoids setting the colors of `CALayer` objects at each redisplay.
 @property (nonatomic) BOOL needsChangeAppearance;
 
+/// The background color of the view.
+///
+/// The default value is the system window background color.
+@property (nonatomic) NSColor * backgroundColor;
+
 /// Tells that view that it needs to update the offsets of size labels to show within marker ranges.
 ///
 /// Offset are updated at the beginning of `-drawRect`.
@@ -89,5 +94,7 @@
 
 /// The thickness of the ruler view = 14 pts.
 extern const float ruleThickness;
+
+-(void) showTime:(NSString *) time;
 
 @end

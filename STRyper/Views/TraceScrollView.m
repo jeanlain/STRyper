@@ -24,6 +24,7 @@
 #import "TraceView.h"
 #import "VScaleView.h"
 #import "MarkerView.h"
+#import "RulerView.h"
 
 @implementation TraceScrollView
 
@@ -32,11 +33,13 @@
 	__weak TraceView *traceView;	/// A shortcut to the document view (if a traceView)
 	RegionLabel *targetLabel;		/// the label of the marker to which we move to after a swipe gesture
 	float previousDeltaX;			/// The scrollingDeltaX of the last scrollWheel event, used to determine if we should move to the next/previous marker.
+	BOOL needsUpdateVScaleViewBoundsOrigin;
 }
 
 
 
 const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers";
+const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 
 
 # pragma mark - general attribute setting
@@ -63,7 +66,7 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 -(void)setAttributes {
 	self.hasHorizontalScroller = YES;
 	self.verticalScrollElasticity = NSScrollElasticityNone;
-	self.scrollerStyle = NSScrollerStyleLegacy;
+//	self.scrollerStyle = NSScrollerStyleLegacy;
 	self.usesPredominantAxisScrolling = NO;
 	self.borderType = NSNoBorder;
 	self.rulersVisible = YES;
@@ -80,20 +83,51 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 		}
 		traceView.vScaleView = vScaleView;
 		[self addSubview:vScaleView];
+		needsUpdateVScaleViewBoundsOrigin = YES;
+	//	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(clipViewBoundsDidChange:) name:NSViewBoundsDidChangeNotification object:self.contentView];
 	} else {
-		if([self.subviews containsObject:vScaleView]) {
+		if([self.subviews indexOfObjectIdenticalTo:vScaleView] != NSNotFound) {
 			[vScaleView removeFromSuperview];
 		}
 	}
 }
 
 
+-(void)clipViewBoundsDidChange:(NSNotification *)notification { // Debugging
+	NSClipView *clipView = self.contentView;
+	float boundsX = clipView.bounds.origin.x;
+	NSLog(@"notified: %f", boundsX);
+
+}
+
+
+- (void)setAlwaysShowsScroller:(BOOL)alwaysShowsScroller {
+	_alwaysShowsScroller = alwaysShowsScroller;
+	self.scrollerStyle = alwaysShowsScroller? NSScrollerStyleLegacy : [NSScroller preferredScrollerStyle];
+}
+
+
 - (void)setScrollerStyle:(NSScrollerStyle)scrollerStyle {
-	/// We enforce the legacy scroller style
-	/// (if we didn't and if the user connects a magic mouse or trackpad after the app launch, the legacy scroller style could change)
-	if(scrollerStyle == NSScrollerStyleLegacy) {
+	if(scrollerStyle == NSScrollerStyleLegacy || !self.alwaysShowsScroller) {
+		needsUpdateVScaleViewBoundsOrigin = YES;
 		[super setScrollerStyle:scrollerStyle];
 	}
+}
+
+
+-(void)setHasHorizontalScroller:(BOOL)hasHorizontalScroller {
+	needsUpdateVScaleViewBoundsOrigin = YES;
+	super.hasHorizontalScroller = hasHorizontalScroller;
+}
+
+
+-(void)setVScaleViewBoundsOrigin {
+	if(traceView) {
+		NSPoint point = [vScaleView convertPoint:NSMakePoint(0, 0) fromView:traceView];
+		point.y -= vScaleView.bounds.origin.y;
+		[vScaleView setBoundsOrigin:NSMakePoint(0, -point.y)];
+	}
+	needsUpdateVScaleViewBoundsOrigin = NO;
 }
 
 
@@ -129,6 +163,23 @@ const NSBindingName AllowSwipeBetweenMarkersBinding = @"allowSwipeBetweenMarkers
 		vScaleView.frame = newFrame;
 		if(traceView.leftInset != vScaleView.width) {
 			traceView.leftInset = vScaleView.width;
+		}
+	}
+	
+	if(needsUpdateVScaleViewBoundsOrigin) {
+		[self setVScaleViewBoundsOrigin];
+	}
+
+	if(traceView.hScale > 0) {
+		/// The scroll position of the trace view may correspond to its visibleOrigin.
+		/// This happens when appkit imposes some scrolling  without calling `scrollClipView:toPoint:`
+		/// We scroll the view to fix any inconsistency.
+		NSClipView *clipView = self.contentView;
+		float boundX = clipView.bounds.origin.x;
+		float expectedBoundX = traceView.visibleOrigin - traceView.leftInset;
+		if(fabs(expectedBoundX - boundX) > 2) {
+			[clipView scrollToPoint:NSMakePoint(expectedBoundX, 0)];
+			[self reflectScrolledClipView:clipView];
 		}
 	}
 }

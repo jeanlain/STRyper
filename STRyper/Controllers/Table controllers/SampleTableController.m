@@ -31,7 +31,6 @@
 #import "SizeStandardTableController.h"
 #import "PanelListController.h"
 #import "NSManagedObjectContext+NSManagedObjectContextAdditions.h"
-#import "NSArray+NSArrayAdditions.h"
 #import "PanelFolder.h"
 #import "Mmarker.h"
 #import "Genotype.h"
@@ -163,7 +162,7 @@
 			if([control isKindOfClass:NSSearchField.class]) {
 				NSSearchFieldCell *cell = control.cell;		/// the search field allowing to filter by sample name
 				if(cell.searchButtonCell) {
-					cell.searchButtonCell.image =[NSImage imageNamed:@"filter"];
+					cell.searchButtonCell.image =[NSImage imageNamed:ACImageNameFilter];
 				}
 			}
 		}
@@ -176,7 +175,7 @@
 		/// The order of the bindings below may be important to restore the selected samples in `setSelectedFolder:`.
 		/// Otherwise the sample table content may not be ready when the selected folder changes.
 		[self bind:@"selectedFolder" toObject:sharedController withKeyPath:@"selectedFolder" options:nil];
-
+		
 		[self.samples bind:NSFilterPredicateBinding toObject:sharedController withKeyPath:@"selectedFolder.filterPredicate" options:nil];
 		[self.samples bind:NSContentSetBinding toObject:FolderListController.sharedController withKeyPath:@"selectedFolder.samples" options:nil];
 	}
@@ -208,7 +207,7 @@
 - (NSInteger)itemNameColumn {
 	return [self.tableView.tableColumns indexOfObjectPassingTest:^BOOL(NSTableColumn * _Nonnull column, NSUInteger idx, BOOL * _Nonnull stop) {
 		return [column.identifier isEqualToString:@"sampleNameColumn"];
-	}];	
+	}];
 }
 
 
@@ -303,7 +302,7 @@
 
 
 - (BOOL)tableView:(NSTableView *)tableView acceptDrop:(id<NSDraggingInfo>)info row:(NSInteger)row dropOperation:(NSTableViewDropOperation)dropOperation {
-
+	
 	/// For some reason, the drop doesn't trigger a validation of toolbar items, so we force it.
 	[NSApp setWindowsNeedUpdate:YES];
 	
@@ -367,20 +366,16 @@
 	NSArray *targetSamples = [super validTargetsOfSender:sender];
 	if([sender action] == @selector(showGenotypes:)) {
 		NSArray *shownGenotypes = GenotypeTableController.sharedController.genotypes.arrangedObjects;
-		if(shownGenotypes.count > 0) {
-			targetSamples = [targetSamples filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Chromatogram *sample, NSDictionary<NSString *,id> * _Nullable bindings) {
-				for(Genotype *genotype in sample.genotypes) {
-					if([shownGenotypes indexOfObject:genotype] != NSNotFound) {
-						return YES;
-					}
-				}
-				return NO;
-			}]];
+		NSArray *sampleGenotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
+		if(![sampleGenotypes sharesObjectsWithArray:shownGenotypes]) {
+			return nil;
 		}
 	} else if([sender action] == @selector(callGenotypes:)) {
-		targetSamples = [targetSamples filteredArrayUsingPredicate: [NSPredicate predicateWithBlock:^BOOL(Chromatogram *sample, NSDictionary<NSString *,id> * _Nullable bindings) {
+		targetSamples = [targetSamples filteredArrayUsingBlock:^BOOL(Chromatogram*  _Nonnull sample, NSUInteger idx) {
 			return  sample.sizingQuality.floatValue > 0 && sample.genotypes.count > 0;
-			}]];
+		}];
+	} else if([sender action] == @selector(showInFinder:) && targetSamples.count > 1) {
+		return nil;
 	}
 	
 	return targetSamples.count > 0? targetSamples : nil;
@@ -426,10 +421,9 @@
 			for(Chromatogram *sample in samples) {
 				/// To check if the sample has the right panel, we compare the URIs of its markers to the keys.
 				NSArray *URIs = [sample.panel.markers.allObjects valueForKeyPath:@"@unionOfObjects.objectID.URIRepresentation.absoluteString"];
-				URIs = [URIs filteredArrayUsingPredicate:
-						[NSPredicate predicateWithBlock:^BOOL(NSString * URI, NSDictionary<NSString *,id> * _Nullable bindings) {
+				URIs = [URIs filteredArrayUsingBlock:^BOOL(NSString*  _Nonnull URI, NSUInteger idx) {
 					return [keys containsObject:URI];
-				}]];
+				}];
 				/// Markers may have been deleted since the copy, which is why we didn't just take all URIs that are in the dic.
 				if(URIs.count > 0) {
 					/// If we're here, the sample must have the right panel. We won't need to inspect other samples.
@@ -579,7 +573,7 @@
 			continue;
 		}
 		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:panelFolder.name action:@selector(applyPanel:) keyEquivalent:@""];
-		item.offStateImage = isPanel? [NSImage imageNamed:@"panelBadgeMenu"] : [NSImage imageNamed:@"folderBadge"];
+		item.offStateImage = isPanel? [NSImage imageNamed:ACImageNamePanelBadgeMenu] : [NSImage imageNamed:ACImageNameFolderBadge];
 		[menu addItem:item];
 		if(isPanel) {
 			item.target = self;
@@ -612,45 +606,62 @@
 }
 
 
-- (void)applySizeStandard2:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
-	/// METHOD LEFT TO TEST (not currently used)
-	AppDelegate *delegate = AppDelegate.sharedInstance;
-	NSManagedObjectContext *childContext = delegate.newChildContextOnMainQueue;
-	NSError *error;
-	standard = [childContext existingObjectWithID:standard.objectID error:&error];
-	if(!error) {
-		for (Chromatogram *sample in sampleArray) {
-			Chromatogram *aSample = [childContext existingObjectWithID:sample.objectID error:&error];
-			if(!error) {
-				aSample.sizeStandard = standard;		/// we don't do that in a child context without undo manager to save time,
-														/// as this would require materializing samples in the other context, which would be worse.
-			} else {
-				break;
+
+- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
+    NSManagedObjectContext *MOC = sampleArray.firstObject.managedObjectContext;
+    if(!MOC) {
+        return;
+    }
+    /// We  show progress but don't use a background context because materializing all samples in this context woud take a long time.
+    /// So we progress in batches on the view context between which we update the UI via a progress window.
+	NSInteger batchSize = 30;
+    NSInteger sampleCount = sampleArray.count;
+	NSProgress *progress = [NSProgress progressWithTotalUnitCount:sampleCount];
+    NSUndoManager *undoManager = MOC.undoManager;
+    [undoManager setActionName:@"Apply Size Standard"];
+    [undoManager beginUndoGrouping];
+    
+	ProgressWindow *progressWindow = ProgressWindow.new;
+	[progressWindow showProgressWindowForProgress:progress afterDelay:0.2 modal:YES parentWindow:self.view.window];
+	__block NSInteger samplesProcessed = 0;
+    
+	__block void (^processNextBatch)(void); /// The block that processes a batch of samples.
+    void (^heapBlock)(void) = ^{  /// We will launch processing of  the next batch within the current batch. To avoid block self-reference, we use another block.
+        NSInteger max = samplesProcessed+batchSize;
+        for (NSInteger i = samplesProcessed; i < max; i++) {
+			if (progress.isCancelled || i >= sampleCount) {
+                [AppDelegate.sharedInstance saveAction:self];
+                [undoManager endUndoGrouping];
+                [progressWindow stopShowingProgressAndClose];
+				return;
 			}
+            Chromatogram *sample = sampleArray[i];
+			sample.appliedSizeStandard = standard;
+			samplesProcessed++;
 		}
-		if(childContext.hasChanges) {
-			[self.undoManager setActionName:@"Apply Size Standard"];
-			[childContext save:&error];
-			
-			[delegate saveAction:self];
-		}
-	}
-	if(error) {
-		error = [NSError errorWithDescription:@"The size standard could not be applied because an error occurred in the database."
-								   suggestion:@"You may quit the application and try again."];
-		[NSApp presentError:error];
-	}
+        /// We schedule the next batch after a short delay to let UI update.
+        progress.completedUnitCount = samplesProcessed;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.001  * NSEC_PER_SEC)),
+                    dispatch_get_main_queue(), ^{
+                        if (processNextBatch) processNextBatch();
+                    });
+	};
+	
+    processNextBatch = heapBlock;
+	processNextBatch(); /// We launch the first batch.
 }
 
 
-- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
+- (void)applySizeStandard_:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
 	if(sampleArray.count > 0) {
 		[self.undoManager setActionName:@"Apply Size Standard"];
 		for (Chromatogram *sample in sampleArray) {
-			sample.sizeStandard = standard;		/// we don't do that in a child context without undo manager to save time,
-												/// as saving the child context takes longer
+			@autoreleasepool {
+				/// we don't do that in a child context without undo manager because fetching all chromatograms takes longer
+				sample.appliedSizeStandard = standard;
+			}
 		}
-		[(AppDelegate *)NSApp.delegate saveAction:self];
+		[AppDelegate.sharedInstance saveAction:self];
 	}
 }
 
@@ -723,7 +734,7 @@
 			NSString *description = [NSString stringWithFormat:@"%ld sample(s) will not be analyzable for all markers of panel '%@'.", errors.count, panel.name];
 			error = [NSError errorWithDomain:STRyperErrorDomain
 										code:NSManagedObjectValidationError
-									userInfo:@{NSDetailedErrorsKey: [NSArray arrayWithArray:errors],
+									userInfo:@{NSDetailedErrorsKey: errors.copy,
 											   NSLocalizedDescriptionKey: NSLocalizedString(description, nil),
 											   NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(@"See the log for details.", nil)
 											 }];
@@ -790,13 +801,28 @@
 	NSSet *samples = [NSSet setWithArray:items];
 	SampleFolder *selectedFolder = self.selectedFolder;
 	if([selectedFolder respondsToSelector:@selector(removeSamples:)]) {
-		/// we remove samples from the selected folder in one go, otherwise,  the sample table would update for each removed sample that is added
+		/// we remove samples from the selected folder first, otherwise the sample table may update for each removed sample that is added
 		/// to the trash folder in the next instruction. That may take some time if many samples are removed
 		[selectedFolder removeSamples:samples];
 	}
 	
 	[FolderListController.sharedController.trashFolder addSamples:samples];
 	
+}
+
+-(IBAction)showInFinder:(id)sender {
+	NSArray<Chromatogram *> *targetSamples = [self validTargetsOfSender:sender];
+	if(targetSamples.count == 1 && [targetSamples.firstObject respondsToSelector:@selector(sourceFile)]) {
+		NSString *path = targetSamples.firstObject.sourceFile;
+		if(path) {
+			BOOL reachable = [NSWorkspace.sharedWorkspace selectFile:path inFileViewerRootedAtPath:@""];
+			if(!reachable) {
+				NSError *error = [NSError errorWithDescription:@"The file could not be shown."
+													suggestion: @"The file may have been moved or deleted since it was imported."];
+				[NSApp presentError:error];
+			}
+		}
+	}
 }
 
 #pragma mark - importing samples
@@ -874,45 +900,80 @@
 
 -(void) addSamplesFromFiles:(NSArray <NSString *>*)filePaths toFolder:(SampleFolder *)folder {
 	NSManagedObjectContext *MOC = folder.managedObjectContext;
-	NSUndoManager *undoManager = MOC.undoManager;
+	CDUndoManager *undoManager = (CDUndoManager *)MOC.undoManager;
 	[MOC processPendingChanges];
-	[undoManager disableUndoRegistration];
+	if(undoManager.isUndoRegistrationEnabled) {
+		[undoManager disableUndoRegistration];
+	}
 	NSMutableSet *importedSamples = NSMutableSet.new;
-	[FileImporter.sharedFileImporter importSamplesFromFiles:filePaths batchSize:200 intermediateHandler:^(SampleFolder * _Nonnull scratchFolder) {
-		scratchFolder = [MOC existingObjectWithID:scratchFolder.objectID error:nil];
-		NSSet *samples = scratchFolder.samples;
-		if(samples.count > 0) {
-			[importedSamples addObjectsFromArray:samples.allObjects];
-			[folder addSamples:samples];		/// this updates the sample table only once.
-			[scratchFolder.managedObjectContext deleteObject:scratchFolder];
-			
-			/// We save to the store to allow freeing memory, and in case a crash occurs later during import the imported samples will be saved.
-			[AppDelegate.sharedInstance saveAction:self];
+	BOOL applySizeStandard = [NSUserDefaults.standardUserDefaults boolForKey:AutoDetectSizeStandard];
+	
+	ProgressWindow *progressWindow = ProgressWindow.new;
+	NSProgress *importProgress = NSProgress.new;
+	[progressWindow showProgressWindowForProgress:importProgress afterDelay:1.0 modal:YES parentWindow:self.view.window];
+	[FileImporter.sharedFileImporter importSamplesFromFiles:filePaths
+												  batchSize:100
+												   progress:importProgress
+										intermediateHandler:^BOOL(NSManagedObjectID *containerFolderID) {
+		if(folder.isDeleted || !folder.managedObjectContext) {
+			return NO;
 		}
-	} completionHandler:^(NSError *error) {
-		if(error) {
-			if(error.code == NSUserCancelledError) {
-				NSString *description = [NSString stringWithFormat:@"The import was cancelled after %ld samples have been imported.", importedSamples.count];
-				error = [NSError cancelOperationErrorWithDescription:description suggestion:@"Keep imported samples?"];
-				NSAlert *alert = [NSAlert alertWithError:error];
-				[alert addButtonWithTitle:@"Keep Imported Samples"];
-				[alert addButtonWithTitle:@"Delete Imported Samples"];
-				[alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
-					if(returnCode != NSAlertFirstButtonReturn) {
-						[folder removeSamples: importedSamples];
-						[FolderListController.sharedController.trashFolder addSamples:importedSamples];
-						[AppDelegate.sharedInstance saveAction:self];
+		__block BOOL success = YES;
+		/// We retrieved the imported samples in the view context, to add them to the folder (hence the sample table, if the folder is selected).
+		[MOC performBlockAndWait:^{  /// The  intermediateHandler must return only after the containing folder is retrieved
+			SampleFolder *scratchFolder = [MOC existingObjectWithID:containerFolderID error:nil];
+			if(scratchFolder) {
+				[MOC performBlock:^{
+					/// We can update the table and apply size standards asynchronously.
+					NSSet *samplesInBatch = scratchFolder.samples;
+					if(samplesInBatch.count > 0) {
+						[importedSamples unionSet:samplesInBatch];
+						for(Chromatogram *sample in samplesInBatch) {
+							if(applySizeStandard) {
+								[SizeStandardTableController.sharedController detectAndApplySizeStandardOnSample:sample];
+							}
+							if(!sample.sizeStandard) {
+								/// if we don't apply a size standard, we make the sample compute default sizing coefficients
+								[sample setLinearCoefsForReadLength:DefaultReadLength];
+							}
+						}
+						[folder addSamples:samplesInBatch];
 					}
+					[MOC deleteObject:scratchFolder];
 				}];
 			} else {
-				[MainWindowController.sharedController showAlertForError:error];
+				success = NO;
 			}
+		}];
+		return success;
+	}
+										  completionHandler:^(NSError *error) {
+		[progressWindow stopShowingProgressAndClose];
+		NSInteger sampleCount = importedSamples.count;
+		if(error) {
+			if(error.code == NSUserCancelledError && sampleCount > 0) {
+				NSString *description = [NSString stringWithFormat:@"The import was cancelled after %ld samples have been imported.", sampleCount];
+				error = [NSError cancelOperationErrorWithDescription:description suggestion:@"You can undo to remove these samples."];
+				/// It is essentially impossible that the user cancels after importing just 1 sample, so we don't bother with plurals.
+			}
+			[MainWindowController.sharedController showAlertForError:error];
 		}
-		if(importedSamples.count > 0) {
-			[undoManager removeAllActions];
+		
+		if(!undoManager.isUndoRegistrationEnabled) {
+			[undoManager enableUndoRegistration];
+		}
+		if(sampleCount > 0) {
+			NSString *actionName = importedSamples.count > 1? @"Import Samples" : @"Import Sample";
+			if([undoManager respondsToSelector:@selector(forceActionName:)]) {
+				[undoManager forceActionName:actionName];
+			} else {
+				[undoManager setActionName:actionName];
+			}
+			[undoManager registerUndoWithTarget:self selector:@selector(deleteItems:) object:importedSamples.allObjects];
+			
 			if(folder == self.selectedFolder && folder.filterPredicate) {
 				NSSet *filteredSamples = [importedSamples filteredSetUsingPredicate:folder.filterPredicate];
-				NSInteger filtered = importedSamples.count - filteredSamples.count;
+				NSInteger filtered = sampleCount - filteredSamples.count;
 				if(filtered > 0) {
 					NSString *errorText = filtered == 1? @"One imported sample is masked by the filter applied to the selected folder." :
 					[NSString stringWithFormat: @"%ld imported samples are masked by the filter applied to the selected folder.", filtered];
@@ -927,8 +988,6 @@
 					}];
 				}
 			}
-		} else {
-			[undoManager enableUndoRegistration];
 		}
 	}];
 }
@@ -1062,43 +1121,45 @@
 			if(pasteProgress.isCancelled) {
 				break;
 			}
-			NSError *copyError;
-			numberOfCopiedSamples++;
-			
-			NSString *URIString;
-			if([item isKindOfClass:NSPasteboardItem.class]) {
-				URIString = [item stringForType:ChromatogramObjectIDPasteboardType];
-				if(!URIString) {
+			@autoreleasepool {
+				NSError *copyError;
+				numberOfCopiedSamples++;
+				
+				NSString *URIString;
+				if([item isKindOfClass:NSPasteboardItem.class]) {
+					URIString = [item stringForType:ChromatogramObjectIDPasteboardType];
+					if(!URIString) {
+						continue;
+					}
+				} else if([item isKindOfClass:NSString.class]) {
+					URIString = item;
+				} else {
 					continue;
 				}
-			} else if([item isKindOfClass:NSString.class]) {
-				URIString = item;
-			} else {
-				continue;
-			}
-			
-			Chromatogram *copiedSample;
-			Chromatogram *sample = [MOC objectForURIString:URIString expectedClass:Chromatogram.class];
-			if(!sample.isDeleted && [sample validateForUpdate:nil]) {
-				copiedSample = sample.copy;
-				copiedSample.folder = folder;
-			} else {
-				NSString *ID = sample.sampleName? sample.sampleName : URIString;
-				copyError = [NSError errorWithDescription:[NSString stringWithFormat:@"Sample %@ could not be pasted.", ID]
-											   suggestion:@""];
-			}
-			
-			if(numberOfCopiedSamples % batchSize == 0) {
-				pasteProgress.completedUnitCount = numberOfCopiedSamples;
-				pasteProgress.localizedDescription = [NSString stringWithFormat:@"%ld of %ld samples pasted",
-													  numberOfCopiedSamples, nSamples];
-			}
-			
-			if(copyError) {
-				[copyErrors addObject:copyError];
-				if(copiedSample) {
-					/// in case a Chromatogram object was created, we delete it (though none should be returned if there is an error)
-					[copiedSample.managedObjectContext deleteObject:sample];
+				
+				Chromatogram *copiedSample;
+				Chromatogram *sample = [MOC objectForURIString:URIString expectedClass:Chromatogram.class];
+				if(!sample.isDeleted && [sample validateForUpdate:nil]) {
+					copiedSample = sample.copy;
+					copiedSample.folder = folder;
+				} else {
+					NSString *ID = sample.sampleName? sample.sampleName : URIString;
+					copyError = [NSError errorWithDescription:[NSString stringWithFormat:@"Sample %@ could not be pasted.", ID]
+												   suggestion:@""];
+				}
+				
+				if(numberOfCopiedSamples % batchSize == 0) {
+					pasteProgress.completedUnitCount = numberOfCopiedSamples;
+					pasteProgress.localizedDescription = [NSString stringWithFormat:@"%ld of %ld samples pasted",
+														  numberOfCopiedSamples, nSamples];
+				}
+				
+				if(copyError) {
+					[copyErrors addObject:copyError];
+					if(copiedSample) {
+						/// in case a Chromatogram object was created, we delete it (though none should be returned if there is an error)
+						[copiedSample.managedObjectContext deleteObject:sample];
+					}
 				}
 			}
 		}
@@ -1126,7 +1187,7 @@
 				NSString *description = [NSString stringWithFormat:@"%ld sample(s) could not be pasted.", copyErrors.count];
 				error = [NSError errorWithDomain:STRyperErrorDomain
 											code:NSValidationErrorMinimum
-										userInfo:@{NSDetailedErrorsKey: [NSArray arrayWithArray:copyErrors],
+										userInfo:@{NSDetailedErrorsKey: copyErrors.copy,
 												   NSLocalizedDescriptionKey: NSLocalizedString(description, nil),
 												   NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(@"See the error log for details.", nil)
 												 }];
@@ -1151,14 +1212,14 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 - (NSImage *)filterButtonImage {
 	if(self.selectedFolder.isSmartFolder) {
 		return self.editSearchImage;
-	} 
+	}
 	return super.filterButtonImage;
 }
 
 
 - (NSImage *)editSearchImage {
 	if(!_editSearchImage) {
-		_editSearchImage = [NSImage imageNamed:@"edit search"];
+		_editSearchImage = [NSImage imageNamed:ACImageNameEditSearch];
 	}
 	return _editSearchImage;
 }
@@ -1174,7 +1235,7 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 
 
 - (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor {
-		
+	
 	/// The searchable attributes are those shown in the sample table.
 	NSDictionary *columnDescription = self.columnDescription;
 	/// We also use the column ids to show searchable attributes in a consistent order
@@ -1204,7 +1265,10 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 				/// For the panel key, the title used is different from that of the column, to make clear that we can search by panel name and not by panel content.
 				[titles addObject:@"Panel Name"];
 			} else {
-				[titles addObject:colDescription[ColumnTitle]];
+				NSString *title = colDescription[ColumnTitle];
+				if(title) {
+					[titles addObject:title];
+				}
 			}
 		}
 	}
@@ -1236,7 +1300,7 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 														modifier:NSAnyPredicateModifier
 														operators:rowTemplates.firstObject.operators
 														options:0];
-	[finalTemplates insertObject:markerNameTemplate atIndex:2]; 
+	[finalTemplates insertObject:markerNameTemplate atIndex:2];
 	/// The index of 2 was determined by trial and error, so that "Marker Name" appears at an appropriate position in the menu.
 	
 	NSArray *compoundTypes = @[@(NSNotPredicateType), @(NSAndPredicateType),  @(NSOrPredicateType)];

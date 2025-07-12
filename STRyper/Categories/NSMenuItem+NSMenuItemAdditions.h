@@ -20,14 +20,14 @@
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-#import <Cocoa/Cocoa.h>
+@import Cocoa;
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface NSMenuItem (NSMenuItemAdditions)
 
 
-/// Returns the top `supermenu of the receiver's `menu`, which is the menu itself if is has no supermenu.
+/// Returns the top `supermenu` of the receiver's `menu`, which is the menu itself if is has no supermenu.
 @property (readonly, nonatomic) NSMenu *topMenu;
 
 @end

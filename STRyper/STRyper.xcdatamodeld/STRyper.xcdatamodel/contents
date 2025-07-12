@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23231" systemVersion="24A335" minimumToolsVersion="Xcode 8.0" sourceLanguage="Objective-C" userDefinedModelVersionIdentifier="1.2">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788.4" systemVersion="24F74" minimumToolsVersion="Xcode 8.0" sourceLanguage="Objective-C" userDefinedModelVersionIdentifier="1.2">
     <entity name="Allele" representedClassName="Allele" parentEntity="LadderFragment" syncable="YES">
         <attribute name="additionnal" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES" syncable="YES"/>
         <relationship name="genotype" maxCount="1" deletionRule="Nullify" destinationEntity="Genotype" inverseName="alleles" inverseEntity="Genotype" syncable="YES"/>
@@ -59,7 +59,7 @@
         <attribute name="name" optional="YES" attributeType="String" syncable="YES"/>
         <attribute name="offset" optional="YES" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="scan" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
-        <attribute name="size" optional="YES" attributeType="Float" minValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="size" optional="YES" attributeType="Float" usesScalarValueType="YES" syncable="YES"/>
         <relationship name="trace" minCount="1" maxCount="1" deletionRule="Nullify" destinationEntity="Trace" inverseName="fragments" inverseEntity="Trace" syncable="YES"/>
     </entity>
     <entity name="Marker" representedClassName="Mmarker" parentEntity="Region" syncable="YES">

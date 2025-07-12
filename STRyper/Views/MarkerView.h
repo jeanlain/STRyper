@@ -33,6 +33,7 @@ extern const float markerViewHeight;
 ///
 /// It implements internal methods that allow the user to interact with marker labels
 /// and to add new markers to the ``LabelView/panel`` show by the view, via click & drag.
+/// The view may alternatively show a text string in the absence of panel to show.
 ///
 /// A `MakerView` can make its ``traceView`` zoom to the range of a marker. It has two navigation buttons to that effect.
 /// It can also set a specific mode allowing the creation of a new marker by click & drag.
@@ -57,11 +58,13 @@ extern const float markerViewHeight;
 /// - Parameter range: the range for which the safe range should be computed.
 - (BaseRange)safeRangeForBaseRange:(BaseRange)range;
 
-/// Makes the view update its content (marker labels, button states) to reflect the ``LabelView/panel`` that it shows.
-///
-/// If the view has no ``LabelView/panel`` to show, a text box indicating "No marker to show"  is shown instead of marker labels, and the view's buttons are disabled.
-- (void)updateContent;
+/// Tells the the view that it needs to update its content (marker labels, button states) to reflect the ``LabelView/panel`` that it shows.
+@property (nonatomic) BOOL needsUpdateContent;
 
+/// The background color of the view.
+///
+/// The default value is the system window background color.
+@property (nonatomic) NSColor * backgroundColor;
 
 /// Make the ``traceView`` zoom to the marker that is to the left of the visible range, and returns the corresponding region label
 /// - Parameter sender: The object that sent this message.

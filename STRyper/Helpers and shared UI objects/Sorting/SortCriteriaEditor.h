@@ -19,7 +19,7 @@
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-#import <Cocoa/Cocoa.h>
+@import Cocoa;
 #import "SortCriteriaEditorDelegate.h"
 
 NS_ASSUME_NONNULL_BEGIN

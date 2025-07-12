@@ -53,6 +53,9 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 
 #pragma mark - methods for populating the table and common delegate methods
 
+NSBindingName const ContentArrayBinding = @"contentArray";
+
+
 + (instancetype)sharedController {
 	static TableViewController *controller = nil;
 	static dispatch_once_t once;
@@ -146,6 +149,27 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 }
 
 
+- (void)setContentArray:(NSArray *)contentArray {
+	_contentArray = contentArray.copy;
+	if(!_needLoadContent) {
+		_needLoadContent = YES;
+		[self performSelector:@selector(_loadContent) withObject:nil afterDelay:0];
+	}
+}
+
+
+
+- (void)_loadContent {
+	if(_needLoadContent) {
+		NSArray *currentContent = self.tableContent.content;
+		if(![_contentArray containsSameObjectsAs:currentContent]) {
+			self.tableContent.content = _contentArray;
+		}
+		_needLoadContent = NO;
+	}
+}
+
+
 - (NSDictionary<NSString *, id> *)columnDescription {
 	return nil;
 }
@@ -170,13 +194,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 		}
 		NSDictionary *colDescription = columnDescription[ID];
 		col.title = colDescription[ColumnTitle];
-		NSString *keyPath = colDescription[KeyPathToBind];
-		BOOL caseInsensitiveSorting = [colDescription[IsColumnSortingCaseInsensitive] boolValue];
-		
-		if(keyPath) {
-			col.sortDescriptorPrototype = caseInsensitiveSorting ? [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)] :
-			[NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES];
-		}
+		col.sortDescriptorPrototype = [self sortDescriptorPrototypeForTableColumn:col];
 		if(!alreadyInTable) {
 			[tableView addTableColumn:col];
 			col.width = col.headerCell.cellSize.width + 10;
@@ -184,6 +202,19 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 		}
 		col.hidden = [colDescription.allKeys containsObject:IsColumnVisibleByDefault] && ![colDescription[IsColumnVisibleByDefault] boolValue];
 	}
+}
+
+
+- (NSSortDescriptor *)sortDescriptorPrototypeForTableColumn:(NSTableColumn *)column {
+	NSDictionary *colDescription = self.columnDescription[column.identifier];
+	NSString *keyPath = colDescription[KeyPathToBind];
+	BOOL caseInsensitiveSorting = [colDescription[IsColumnSortingCaseInsensitive] boolValue];
+	
+	if(keyPath) {
+		return caseInsensitiveSorting ? [NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)] :
+		[NSSortDescriptor sortDescriptorWithKey:keyPath ascending:YES];
+	}
+	return nil;
 }
 
 
@@ -291,9 +322,9 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 
 
 - (nullable NSArray<NSTableColumn *> *)visibleColumns {
-	return [self.tableView.tableColumns filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSTableColumn *column, NSDictionary<NSString *,id> * _Nullable bindings) {
+	return [self.tableView.tableColumns filteredArrayUsingBlock:^BOOL(NSTableColumn*  _Nonnull column, NSUInteger idx) {
 		return !column.isHidden;
-	}]];
+	}];
 }
 
 
@@ -501,19 +532,21 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 # pragma mark - renaming, adding, removing and exporting items
 
 - (IBAction)rename:(id)sender {
+	NSTableView *tableView = self.tableView;
 	NSInteger row = -1;
 	if([sender respondsToSelector:@selector(topMenu)]) {
 		NSMenu *menu = [sender topMenu];
-		if(menu == self.tableView.menu) {
-			row = self.tableView.clickedRow;
+		if(menu == tableView.menu) {
+			row = tableView.clickedRow;
 		} else {
-			row = self.tableView.selectedRow;
+			row = tableView.selectedRow;
 		}
 	} else {
-		row = self.tableView.selectedRow;
+		row = tableView.selectedRow;
 	}
 	if(row >= 0) {
-		[self.tableView editColumn:self.itemNameColumn row:row withEvent:nil select:YES];
+		[tableView scrollRowToVisible:row];
+		[tableView editColumn:self.itemNameColumn row:row withEvent:nil select:YES];
 	}
 }
 
@@ -711,7 +744,7 @@ IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
 - (NSImage *)defaultExportButtonImage {
 	static NSImage * exportImage;
 	if(!exportImage) {
-		exportImage = [NSImage imageNamed:@"export large"];
+		exportImage = [NSImage imageNamed:ACImageNameExportLarge];
 	}
 	return exportImage;
 }
@@ -989,6 +1022,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 	}
 	
 	if(menuItem.action == @selector(copy:)) {
+		menuItem.hidden = NO;
 		return self.columnDescription != nil;
 	}
 	
@@ -1199,7 +1233,7 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 
 - (NSImage *)filterButtonImageActive {
 	if(!_filterButtonImageActive) {
-		_filterButtonImageActive = [NSImage imageNamed:@"filterButton On"];
+		_filterButtonImageActive = [NSImage imageNamed:ACImageNameFilterButtonOn];
 	}
 	return _filterButtonImageActive;
 }
@@ -1207,7 +1241,7 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 
 - (NSImage *)filterButtonImageInactive {
 	if(!_filterButtonImageInactive) {
-		_filterButtonImageInactive = [NSImage imageNamed:@"filterButton"];
+		_filterButtonImageInactive = [NSImage imageNamed:ACImageNameFilterButton];
 	}
 	return _filterButtonImageInactive;
 }

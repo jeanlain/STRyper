@@ -39,26 +39,25 @@ static NSPredicate *additionalFragmentPredicate;
 @property (nullable, nonatomic) NSSet<Allele *> *assignedAlleles;
 @property (nullable, nonatomic) NSSet<Allele *> *additionalFragments;
 
-/// Properties which helps displaying the genotype in the UI
+/// Properties that help displaying the genotype in the UI
 @property (nullable, nonatomic) Allele *allele1;
 @property (nullable, nonatomic) Allele *allele2;
-@property (nullable, nonatomic) NSArray<Allele *> *sortedAlleles;
-@property (nullable, nonatomic) NSArray<Allele *> *sortedAdditionalFragments;
 @property (nullable, nonatomic) NSString *additionalFragmentString;
 
 @end
 
 
-@implementation Genotype
+@implementation Genotype {
+	BOOL _needsdUpdateAlleleUIInfo;
+}
 
 
 @dynamic alleles, marker, sample, status, notes, offsetData;
 
 @synthesize topFluoLevel = _topFluoLevel, assignedAlleles = _assignedAlleles, 
 allele1 = _allele1, allele2 = _allele2, additionalFragmentString = _additionalFragmentString,
-additionalFragments = _additionalFragments, sortedAlleles = _sortedAlleles,
-leftAdenylationRatio = _leftAdenylationRatio, rightAdenylationRatio = _rightAdenylationRatio, scanOfPossibleAllele = _scanOfPossibleAllele,
-sortedAdditionalFragments = _sortedAdditionalFragments;
+additionalFragments = _additionalFragments,
+leftAdenylationRatio = _leftAdenylationRatio, rightAdenylationRatio = _rightAdenylationRatio, scanOfPossibleAllele = _scanOfPossibleAllele;
 	
 
 + (void)initialize {
@@ -109,35 +108,6 @@ sortedAdditionalFragments = _sortedAdditionalFragments;
 	}
 	return self;
 }
-
-
-- (void)awakeFromFetch {
-	[super awakeFromFetch];
-	/// We need to react when our alleles change (content or size).
-	NSManagedObjectContext *MOC = self.managedObjectContext;
-	if(MOC) {
-		[NSNotificationCenter.defaultCenter addObserver:self
-											   selector:@selector(contextDidChange:)
-												   name:NSManagedObjectContextObjectsDidChangeNotification
-												 object:MOC];
-		
-	}
-
-}
-
-
-- (void)awakeFromInsert {
-	[super awakeFromInsert];
-	
-	NSManagedObjectContext *MOC = self.managedObjectContext;
-	if(MOC) {
-		[NSNotificationCenter.defaultCenter addObserver:self 
-											   selector:@selector(contextDidChange:)
-												   name:NSManagedObjectContextObjectsDidChangeNotification
-												 object:MOC];
-	}
-}
-
 
 
 #pragma mark - allele calling and genotype status
@@ -275,9 +245,9 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 	}
 	
 	if(nPeaks == 0) {
-		free(peakIndices);
-		free(heights);
-		free(markerPeakIndices);
+		free(peakIndices); peakIndices = NULL;
+		free(heights); heights = NULL;
+		free(markerPeakIndices); markerPeakIndices = NULL;
 		for(Allele *allele in self.alleles) {
 			if(!allele.additional) {
 				allele.scan = 0;
@@ -307,9 +277,8 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 	/// We sort the indices, not the peak themselves, as we also need to the peak to be sorted by size (in base pairs), to examine their neighbor
 	vDSP_vsorti(heights, markerPeakIndices, NULL, nPeaks, -1);
 
-	free(heights);
-
-	free(peakIndices);
+	free(heights); heights = NULL;
+	free(peakIndices); peakIndices = NULL;
 	
 	float rightMaxDropOut = 0.3;		/// The minimum ratio of height to consider an allele that is longer than a reference one
 	float leftMaxDropOut = 0.7;			/// The minimum ratio of height to consider an allele that is shorter than a reference one
@@ -395,7 +364,7 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 		}
 	}
 
-	free(markerPeakIndices);
+	free(markerPeakIndices); markerPeakIndices = NULL;
 	
 	NSMutableSet *remainingFragments = self.additionalFragments.mutableCopy;
 	
@@ -431,7 +400,7 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 	if(remainingFragments.count > 0) {
 		/// We remove remaining additional fragments, but we use a non-mutable set because apparently,
 		/// deleting alleles may mutate the set (I had an exception thrown). I don't understand how.
-		NSSet *fragmentsToRemove = [NSSet setWithSet:remainingFragments];
+		NSSet *fragmentsToRemove = remainingFragments.copy;
 		for(Allele *fragmentToRemove in fragmentsToRemove) {
 			[fragmentToRemove removeFromGenotypeAndDelete];
 		}
@@ -602,15 +571,20 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 #pragma mark - managing allele properties
 
 
--(void)contextDidChange:(NSNotification *)notification {
-	NSSet *changedObjects = notification.userInfo[NSUpdatedObjectsKey];
-	NSArray *alleles = self.alleles.allObjects;
-	for(id object in changedObjects) {
-		if(object == self || [alleles indexOfObject:object] != NSNotFound) {
-			self.assignedAlleles = nil;
-			self.additionalFragments = nil;
-			break;
-		}
+- (void)_alleleAttributeDidChange {
+	if(!_needsdUpdateAlleleUIInfo) {
+		_needsdUpdateAlleleUIInfo = YES;
+		/// We defer the update as allele attributes often change successively
+		[self performSelector:@selector(updateAlleles) withObject:nil afterDelay:0];
+	}
+}
+
+
+-(void)updateAlleles {
+	if(_needsdUpdateAlleleUIInfo) {
+		self.assignedAlleles = nil;  /// which triggers to UI updates via cocoa bindings
+		self.additionalFragments = nil;
+		_needsdUpdateAlleleUIInfo = NO;
 	}
 }
 
@@ -625,7 +599,8 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 
 - (void)setAssignedAlleles:(NSSet *)assignedAlleles {
 	_assignedAlleles = assignedAlleles;
-	self.sortedAlleles = nil;
+	self.allele1 = nil;
+	self.allele2 = nil;
 }
 
 
@@ -639,72 +614,42 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 
 - (void)setAdditionalFragments:(NSSet *)additionalFragments {
 	_additionalFragments = additionalFragments;
-	self.sortedAdditionalFragments = nil;
-}
-
-
-- (NSArray *)sortedAlleles {
-	if(!_sortedAlleles) {
-		NSArray *assignedAlleles = self.assignedAlleles.allObjects;
-		if(assignedAlleles.count < 2) {
-			_sortedAlleles = assignedAlleles;
-		} else {
-			_sortedAlleles = [assignedAlleles sortedArrayUsingComparator:^NSComparisonResult(Allele * obj1, Allele * obj2) {
-				if(obj1.size < obj2.size) {
-					return NSOrderedAscending;
-				}
-				return NSOrderedDescending;
-			}];
-		}
-	}
-	return _sortedAlleles;
-}
-
-
-- (void)setSortedAlleles:(NSArray<Allele *> *)sortedAlleles {
-	_sortedAlleles = sortedAlleles;
-	self.allele1 = nil;
-	self.allele2 = nil;
-}
-
-
--(NSArray *)sortedAdditionalFragments {
-	if(!_sortedAdditionalFragments) {
-		NSArray *additionalFragments = self.additionalFragments.allObjects;
-		if(additionalFragments.count < 2) {
-			_sortedAdditionalFragments = additionalFragments;
-		} else {
-			_sortedAdditionalFragments = [additionalFragments sortedArrayUsingComparator:^NSComparisonResult(Allele * obj1, Allele * obj2) {
-				if(obj1.size < obj2.size) {
-					return NSOrderedAscending;
-				}
-				return NSOrderedDescending;
-			}];
-		}
-	}
-	return _sortedAdditionalFragments;
-}
-
-
-- (void)setSortedAdditionalFragments:(NSArray *)sortedAdditionalFragments {
-	_sortedAdditionalFragments = sortedAdditionalFragments;
 	self.additionalFragmentString = nil;
 }
 
 
 - (Allele *)allele1 {
 	if(!_allele1) {
-		/// We need the ivar for KVO compliance. Simply returning the first allele without setting the ivar won't work with bindings
-		/// Though I don't like the idea of setting the ivar in the getter.
-		_allele1 = self.sortedAlleles.firstObject;
+		NSSet<Allele *> *assignedAlleles = self.assignedAlleles;
+		_allele1 = assignedAlleles.anyObject;
+		if(assignedAlleles.count > 1) {
+			float minSize = INFINITY;
+			for(Allele *allele in assignedAlleles) {
+				float size = allele.size;
+				if(size < minSize) {
+					_allele1 = allele;
+					minSize = size;
+				}
+			}
+		}
 	}
 	return _allele1;
 }
 
 
 - (Allele *)allele2 {
-	if(!_allele2 && self.sortedAlleles.count == 2) {
-		_allele2 = self.sortedAlleles.lastObject;
+	if(!_allele2) {
+		NSSet<Allele *> *assignedAlleles = self.assignedAlleles;
+		if(assignedAlleles.count > 1) {
+			float maxSize = -INFINITY;
+			for(Allele *allele in assignedAlleles) {
+				float size = allele.size;
+				if(size > maxSize) {
+					_allele2 = allele;
+					maxSize = size;
+				}
+			}
+		}
 	}
 	return _allele2;
 }
@@ -712,7 +657,17 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 
 - (NSString *)additionalFragmentString {
 	if(!_additionalFragmentString) {
-		NSArray *names = [self.sortedAdditionalFragments valueForKeyPath:@"@unionOfObjects.sizeAndName"];
+		NSArray<Allele *> *additionalFragments = self.additionalFragments.allObjects;
+		if(additionalFragments.count > 1) {
+			additionalFragments = [additionalFragments sortedArrayUsingComparator:^NSComparisonResult(Allele * obj1, Allele * obj2) {
+				if(obj1.size < obj2.size) {
+					return NSOrderedAscending;
+				}
+				return NSOrderedDescending;
+			}];
+		}
+		
+		NSArray *names = [additionalFragments valueForKeyPath:@"@unionOfObjects.sizeAndName"];
 		_additionalFragmentString = [names componentsJoinedByString:@" "];
 	}
 	return _additionalFragmentString;
@@ -817,9 +772,6 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 }
 
 
-- (void)prepareForDeletion {
-	[NSNotificationCenter.defaultCenter removeObserver:self];
-}
 
 #pragma mark - offset management
 

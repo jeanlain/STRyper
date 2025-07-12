@@ -52,6 +52,7 @@ static void *progressChangedContext = &progressChangedContext;
 		if(view) {
 			self.contentView = view;
 		}
+		_closesWhenFinished = YES;
 	}
 	return self;
 }
@@ -92,19 +93,16 @@ static void *progressChangedContext = &progressChangedContext;
 
 
 -(void)showProgressWindowIfNeeded {
-	if(!showProgress) {
-		return;
-	}
-	if(self.progress) {
-		if(self.progress.fractionCompleted >= 0.5 || self.progress.isPaused || self.progress.isCancelled) {
-			/// the first condition is set to avoid showing the progress window for a amount of time that is too short 
+	if(showProgress) {
+		NSProgress *progress = self.progress;
+		if(!progress || (progress.fractionCompleted < 0.5 && !progress.isPaused && !progress.isCancelled)) {
+			/// the first condition is set to avoid showing the progress window for a amount of time that is too short
 			/// (we assume that the delay is a few seconds or less)
-			return;
+			[NSOperationQueue.mainQueue addOperationWithBlock:^{
+				[self showProgressWindow];
+			}];
 		}
 	}
-	[[NSOperationQueue mainQueue] addOperationWithBlock:^{
-		[self showProgressWindow];
-	}];
 }
 
 
@@ -113,17 +111,21 @@ static void *progressChangedContext = &progressChangedContext;
 		return;
 	}
 	
-	if(self.progress.totalUnitCount <= 0) {
+	NSProgress *progress = self.progress;
+	if(progress.totalUnitCount <= 0) {
 		self.progressBar.indeterminate = YES;
 		[self.progressBar startAnimation:self];
 	} else {
 		self.progressBar.indeterminate = NO;
 	}
 	
-	self.stopButton.enabled = self.progress.isCancellable;
+	self.stopButton.enabled = progress.isCancellable;
 	
 	if(!self.isVisible) {
 		if(runModal) {
+			if(@available(macOS 14, *)) {
+				[NSApp activate];
+			}
 			[windowToAttach beginSheet:self completionHandler:^(NSModalResponse returnCode) {
 			}];
 		} else {
@@ -142,7 +144,7 @@ static void *progressChangedContext = &progressChangedContext;
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
 	if (context == progressChangedContext) {
-		[[NSOperationQueue mainQueue] addOperationWithBlock:^{
+		[NSOperationQueue.mainQueue addOperationWithBlock:^{
 			NSProgress *progress = object;
 			if(self.isVisible) {
 				if([keyPath isEqualToString:@"cancelled"] && progress.isCancelled) {
@@ -153,6 +155,9 @@ static void *progressChangedContext = &progressChangedContext;
 					self.stopButton.enabled = progress.isCancellable;
 				} else {
 					self.progressBar.doubleValue = progress.fractionCompleted;
+					if(progress.isFinished && self.closesWhenFinished && !self.progressBar.isIndeterminate) {
+						[self stopShowingProgressAndClose];
+					}
 				}
 			}
 		}];
@@ -176,7 +181,7 @@ static void *progressChangedContext = &progressChangedContext;
 
 
 -(void)closeProgressWindow {
-	[[NSOperationQueue mainQueue] addOperationWithBlock:^{
+	[NSOperationQueue.mainQueue addOperationWithBlock:^{
 		if (self.sheetParent) {
 			[self.sheetParent endSheet:self];
 		} else if(self.isVisible) {

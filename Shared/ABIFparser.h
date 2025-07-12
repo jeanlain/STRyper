@@ -5,7 +5,7 @@
 //  Created by Jean Peccoud on 04/11/2023.
 //
 
-#import <Foundation/Foundation.h>
+@import Cocoa;
 
 NS_ASSUME_NONNULL_BEGIN
 

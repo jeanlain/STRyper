@@ -103,7 +103,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 
 - (void)setSamples:(nullable NSArray<Chromatogram *> *)samples {
-	sampleController.content = samples;
+	sampleController.content = samples.copy;
 	/// We use the -selection property of the sampleController for binding keys of chromatogram objects to UI items in the outline view.
 	/// This offers more binding options than the -content key.
 	/// Hence we select all the items of the controller. Maybe there is a better solution.
@@ -213,7 +213,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 				popup.target = self;
 				popup.action = @selector(popupClicked:);
 				NSString *boundKeyPath = [@"selection." stringByAppendingString:subView.identifier];
-				if([popup.identifier isEqualToString:ChromatogramSizeStandardKey]) {
+				if([popup.identifier isEqualToString:ChromatogramAppliedSizeStandardKey]) {
 					/// a section has a popup button indicating the selected samples' size standard among the available size standards
 					NSString *keyPath = @"tableContent.arrangedObjects";
 					/// the content (menu) of the popup button represents the size standards
@@ -312,7 +312,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 	if(!_actionForKeyPath) {
 		_actionForKeyPath = @{ChromatogramSampleNameKey: @"Rename Sample",
 							  ChromatogramCommentKey: @"Edit Sample Comment",
-							  ChromatogramSizeStandardKey: @"Change Size Standard",
+							  ChromatogramAppliedSizeStandardKey: @"Change Size Standard",
 							  @"polynomialOrder": @"Change Fitting Method",
 							  @"peakThreshold": @"Change Peak Detection Threshold",
 		};

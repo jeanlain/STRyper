@@ -22,6 +22,8 @@
 
 #import "RegionLabel.h"
 #import "NSArray+NSArrayAdditions.h"
+#import "CALayer+CALayerAdditions.h"
+#import "GeneratedAssetSymbols.h"
 
 @class RulerView, Panel;
 
@@ -188,6 +190,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// This pertains to internal implementation, but the markerView may query the traceView for this property.
 @property (nonatomic, readonly) BOOL isMoving;
 
+/// Whether the labels can animate their repositioning in the current cycle.
+///
+/// The view manages this property itself.
+/// The value is set to `YES` after labels are repositioned.
+@property (nonatomic) BOOL allowsAnimations;
+
 #pragma mark - labels managed by the view and represented objects
 
 
@@ -250,10 +258,23 @@ NS_ASSUME_NONNULL_BEGIN
 # pragma mark - colors and appearance.
 
 
-/// Array of colors corresponding to channels that the view can show (see ``FluoTrace/channel``).
+/// Array of five colors corresponding to channels that the view can show (see ``FluoTrace/channel``).
 ///
-/// These colors are defined in the assets of ``STRyper``.
-@property (class, nonatomic, copy) NSArray<NSColor *>* colorsForChannels;
+/// If the property contains less than five `NSColor` elements, it  returns ``defaultColorsForChannels``.
+/// - Important: the colors are computed with the RGB color space to adapt to the app appearance.
+@property (nonatomic, copy) NSArray<NSColor *>* colorsForChannels;
+
+
+/// Default array of five colors corresponding to channels that the view can show (see ``FluoTrace/channel``).
+@property (class, readonly, nonatomic) NSArray<NSColor *>* defaultColorsForChannels;
+
+
+/// Recomputes the ``colorsForChannels-property`` using the RGB colorspace so they adapt to the current app appearance.
+///
+/// This method should be called after a change in application appearance,
+/// but not necessarily within `-drawRect:` or `updateLayer`.
+/// - Note:For the colors to adapt to the appearance, those set in ``colorsForChannels-property`` must be dynamic.
+- (void)updateColorsForChannels;
 																
 /// Whether the appearance of some of the ``viewLabels`` needs to be updated in response to change in dark/light appearance.
 ///

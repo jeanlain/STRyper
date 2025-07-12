@@ -24,10 +24,13 @@
 #import "CodingObject.h"
 @class SizeStandardSize, Chromatogram, PeakLabel;
 
+NS_ASSUME_NONNULL_BEGIN
 
 /// And entity that specifies the sizes of DNA fragment composing the molecular ladder of a sample (``Chromatogram`` object).
 ///
 /// A size standard contains a set of ``sizes`` defined in base pairs.
+/// Its ``sizeSample:`` class method can be used to find ladder fragments in a chromatogram that has a ``Chromatogram/sizeStandard``
+/// applied to it, and to compute sizing parameters based on these fragments.
 @interface SizeStandard : CodingObject
 
 /// Application-related attribute that can be used to decide if the size standard can be modified in the UI.
@@ -41,7 +44,7 @@ extern CodingObjectKey SizeStandardNameKey;
 /// Sets an appropriate ``name`` to the size standard such that this name differs from the names of other size standard in the database.
 ///
 /// The new name is based on  the existing ``name``, adding  "-copy " followed by an integer.
-/// This considers that ``STRyper`` creates size standards by duplicating existing ones.
+/// This considers that `STRyper` creates size standards by duplicating existing ones.
 - (void)autoName;
 
 /// The sizes that the size standard defines.
@@ -54,7 +57,16 @@ extern CodingObjectKey SizeStandardNameKey;
 /// The samples that use the size standard for sizing.
 ///
 /// The reverse relationship is ``Chromatogram/sizeStandard``.
-@property (nonatomic) NSSet<Chromatogram *> *samples;
+@property (nonatomic, nullable) NSSet<Chromatogram *> *samples;
+
+/// Finds ladder fragments in a  chromatogram, based in the size standard applied to it, and computes sizing properties.
+///
+/// This method finds peaks that correspond to the ``SizeStandard/sizes`` of the ``Chromatogram/sizeStandard``,
+/// sets the trace's `fragments` accordingly and calls ``Chromatogram/computeFitting``.
+///
+/// This method does nothing if there is no ``Chromatogram/ladderTrace`` or if `sample` has no size standard.
+/// - Parameter sample: A chromatogram.
++ (void) sizeSample:(Chromatogram *)sample;
 
 /// Computes the regression between between two variables, using ordinary least squares.
 ///
@@ -70,3 +82,4 @@ void regression (float *x, float *y, NSInteger nPoints, float *slope, float *int
 @end
 
 
+NS_ASSUME_NONNULL_END

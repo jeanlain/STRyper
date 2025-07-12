@@ -227,17 +227,22 @@ typedef struct OffscaleRegion {
 
 #pragma mark - sizing-related attributes and methods
 
+/// The size standard that is used for sample sizing.
+///
+/// - Note: Setting this relationship makes the chromatogram size itself with the `appliedSizeStandard`.
+@property (nonatomic) SizeStandard *appliedSizeStandard;
+
 /// The trace that contains data from the molecular ladder.
 ///
 /// This method returns `nil` if none of the samples ``traces`` returns `YES` to ``FluoTrace/isLadder``, which would be an error.
 @property (nonatomic, readonly, nullable) Trace *ladderTrace;
 
 
-/// The size standard of the molecular ladder used to size the sample.
+/// The size standard that corresponds to the molecular ladder of the sample.
 ///
 /// The reverse relationship is ``SizeStandard/samples``.
-///
-/// - Note: Setting this relationship automatically makes the chromatogram size itself with the new size standard.
+/// - Note: Setting this relationship does not change sizing properties of the sample.
+/// For this, one may use the convenience property ``appliedSizeStandard``.
 @property (nonatomic, nullable) SizeStandard *sizeStandard;
 
 /// The name of  the size standard applied to the sample, as coded in the ABIF file.
@@ -326,7 +331,7 @@ extern const float DefaultReadLength;
 
 /// The length of the sample (read) in base pairs.
 ///
-/// This is the maximum value in the array return by ``sizes``.
+/// This is the maximum value in the array returned by ``sizes``.
 /// If no sizing is available, the method returns `defaultReadLength`.
 ///
 /// This is not a core data attribute.
@@ -356,9 +361,9 @@ extern const float DefaultReadLength;
 /// - Parameter scan: The scan number for which the size should be derived.
 - (float)sizeForScan:(int)scan;
 
-/// Returns the scan number that is the closest to given size in base pairs.
+/// Returns the scan number that is the closest to given size in base pairs, among scans for which data exists.
 ///
-/// This method uses the ``reverseCoefs`` attribute.
+/// This method uses the ``reverseCoefs`` attribute. 
 /// - Parameter size: The size for which the scan number should be derived.
 - (int)scanForSize:(float)size;
 
@@ -392,8 +397,8 @@ extern const float DefaultReadLength;
 /// The returned dictionary only contains data for offsets that differ from `MarkerOffsetNone`.
 /// For each offset, this dictionary has a key that is the absolute string of the objectID of the marker.
 /// The value is the ``Genotype/offsetData`` of the receiver's genotype for the marker.
-/// - Parameter markers: The markers for which the returned dictionary should contain offset data. If `nil`, all markers of the receiver's `panel` are used.
-/// `Nil` is returned of none of the markers has an offset for the receiver.
+/// - Parameter markers: The markers for which the returned dictionary should contain offset data. If `nil`, all markers of the receiver's ``panel`` are used.
+/// `nil` is returned if none of the markers has an offset for the receiver.
 - (nullable NSDictionary<NSString*, NSData*> *)dictionaryForOffsetsAtMarkers:(nullable NSArray<Mmarker *> *)markers;
 
 
@@ -411,12 +416,21 @@ extern const float DefaultReadLength;
 -(void)applyPanelWithAlleleName:(NSString *)alleleName;
 																
 
+/// Internal method to replace the chromatogram's panel with an equivalent panel.
+/// - Parameter panel: A panel.
+///
+/// This method is used after importing an archive, to discard imported panels that have equivalents in the database
+/// Use with caution as this method does not check for equivalence between `panel` and the receiver's ``panel``.
+-(void)_wirePanel:(Panel *)panel;
+
+
 @end
 
 
 /// constants used to avoid typos when using key names in code
 extern CodingObjectKey ChromatogramSizesKey,
 ChromatogramSizeStandardKey,
+ChromatogramAppliedSizeStandardKey,
 ChromatogramStandardNameKey,
 ChromatogramSizingQualityKey,
 ChromatogramPanelKey,

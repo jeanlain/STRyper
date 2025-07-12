@@ -33,7 +33,7 @@ NSNotificationName const PanelFolderSubfoldersDidChangeNotification = @"PanelFol
 
 /// global variables use during panel import from a text file
 NSArray const * _Nonnull channelColorNames;	/// channel color names in the order used through the app
-static NSString *fileErrorSuggestion;		/// a generic suggestion in case of error during import.
+static NSString *fileErrorSuggestion = @"Check the file. Encoding must be ASCII or UTF-8 and fields separated by tabs";		/// a generic suggestion in case of error during import.
 static NSDictionary *fieldDescription;		/// describe the field of a text file that describes a panel
 static NSNumberFormatter *numberFormatter;	/// a number formatter used during panel decoding from a text file
 
@@ -43,7 +43,6 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 + (void)initialize {
 	if (self == PanelFolder.class) {
-		fileErrorSuggestion = @"Check the file. Encoding must be ASCII or UTF-8 and fields separated by tabs";
 		
 		/// This dictionary describes a line in the text file describing elements of a panel.
 		/// The key is the keyword in the first field of the line.
@@ -66,13 +65,17 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 - (void)awakeFromFetch {
 	[super awakeFromFetch];
-	[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
+	if(self.managedObjectContext.concurrencyType == NSMainQueueConcurrencyType) {
+		[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
+	}
 }
 
 
 - (void)awakeFromInsert {
 	[super awakeFromInsert];
-	[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
+	if(self.managedObjectContext.concurrencyType == NSMainQueueConcurrencyType) {
+		[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
+	}
 }
 
 
@@ -82,6 +85,14 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 }
 
+- (void)willTurnIntoFault {
+	[super willTurnIntoFault];
+	@try {
+		[self removeObserver:self forKeyPath:@"subfolders"];
+	} @catch (NSException *exception) {
+		
+	}
+}
 
 
 - (NSSet *)markers {
@@ -91,13 +102,26 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 
 
--(NSArray *)panels {
-	return [self.subfolders.array filteredArrayUsingPredicate:
-			[NSPredicate predicateWithBlock:^BOOL(Folder * subfolder, NSDictionary<NSString *,id> * _Nullable bindings) {
-		return subfolder.isPanel;
-	}]];
+-(NSSet *)panels {
+	NSMutableSet *panels = [NSMutableSet setWithCapacity:self.subfolders.count];
+	for(Folder *folder in self.subfolders) {
+		if(folder.isPanel) {
+			[panels addObject:folder];
+		}
+	}
+	return panels.copy;
 }
 
+
+-(NSSet *)allPanels {
+	NSMutableSet *allPanels = self.panels.mutableCopy;
+	for(PanelFolder *folder in self.allSubfolders) {
+		if([folder isKindOfClass:PanelFolder.class]) {
+			[allPanels unionSet:folder.panels];
+		}
+	}
+	return allPanels.copy;
+}
 
 
 - (nullable __kindof Folder *) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
@@ -362,7 +386,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 						[fieldCopy removeObjectAtIndex:1];
 						[fieldCopy insertObject:channel atIndex:3];
 						[fieldCopy insertObject:@"marker" atIndex:0];
-						fields = [NSArray arrayWithArray:fieldCopy];
+						fields = fieldCopy.copy;
 					}
 				} else {
 					/// If no panel is described yet, this should be a preceding line that describes the version, kit type, etc.
@@ -446,7 +470,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 
 - (nullable NSString *) exportString {
-	NSArray *panels = self.panels;
+	NSArray *panels = self.allPanels.allObjects;
 	
 	if(panels.count > 0) {
 		NSArray *sortedPanels = [panels sortedArrayUsingKey:@"name" ascending:YES];

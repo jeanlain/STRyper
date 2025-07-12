@@ -202,16 +202,22 @@
 
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	/// by default, we don't animate basic geometry for a layer when the label is dragged
-	if(!_allowsAnimations || _view.hScale < 0 || (_view.isMoving && !_view.resizedWithAnimation) ||
-	   (_dragged && ([event isEqualToString:@"bounds"] || [event isEqualToString:@"position"]))) {
-		return NSNull.null;
+	if(self.allowsAnimations && _view.allowsAnimations && ([event isEqualToString:@"position"] || [event isEqualToString:@"bounds"])) {
+		return nil;
 	}
-	return nil;
+	return NSNull.null;
 }
 
 
 # pragma mark - states
+
+
+- (void)setClicked:(BOOL)clicked {
+	if(_clicked != clicked) {
+		_clicked = clicked;
+		self.allowsAnimations = !clicked;
+	}
+}
 
 
 -(void)setDragged:(BOOL)dragged {
@@ -225,13 +231,7 @@
 		if(layer) {
 			layer.hidden = hidden;
 		}
-		if(!hidden) {
-			/// A label may not be repositioned when it is hidden so we reposition it when it becomes visible
-			/// which we don't want to animate. 
-			self.allowsAnimations = NO;
-			[self reposition];
-			self.allowsAnimations = YES;
-		} else {
+		if(hidden) {
 			self.enabled = NO;
 		}
 	}
@@ -285,9 +285,12 @@
 	if(_needsUpdateAppearance != needsUpdateAppearance) {
 		_needsUpdateAppearance = needsUpdateAppearance;
 		if(needsUpdateAppearance && layer) {
-			/// We use the `layoutSublayersOfLayer:` method to update the label appearance.
+			/// We use  `layoutSublayersOfLayer:`  to update the label appearance.
 			/// This seems appropriate to avoid redundant changes in appearance in the same cycle.
 			[layer setNeedsLayout];
+			/// The change in appearance is deferred, so to determine il it should allow animations
+			/// we rely on whether the host view allows animations now.
+			self.allowsAnimations = _view.allowsAnimations;
 		}
 	}
 }
@@ -297,6 +300,7 @@
 	if(layer == self->layer) {
 		if(_needsUpdateAppearance) {
 			[self updateAppearance];
+			self.allowsAnimations = !_clicked;
 			_needsUpdateAppearance = NO;
 		} 
 	}
@@ -314,6 +318,19 @@
 
 
 # pragma mark - other
+
+- (void)drawInContext:(CGContextRef)ctx {
+    CGContextSaveGState(ctx);
+    
+    CGRect frame = self.frame;
+    // Translate to sublayer position
+    CGContextTranslateCTM(ctx, frame.origin.x, frame.origin.y);
+    
+    // Render the sublayer (at origin relative to new transform)
+    [layer renderInContext:ctx];
+    
+    CGContextRestoreGState(ctx);
+}
 
 - (void)dealloc {
 	[self removeFromView];

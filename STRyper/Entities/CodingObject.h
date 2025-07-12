@@ -21,7 +21,7 @@
 
 
 
-#import <CoreData/CoreData.h>
+@import CoreData;
 #import "AppDelegate.h"
 
 NS_ASSUME_NONNULL_BEGIN
@@ -72,11 +72,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// The method thus returns `nil` if the receiver has no managed object context.
 - (nullable id)copy;
 
-/// Whether the object will be deleted from its context.
-///
-/// This property is set to `YES` in `prepareForDeletion` and is KVO compliant.
-/// It can used to determine whether further changes in the object should be ignored by observes, for instance.
-@property (nonatomic, readonly) BOOL willBeDeleted;
 
 /// Returns wether an object has the same class and the same values for core data attributes as those of the receiver.
 ///
@@ -92,7 +87,5 @@ NS_ASSUME_NONNULL_BEGIN
 typedef NSString *const CodingObjectKey;
 
 @end
-
-extern CodingObjectKey willBeDeletedKey;
 
 NS_ASSUME_NONNULL_END

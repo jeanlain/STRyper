@@ -48,8 +48,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Imports samples (``Chromatogram`` objects) from abif files and adds it to a folder.
 ///
-/// This method calls ``FileImporter/importSamplesFromFiles:batchSize:intermediateHandler:completionHandler:``
-/// and show errors that may have occurred to the user.
+/// In case of failure, this method show errors that may have occurred to the user.
 /// - Parameters:
 ///   - filePaths: The paths of abif files to be imported.
 ///   - folder: The folder to which samples should be added. Its `managedObjectContext` must be the "view context".

@@ -73,8 +73,8 @@
 }
 
 
-- (void)resizeSubviewsWithOldSize:(NSSize)oldSize {
-	[super resizeSubviewsWithOldSize:oldSize];
+- (void)layout {
+	[super layout];
 	BOOL previousValue = _animateGauge;
 	_animateGauge = NO;
 	[self setGaugeSize];

@@ -30,6 +30,7 @@
 #import "RulerView.h"
 #import "SizeStandardTableController.h"
 #import "SizeStandard.h"
+#import "TraceViewTablePrinter.h"
 
 @interface DetailedViewController ()
 
@@ -82,19 +83,19 @@
 /// These row views don't have any table cell views.
 ///
 /// This hierarchy facilitates the managing of the data source and showing/hiding channels.
-/// For each genotypes, there is only one channel per view at the range corresponding to the marker. Some setting buttons become hidden (stack channels and traces, and sync view), as they aren't relevant
+/// For each genotypes,, some setting buttons become hidden (stack channels and traces, and sync view), as they aren't relevant
 ///
 /// When samples are selected, there are several display modes (see StackMode typdef)
 /// When genotypes are selected, a regular row showing samples information in several column is followed by a tall row showing the trace of the sample at the corresponding marker
 /// When markers are selected, one tall row per marker shows bins and the marker range (like in genotype mode when bin editing is enabled, but without the trace behind).
 ///
-/// We don't use many of the TableViewController methods as the user cannot select nor remove items from the outline view, but we use those creating columns, the table header menu and some table cell views, mainly
+/// We don't use many of the TableViewController methods as the user cannot select nor remove items from the outline view/
 
 {
 	NSArray<NSButton *> *channelButtons;	/// array containing references to the round buttons allowing to show/hide channels.
 											/// We use this array for quicker access as there are other buttons
 	
-	__weak NSOutlineView *traceOutlineView;  /// the outline view showing traces and/or markers, of which this object is the delegate and which is also the view we control
+	__weak NSOutlineView *traceOutlineView;  /// the outline view showing traces and/or markers, of which this object is the delegate and which is also the view it controls
 	
 	BaseRange referenceRange;				/// the synchronized visible range of traceViews
 	float referenceTopFluoLevel;			/// the synchronize top fluo level of traceViews
@@ -106,7 +107,8 @@
 
 @synthesize traceRowHeight = _traceRowHeight;
 
-static NSArray<NSString *> *channelPreferenceKeys;				/// a convenience array we use to bind values of channel buttons to the corresponding user default key and to determine which button to disable
+static NSArray<NSString *> *channelPreferenceKeys,
+*channelPreferenceKeysG;				/// convenience arrays we use to bind values of channel buttons to the corresponding user default key and to determine which button to disable
 																
 static NSString* const applySizeStandardMenuIdentifier = @"applySizeStandardMenuIdentifier";
 
@@ -147,12 +149,14 @@ static const float maxTraceRowHeight = 1000.0;
 
 
 - (nullable NSArrayController *)tableContent {
-	return nil;
+	return nil; /// We don't use an NSArray/tree controller to manage the view's content
 }
 
 
 - (void)viewDidLoad {
 	channelPreferenceKeys = @[ShowChannel0, ShowChannel1, ShowChannel2, ShowChannel3, ShowChannel4];
+	channelPreferenceKeysG = @[ShowChannel0G, ShowChannel1G, ShowChannel2G, ShowChannel3G, ShowChannel4G];
+
 	NSMutableArray *channelButtonArray = NSMutableArray.new;
 	
 	[self.tableView bind:NSSortDescriptorsBinding toObject:SampleTableController.sharedController.samples withKeyPath:NSStringFromSelector(@selector(sortDescriptors)) options:nil];
@@ -161,7 +165,7 @@ static const float maxTraceRowHeight = 1000.0;
 	
 	/// we bind the contents to show in the detailed view to the selected objects of the source controller.
 	/// The detailed view will then show the selected objects from the various sources
-	[self bind:NSStringFromSelector(@selector(contentArray)) toObject:MainWindowController.sharedController withKeyPath:@"sourceController.tableContent.selectedObjects" options:nil];
+	[self bind:ContentArrayBinding toObject:MainWindowController.sharedController withKeyPath:@"sourceController.tableContent.selectedObjects" options:nil];
 	[self bind:NSStringFromSelector(@selector(stackMode))
 	  toObject:standardUserDefaults withKeyPath:TraceStackMode options:nil];
 	[self bind:NSStringFromSelector(@selector(numberOfRowsPerWindow)) 
@@ -178,14 +182,13 @@ static const float maxTraceRowHeight = 1000.0;
 		if([control isKindOfClass: NSButton.class] || [control isKindOfClass: NSSegmentedControl.class]) {
 			/// all buttons must be hidden when the outline view shows markers, except the slider that controls row height
 			[control bind:NSHiddenBinding toObject:self withKeyPath:NSStringFromSelector(@selector(showMarkers)) options:nil];
-			if(control.tag >= 0 || control.tag == -5) {
+			if(control.tag == -5) {
 				/// some buttons must be also hidden when it shows genotypes. We use their tag to determine which.
 				[control bind:@"hidden2" toObject:self withKeyPath:NSStringFromSelector(@selector(showGenotypes)) options:nil];
-				if(control.tag < 5 && control.tag >=0) {
-					/// these are buttons controlling the channel to show. Their tags represent the channels from 0 to 4.
-					[channelButtonArray addObject:control];
-					[control bind:NSValueBinding toObject:standardUserDefaults withKeyPath:channelPreferenceKeys[control.tag] options:nil];
-				}
+			}
+			if(control.tag < 5 && control.tag >=0) {
+				/// these are buttons controlling the channel to show. Their tags represent the channels from 0 to 4.
+				[channelButtonArray addObject:control];
 			}
 			if(control.tag < 0) {
 				if([control isKindOfClass: NSButton.class]) {
@@ -206,7 +209,8 @@ static const float maxTraceRowHeight = 1000.0;
 		}
 	}
 	
-	channelButtons = [NSArray arrayWithArray:channelButtonArray];
+	channelButtons = channelButtonArray.copy;
+	[self updateChannelButtons];
 	
 	traceOutlineView = (NSOutlineView *)self.tableView;
 	
@@ -240,27 +244,11 @@ static const float maxTraceRowHeight = 1000.0;
 		referenceRange = MakeBaseRange(start, end - start);
 	}
 	
-	if(!self.displayedChannels) {
-		[self updateDisplayedChannels];
-	}
-	
 	referenceTopFluoLevel = -1.0;
 	
 	traceViews = NSMutableSet.new;
 }
 
-
-
-- (void)viewDidAppear {
-	[super viewDidAppear];
-	/// We restore the selection now. If we did it earlier, the outline view would not show at its final size,
-	/// which may cause issue with trace rows.
-	if(!self.contentArray) {
-		/// The view may also appear when it is unhidden, this check should avoid restoring the selection
-		/// more than once. TO IMPROVE.
-		[MainWindowController.sharedController restoreSelection];
-	}
-}
 
 
 - (NSButton *)loadContentButton {
@@ -331,15 +319,16 @@ static const float maxTraceRowHeight = 1000.0;
 
 - (id) outlineView:(id)outlineView child:(NSInteger)index ofItem:(id)item {
 	NSInteger count = self.contentArray.count;
+	NSArray<NSNumber *> *displayedChannels = self.displayedChannels;
 	if (item == nil) {  /// the top-level rows
 		if (self.stackMode == stackModeSamples && count > 1 && !self.showGenotypes && !self.showMarkers) {
 			/// here, samples are stacked
 			/// if the child index, which should correspond to the channel to show, exceeds the displayedChannels array, we return a null object
 			/// (but this would mean there is a bug somewhere)
-			if(self.displayedChannels.count <= index) {
+			if(displayedChannels.count <= index) {
 				return NSNull.null;
 			}
-			return [self tracesForChannel:self.displayedChannels[index].intValue]; 	/// if a row should show all traces of a given channel in an array, we return these traces
+			return [self tracesForChannel:displayedChannels[index].intValue]; 	/// if a row should show all traces of a given channel in an array, we return these traces
 		}
 		/// here, we don't stack samples, so we simply return the item at the corresponding index from the content array
 		/// This could be a chromatogram, a marker, or a genotype
@@ -364,10 +353,10 @@ static const float maxTraceRowHeight = 1000.0;
 		return [NSSet setWithObject:item];
 	}
 	/// if we're here, it means that we don't stack channels in the same view
-	if(self.displayedChannels.count <= index) {
+	if(displayedChannels.count <= index) {
 		return NSNull.null;
 	}
-	Trace *trace =[item traceForChannel: self.displayedChannels[index].intValue];	/// the child row will show the sample's trace for the correct channel
+	Trace *trace =[item traceForChannel: displayedChannels[index].intValue];	/// the child row will show the sample's trace for the correct channel
 	if(!trace) {
 		return NSNull.null;		/// if there is no trace for that channel, we return a null object.
 	}
@@ -388,7 +377,7 @@ static const float maxTraceRowHeight = 1000.0;
 		/// We don't show genotype information in the cells (status, marker, allele size, etc.). We could do that, but this would require replacing the columns
 		/// Plus, all genotype information is visible in the trace view themselves (marker name, color, alleles...)
 	}
-	return item;  /// else, we return nil because the row corresponding to the item has no cell view (see viewForTableColumn:)
+	return item;
 }
 
 
@@ -414,59 +403,83 @@ static const float maxTraceRowHeight = 1000.0;
 		item = [item anyObject];
 	}
 	
-	rowView = [self rowViewForItem:item];
+	if(outlineView == traceOutlineView) {
+		rowView = [self rowViewForItem:item];
+	}
 	
 	if(rowView) {
-		traceView = [rowView viewWithTag:1];
+		NSScrollView *scrollView = rowView.embeddedScrollView;
+		if([scrollView respondsToSelector:@selector(documentView)]) {
+			traceView = scrollView.documentView;
+		}
 	} else {
+		BOOL bind = outlineView != nil; /// If there is no outline view, it means that the table printer called this method, in which case we don't need to bind
+										/// properties of trace views, which takes most of the cpu time.
+		if(!bind) {
+			outlineView = traceOutlineView;
+		}
 		NSRect frame = NSMakeRect(0, 0, outlineView.bounds.size.width, self.traceRowHeight + outlineView.intercellSpacing.height);
 		rowView = [STableRowView.alloc initWithFrame:frame];
 		TraceScrollView *scrollView = [[TraceScrollView alloc] initWithFrame:frame];
 		scrollView.autoresizingMask = NSViewHeightSizable | NSViewWidthSizable;
-		[rowView addSubview:scrollView];
+		rowView.embeddedScrollView = scrollView;
 		
 		traceView = [[TraceView alloc] initWithFrame:frame];
 		traceView.delegate = self;
 		scrollView.documentView = traceView;
 		
 		NSUserDefaults *standardUserDefaults = NSUserDefaults.standardUserDefaults;
-		[traceView bind:ShowBinsBinding toObject:standardUserDefaults withKeyPath:ShowBins options:nil];
-		[traceView bind:ShowPeakTooltipsBinding toObject:standardUserDefaults withKeyPath:ShowPeakTooltips options:nil];
-		[traceView bind:ShowOffScaleRegionsBinding toObject:standardUserDefaults withKeyPath:ShowOffScale options:nil];
-		[traceView bind:ShowRawDataBinding toObject:standardUserDefaults withKeyPath:ShowRawData options:nil];
-		[traceView bind:PaintCrosstalkPeakBinding toObject:standardUserDefaults withKeyPath:PaintCrosstalkPeaks options:nil];
-		[traceView bind:MaintainPeakHeightsBinding toObject:standardUserDefaults withKeyPath:MaintainPeakHeights options:nil];
-		[traceView bind:AutoScaleToHighestPeakBinding toObject:self withKeyPath:@"autoScaleToHighestPeak" options:nil];
-		[traceView bind:IgnoreCrossTalkPeaksBinding toObject:standardUserDefaults withKeyPath:IgnoreCrosstalkPeaks options:nil];
-		[traceView bind:DisplayedChannelsBinding toObject:self withKeyPath:@"displayedChannels" options:nil];
-		[traceView bind:DefaultRangeBinding toObject:self withKeyPath:@"defaultRange" options:nil];
-		[scrollView bind:AllowSwipeBetweenMarkersBinding toObject:standardUserDefaults withKeyPath:SwipeBetweenMarkers options:nil];
-		
-		NSPopUpButton *popup = traceView.rulerView.applySizeStandardButton;
-		if(popup) {
-			NSMenu *menu = NSMenu.new;
-			menu.identifier = applySizeStandardMenuIdentifier;
-			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Apply Size Standard" action:nil keyEquivalent:@""];
-			item.representedObject = traceView; /// We will need to identify the view to determine the sample(s) it shows.
-												/// In principle, this should not create a retain cycle (the traceView does not have strong ownership of the ruler view)
-												/// The `target` property of item cannot be used instead, as it apparently doesn't work here (possibly because the item
-												/// has no action, and I don't want to set a dummy action for this).
-			[menu addItem:item];
-			menu.delegate = self;
-			popup.menu = menu;
+		if(bind) {
+			[traceView bind:ShowBinsBinding toObject:standardUserDefaults withKeyPath:ShowBins options:nil];
+			[traceView bind:ShowPeakTooltipsBinding toObject:standardUserDefaults withKeyPath:ShowPeakTooltips options:nil];
+			[traceView bind:ShowOffScaleRegionsBinding toObject:standardUserDefaults withKeyPath:ShowOffScale options:nil];
+			[traceView bind:ShowRawDataBinding toObject:standardUserDefaults withKeyPath:ShowRawData options:nil];
+			[traceView bind:PaintCrosstalkPeakBinding toObject:standardUserDefaults withKeyPath:PaintCrosstalkPeaks options:nil];
+			[traceView bind:MaintainPeakHeightsBinding toObject:standardUserDefaults withKeyPath:MaintainPeakHeights options:nil];
+			[traceView bind:AutoScaleToHighestPeakBinding toObject:self withKeyPath:@"autoScaleToHighestPeak" options:nil];
+			[traceView bind:IgnoreCrossTalkPeaksBinding toObject:standardUserDefaults withKeyPath:IgnoreCrosstalkPeaks options:nil];
+			[traceView bind:IgnoreOtherChannelsBinding toObject:standardUserDefaults withKeyPath:IgnoreOtherChannels options:nil];
+			[traceView bind:DisplayedChannelsBinding toObject:self withKeyPath:@"displayedChannels" options:nil];
+			[traceView bind:DefaultRangeBinding toObject:self withKeyPath:@"defaultRange" options:nil];
+			[scrollView bind:AllowSwipeBetweenMarkersBinding toObject:standardUserDefaults withKeyPath:SwipeBetweenMarkers options:nil];
+			[scrollView bind:AlwaysShowsScrollerBinding toObject:standardUserDefaults withKeyPath:AlwaysShowScrollers options:nil];
+			
+			NSPopUpButton *popup = traceView.rulerView.applySizeStandardButton;
+			if(popup) {
+				NSMenu *menu = NSMenu.new;
+				menu.identifier = applySizeStandardMenuIdentifier;
+				NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Apply Size Standard" action:nil keyEquivalent:@""];
+				item.representedObject = traceView; /// We will need to identify the view to determine the sample(s) it shows.
+													/// In principle, this should not create a retain cycle (the traceView does not have strong ownership of the ruler view)
+													/// The `target` property of item cannot be used instead, as it apparently doesn't work here (possibly because the item
+													/// has no action, and I don't want to set a dummy action for this).
+				[menu addItem:item];
+				menu.delegate = self;
+				popup.menu = menu;
+			}
+		} else {
+			traceView.showDisabledBins = [standardUserDefaults boolForKey:ShowBins];
+			traceView.showOffscaleRegions = [standardUserDefaults boolForKey:ShowOffScale];
+			traceView.showRawData = [standardUserDefaults boolForKey:ShowRawData];
+			traceView.paintCrosstalkPeaks = [standardUserDefaults boolForKey:PaintCrosstalkPeaks];
+			traceView.maintainPeakHeights = [standardUserDefaults boolForKey:MaintainPeakHeights];
+			traceView.autoScaleToHighestPeak = self.autoScaleToHighestPeak;
+			traceView.ignoreCrosstalkPeaks = [standardUserDefaults boolForKey:IgnoreCrosstalkPeaks];
+			traceView.ignoreOtherChannels = [standardUserDefaults boolForKey:IgnoreOtherChannels];
+			traceView.displayedChannels = self.displayedChannels;
+			traceView.defaultRange = self.defaultRange;
 		}
 	}
 	
 	[traceView loadContent:item];
-	[traceViews addObject:traceView];
-
+	
 	return  rowView;
 }
 
 
 /// Returns an appropriate rowView for an item shown in a ``TraceView``.
 ///
-/// The returned row view has a trace view which as loaded the same panel as the item to show in the trace,
+/// The returned row view has a trace view which has loaded the same panel as the item to show,
 /// if such row view is available.
 /// - Parameter item: The item to show in the row view.
 - (__kindof NSTableRowView *)rowViewForItem:(id)item {
@@ -501,17 +514,23 @@ static const float maxTraceRowHeight = 1000.0;
 }
 
 
-
 - (void)outlineView:(NSOutlineView *)outlineView didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
 	if ([rowView.identifier isEqualToString:@"noTraceRowViewKey"])  {
-		rowView.backgroundColor = NSColor.orangeColor;		/// setting this in rowViewForItem: has no effect, for some reason
+		rowView.backgroundColor = NSColor.orangeColor;		/// setting this in `rowViewForItem:` has no effect, for some reason
+	} else if ([rowView isKindOfClass:STableRowView.class]) {
+		NSScrollView *scrollView = ((STableRowView *)rowView).embeddedScrollView;
+		TraceView *traceView = scrollView.documentView;
+		if(traceView) {
+			[traceViews addObject:traceView];
+		}
 	}
 }
 
 
 - (void)outlineView:(NSOutlineView *)outlineView didRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
 	if ([rowView isKindOfClass:STableRowView.class]) {
-		TraceView* traceView = [rowView viewWithTag:1];
+		NSScrollView *scrollView = ((STableRowView *)rowView).embeddedScrollView;
+		TraceView *traceView = scrollView.documentView;
 		if(traceView) {
 			Panel *panel = traceView.panel;
 			NSString *ID = @"traceRowView";
@@ -545,19 +564,21 @@ static const float maxTraceRowHeight = 1000.0;
 		/// For this column, the cell view prototype is different from that of the sample table.
 		/// It has a button to allow revealing the represented item in the source list (sample table or genotype table)
 		cellView = [outlineView makeViewWithIdentifier:@"sampleNameCellView" owner:self];
-		NSTextField *textField = cellView.textField;
-		if(textField) {
-			[textField bind:NSValueBinding toObject:cellView withKeyPath:@"objectValue.sampleName" options:@{NSValidatesImmediatelyBindingOption:@YES}];
+		if(cellView) {
+			NSTextField *textField = cellView.textField;
+			if(textField) {
+				[textField bind:NSValueBinding toObject:cellView withKeyPath:@"objectValue.sampleName" options:@{NSValidatesImmediatelyBindingOption:@YES}];
+			}
+			NSButton *button = [cellView viewWithTag:1];
+			if(button) {
+				button.action = @selector(revealInList:);
+				button.target = self;
+				button.showsBorderOnlyWhileMouseInside = YES; /// This is the only reason why we configure this view in code,
+															  /// The rest could have been configured in IB.
+			}
+			cellView.identifier = ID;
+			return cellView;
 		}
-		NSButton *button = [cellView viewWithTag:1];
-		if(button) {
-			button.action = @selector(revealInList:);
-			button.target = self;
-			button.showsBorderOnlyWhileMouseInside = YES; /// This is the only reason why we configure this view in code,
-														  /// The rest could have been configured in IB.
-		}
-		cellView.identifier = ID;
-		return cellView;
 	}
 	
 	/// otherwise, we return table cells views whose prototype are in the sampleTable
@@ -603,27 +624,86 @@ static const float maxTraceRowHeight = 1000.0;
 
 #pragma mark - setting contents
 
-- (void)setContentArray:(NSArray *)content {
+-(IBAction)print:(id)sender {
+	/// We currently print the trace outline view itself (we may switch to a custom view for better control of printing in future versions)
+	NSInteger rowCount = traceOutlineView.numberOfRows;
+	if(rowCount <= 0) {
+		/// The print menu should be disabled in this situation, this is a safety measure.
+		NSError *error = [NSError errorWithDescription:@"There is nothing to print" suggestion:@""];
+		[[NSAlert alertWithError:error] runModal];
+		return;
+	}
+
+	NSPrintInfo *printInfo = NSPrintInfo.sharedPrintInfo.copy;
+	
+	printInfo.leftMargin = 20;
+	printInfo.rightMargin = 20;
+	printInfo.topMargin = 20;
+	printInfo.bottomMargin = 20;
+	printInfo.horizontalPagination = NSPrintingPaginationModeFit;
+	printInfo.horizontallyCentered = NO;
+	printInfo.verticallyCentered = NO;
+	
+	TraceViewTablePrinter *printedView = [[TraceViewTablePrinter alloc] initWithTable:traceOutlineView];
+	CGFloat printableWidth = printInfo.paperSize.width - printInfo.leftMargin - printInfo.rightMargin;
+	CGFloat contentWidth = printedView.bounds.size.width;
+	
+	/// Setting the scale factor to fit the view horizontally
+	CGFloat scaleToFit = printableWidth / contentWidth;
+	printInfo.scalingFactor = scaleToFit;
+	
+	NSPrintOperation *printOperation = [NSPrintOperation printOperationWithView:printedView printInfo:printInfo];
+	NSPrintPanel *panel = printOperation.printPanel;
+	
+	panel.options = NSPrintPanelShowsCopies |
+	NSPrintPanelShowsPageRange |
+	NSPrintPanelShowsPaperSize |
+	NSPrintPanelShowsPreview |
+	NSPrintPanelShowsScaling |
+	NSPrintPanelShowsOrientation;
+	
+	printOperation.showsPrintPanel = YES;
+	printOperation.showsProgressPanel = YES;
+	
+	[printOperation runOperation];
+
+}
+
+
+
+- (void)setContentArray:(NSArray *)contentArray {
+	/// We don't set the iVar yet because we compare the content with the previous content in `loadContent`
+	_needLoadContent = YES;
+	[self performSelector:@selector(_loadContent) withObject:nil afterDelay:0];
+}
+
+
+
+- (void)_loadContent {
+	if(!_needLoadContent) {
+		return;
+	}
+	_needLoadContent = NO;
+	NSArray *content = MainWindowController.sharedController.sourceController.tableContent.selectedObjects;
+	BOOL changeContentType = NO;
 	if(content.count > 0) {
 		BOOL showMarkers = [content.firstObject isKindOfClass: Mmarker.class];
 		BOOL showGenotypes = [content.firstObject isKindOfClass: Genotype.class];
-		BOOL changedMode = NO;
 		if(showMarkers != self.showMarkers) {
-			changedMode = YES;
+			changeContentType = YES;
 			self.showMarkers = showMarkers;
 		}
 		
 		if(showGenotypes != self.showGenotypes) {
-			changedMode = YES;
 			self.showGenotypes = showGenotypes;
 		}
 		
-		if(changedMode && !showMarkers && !showGenotypes) {
-			[self updateDisplayedChannels]; /// We call this because the NSHiddenBinding of channel buttons with the above properties somehow enables
-											/// the buttons when these property are set (an appkit bug IMO) even if their values don't change.
+		if(changeContentType && !showMarkers) {
+			[self updateDisplayedChannels]; /// We call this because the NSHiddenBinding of channel buttons with showMarkers somehow enables
+											/// the buttons when this property changes (an appkit bug IMO).
 		}
 	}
-	int maxItems = 400;		/// 400 is close to a 384-sample plate
+	NSInteger maxItems = 400;		/// 400 is close to a 384-sample plate
 	NSString *itemType = @"Samples";
 	if(self.showGenotypes) {
 		maxItems = 1000;
@@ -633,7 +713,8 @@ static const float maxTraceRowHeight = 1000.0;
 	/// we don't immediately load the content if the number of items to show is very large, which may take some time and block the UI
 	/// The user may have selected the whole source table (of samples or genotypes) for another reason that viewing traces
 	/// instead, we show a button asking for confirmation
-	if(content.count < maxItems) {
+	NSInteger diff = content.count - _contentArray.count;
+	if(diff < maxItems) {
 		self.loadContentButton.hidden = YES;
 	} else {
 		self.loadContentButton.hidden = NO;
@@ -652,6 +733,7 @@ static const float maxTraceRowHeight = 1000.0;
 
 - (void)setShowGenotypes:(BOOL)showGenotypes {
 	_showGenotypes = showGenotypes;
+	[self updateChannelButtons];
 	if(showGenotypes) {
 		/// if genotypes are shown, the detailed view columns cannot be used for sorting as they do not correspond to those of the genotype table
 		/// to avoid confusing the user, we disable sorting.
@@ -726,7 +808,7 @@ static const float maxTraceRowHeight = 1000.0;
 		}
 		
 		/// if some element(s) is/are still showing and are in the same order, we make some animation. This helps the user understand what happens
-		if (rowsToRemove.count < previousContent.count && [remaining isIdenticalTo:remaining2]) {
+		if (rowsToRemove.count < previousContent.count && [remaining isEquivalentTo:remaining2]) {
 			/// we don't animate if the number of rows to show hasn't changed (it would be more disturbing than anything)
 			NSInteger animation = content.count == previousContent.count? NSTableViewAnimationEffectNone : NSTableViewAnimationEffectFade;
 			
@@ -743,19 +825,24 @@ static const float maxTraceRowHeight = 1000.0;
 	[self reload];
 }
 
+/// Sent by the loadContent button when the user confirms they want to load the content
+-(void)loadContent:(NSButton *)sender {
+	[self loadContentArray: MainWindowController.sharedController.sourceController.tableContent.selectedObjects];
+}
 
 /// Updates the header of the outline view as appropriate
 -(void) updateHeader {
 	/// we hide the header if we don't show individual (non-stacked) samples, as the normal row views (those will columns) are not shown)
 	NSInteger count = self.contentArray.count;
+	NSTextField *stackedSampleTextfield = self.stackedSampleTextfield;
 	traceOutlineView.headerView.hidden = self.showMarkers || (self.stackMode == stackModeSamples && !self.showGenotypes && count > 1);
-	self.stackedSampleTextfield.hidden = self.stackMode != stackModeSamples || self.showMarkers || self.showGenotypes || count < 2;
-	if(!self.stackedSampleTextfield.hidden) {
+	stackedSampleTextfield.hidden = self.stackMode != stackModeSamples || self.showMarkers || self.showGenotypes || count < 2;
+	if(!stackedSampleTextfield.hidden) {
 		NSString *stringToShow = [NSString stringWithFormat:@"%ld samples stacked", count];
 		if(count > 400) {
 			stringToShow = [stringToShow stringByAppendingString:@" (400 shown)"];
 		}
-		self.stackedSampleTextfield.stringValue = stringToShow;
+		stackedSampleTextfield.stringValue = stringToShow;
 	}
 }
 
@@ -779,9 +866,6 @@ static const float maxTraceRowHeight = 1000.0;
 	}
 }
 
--(void)loadContent:(NSButton *)sender {
-	[self loadContentArray: MainWindowController.sharedController.sourceController.tableContent.selectedObjects];
-}
 
 #pragma mark - adding, removing, resizing rows
 
@@ -806,7 +890,8 @@ static const float maxTraceRowHeight = 1000.0;
 - (void)setTraceRowHeight:(float)proposedHeight {
 	//// It is important to use a rounded height. Otherwise, some view frames might not start/end at pixel boundaries,
 	/// which results in fuzzy rendering and slightly misplaced elements
-	proposedHeight = round(proposedHeight);
+	/// We avoid making rows taller than the proposed height, to make sure that the bottom row shows in full.
+	proposedHeight = floorf(proposedHeight);
 	if (proposedHeight < minTraceRowHeight) {
 		proposedHeight = minTraceRowHeight;
 	} else if(proposedHeight > maxTraceRowHeight) {
@@ -825,7 +910,7 @@ static const float maxTraceRowHeight = 1000.0;
 		traceRowsPerWindow = 5;
 	}
 	NSInteger numOtherRows = 0;					/// we compute the number of non-trace rows that should be visible
-												///
+												
 	if(self.showGenotypes || self.stackMode == stackModeChannels) {
 		/// if we show genotypes (which have just one trace) or if we stack channels, the are as numerous as trace views
 		numOtherRows = traceRowsPerWindow;
@@ -936,8 +1021,9 @@ static const float maxTraceRowHeight = 1000.0;
 	BOOL stacksSamples = self.stackMode == stackModeSamples && contentCount > 1;
 	if(stacksSamples || contentCount == 1) {
 		/// We animate the hiding of channels when there is only one row per channel (one sample or stacked samples).
-		/// If there are more, the animation may not work well (which for me is an appkit issue) : rows move over others and do not follow the specified animation,
-		/// and more importantly, some rows may have incorrect height. This is irrespective of whether the height or rows also changes and I have not found a solution.
+		/// If there are more, the animation may not work well (which for me is an appkit issue) :
+		/// rows move over others and do not follow the specified animation,
+		/// and more importantly, some rows may have incorrect height. This is irrespective of whether the height or rows also changes, and I have not found a solution.
 		/// Using an NSTableView instead of an NSOutlineView doesn't solve the issue.
 		[traceOutlineView beginUpdates];
 		if(stacksSamples) {
@@ -1007,17 +1093,30 @@ static const float maxTraceRowHeight = 1000.0;
 	return _displayedChannels;
 }
 
+- (void)updateChannelButtons {
+	NSArray *channelPrefKeys = _showGenotypes? channelPreferenceKeysG : channelPreferenceKeys;
+	NSString *toolTip = _showGenotypes? @"Show this channel for all markers" : @"Option-click to show only this channel";
+	NSUserDefaults *standardUserDefaults = NSUserDefaults.standardUserDefaults;
+	for(NSButton *channelButton in channelButtons) {
+		channelButton.toolTip = toolTip;
+		[channelButton bind:NSValueBinding toObject:standardUserDefaults withKeyPath:channelPrefKeys[channelButton.tag] options:nil];
+	}
+	[self updateDisplayedChannels];
+}
+
 
 - (void)updateDisplayedChannels {
 	NSInteger nChannels = 5;
 	NSMutableArray *newDisplayedChannels = [NSMutableArray arrayWithCapacity:nChannels];  /// we update the channels to display
+	NSArray *channelPrefKeys = self.showGenotypes? channelPreferenceKeysG : channelPreferenceKeys;
 	for (int channel = 0; channel < nChannels; channel++) {
-		if ([NSUserDefaults.standardUserDefaults boolForKey:channelPreferenceKeys[channel]])
+		if ([NSUserDefaults.standardUserDefaults boolForKey:channelPrefKeys[channel]]) {
 			[newDisplayedChannels addObject:@(channel)];
+		}
 	}
 	
-	if(newDisplayedChannels.count == 0) {
-		/// We impose that at least one channel is shown (even though the UI should never allow the above condition to the true).
+	if(newDisplayedChannels.count == 0 && !self.showGenotypes) {
+		/// We impose that at least one channel is shown.
 		[NSUserDefaults.standardUserDefaults setBool:YES forKey:ShowChannel0];
 		[newDisplayedChannels addObject:@0];
 	}
@@ -1025,7 +1124,7 @@ static const float maxTraceRowHeight = 1000.0;
 	self.displayedChannels = newDisplayedChannels;
 	
 	for (NSButton *button in channelButtons) {
-		button.enabled = !(button.state == NSControlStateValueOn && newDisplayedChannels.count == 1);
+		button.enabled = self.showGenotypes || !(button.state == NSControlStateValueOn && newDisplayedChannels.count == 1);
 	}
 }
 
@@ -1037,10 +1136,11 @@ static const float maxTraceRowHeight = 1000.0;
 	BOOL altKeyDown = (NSApp.currentEvent.modifierFlags & NSEventModifierFlagOption) != 0;
 	///if alt key is pressed, we will only show the channel associated with the button that was clicked, regardless of its previous state
 	if (altKeyDown) {
+		NSArray *channelPrefKeys = self.showGenotypes? channelPreferenceKeysG : channelPreferenceKeys;
 		for (int channel = 0; channel <= 4; channel++) {
-			[NSUserDefaults.standardUserDefaults setBool:NO forKey:channelPreferenceKeys[channel]]; /// we first deselect all channels
+			[NSUserDefaults.standardUserDefaults setBool:NO forKey:channelPrefKeys[channel]]; /// we first deselect all channels
 		}
-		[NSUserDefaults.standardUserDefaults setBool:YES forKey:channelPreferenceKeys[sender.tag]]; ///and enable the channel corresponding to the button tag
+		[NSUserDefaults.standardUserDefaults setBool:YES forKey:channelPrefKeys[sender.tag]]; ///and enable the channel corresponding to the button tag
 	}
 	[self updateDisplayedChannels];
 	
@@ -1349,6 +1449,11 @@ static const float maxTraceRowHeight = 1000.0;
 
 # pragma mark -other
 
+- (NSArray *)validTargetsOfSender:(id)sender {
+	return self.contentArray;
+}
+
+
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
 	if(menuItem.action == @selector(moveSelectionByStep:)) {
 		return [MainWindowController.sharedController.sourceController validateMenuItem:menuItem];
@@ -1363,7 +1468,6 @@ static const float maxTraceRowHeight = 1000.0;
 
 
 - (void)dealloc {
-	[NSApp removeObserver:self forKeyPath:NSStringFromSelector(@selector(effectiveAppearance))];
 	[NSNotificationCenter.defaultCenter removeObserver:self];
 }
 

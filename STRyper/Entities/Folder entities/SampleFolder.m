@@ -36,34 +36,54 @@ NSNotificationName const SampleFolderSubfoldersDidChangeNotification = @"SampleF
 
 - (NSSet<Chromatogram *> *)allSamples {
 	
-	NSMutableSet *allSamples = [NSMutableSet setWithSet:self.samples];
-	for(SampleFolder *folder in self.allSubfolders) {
-		[allSamples unionSet:folder.samples];
+	NSMutableSet *allSamples = self.samples.mutableCopy;
+	if(!allSamples) {
+		allSamples = NSMutableSet.new;
 	}
-	return [NSSet setWithSet:allSamples];
+	for(SampleFolder *folder in self.allSubfolders) {
+		if([folder isKindOfClass:SampleFolder.class]) {
+			[allSamples unionSet:folder.samples];
+		}
+	}
+	return allSamples.copy;
 }
 
 
 
 - (void)awakeFromFetch {
 	[super awakeFromFetch];
-	/// To be able to post the notification of a change in subfolders, we observe our own subfolders.
-	/// This may not be the most elegant, but it ensures that all instances can post the notification.
-	[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
-
+	if(self.managedObjectContext.concurrencyType == NSMainQueueConcurrencyType) {
+		
+		/// To be able to post the notification of a change in subfolders, we observe our own subfolders.
+		/// This may not be the most elegant, but it ensures that all instances can post the notification.
+		[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
+	}
 }
 
 
 - (void)awakeFromInsert {
 	[super awakeFromInsert];
-	[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
+	if(self.managedObjectContext.concurrencyType == NSMainQueueConcurrencyType) {
+		[self addObserver:self forKeyPath:@"subfolders" options:NSKeyValueObservingOptionNew context:subfoldersChangedContext];
+	}
 }
+	
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
 	if(context == subfoldersChangedContext) {
 		[NSNotificationCenter.defaultCenter postNotificationName:SampleFolderSubfoldersDidChangeNotification object:self];
 		/// communicating directly with a UI element like FolderListController would be quicker (the notification center may induce a short delay), but much less clean in terms of separation between UI and model
 	} else [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+}
+
+
+- (void)willTurnIntoFault {
+	[super willTurnIntoFault];
+	@try {
+		[self removeObserver:self forKeyPath:@"subfolders"];
+	} @catch (NSException *exception) {
+		
+	}
 }
 
 

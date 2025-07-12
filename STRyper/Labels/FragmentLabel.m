@@ -29,7 +29,13 @@
 #import "Mmarker.h"
 @import Accelerate;
 
-@interface FragmentLabel ()
+@interface FragmentLabel () {
+	/// We use this ivar to force animating ladder fragment labels that have been
+	/// dragged to other peaks. This operation changes sample sizing, which resizes the host view,
+	/// normally preventing animation of labels. But we want to give better feedback to the user about
+	/// the labels that has been affected by the drag.
+	BOOL forceAnimations;
+}
 
 /// The fragment labels that overlap on the horizontal axis, used to avoid collisions.
 /// These labels contain at least one that overlap with us, and  constitute all labels that are
@@ -101,10 +107,9 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 - (instancetype)initFromFragment:(LadderFragment *)fragment view:(TraceView *)view {
 	self = [super init];
 	if (self) {
+		forceAnimations = NO;
 		layer = CALayer.new;
 		layer.delegate = self;
-		layer.actions = @{NSStringFromSelector(@selector(backgroundColor)):NSNull.null,
-							NSStringFromSelector(@selector(borderWidth)):NSNull.null};
 		layer.cornerRadius = 2;
 		layer.borderColor = [NSColor colorWithCalibratedRed:0.4 green:0.6 blue:0.9 alpha:1].CGColor;
 			
@@ -113,6 +118,7 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 		stringLayer.fontSize = 9.0;
 		stringLayer.contentsScale = 3.0; /// This makes text sharper even if the display is 2X (an 1X display requires 2X).
 		stringLayer.alignmentMode = kCAAlignmentCenter;
+		stringLayer.truncationMode = kCATruncationEnd;
 		[layer addSublayer:stringLayer];
 			
 		_overlappingLabels = [NSMutableSet setWithObject:self];
@@ -185,6 +191,7 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 	if(context == fragmentScanChangedContext) {
 		TraceView *view = self.view;
 		if(view) {
+			forceAnimations = view.allowsAnimations;
 			if(!view.needsRepositionFragmentLabels) {
 				[view labelNeedsRepositioning:self];
 			}
@@ -283,14 +290,10 @@ static void * const fragmentOffsetChangedContext = (void*)&fragmentOffsetChanged
 
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == stringLayer || self.view.needsRepositionFragmentLabels) {
-		/// We don't animate if the view needs to reposition fragment labels in response to a change of vertical scale
-		/// (animations would  be inappropriate).
-		/// We don't animate anything related to the string, as this method is called in a context that doesn't allow determining
-		/// whether animations are appropriate (it's not called immediately after an change in CATextLayer property).
-		return NSNull.null;
-	}	
-	return [super actionForLayer:layer forKey:event];
+	if((forceAnimations || self.view.allowsAnimations) && _allowsAnimations && ([event isEqualToString:@"position"] || [event isEqualToString:@"bounds"])) {
+		return nil;
+	}
+	return NSNull.null;
 }
 
 # pragma mark - dragging behavior
@@ -596,6 +599,7 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 	}
 	
 	self.frame = newFrame;
+	forceAnimations = NO;
 }
 
 
@@ -614,15 +618,23 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 	if (alleleNameTextField.delegate == self) {
 		alleleNameTextField.hidden = YES;
 	}
+	
+	/// We compute the the frame size, which depends on the string shown, but also on the font.
+	if(needsUpdateFont) {
+		stringLayer.font = type == alleleLabel? (__bridge CFTypeRef _Nullable)([NSFont boldSystemFontOfSize:9]) :
+		(__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:9]);
+		needsUpdateFont = NO;
+	}
 
 	stringLayer.string = self.fragment.string;
 	NSSize size = stringLayer.preferredFrameSize;
-	float stringWidth = size.width;
-	float width = stringWidth > 15.0 ? stringWidth : 15.0;
-	NSRect bounds = NSMakeRect(0, 0, width + 2, size.height + 2);
+	/// We constrain the string width between 15 and 50.
+	float width = MAX(size.width, 15.0);
+	width = MIN(50, width);
+	CGRect bounds = CGRectMake(0, 0, width + 2, size.height + 2);
 	layer.bounds = bounds;
 	_frame = layer.frame;
-	stringLayer.bounds = CGRectMake(0, 0, size.width, size.height);
+	stringLayer.bounds = CGRectMake(0, 0, width, size.height);
 	stringLayer.position = CGPointMake(NSMidX(bounds), NSMidY(bounds));
 	needsUpdateString = NO;
 }

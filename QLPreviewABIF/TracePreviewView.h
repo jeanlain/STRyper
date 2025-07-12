@@ -22,7 +22,7 @@
 
 
 
-#import <Cocoa/Cocoa.h>
+@import Cocoa;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface TracePreviewView : NSView
 
 /// The traces data that the view plots.
-@property (nonatomic) NSArray<NSData *> *traces;
+@property (nonatomic, copy) NSArray<NSData *> *traces;
 
 @end
 

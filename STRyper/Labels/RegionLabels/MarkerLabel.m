@@ -47,17 +47,32 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	ChannelNumber channel;
 	NSColor *disabledColor, *hoveredColor, *defaultColor;
 	
+	/// Images used for the action button. We use CGImageRef that we update given the application appearance.
+	CGImageRef actionRoundImageRef, actionRoundHoveredImageRef, actionCheckImageRef, actionCheckHoveredImageRef;
+	
 	CALayer *actionButtonLayer;	/// the layer symbolizing the button that can be clicked to popup the menu (or end editing)
 								/// It is more convenient than using an NSButton because we make it a sublayer of our layer
 	__weak NSTrackingArea *actionButtonArea; /// A tracking area to determine if the action button is hovered
 	NSToolTipTag toolTipTag;		/// a tag for a tooltip indicating the action button role
-	BOOL hoveredActionButton;			/// Whether the action button is hovered
+	BOOL actionButtonIsHovered;		/// Whether the action button is hovered
 	
 }
 
 
 # pragma mark - attributes and appearance
 
+static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *actionCheckHoveredImage;
+
++ (void)initialize {
+	if (self == [MarkerLabel class]) {
+		if(!actionRoundImage) {
+			actionCheckHoveredImage = [NSImage imageNamed:ACImageNameActionCheckHovered];
+			actionRoundHoveredImage = [NSImage imageNamed:ACImageNameActionRoundHovered];
+			actionCheckImage = [NSImage imageNamed:ACImageNameActionCheck];
+			actionRoundImage = [NSImage imageNamed:ACImageNameActionRound];
+		}
+	}
+}
 
 
 - (BOOL)isMarkerLabel {
@@ -83,7 +98,6 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 		[layer addSublayer:bandLayer];
 		actionButtonLayer = CALayer.new;
 		actionButtonLayer.hidden = YES;
-		actionButtonLayer.actions = @{NSStringFromSelector(@selector(contents)): NSNull.null};
 		actionButtonLayer.delegate = self;
 		actionButtonLayer.anchorPoint = CGPointMake(0, 0);
 		actionButtonLayer.bounds = CGRectMake(0, 0, 15, 15);
@@ -100,10 +114,6 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	ChannelNumber regionChannel = ((Mmarker *)region).channel;
 	if(channel != regionChannel) {
 		channel = regionChannel;
-		/// We use a horizontal segment to represent the marker range. The color is based on the channel, but a bit brighter
-		defaultColor = LabelView.colorsForChannels[channel];
-		/// The color is brighter when the label is hovered
-		hoveredColor = [defaultColor blendedColorWithFraction:0.4 ofColor:NSColor.whiteColor];
 		self.needsUpdateAppearance = YES;
 	}
 }
@@ -134,7 +144,7 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 		BOOL wasHidden = actionButtonLayer.hidden;
 		BOOL hidden = (editState == editStateNil && !hovered && !highlighted) || !enabled || !self.region;
 		actionButtonLayer.hidden = hidden;
-		[self updateActionButton];
+		[self setActionButtonContent];
 		
 		if(wasHidden != hidden) {
 			/// we reposition the label internal layers as the button layer's change in visibility changes the name's position
@@ -148,37 +158,40 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 
 - (void)updateForTheme {
 	[super updateForTheme];
+	defaultColor = self.view.colorsForChannels[channel];
+	/// We use a horizontal segment to represent the marker range. The color is based on the channel, but a bit brighter
+	/// The color is brighter when the label is hovered
+	hoveredColor = [defaultColor blendedColorWithFraction:0.4 ofColor:NSColor.whiteColor];
+	if(_hovered || _highlighted) {
+		bandLayer.backgroundColor = hoveredColor.CGColor;
+	} else {
+		bandLayer.backgroundColor = _enabled ? defaultColor.CGColor : disabledColor.CGColor;
+	}
+	/// We update the images of the action button (template images that are brighter in dark mode)
+	CGImageRelease(actionRoundImageRef);
+	actionRoundImageRef = CGImageRetain([actionRoundImage CGImageForProposedRect:nil context:nil hints:nil]);
+	CGImageRelease(actionRoundHoveredImageRef);
+	actionRoundHoveredImageRef = CGImageRetain([actionRoundHoveredImage CGImageForProposedRect:nil context:nil hints:nil]);
+	CGImageRelease(actionCheckImageRef);
+	actionCheckImageRef = CGImageRetain([actionCheckImage CGImageForProposedRect:nil context:nil hints:nil]);
+	CGImageRelease(actionCheckHoveredImageRef);
+	actionCheckHoveredImageRef = CGImageRetain([actionCheckHoveredImage CGImageForProposedRect:nil context:nil hints:nil]);
+	
 	[self setActionButtonContent];
-}
-
-
--(void) updateActionButton {
-	/// Since the action button uses an image that has a dark appearance, it's content must be set within -updateLayer of the host view
-	self.view.needsUpdateLabelAppearance = YES;
 }
 
 
 -(void)setActionButtonContent {
 	if(actionButtonLayer) {
-		
-		static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *actionCheckHoveredImage;
-		
-		if(!actionRoundImage) {
-			actionCheckHoveredImage = [NSImage imageNamed:@"action check hovered"];
-			actionRoundHoveredImage = [NSImage imageNamed:@"action round hovered"];
-			actionCheckImage = [NSImage imageNamed:@"action check"];
-			actionRoundImage = [NSImage imageNamed:@"action round"];
-		}
-		
-		NSImage *buttonImage;
+		CGImageRef buttonImage;
 		BOOL inEdit = self.editState != editStateNil;
-		if(hoveredActionButton) {
-			buttonImage = inEdit? actionCheckHoveredImage : actionRoundHoveredImage;
+		if(actionButtonIsHovered) {
+			buttonImage = inEdit? actionCheckHoveredImageRef : actionRoundHoveredImageRef;
 		} else {
-			buttonImage = inEdit? actionCheckImage : actionRoundImage;
+			buttonImage = inEdit? actionCheckImageRef : actionRoundImageRef;
 		}
 		if(buttonImage) {
-			actionButtonLayer.contents = (__bridge id _Nullable)([buttonImage CGImageForProposedRect:nil context:nil hints:nil]);
+			actionButtonLayer.contents = (__bridge id _Nullable)buttonImage;
 		}
 	}
 }
@@ -187,7 +200,7 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 
 - (void)mouseEntered:(NSEvent *)theEvent {
 	if(theEvent.trackingArea == actionButtonArea) {
-		hoveredActionButton = YES;
+		actionButtonIsHovered = YES;
 		self.needsUpdateAppearance = YES;
 	} else {
 		[super mouseEntered:theEvent];
@@ -197,7 +210,7 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 
 - (void)mouseExited:(NSEvent *)theEvent {
 	if(theEvent.trackingArea == actionButtonArea) {
-		hoveredActionButton = NO;
+		actionButtonIsHovered = NO;
 		self.needsUpdateAppearance = YES;
 	} else {
 		[super mouseExited:theEvent];
@@ -209,7 +222,7 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	[super mouseUpInView];
 	if(self.highlighted) {
 		/// we detect if the user has clicked the action button
-		if(hoveredActionButton) {
+		if(actionButtonIsHovered) {
 			TraceView *view = self.view;
 			NSPoint mouseUpPoint = [layer convertPoint:view.mouseUpPoint fromLayer:view.layer];
 			if(NSPointInRect(mouseUpPoint, actionButtonLayer.frame)) {
@@ -239,7 +252,7 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 - (void)reposition {
 	TraceView *view = self.view;
 	float hScale = view.hScale;
-	if(!view || hScale <= 0 || self.hidden) {
+	if(!view || hScale <= 0) {
 		return;
 	}
 	
@@ -308,10 +321,10 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	if(!actionButtonLayer.hidden) {
 		NSRect buttonFrame = [actionButtonLayer convertRect:actionButtonLayer.bounds toLayer:view.layer];
 		actionButtonArea = [self addTrackingAreaForRect:buttonFrame];
-		BOOL hovered = hoveredActionButton;
-		hoveredActionButton = (NSPointInRect(view.mouseLocation, buttonFrame));
-		if(hoveredActionButton != hovered) {
-			[self updateActionButton];
+		BOOL hovered = actionButtonIsHovered;
+		actionButtonIsHovered = (NSPointInRect(view.mouseLocation, buttonFrame));
+		if(actionButtonIsHovered != hovered) {
+			[self setActionButtonContent];
 		}
 		
 		toolTipTag = [view addToolTipRect:buttonFrame owner:self userData:nil];
@@ -344,26 +357,26 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	_menu = super.menu;
 	if(_menu.itemArray.count < 4) {
 		[_menu addItemWithTitle:@"Zoom to Marker" action:@selector(zoom:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"loupeBadge"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameLoupeBadge]];
 		[_menu addItem:NSMenuItem.separatorItem];
 		[_menu addItemWithTitle:@"Generate Bins" action:@selector(spawnAddBinsPopover:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"binset"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameBinset]];
 		[_menu addItemWithTitle:@"Edit Bins" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"edit bins"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameEditBins]];
 		[_menu.itemArray.lastObject setTag:editStateBins];
-		[_menu addItemWithTitle:@"Move Bin Set" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"move bins"]];
+		[_menu addItemWithTitle:@"Move all Bins" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameMoveBins]];
 		[_menu.itemArray.lastObject setTag:editStateBinSet];
 		[_menu addItem:NSMenuItem.separatorItem];
 		[_menu addItemWithTitle:@"Adjust Offset" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"marker offset"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameMarkerOffset]];
 		[_menu.itemArray.lastObject setTag:editStateOffset];
 		[_menu addItemWithTitle:@"Copy Offset" action:@selector(copyOffset:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"copy"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameCopy]];
 		[_menu addItemWithTitle:@"Paste Offset" action:@selector(pasteOffset:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"paste offset"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNamePasteOffset]];
 		[_menu addItemWithTitle:@"Remove Offset" action:@selector(removeOffset:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:@"close"]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameClose]];
 		
 		for(NSMenuItem *item in self.menu.itemArray) {
 			if(!item.submenu) {
@@ -550,7 +563,7 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	[newMarkerPopover close];
 	Region *region = self.region;
 	[self.region.managedObjectContext deleteObject:region];
-	[(MarkerView *)self.view updateContent];
+	[(MarkerView *)self.view setNeedsUpdateContent:YES];
 	
 }
 
@@ -611,6 +624,7 @@ enum addBinPopoverTag : NSInteger {
 		NSSlider *binWidthSlider = [view viewWithTag:binWidthSliderTag];
 		NSTextField *binWidthTextField = [view viewWithTag:binWidthTextFieldTag];
 		NSPopUpButton *binSpacingButton = [view viewWithTag:binSpacingButtonTag];
+		NSButton *removeAllBinsButton = [view viewWithTag:existingBinsCheckboxTag];
 		
 		if(_binSetStart <= 0) {
 			self.binSetStart = ceilf(marker.start) +1;
@@ -631,7 +645,8 @@ enum addBinPopoverTag : NSInteger {
 		[binSpacingButton bind:NSSelectedIndexBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binSpacing)) options:option];
 		[binWidthSlider bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binWidth)) options:option];
 		[binWidthTextField bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binWidth)) options:nil];
-		
+		[removeAllBinsButton bind:NSEnabledBinding toObject:marker withKeyPath:@"bins.@count" options:nil];
+
 		NSButton *addBinsButton = [view viewWithTag:addBinsButtonTag];
 		addBinsButton.target = self;
 		addBinsButton.action = @selector(addBinSet:);
@@ -765,10 +780,12 @@ enum addBinPopoverTag : NSInteger {
 				}
 			}
 			Bin *newBin = [[Bin alloc] initWithContext:self.region.managedObjectContext];
-			newBin.start = binStart;
-			newBin.end = binEnd;
-			[newBin autoName];
-			[bins addObject:newBin];
+			if(newBin) {
+				newBin.start = binStart;
+				newBin.end = binEnd;
+				[newBin autoName];
+				[bins addObject:newBin];
+			}
 		} else {
 			skippedBins++;
 		}
@@ -813,6 +830,17 @@ enum addBinPopoverTag : NSInteger {
 	}
 }
 
+
+- (void)dealloc {
+	CGImageRelease(actionCheckImageRef);
+	actionCheckImageRef = NULL;
+	CGImageRelease(actionCheckHoveredImageRef);
+	actionCheckHoveredImageRef = NULL;
+	CGImageRelease(actionRoundImageRef);
+	actionRoundImageRef = NULL;
+	CGImageRelease(actionRoundHoveredImageRef);
+	actionRoundHoveredImageRef = NULL;
+}
 
 
 

@@ -26,7 +26,7 @@ NSBindingName const ImageIndexBinding = @"imageIndex";
 @implementation IndexImageView
 
 - (void)setImageArray:(NSArray<NSImage *> *)imageArray {
-	_imageArray = [NSArray arrayWithArray:imageArray];
+	_imageArray = imageArray.copy;
 	NSUInteger index = self.imageIndex;
 	if(index >= 0 && index < _imageArray.count) {
 		NSImage *image = _imageArray[index];

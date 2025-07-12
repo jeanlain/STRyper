@@ -347,8 +347,8 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	if(self.bins.count == 0 && marker.bins.count == 0) {
 		return YES;
 	}
-	NSArray *bins = [self.bins sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"start" ascending:YES]]] ;
-	NSArray *objBins = [marker.bins sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"start" ascending:YES]]] ;
+	NSArray *bins = self.sortedBins;
+	NSArray *objBins = marker.sortedBins;
 	for (int i = 0; i < bins.count; i++) {
 		if(![bins[i] isEquivalentTo:objBins[i]]) {
 			return NO;

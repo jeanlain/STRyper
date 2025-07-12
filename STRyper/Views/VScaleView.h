@@ -44,6 +44,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default is 30.0. The effective value is constrained to the range [0, 100];
 @property (nonatomic) float width;
 
+/// The background color of the view.
+///
+/// The default value is the system window background color.
+@property (nonatomic) NSColor * backgroundColor;
+
 @end
 
 NS_ASSUME_NONNULL_END

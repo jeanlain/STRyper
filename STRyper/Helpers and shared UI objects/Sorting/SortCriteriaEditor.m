@@ -161,7 +161,7 @@ static NSString *const Title = @"title";
 			[sortDescriptors addObject:descriptor];
 		}
 	}
-	return [NSArray arrayWithArray: sortDescriptors];
+	return sortDescriptors.copy;
 }
 
 # pragma mark - datasource methods for the table view defining sort criteria

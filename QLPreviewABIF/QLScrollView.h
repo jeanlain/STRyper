@@ -22,7 +22,7 @@
 
 
 
-#import <Cocoa/Cocoa.h>
+@import Cocoa;
 
 NS_ASSUME_NONNULL_BEGIN
 

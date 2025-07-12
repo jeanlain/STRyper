@@ -56,8 +56,10 @@ regionEditStateKey = @"editState";
 
 -(BaseRange)allowedRangeForEdge:(RegionEdge)edge {
 	/// min and max allowed positions for the edge, the margin we have for collision with another edge
-	float min = 0, max = 0, margin = self.minimumWidth/2, leftLimit = 0, rightLimit = 0;
+	/// NOTE: this method assumes that no region overlaps another (including the receiver)
+	float min = 0, max = 0, margin = self.class.minimumWidth/2, leftLimit = 0, rightLimit = 0;
 	NSArray *siblings;
+	float refEdgePos = edge == leftEdge? self.end : self.start;
 	if(self.class == Mmarker.class) {
 		min = 0;
 		max = MAX_TRACE_LENGTH;
@@ -71,9 +73,9 @@ regionEditStateKey = @"editState";
 	}
 	
 	for(Region *region in siblings) {
-		if(region.end < self.start) {
+		if(region.end < refEdgePos) {
 			min = region.end;
-		} else if(region.start > self.end) {
+		} else if(region.start > refEdgePos) {
 			max = region.start;
 			break;
 		}
@@ -82,23 +84,22 @@ regionEditStateKey = @"editState";
 	if(edge == leftEdge) {
 		/// we also consider that our start must be lower than our end (with a margin)
 		leftLimit = min + margin;
-		rightLimit = self.end - margin*2;
+		rightLimit = refEdgePos - margin*2;
 	} else if(edge == rightEdge) {
-		leftLimit = self.start + margin*2;
+		leftLimit = refEdgePos + margin*2;
 		rightLimit = max - margin;
 	} else {
 		leftLimit = min + margin;
 		rightLimit = max - margin;
 	}
 								
-	if(self.class == Mmarker.class) {       			/// if we are a marker, our range must also consider all our bins
-		NSSet *bins = ((Mmarker *)self).bins;
+	if(self.class == Mmarker.class) {       			/// if this case the range must also consider all the bins
+		NSArray<Bin *> *bins = ((Mmarker *)self).sortedBins;
 		if(bins.count > 0)  {
-			NSArray <Region *>*sortedBins = [bins.allObjects sortedArrayUsingKey:@"start" ascending:YES];
 			if(edge == leftEdge) {
-				rightLimit = sortedBins.firstObject.start;
+				rightLimit = bins.firstObject.start;
 			} else {
-				leftLimit = sortedBins.lastObject.end;
+				leftLimit = bins.lastObject.end;
 			}
 		}
 	}
@@ -123,7 +124,7 @@ regionEditStateKey = @"editState";
 }
 
 
-- (float)minimumWidth {
++ (float)minimumWidth {
 	return 0;
 }
 
@@ -195,7 +196,7 @@ regionEditStateKey = @"editState";
 			float start = isStart? newCoordinate : self.start;
 			float end = isStart? self.end : newCoordinate;
 			
-			if(end - start < self.minimumWidth) {
+			if(end - start < self.class.minimumWidth) {
 				if (error != NULL) {
 					NSString *description = [NSString stringWithFormat: @"There is no room for the %@.", self.entity.name]; /// Subclasses can provided a more detailed error.
 					*error = [NSError managedObjectValidationErrorWithDescription:description suggestion:@"" object:self reason:@""];

@@ -53,6 +53,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// It is activated by the escape key and calls ``stopShowingProgressAndClose``.
 @property (weak, nonatomic, readonly) NSButton *stopButton;
 
+/// Whether the window closes when the operation finishes.
+///
+/// The default value is `YES`.
+@property BOOL closesWhenFinished;
 		
 /// Shows the progress window after some delay.
 ///

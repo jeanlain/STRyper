@@ -32,13 +32,31 @@
 }
 
 
--(BOOL) isIdenticalTo:(NSArray *) array {
+-(BOOL) isEquivalentTo:(NSArray *) array {
 	NSInteger count = self.count;
-	if(array.count != self.count) {
+	if(array.count != count) {
 		return NO;
 	}
 	for(int i = 0; i < count; i++) {
-		if([self objectAtIndex:i] != array[i]) {
+		if(self[i] != array[i]) {
+			return NO;
+		}
+	}
+	return YES;
+}
+
+
+- (BOOL)containsSameObjectsAs:(NSArray *)array {
+	if(array.count != self.count) {
+		return NO;
+	}
+	NSMapTable *identityMap = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsObjectPointerPersonality valueOptions:0];
+	for (id obj in array) {
+		[identityMap setObject:@YES forKey:obj];
+	}
+	
+	for (id obj in self) {
+		if (![identityMap objectForKey:obj]) {
 			return NO;
 		}
 	}
@@ -47,8 +65,16 @@
 
 
 - (BOOL)sharesObjectsWithArray:(NSArray *)array {
-	for(id object in array) {
-		if([self indexOfObjectIdenticalTo:object] != NSNotFound) {
+	if(self.count == 0 || array.count == 0) {
+		return NO;
+	}
+	NSMapTable *identityMap = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsObjectPointerPersonality valueOptions:0];
+	for (id obj in array) {
+		[identityMap setObject:@YES forKey:obj];
+	}
+	
+	for (id obj in self) {
+		if ([identityMap objectForKey:obj]) {
 			return YES;
 		}
 	}
@@ -56,17 +82,76 @@
 }
 
 
--(NSArray *) arrayByRemovingObjectsIdenticalInArray:(NSArray *)array {
-	return [self filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
-		return [array indexOfObjectIdenticalTo:evaluatedObject] == NSNotFound;
-	}]];
+- (NSArray *)arrayByRemovingObjectsIdenticalInArray:(NSArray *)array {
+	NSMapTable *identityMap = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsObjectPointerPersonality valueOptions:0];
+	for (id obj in array) {
+		[identityMap setObject:@YES forKey:obj];
+	}
+
+	NSMutableArray *result = [NSMutableArray arrayWithCapacity:self.count];
+	for (id obj in self) {
+		if (![identityMap objectForKey:obj]) {
+			[result addObject:obj];
+		}
+	}
+	return result.copy;
 }
 
 
--(NSArray *) arrayByRemovingObjectsInArray:(NSArray *)array {
-	return [self filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
-		return ![array containsObject:evaluatedObject];
-	}]];
+
+- (NSArray *)arrayByRemovingObjectsInArray:(NSArray *)array {
+	NSSet *removalSet = [NSSet setWithArray:array];
+	
+	NSMutableArray *result = [NSMutableArray arrayWithCapacity:self.count];
+	for (id obj in self) {
+		if (![removalSet containsObject:obj]) {
+			[result addObject:obj];
+		}
+	}
+	return result.copy;
+}
+
+
+
+- (NSArray *)filteredArrayUsingBlock:(BOOL (^)(id obj, NSUInteger idx))predicateBlock {
+	NSParameterAssert(predicateBlock != nil);
+
+	NSMutableArray *result = [NSMutableArray arrayWithCapacity:self.count];
+
+	[self enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+		if (predicateBlock(obj, idx)) {
+			[result addObject:obj];
+		}
+	}];
+
+	return result.copy;
+}
+
+
+- (NSArray *)mappedArrayUsingBlock:(id (^)(id obj, NSUInteger idx, BOOL *stop))block {
+	NSParameterAssert(block != nil);
+	
+	NSMutableArray *result = [NSMutableArray arrayWithCapacity:self.count];
+	__block BOOL stop = NO;
+	
+	[self enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *innerStop) {
+		id mapped = block(obj, idx, &stop);
+		if (mapped) {
+			[result addObject:mapped];
+		}
+		if (stop) {
+			*innerStop = YES;
+		}
+	}];
+	
+	return [result copy];
+}
+
+
+- (NSArray *)arrayByRemovingObject:(id)object {
+	return [self filteredArrayUsingBlock:^BOOL(id  _Nonnull evaluatedObject, NSUInteger idx) {
+		return evaluatedObject != object;
+	}];
 }
 
 

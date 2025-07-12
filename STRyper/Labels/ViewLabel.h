@@ -63,6 +63,8 @@ NS_ASSUME_NONNULL_BEGIN
 	/// Backs the readonly ``hovered`` property and allows subclasses to set it.
 	BOOL _hovered;
 	
+	BOOL _allowsAnimations;
+	
 	/// Backs the readonly ``frame`` property and allows subclasses to set it.
 	NSRect _frame;
 	
@@ -167,6 +169,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) BOOL hovered;
 						
 /// Whether the label has been clicked and the mouse button is still down.
+///
+/// By default, a view label set ``allowsAnimations`` to `NO` when  it is clicked.
 @property (nonatomic) BOOL clicked;
 
 /// Whether the label is highlighted.
@@ -211,8 +215,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)drag;
 
 /// Whether the label is being dragged.
-///
-/// When this property returns `YES`, the repositioning of the label does not use animations (as when ``allowsAnimations`` returns `NO`).
 @property (nonatomic, readonly) BOOL dragged;
 													
 /// The menu that should display when the user right/ctrl-clicks the label.
@@ -256,12 +258,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default implementation does nothing. Subclass must override this method.
 - (void)reposition;
 
-/// Whether layer actions are enabled (wether the label's ``layer``  uses default animations).
+/// Prevents the label from animating its ``layer`` when set to `NO`.
 ///
-/// When set to `NO`, the label will not use animations for any property (when repositioning, etc.).
-/// This property only relevant for a label using a ``layer`` of which the label is the delegate.
+/// When set to `NO`, the label will not use animations (when repositioning, etc.).
+/// Otherwise, the label uses its default behaviour, which relies on its ``view``'s ``LabelView/allowsAnimations`` property.
 ///
-/// The default value is `YES` (default actions are used), but animations are not used if ``dragged`` returns `YES`.
+/// The default value is `YES`
 @property (nonatomic) BOOL allowsAnimations;
 
 /// Set to `YES` to  notify that the label needs to update its appearance.

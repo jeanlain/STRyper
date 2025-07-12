@@ -60,11 +60,11 @@ static NSArray *channelColorImages;
 
 + (NSArray *)channelColorImages {
 	if(!channelColorImages) {
-		channelColorImages = @[[NSImage imageNamed:@"showBlueDye"],
-							  [NSImage imageNamed:@"showGreenDye"],
-							  [NSImage imageNamed:@"showBlackDye"],
-							  [NSImage imageNamed:@"showRedDye"],
-							  [NSImage imageNamed:@"showOrangeDye"]
+		channelColorImages = @[[NSImage imageNamed:ACImageNameShowBlueDye],
+							  [NSImage imageNamed:ACImageNameShowGreenDye],
+							  [NSImage imageNamed:ACImageNameShowBlackDye],
+							  [NSImage imageNamed:ACImageNameShowRedDye],
+							  [NSImage imageNamed:ACImageNameShowOrangeDye]
 		];
 	}
 	return channelColorImages;
@@ -75,11 +75,11 @@ static NSArray *channelColorImages;
 	[super viewDidLoad];
 	NSMenu *menu = NSMenu.new;
 	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:@"copy"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameCopy];
 	item.target = self;
 	[menu addItem:item];
 	item = [[NSMenuItem alloc] initWithTitle:@"Delete" action:@selector(remove:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:@"trash"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameTrash];
 	item.target = self;
 	[menu addItem:item];
 	self.tableView.menu = menu;

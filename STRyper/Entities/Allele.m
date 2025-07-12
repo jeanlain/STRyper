@@ -52,6 +52,10 @@
 /// The allele size as it can be shown in a table. This allows returning `nil` if the allele has a scan of 0 (to avoid showing a size of 0).
 @property (nonatomic, readonly) NSNumber *visibleSize;
 
+/// Convenience property used to show additional fragments of a genotype in a table.
+@property (nonatomic, readonly) NSString *sizeAndName;
+
+
 @end
 
 
@@ -80,6 +84,54 @@
 	return self;
 }
 
+
+static void *attributeChangeContext = &attributeChangeContext;
+
+
+- (void)awakeFromFetch {
+	[super awakeFromFetch];
+	if(self.managedObjectContext.concurrencyType == NSMainQueueConcurrencyType) {
+		[self observeAttributes];
+	}
+}
+
+
+- (void)awakeFromInsert {
+	[super awakeFromInsert];
+	if(self.managedObjectContext.concurrencyType == NSMainQueueConcurrencyType) {
+		[self observeAttributes];
+	}
+}
+
+
+-(void) observeAttributes {
+	[self addObserver:self forKeyPath:@"genotype" options:NSKeyValueObservingOptionNew context:attributeChangeContext];
+	[self addObserver:self forKeyPath:@"size" options:NSKeyValueObservingOptionNew context:attributeChangeContext];
+	[self addObserver:self forKeyPath:@"name" options:NSKeyValueObservingOptionNew context:attributeChangeContext];
+	[self addObserver:self forKeyPath:@"scan" options:NSKeyValueObservingOptionNew context:attributeChangeContext];
+}
+
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+	if (context == attributeChangeContext) {
+		[self.genotype _alleleAttributeDidChange];
+	} else {
+		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+	}
+}
+
+
+- (void)willTurnIntoFault {
+	[super willTurnIntoFault];
+	@try {
+		 [self removeObserver:self forKeyPath:@"size"];
+		 [self removeObserver:self forKeyPath:@"name"];
+		 [self removeObserver:self forKeyPath:@"scan"];
+		 [self removeObserver:self forKeyPath:@"genotype"];
+	 } @catch (NSException *exception) {
+		 // If observer wasn’t added, ignore exception
+	 }
+}
 
 
 -(void)findNameFromBins {
@@ -128,7 +180,7 @@
 -(void) computeSize {
 	if(self.scan <= 0) {
 		/// an allele that is missing (no peak found) has a scan of zero, but is still present
-		self.size = 0;
+		self.size = -1000;
 	} else {
 		Chromatogram *sample = self.trace.chromatogram;
 		if(sample) {
@@ -166,8 +218,13 @@
 }
 
 
++ (NSSet<NSString *> *)keyPathsForValuesAffectingSizeAndName:(NSString *)key {
+	return [NSSet setWithObjects:@"size", @"name", nil];
+}
+
+
 - (NSNumber *)visibleSize {
-	if(self.scan == 0) {
+	if(self.scan == 0 || self.size <= -1000.0) {
 		return nil;
 	}
 	return @(self.size);
@@ -176,6 +233,7 @@
 
 - (void)removeFromGenotypeAndDelete {
 	if(self.additional) {
+		self.name = nil;
 		[self managedObjectOriginal_setGenotype:nil];
 		[self managedObjectOriginal_setTrace:nil];
 		[self.managedObjectContext deleteObject:self];

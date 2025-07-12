@@ -22,12 +22,14 @@
 #import "FittingView.h"
 #import "LadderFragment.h"
 #import "SizeStandard.h"
-
+#import "GeneratedAssetSymbols.h"
 
 @interface FittingView()
 
 /// The ladder trace of the sample.
 @property (nullable, nonatomic, weak) Trace* trace;
+@property (nonatomic) BOOL needsUpdateDisplay;
+
 
 @end
 
@@ -215,7 +217,7 @@
 		/// we show the curve only if one sample is selected
 		Chromatogram *sample = samples.firstObject;
 		self.trace = sample.ladderTrace;
-		traceColor = self.trace.channel == redChannelNumber ? [NSColor colorNamed:@"RedChannelColor"] : [NSColor colorNamed:@"OrangeChannelColor"];
+		traceColor = self.trace.channel == redChannelNumber ? [NSColor colorNamed:ACColorNameRedChannelColor] : [NSColor colorNamed:ACColorNameOrangeChannelColor];
 	} else {
 		self.textField.stringValue = samples.count > 1 ? self.multipleSampleString : self.noSampleString;
 		self.trace = nil;
@@ -225,25 +227,33 @@
 
 - (void)setTrace:(Trace *)aTrace {
 	if(_trace.chromatogram) {
-		[_trace.chromatogram removeObserver:self forKeyPath:ChromatogramSizesKey];
+		[_trace.chromatogram removeObserver:self forKeyPath:ChromatogramCoefsKey];
 	}
 	_trace = aTrace;
 	Chromatogram *sample = _trace.chromatogram;
 	if(sample) {
 		/// we observe changes in the sizing of the sample, to redraw the curve if needed
-		[sample addObserver:self forKeyPath:ChromatogramSizesKey options:NSKeyValueObservingOptionNew context:nil];
+		[sample addObserver:self forKeyPath:ChromatogramCoefsKey options:NSKeyValueObservingOptionNew context:nil];
 		nScans = sample.sizes.length / sizeof(float);
 	}
-	[self updateDisplay];
+	self.needsUpdateDisplay = YES;
 }
 
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
-	if([keyPath isEqualToString:ChromatogramSizesKey]) {
+	if([keyPath isEqualToString:ChromatogramCoefsKey]) {
 		/// we update the view at the next cycle because several properties of the trace and sample changes successively (sizing quality, ladder fragments...). We wait until all is done.
-		[self performSelector:@selector(updateDisplay) withObject:nil afterDelay:0.0];
+		self.needsUpdateDisplay = YES;
 	} else {
 		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+	}
+}
+
+
+- (void)setNeedsUpdateDisplay:(BOOL)needsUpdateDisplay {
+	_needsUpdateDisplay = needsUpdateDisplay;
+	if(needsUpdateDisplay) {
+		self.needsDisplay = YES;
 	}
 }
 
@@ -264,29 +274,33 @@
 	if(!noSizing) {
 		/// we scale the plot such that the line corresponding to a linear regression between scan and size is the diagonal of the view (ascending from left to right)
 		/// The first scan is the one corresponding to size 0 according to this regression
-		NSSet *fragments = [self.trace.fragments filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
-			if([evaluatedObject class] == LadderFragment.class) {
-				return ((LadderFragment *)evaluatedObject).scan > 0;
+		float minSize = INFINITY;
+		float maxSize = 0;
+		int nFragments = 0;
+		for(LadderFragment *fragment in self.trace.fragments) {
+			if(fragment.scan > 0) {
+				nFragments++;
+				float size = fragment.size;
+				if(size < minSize) {
+					minSize = size;
+				}
+				if(size > maxSize) {
+					maxSize = size;
+				}
 			}
-			return NO;
-		}]];
+		}
 		
-		if(fragments.count > 3) {
-			NSArray *sortedFragments = [fragments sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:LadderFragmentSizeKey ascending:YES]]];
-			LadderFragment *first = sortedFragments.firstObject;
-			float minSize = first.size;
-			LadderFragment *last = sortedFragments.lastObject;
-			float maxSize = last.size;
-			float margin = (maxSize - minSize)/ 20;
-			minSize -= margin; maxSize += margin;
-			
-			if(minSize > 0) {
-				minSize = 0;
-			}
-			float endSize = nScans * sample.sizingSlope + sample.intercept;
-			if(maxSize < endSize) {
-				maxSize = endSize;
-			}
+		float margin = (maxSize - minSize)/ 20;
+		minSize -= margin; maxSize += margin;
+		
+		if(minSize > 0) {
+			minSize = 0;
+		}
+		float endSize = nScans * sample.sizingSlope + sample.intercept;
+		if(maxSize < endSize) {
+			maxSize = endSize;
+		}
+		if(nFragments > 3) {
 			firstScan = (int)((minSize - sample.intercept)/sample.sizingSlope);
 			lastScan = (int)((maxSize - sample.intercept)/sample.sizingSlope);
 		} else {
@@ -296,8 +310,6 @@
 		/// we update the coordinates used to draw the dash line layer in the next cycle as some subviews are not yet updated to new sample data
 		[self performSelector:@selector(updateLimits) withObject:nil afterDelay:0.0];
 	}
-
-	self.needsDisplay = YES;
 }
 
 
@@ -311,6 +323,9 @@
 
 
 - (void)drawRect:(NSRect)dirtyRect {
+	if(_needsUpdateDisplay) {
+		[self updateDisplay];
+	}
 	
 	if(noSizing) {
 		return;
@@ -358,7 +373,7 @@
 	int pointsInPath = 0;
 	
 	[traceColor setStroke];
-	NSInteger startScan = (firstScan >= 0)? firstScan : 0;
+	NSInteger startScan = MAX(firstScan, 0);
 
 	for(NSInteger scan = startScan; scan < nScans; scan += increment) {
 		CGPoint point = CGPointMake((scan - firstScan) * hScale, sizes[scan]*vScale );

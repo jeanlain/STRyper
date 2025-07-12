@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A trace contains fluorescence data obtained from a given ``channel``, as well as information related to peaks found in the data.
 ///
-/// This class implements a method that finds peaks that corresponds to ``SizeStandard/sizes`` of a size standard.
+/// This class implements methods for drawing fluorescence curves.
 @interface FluoTrace : CodingObject
 
 /// An integer that represents the channel (wavelength) of the fluorescence data.
@@ -188,15 +188,7 @@ int32_t peakEndScan(const Peak *peakPTR);
 ///
 /// The reverse relationship is ``LadderFragment/trace`` from ``LadderFragment``.
 /// This relationship is encoded in ``CodingObject/encodeWithCoder:``  and decoded in ``CodingObject/initWithCoder:``.
-@property (nonatomic) NSSet<LadderFragment *> *fragments;
-
-/// Finds ladder fragments based on the  chromatogram's size standard.
-///
-/// This method finds peaks that may correspond to the ``SizeStandard/sizes`` of the ``Chromatogram/sizeStandard``,
-/// sets the trace's ``fragments`` accordingly and calls ``Chromatogram/computeFitting`` on its ``chromatogram``.
-///
-/// This method does nothing is the trace returns `NO` to ``isLadder`` or if its ``chromatogram`` has no size standard.
-- (void)findLadderFragmentsAndComputeSizing;
+@property (nonatomic, nullable) NSSet<LadderFragment *> *fragments;
 
 
 
@@ -248,6 +240,47 @@ BaseRange MakeBaseRange(float start, float len);
 /// If the trace is not a ladder, its ``fragments`` are ``Genotype/alleles`` of
 /// a sample's ``Chromatogram/genotypes``, which are copied if the sample is copied. This method does not copy them to avoid duplicates.
 -(instancetype) copy;
+
+
+
+/// Prepares a path or array of points for drawing in ``drawInContext:``.
+/// - Parameters:
+///   - startSize: The size in base pairs from which the trace should be drawn.
+///   - endSize: The size in base pairs after which drawing should end.
+///   - vScale: The vertical scale in points per RFU.
+///   - hScale: The horizontal scale un points per scan.
+///   - leftOffset: Offset in base pairs corresponding to the origin (see ``Chromatogram/startSize``).
+///   - useRawData: Whether to draw the ``rawData``. If `NO`, ``adjustedDataMaintainingPeakHeights:`` is used.
+///   - maintainPeakHeights: If `useRawData` is `NO` wether drawing uses adjusted data that maintains peak heights.
+///   - minY: In vertical coordinates (points), the value below which scans can be skipped and a horizontal line is drawn. The line is drawn at `minY`-1.
+///
+///   This method can be called to prepare drawing asynchronously.
+-(void) prepareDrawPathFromSize:(float) startSize
+			  toSize:(float)endSize
+			  vScale:(float)vScale
+			  hScale:(float)hScale
+		  leftOffset:(float)leftOffset
+		  useRawData:(BOOL)useRawData
+ maintainPeakHeights:(BOOL) maintainPeakHeights
+						   minY:(CGFloat)minY;
+
+/// Draws the trace in a given graphic context, using paths prepared in ``prepareDrawPathFromSize:toSize:vScale:hScale:leftOffset:useRawData:maintainPeakHeights:minY:``.
+/// - Parameter ctx: A graphic context.
+///
+/// - Important: For any drawing to occur, ``prepareDrawPathFromSize:toSize:vScale:hScale:leftOffset:useRawData:maintainPeakHeights:minY:`` must be be sent to the trace before calling this method.
+-(void) drawInContext:(CGContextRef)ctx;
+
+
+-(void) drawCrosstalkPeaksInContext:(CGContextRef)ctx
+						   FromSize:(float)startSize
+							 toSize:(float)endSize
+							 vScale:(float)vScale
+							 hScale:(float)hScale
+						 leftOffset:(float)leftOffset
+						 useRawData:(BOOL)useRawData
+				maintainPeakHeights:(BOOL)maintainPeakHeights
+					 offScaleColors:(NSArray<NSColor *> *)dyeColors;
+
 
 @end
 

@@ -396,12 +396,18 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 			[outlineView moveItemAtIndex:sourceIndex inParent:source toIndex:destinationIndex inParent:destination];
 		}
 		[outlineView reloadItem:destination];
+		if(!destinationExpanded) {
+			[self openAncestorsOf:destination];
+			[outlineView.animator expandItem:destination];
+		}
 	} else if(folderWasAdded) {
 		if(sourceExpanded) {
 			[outlineView insertItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideDown];
 		} else {
+			/// We expand the parent folder. We reload first to make sure the outline view knows it has a child.
+			[outlineView reloadItem:source];
 			[self openAncestorsOf:source];
-			[outlineView expandItem:source];
+			[outlineView.animator expandItem:source];
 		}
 	} else if(folderWasDeleted && sourceExpanded) {
 		/// On macOS 14, removing the row can cause a freeze if its text field is currently edited.
@@ -426,7 +432,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		/// The hasSubfolders ivar avoids doing it more than once, as this breaks the animation.
 		[outlineView reloadItem:source.parent reloadChildren:YES];
 	} else {
-		[outlineView reloadItem:source];
+		[outlineView reloadItem:source]; ///(possibly a safety measure. May no longer be needed.
 	}
 	[outlineView endUpdates];
 	[NSAnimationContext endGrouping];
@@ -888,7 +894,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 
 - (void)expandFolder:(Folder *)folder {
-	[outlineView expandItem:folder];
+	[outlineView.animator expandItem:folder];
 }
 
 
@@ -955,7 +961,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		/// we start from the most distant ancestor (which can be the root folder)
 		ancestors = [[ancestors reverseObjectEnumerator] allObjects];
 		for(Folder *ancestor in ancestors) {
-			[outlineView expandItem:ancestor];
+			[outlineView.animator expandItem:ancestor];
 		}
 	}
 }

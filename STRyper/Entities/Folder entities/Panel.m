@@ -65,8 +65,13 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 }
 
 
-- (NSArray *)panels {
-	return @[self];
+- (NSSet *)panels {
+	return [NSSet setWithObject:self];
+}
+
+
+- (NSSet *)allPanels {
+	return [NSSet setWithObject:self];
 }
 
 
@@ -77,7 +82,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 	for(Mmarker *marker in sortedMarkers) {
 		/// for each marker, we use the "marker" keyword and specify all relevant properties
 		[exportStrings addObject:marker.stringRepresentation];
-		NSArray *sortedBins = [marker.bins.allObjects sortedArrayUsingKey:@"start" ascending:YES];
+		NSArray *sortedBins = marker.sortedBins;
 		NSArray *binStrings = [sortedBins valueForKeyPath:@"@unionOfObjects.stringRepresentation"];
 		if(binStrings.count > 0) {
 			[exportStrings addObjectsFromArray:binStrings];
@@ -327,9 +332,9 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 
 
 - (NSArray *)markersForChannel:(ChannelNumber)channel {
-	return [self.markers.allObjects filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Mmarker *marker, NSDictionary<NSString *,id> * _Nullable bindings) {
+	return [self.markers.allObjects filteredArrayUsingBlock:^BOOL(Mmarker*  _Nonnull marker, NSUInteger idx) {
 		return marker.channel == channel;
-	}]];
+	}];
 }
 
 

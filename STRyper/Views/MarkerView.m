@@ -38,7 +38,10 @@ const float markerViewHeight = 20.0;
 /// Setting this to `YES` changes the cursor to a copyDrag cursor.
 /// This property will not be set to `YES` if the view returns `nil` for its ``LabelView/panel`` property.
 @property (nonatomic) BOOL inAddMode;
-						
+
+/// a layer showing the string shown when no marker can be shown nor added
+@property (nonatomic) CATextLayer *noPanelStringLayer;
+
 /// our ruler view.
 @property (nonatomic) RulerView *rulerView;
 
@@ -46,7 +49,6 @@ const float markerViewHeight = 20.0;
 
 
 @implementation MarkerView {
-	CATextLayer *noPanelStringLayer;		/// a layer showing the string shown when no marker can be shown nor added
 	NSButton *addMarkerButton;          	/// a button that the views owns and that is used to add a new marker
 	NSButton *previousMarkerButton;         /// a button that can be click to make the trace view shows the previous marker (on the left)
 	NSButton *nextMarkerButton;          	/// a button that can be click to make the trace view shows the next marker (on the right)
@@ -86,11 +88,12 @@ enum ButtonTag : NSUInteger {
 
 
 -(void)setAttributes {
+	_backgroundColor = NSColor.windowBackgroundColor;
 	self.layer.opaque = YES;
 	self.layer.needsDisplayOnBoundsChange = YES;			/// our layer may show a text layer indicating the absence of panel. This text must remain centered if the view resizes.
-	previousMarkerButton = [self defaultButtonWithImageName:@"goLeft" tag:previousMarkerButtonTag];
-	addMarkerButton = [self defaultButtonWithImageName:@"addCircle" tag:addMarkerButtonTag];
-	nextMarkerButton = [self defaultButtonWithImageName:@"goRight" tag:nextMarkerButtonTag];
+	previousMarkerButton = [self defaultButtonWithImageName:ACImageNameGoLeft tag:previousMarkerButtonTag];
+	addMarkerButton = [self defaultButtonWithImageName:ACImageNameAddCircle tag:addMarkerButtonTag];
+	nextMarkerButton = [self defaultButtonWithImageName:ACImageNameGoRight tag:nextMarkerButtonTag];
 
 }
 
@@ -124,6 +127,21 @@ enum ButtonTag : NSUInteger {
 		}
 	}
 	return _traceView;
+}
+
+
+- (CATextLayer *)noPanelStringLayer {
+	if(!_noPanelStringLayer) {
+		_noPanelStringLayer = CATextLayer.new;
+		_noPanelStringLayer.font = (__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:10.0]);
+		_noPanelStringLayer.fontSize = 10.0;
+		_noPanelStringLayer.contentsScale = 3.0;
+		_noPanelStringLayer.delegate = self;
+		_noPanelStringLayer.alignmentMode = kCAAlignmentCenter;
+		_noPanelStringLayer.bounds = CGRectMake(0, 0, 200, 15);
+		[self.backgroundLayer addSublayer:_noPanelStringLayer];
+	}
+	return _noPanelStringLayer;
 }
 
 
@@ -181,7 +199,7 @@ enum ButtonTag : NSUInteger {
 	if(!sender.isBordered && sender.image.isTemplate) {
 		if (@available(macOS 10.14, *)) {
 			ChannelNumber channel = self.channel;
-			NSArray *colorsForChannels = self.class.colorsForChannels;
+			NSArray *colorsForChannels = self.colorsForChannels;
 			if(colorsForChannels.count > channel && channel >= 0) {
 				NSColor *tintColor = colorsForChannels[channel];
 				sender.contentTintColor = [tintColor blendedColorWithFraction:0.3 ofColor:NSColor.whiteColor];
@@ -193,10 +211,15 @@ enum ButtonTag : NSUInteger {
 
 
 - (void)updateLayer {
+	if(_needsUpdateContent) {
+		[self updateContent];
+	}
+	
 	if(self.needsUpdateLabelAppearance) {
-		self.layer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
-		if(noPanelStringLayer) {
-			noPanelStringLayer.foregroundColor = NSColor.secondaryLabelColor.CGColor;
+		[self updateColorsForChannels];
+		self.layer.backgroundColor = _backgroundColor.CGColor;
+		if(_noPanelStringLayer) {
+			_noPanelStringLayer.foregroundColor = NSColor.secondaryLabelColor.CGColor;
 		}
 		for(RegionLabel *label in self.markerLabels) {
 			[label updateForTheme];
@@ -205,8 +228,8 @@ enum ButtonTag : NSUInteger {
 	}
 	/// We make sure the layer showing the absence of panel is centered.
 	/// This could have been done with a layout constraint, but this would have required more code, probably
-	if(noPanelStringLayer && !noPanelStringLayer.hidden) {
-		noPanelStringLayer.position = CGPointMake(NSMidX(self.bounds), NSMidY(self.bounds));
+	if(_noPanelStringLayer && !_noPanelStringLayer.hidden) {
+		_noPanelStringLayer.position = CGPointMake(NSMidX(self.bounds), NSMidY(self.bounds));
 	} else {
 		[super updateLayer];
 	}
@@ -233,7 +256,7 @@ enum ButtonTag : NSUInteger {
 # pragma mark - geometry
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == _backgroundLayer || layer == self.layer) {
+	if(layer == _backgroundLayer || layer == self.layer || layer == _noPanelStringLayer) {
 		return NSNull.null;
 	}
 	return nil;
@@ -288,14 +311,16 @@ enum ButtonTag : NSUInteger {
 
 - (NSRect)visibleRect {
 	/// We return a rectangle that corresponds to the area between the buttons. This avoid the overlap between marker labels and buttons
-	float start = 0; float end = NSMaxX(self.bounds);
+	NSRect bounds = self.bounds;
+	float start = 0; float end = NSMaxX(bounds);
 	if(addMarkerButton && !addMarkerButton.hidden) {
 		start = NSMaxX(addMarkerButton.frame);
 	}
+	start = MAX(start, self.traceView.leftInset);
 	if(nextMarkerButton && !nextMarkerButton.hidden) {
 		end = nextMarkerButton.frame.origin.x;
 	}
-	return NSMakeRect(start, 0, end-start, self.bounds.size.height);
+	return NSMakeRect(start, 0, end-start, bounds.size.height);
 }
 
 
@@ -348,48 +373,50 @@ enum ButtonTag : NSUInteger {
 }
 
 
-- (void)updateContent {
+-(void)setNeedsUpdateContent:(BOOL)needsUpdateContent {
+	if(needsUpdateContent) {
+		_needsUpdateContent = YES;
+		self.needsDisplay = YES;
+	}
+}
 
+
+- (void)updateContent {
+	_needsUpdateContent = NO;
 	TraceView *traceView = self.traceView;
 	if(!self.panel) {
 		self.inAddMode = NO;				/// we make sure the user won't try to add markers if there is no panel
 		self.markerLabels = NSArray.new;	/// we remove marker labels and show a text indicating why the user cannot add markers
 		NSString *noPanelString;
+		BOOL foundPanel = NO;
 		if(traceView.channel == noChannelNumber) {
-			/// We use the marker view to help the user understand why the trace view does not show a trace
+			/// We use this view to help the user understand why the trace view does not show a trace
 			noPanelString = @"No fluorescence data for this channel";
 		} else {
 			for(Trace *trace in traceView.loadedTraces) {
-				if(trace.chromatogram.panel && trace.chromatogram.sizingQuality) {
-					/// if one sample is sized and has a panel, although the view has none, it means there are multiple panels
-					noPanelString = @"Multiple panels";
-					break;
+				Chromatogram *sample = trace.chromatogram;
+				if(sample.panel) {
+					foundPanel = YES;
+					if(sample.sizingQuality != nil) {
+						/// if one sample is sized and has a panel, although the view has none, it means there are multiple panels
+						noPanelString = @"Multiple marker panels";
+						break;
+					}
 				}
 			}
 		}
 		if(!noPanelString) {
-			noPanelString = @"No panel to show";
+			noPanelString = foundPanel? @"Marker panel not shown" : @"No marker panel applied";
 		}
 		
-		if(!noPanelStringLayer) {
-			noPanelStringLayer = CATextLayer.new;
-			noPanelStringLayer.font = (__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:10.0]);
-			noPanelStringLayer.fontSize = 10.0;
-			noPanelStringLayer.contentsScale = 3.0;
-			noPanelStringLayer.actions = @{@"hidden": [NSNull null], @"position": [NSNull null]};
-			noPanelStringLayer.alignmentMode = kCAAlignmentCenter;
-			noPanelStringLayer.bounds = CGRectMake(0, 0, 200, 15);
-			[self.layer addSublayer:noPanelStringLayer];
-		}
+		CATextLayer *noPanelStringLayer = self.noPanelStringLayer;
 		noPanelStringLayer.foregroundColor = traceView.channel == noChannelNumber? NSColor.orangeColor.CGColor : NSColor.secondaryLabelColor.CGColor;
 		noPanelStringLayer.string = noPanelString;
 		noPanelStringLayer.hidden = NO;
 		addMarkerButton.enabled = NO;
-		self.needsDisplay = YES;
-		
 	} else {
-		if(noPanelStringLayer) {
-			noPanelStringLayer.hidden = YES;
+		if(_noPanelStringLayer) {
+			_noPanelStringLayer.hidden = YES;
 		}
 				
 		/// we cannot be used to add a marker if the traceView doesn't show a trace (hence only a marker)
@@ -403,23 +430,6 @@ enum ButtonTag : NSUInteger {
 		}
 		
 		self.needsRepositionLabels = YES;
-		/*
-		extern uint64_t dispatch_benchmark(size_t count, void (^block)(void));
-		uint64_t t = dispatch_benchmark(10, ^{
-			@autoreleasepool {
-				[self reuseRegionLabels:self.markerLabels givenRegions:markers];
-			}
-		});
-		
-		NSLog(@"Reuse Avg. Runtime: %llu ns", t);
-		
-		t = dispatch_benchmark(10, ^{
-			@autoreleasepool {
-				[self reuseRegionLabels:nil givenRegions:markers];
-			}
-		});
-		
-		NSLog(@"No Reuse Avg. Runtime: %llu ns", t); */
 	
 		NSArray *markerLabels = [self regionLabelsForRegions:markers reuseLabels:self.markerLabels];
 		Mmarker *marker = traceView.marker;

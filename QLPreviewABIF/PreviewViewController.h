@@ -22,7 +22,7 @@
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-#import <Cocoa/Cocoa.h>
+@import Cocoa;
 
 /// The object that controls the quick look preview.
 @interface PreviewViewController : NSViewController

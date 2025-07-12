@@ -34,6 +34,7 @@
 
 CodingObjectKey ChromatogramSizesKey = @"sizes",
 ChromatogramSizeStandardKey = @"sizeStandard",
+ChromatogramAppliedSizeStandardKey = @"appliedSizeStandard",
 ChromatogramSizingQualityKey = @"sizingQuality",
 ChromatogramPanelKey = @"panel",
 ChromatogramTracesKey = @"traces",
@@ -60,9 +61,8 @@ ChromatogramNScansKey = @"nScans",
 ChromatogramOffscaleScansKey = @"offScaleScans",
 ChromatogramOffscaleRegionsKey = @"offscaleRegions";
 
-NSPasteboardType _Nonnull const ChromatogramObjectIDPasteboardType = @"org.jpeccoud.stryper.chromatogramPasteboardType";
-
-NSPasteboardType _Nonnull const MarkerOffsetPasteboardType = @"org.jpeccoud.stryper.MarkerOffsetPasteboardType";
+NSPasteboardType _Nonnull const ChromatogramObjectIDPasteboardType = @"org.jpeccoud.stryper.chromatogramPasteboardType",
+MarkerOffsetPasteboardType = @"org.jpeccoud.stryper.MarkerOffsetPasteboardType";
 
 const float DefaultReadLength = 550.0;
 
@@ -97,6 +97,10 @@ const float DefaultReadLength = 550.0;
 -(void)managedObjectOriginal_setTraces:(nullable NSSet<Trace *>*)traces;
 -(void)managedObjectOriginal_setGenotypes:(nullable NSSet<Genotype *> *)genotypes;
 -(void)managedObjectOriginal_setOffscaleRegions:(nullable NSData *)offscaleRegions;
+
+/// A name that we use for sorting samples by sample name while clearly separating different samples with the same name
+/// which can happen often
+@property(nonatomic, readonly) NSString *uniqueName;
 
 @end
 
@@ -375,7 +379,7 @@ const float DefaultReadLength = 550.0;
 			for (Trace *trace in self.traces) {
 				/// to determine the channel that is off scale, we just see which has higher fluo in the first scan -1
 				/// (not at the tip, as sometimes saturation can truncate a peak)
-				int refScan = currentScan -1 >= 0 ? currentScan-1 : 0;
+				int refScan = MAX(currentScan-1, 0);
 				NSData *rawData = trace.rawData;
 				const int16_t *rawFluo = rawData.bytes;
 				long nScans = rawData.length/sizeof(int16_t);
@@ -394,20 +398,29 @@ const float DefaultReadLength = 550.0;
 	
 	[self managedObjectOriginal_setOffscaleRegions: [NSData dataWithBytes:regions length:count*sizeof(OffscaleRegion)]];
 	free(regions);
-	
+	regions = NULL;
 }
 
+/// Use in sorting the genotype table to avoid interleaving samples with identical names.
+- (NSString *)uniqueName {
+	return [self.sampleName stringByAppendingString:self.sourceFile];
+}
 
 # pragma mark - sizing
 
-- (void)setSizeStandard:(SizeStandard *)sizeStandard {
+- (void)setAppliedSizeStandard:(SizeStandard *)sizeStandard {
 	[self managedObjectOriginal_setSizeStandard:sizeStandard];
 	if(sizeStandard) {
 		if(self.polynomialOrder == NoFittingMethod) {
 			[self managedObjectOriginal_setPolynomialOrder: [NSUserDefaults.standardUserDefaults integerForKey:DefaultSizingOrder]];
 		}
-		[self.ladderTrace findLadderFragmentsAndComputeSizing];
+		[SizeStandard sizeSample:self];
 	}
+}
+
+
+- (SizeStandard *)appliedSizeStandard {
+	return self.sizeStandard;
 }
 
 
@@ -481,7 +494,7 @@ const float DefaultReadLength = 550.0;
 		for (int scan = 1; scan < lastPeakScan + 20; scan += 10) { /// We check every 10 scans
 			float size = yGivenPolynomial(scan, coefs, k+1);
 			if(size < maxScanSize) {
-				/// We must the fitting in as certain peaks may not be drawable otherwise, preventing manual assignment to sizes.
+				/// We discard the fitting in as certain peaks may not be drawable otherwise, preventing manual assignment to sizes.
 				/// The fitting would not be usable anyway.
 				[self setLinearCoefsForReadLength:readLength];
 				NSLog(@"Fitting too poor.");
@@ -504,7 +517,7 @@ const float DefaultReadLength = 550.0;
 		offsets[i] = sizes[i] - yGivenPolynomial(scans[i], coefs, k+1);
 		if(i > 0) {
 			/// we raise to a power here so that larger inconsistencies (greater than 1 bp) have an even more negative effect on the sizing quality.
-			float diffOffset = pow(fabs(offsets[i-1] - offsets[i]),2) / fabs(scans[i-1] - scans[i]);
+			float diffOffset = pow(offsets[i-1] - offsets[i],2) / fabs(scans[i-1] - scans[i]);
 			/// If a peak is assigned to the wrong size, this greatly reduces sizing quality
 			
 			if(diffOffset > maxDiffOffset) {
@@ -546,7 +559,7 @@ const float DefaultReadLength = 550.0;
 	
 	float reverseCoefs[2] = {-coefs[0]/coefs[1], 1/coefs[1]};
 	[self managedObjectOriginal_setReverseCoefs:[NSData dataWithBytes: reverseCoefs length:2*sizeof(float)]];
-	[self setSizingQuality:nil];
+	self.sizingQuality = nil;
 
 }
 
@@ -642,12 +655,12 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 
 
 -(void)setReadLength:(float)length {
-	_readLength = length > MAX_TRACE_LENGTH ? MAX_TRACE_LENGTH : length;
+	_readLength = MIN(MAX_TRACE_LENGTH, length);
 }
 
 
 -(void)setStartSize:(float)startSize {
-	_startSize = startSize > 0.0 ? 0.0 : startSize;
+	_startSize = MIN(0.0, startSize);
 }
 
 
@@ -704,6 +717,9 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	free(scans);
 	free(exponents);
 	free(scan2power);
+	scans = NULL;
+	exponents = NULL;
+	scan2power = NULL;
 	
 	/// we compute minScan, maxScan and readLength based on the sizing
 	vDSP_Length maxScan = nScans-1, minScan = 0;
@@ -723,7 +739,7 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	self.sizes = [NSData dataWithBytes:computedSizes length:nScans * sizeof(float)];
 	
 	free(computedSizes);
-	
+	computedSizes = NULL;
 }
 
 
@@ -749,6 +765,16 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 
 
 - (int)scanForSize:(float)size {
+	NSData *sizeData = self.sizes;
+	const float *sizes = sizeData.bytes;
+	int nScans = (int)sizeData.length/sizeof(float);
+	if(size <= sizes[0]) {
+		return 0;
+	}
+	if(size >= sizes[nScans-1]) {
+		return nScans-1;
+	}
+	
 	NSData *reverseCoefs = self.reverseCoefs;
 	if(!reverseCoefs) {
 		[self computeFitting];
@@ -761,16 +787,15 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	
 	/// the scan returned may not be the closest to the size, as the reverse coefs do not do the exact reverse of what the coefs do (which is expected)
 	/// but as this scan should be close to the scan we want, we find it by iteration
-	NSData *sizeData = self.sizes;
-	const float *sizes = sizeData.bytes;
-	long nScans = sizeData.length/sizeof(float);
-	if (scan > nScans-1 || scan < 0) {
-		return scan;
+	if (scan >= nScans) {
+		scan = nScans-1;
+	} else if(scan < 0) {
+		scan = 0;
 	}
 	float dist = sizes[scan] - size;
 	float minDist = fabs(dist);
 	int increment = dist < 0? 1 : -1;
-	while (scan > 0 && scan < nScans-1) {
+	while (scan >= -increment && scan < nScans-increment) {
 		scan += increment;
 		dist = fabs(sizes[scan] - size);
 		if(dist > minDist) {
@@ -915,7 +940,7 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 		for(Genotype *genotype in self.genotypes) {
 			genotype.status = genotypeStatusNoSizing;
 			for(Allele *allele in genotype.alleles) {
-				allele.scan = 0;
+				allele.size = -1000;
 			}
 		}
 	}
@@ -990,6 +1015,19 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 		}
 	}
 	return YES;
+}
+
+
+- (void)_wirePanel:(Panel *)panel {
+	for(Genotype *genotype in self.genotypes) {
+		for(Mmarker *marker in panel.markers) {
+			Mmarker *genotypeMarker = genotype.marker;
+			if(genotypeMarker.start == marker.start & genotypeMarker.channel == marker.channel) {
+				[genotype managedObjectOriginal_setMarker:marker];
+			}
+		}
+	}
+	[self managedObjectOriginal_setPanel:panel];
 }
 
 

@@ -263,6 +263,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 				returnedObject = [NSData dataWithBytes:converted length:dataSize];
 			}
 			free(converted);
+			converted = NULL;
 			break;
 		}
 		case elementTypeLong: {
@@ -276,6 +277,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 				returnedObject = [NSData dataWithBytes:converted length:dataSize];
 			}
 			free(converted);
+			converted = NULL;
 			break;
 		}
 		default:

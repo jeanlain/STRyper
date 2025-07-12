@@ -155,14 +155,14 @@
 		}
 	}
 	
-	NSArray *fetchedObjects = fetchedResultsController.fetchedObjects;
+	NSArray<Chromatogram *> *fetchedObjects = fetchedResultsController.fetchedObjects;
 	
 	/// We filter results to remove samples that may be in the trash
 	SampleFolder *trashFolder = FolderListController.sharedController.trashFolder;
 	if(trashFolder.subfolders.count > 0 || trashFolder.samples.count > 0) {
-		fetchedObjects = [fetchedObjects filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
-			return [evaluatedObject topAncestor] != trashFolder;
-		}]];
+		fetchedObjects = [fetchedObjects filteredArrayUsingBlock:^BOOL(Chromatogram*  _Nonnull sample, NSUInteger idx) {
+			return sample.topAncestor != trashFolder;
+		}];
 	}
 	return [NSSet setWithArray:fetchedObjects];
 }
@@ -230,7 +230,7 @@
 	for (NSView *view in subviews) {
 		[allSubviews addObjectsFromArray:[self allSubviewsOf:view]];
 	}
-	return allSubviews;
+	return allSubviews.copy;
 }
 
 

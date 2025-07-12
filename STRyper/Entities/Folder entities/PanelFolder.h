@@ -34,7 +34,12 @@ NS_ASSUME_NONNULL_BEGIN
 @interface PanelFolder : Folder
 
 /// Returns the receiver's ``Folder/subfolders``  that return `YES` to ``Folder/isPanel``.
-- (NSArray<Panel *> *) panels;
+- (NSSet<Panel *> *) panels;
+
+
+/// Returns all the ``panels`` of the folder and its ``Folder/subfolders``, including subfolders of subfolders.
+- (NSSet<Panel *> *) allPanels;
+
 
 /// A string representation of the receiver's ``panels``, which can be used to export it to a text file.
 ///

@@ -60,38 +60,46 @@ NS_ASSUME_NONNULL_BEGIN
 	
 
 /// Imports ``Chromatogram`` objects from abif files.
-///
+/// 
 /// The methods spawns a progress window after 1 second if the progress has not reached at least 50%.
 /// Samples are imported in a background queue into a temporary folder. 
-///
+/// 
 /// The caller is sent a block to execute  every `batchSize` imported samples, and after all files have been processed.
 /// When import is finished, this method calls a completion handler with any error that might have occurred.
 /// - Parameters:
-///   - batchSize: The number of successfully imported files before `intermediateBlock` is called.
 ///   Any number lower than 1 is considered as 1.
 ///   - filePaths: The paths of ABIF files to import.
+///   - batchSize: The number of successfully imported files before `intermediateBlock` is called.
+///   - progress: An optional progress that the method updates to indicate the number of files processed.
 ///   - intermediateBlock: The block sent after `batchSize` files have been imported, and after all files have been processed.
-///   The `SampleFolder` parameter contains a newly created folder (with no ``Folder/parent``) whose ``SampleFolder/samples`` are those imported since the last batch.
-///   This block can be used to update the UI, save to the store, etc.
-///   - callbackBlock: The block sent after the import is finished. If an error occurred during the import, the `NSError` parameter will be populated.
-///   If several errors occurred, they are accessible with the `NSDetailedErrorsKey` key of the `userInfo` dictionary.
+///   The `containerFolderID` parameter contains the `objectID` of newly created folder (with no ``Folder/parent``)
+///   whose ``SampleFolder/samples`` are those imported since the last batch. The folder is saved to the persistent store.
+///   If the block returns `NO` the import ends, which is interpreted as an error, which will be specified in the `error` parameter of the `callbackBlock`
+///   - callbackBlock: The block sent after the import is finished. If an error occurred during the import, the `error` parameter will be populated.
+///   If several errors occurred related to unreadable files, they are accessible with the `NSDetailedErrorsKey` key of the `userInfo` dictionary.
 - (void)importSamplesFromFiles:(NSArray<NSString *> *)filePaths
 					 batchSize:(NSUInteger)batchSize
-		   intermediateHandler:(void (^)(SampleFolder* folder))intermediateBlock
+					  progress:(nullable NSProgress *)progress
+		   intermediateHandler:(BOOL (^)(NSManagedObjectID *containerFolderID))intermediateBlock
 			 completionHandler: (void (^)(NSError *error))callbackBlock;
 
 /// Imports a folder from an archive.
-///
+///  
 /// The archive file must conform to `org.jpeccoud.stryper.folderarchive`.
-///
-/// The imported folder and its content are materialized in a ``AppDelegate/newChildContext``, which is saved at the end of the import.
-/// The imported folder is accessible in `callbackBlock` with any error that has occurred (in this case `importedFolder` is `nil`).
-///
-/// The methods spawns a progress window after 1 second if the process is still ongoing.
+///  
+/// The imported folder and its content, as well as imported panel and size standards that have no equivalent in the database
+/// are materialized in a ``AppDelegate/newChildContext``, which is saved at the end of the import.
+///  
+/// The imported items are accessible in `callbackBlock` with any error that has occurred (in this case `importedItems` is `nil`).
+///  
+/// The `importedItems` dictionary contains the imported folder at the `importedFolderKey`,
+/// a ``PanelFolder`` containing imported panels and panel folders at the `importedRootPanelsKey`
+/// and a set of imported size standards at the `importedSizeStandardsKey`. These sets can be empty.
 /// - Parameters:
 ///   - url: The url of the file to import.
+///   - importProgress: An optional progress that the method updates to indicate the number of files processed.
 ///   - callbackBlock: The block called when the import is finished. If an error occurred, the `NSError` parameter will be populated.
--(void)importFolderFromURL:(NSURL *)url completionHandler:(void (^)(NSError *error, SampleFolder *importedFolder))callbackBlock;
+-(void)importFolderFromURL:(NSURL *)url progress:(NSProgress *)importProgress completionHandler:(void (^)(NSError *error, SampleFolder *importedFolder))callbackBlock;
 
 @end
 

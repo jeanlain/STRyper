@@ -57,6 +57,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// See ``STRyper``'s user guide for a visual representation.
 - (void)drag;
 
+
+/// Implements the ``ViewLabel/doubleClickAction:`` method.
+///
+/// This methods adds a bin to the marker managed by the label at the location of the double click
+/// and sends ``RegionLabel/spawnRegionPopover:`` to corresponding ``BinLabel``, if any.
+///
+/// A new bin is added only if the label's ``RegionLabel/editState`` is `editStateBins`
+/// and if ``Bin/binForMarker:desiredMidSize:desiredWidth:`` does not return `nil`.
+/// The desired bin width is 1 bp.
+/// - Parameter sender: The object that sent this message. It is ignored by the method.
+- (void)doubleClickAction:(id)sender;
+
 /// Used internally to access the label's CA layer by the bin labels.
 @property (nonatomic, readonly) CALayer *_layer;
 

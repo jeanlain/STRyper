@@ -59,11 +59,11 @@
 	[super viewDidLoad];
 	NSMenu *menu = NSMenu.new;
 	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Edit Size" action:@selector(rename:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:@"edited"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameEdited];
 	item.target = self;
 	[menu addItem:item];
 	item = [[NSMenuItem alloc] initWithTitle:@"Delete" action:@selector(remove:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:@"trash"];
+	item.offStateImage = [NSImage imageNamed:ACImageNameTrash];
 	item.target = self;
 	[menu addItem:item];
 	self.tableView.menu = menu;

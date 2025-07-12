@@ -20,7 +20,7 @@
 
 
 
-#import <Cocoa/Cocoa.h>
+@import Cocoa;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The main purpose of this class is to bind the ``imageIndex`` property to an integer key of an object that can be represented by an image.
 /// This class therefore helps separating the view from the underlying model, avoiding `NSImage` properties in modeled objects, while still allowing binding to image views.
 ///
-/// NOTE: setting the `image` of an `IndexImageView` will change its `imageIndex` to the index of the image in the `imageArray`,
+/// - Note: setting the `image` of an `IndexImageView` will change its `imageIndex` to the index of the image in the `imageArray`,
 /// or logs an error if the image is not in the array.
 @interface IndexImageView : NSImageView
 

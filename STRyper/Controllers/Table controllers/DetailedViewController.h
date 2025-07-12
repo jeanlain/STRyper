@@ -26,13 +26,14 @@
 #import "TraceViewDelegate.h"
 
 
-/// A singleton class that manages the detailed view showing traces or markers.
+/// A singleton class that manages the detailed view showing chromatogram traces or molecular markers in ``STRyper``.
 ///
 /// This class manages the detailed view whose rows contain ``TraceView`` instances.
-/// The ``contentArray`` property determines what the trace views show: ``Chromatogram``,  ``Genotype``  or ``Mmarker`` objects.
+/// The ``TableViewController/contentArray`` property determines what the trace views show: ``Chromatogram``,  ``Genotype``  or ``Mmarker`` objects.
 ///
-/// When it shows genotypes or chromatograms, and depending on the ``stackMode`` property, the detailed view also shows "regular" table rows with sample metadata, like the table managed by the ``SampleTableController``.
-@interface DetailedViewController : TableViewController <TraceViewDelegate>
+/// When it shows genotypes or chromatograms, and depending on the ``stackMode`` property, the detailed view also shows "regular" table rows with sample metadata,
+/// like the table managed by the ``SampleTableController``.
+@interface DetailedViewController : TableViewController <TraceViewDelegate, NSOutlineViewDelegate, NSOutlineViewDataSource>
 
 
 /// The samples (``Chromatogram`` objects), genotypes (``Genotype`` objects)  or markers (``Mmarker`` objects) shown in the detailed view.
@@ -41,12 +42,12 @@
 ///
 /// NOTE: if there are too many objects in the array (>400 samples or >1000 genotypes), no item will be shown in the detailed view.
 /// A button will be shown instead, whose action is ``loadContent:``, and the content is set to an array containing only `NSNull`.
-@property (nonatomic) NSArray *contentArray;
+//@property (nonatomic) NSArray *contentArray;
 
-/// Forces the controller to set its ``contentArray`` to the  selected samples/genotypes/markers and to show them in the detailed view.
+/// Forces the controller to set its ``TableViewController/contentArray`` to the  selected samples/genotypes/markers and to show them in the detailed view.
 /// - Parameter sender: The object that sent the message. It is not used by the method.
 ///
-/// This methods considers that the content set by setting ``contentArray`` may not be loaded if it contains to many elements.
+/// This methods considers that the content set by setting ``TableViewController/contentArray`` may not be loaded if it contains to many elements.
 -(IBAction)loadContent:(NSButton *)sender;
 															
 /// An integer that specifies how the detailed view displays traces when its show samples.
@@ -69,7 +70,7 @@ typedef NS_ENUM(NSUInteger, StackMode) {
 
 /// The mode of stacking traces in rows of the detailed view.
 ///
-/// Setting this property reloads the detailed view if it shows samples (that is, if ``contentArray`` contains ``Chromatogram`` objects).
+/// Setting this property reloads the detailed view if it shows samples (that is, if ``TableViewController/contentArray`` contains ``Chromatogram`` objects).
 @property (nonatomic) StackMode stackMode;
 
 
@@ -78,7 +79,7 @@ typedef NS_ENUM(NSUInteger, StackMode) {
 /// The effective value is constrained to 1...5.
 @property (nonatomic) NSUInteger numberOfRowsPerWindow;
 
-/// Whether the ``TraceView/visibleRange`` of trace views should be synchronized.
+/// Whether the ``TraceView/visibleRange`` of trace views should be synchronized between rows.
 @property (nonatomic) BOOL synchronizeViews;
 
 /// Records the synchronized visible range of trace views in the user defaults
@@ -100,5 +101,9 @@ typedef NS_ENUM(NSUInteger, TopFluoMode) {
 /// The mode by which the vertical scale of trace views is managed.
 @property (nonatomic) TopFluoMode topFluoMode;
 
+/// Shows the system print panel to print traces, or an alert if there is nothing to print.
+///
+/// Currently, this prints the ``TableViewController/tableView`` showing traces.
+-(IBAction)print:(id)sender;
 
 @end

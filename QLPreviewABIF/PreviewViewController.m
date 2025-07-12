@@ -129,7 +129,7 @@ static NSString const *sampleNameKey = @"sampleName",
 			self.sampleInformation = @"Sample information missing";
 		}
 		
-		traceView.traces = [NSArray arrayWithArray:traces];
+		traceView.traces = traces.copy;
 	}
 	handler(error);
 	
