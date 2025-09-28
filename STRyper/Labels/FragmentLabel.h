@@ -28,21 +28,29 @@
 ///
 /// A fragment label represents a ``LadderFragment`` entity, which can be an ``Allele``.
 ///
-/// This label shows a rectangular text box that indicates the ``LadderFragment/size`` of the fragment or its ``LadderFragment/name`` if the fragment is an ``Allele``.
+/// Its is normal form, a label shows a rectangular text box that indicates the ``LadderFragment/size``
+/// of the fragment or its ``LadderFragment/name`` if the fragment is an ``Allele``.
+/// A fragment label may be inited in a "compact" form. In this form, the label only shows a small circle at the tip of a peak.
+/// A compact label does not show any text and cannot be dragged.
+/// This form is intended to represent alleles when the ``ViewLabel/view`` has  several ``TraceView/loadedGenotypes``.
 @interface FragmentLabel : ViewLabel <NSControlTextEditingDelegate, NSTextFieldDelegate>
 
 /// Returns a label that is initialized given a fragment.
-///
+/// 
 /// The method assumes that the `fragment` is among the ``FluoTrace/fragments`` of the ``TraceView/trace`` the `view` shows.
 /// - Parameters:
 ///   - fragment: The fragment that the label will represent.
 ///   - view: The view on which the label will show.
-- (instancetype)initFromFragment:(LadderFragment*)fragment view:(TraceView *)view NS_DESIGNATED_INITIALIZER;
+///   - compact: Whether the label should be compact.
+- (instancetype)initFromFragment:(LadderFragment*)fragment view:(TraceView *)view compact:(BOOL)compact NS_DESIGNATED_INITIALIZER;
 
 /// The allele or ladder fragment that the label represents.
 ///
 /// ``ViewLabel/representedObject`` also returns this object.
 @property (nonatomic) __kindof LadderFragment *fragment;
+
+/// Whether the label is compact.
+@property (nonatomic, readonly) BOOL isCompact;
 
 /// Repositions the ``TraceView/fragmentLabels`` of a ``TraceView`` to avoid collisions.
 ///
@@ -75,6 +83,9 @@
 /// If the fragment  has a ``LadderFragment/scan`` ≤ 0 and is a ladder fragment, the label places itself against the top edge of its ``ViewLabel/view``, at a horizontal position corresponding to the fragment's ``LadderFragment/size``.
 ///
 /// If the fragment is an allele and has a scan ≤ 0 (i.e., it is a missing allele), the label positions itself beyond the top edge of the view, at a position corresponding to the midpoint of the ``Genotype/marker``.
+///
+/// If the allele is compact, it positioned along the X axis according to the ``Allele/size`` of the allele it represents
+/// (i.e., the genotype's ``Genotype/offset``is taken into account).
 - (void)reposition;
 
 /// Implements the ``ViewLabel/drag`` method.
@@ -97,11 +108,15 @@
 /// If the label represents an  ``Allele``,  the method spawns a text field over the label, allowing the user to change the allele ``LadderFragment/name``.
 ///
 /// If the label represents an  ladder fragment,  the method removes the fragment from sizing.
+///
+/// - Note: If the label is compact, this method should not be called.
+///  A compact allele does not react to ``ViewLabel/mouseDraggedInView``.
 /// - Parameter sender: The object that send the message. It is ignored by the method.
 - (void)doubleClickAction:(id)sender;
 
 /// Implements the ``ViewLabel/deleteAction:`` method.
-/// 
+///
+/// If the label is compact, the method does nothing.
 /// If the label represents an ladder fragment, the method removes the fragment from sizing.
 ///
 /// If the label represents a non-additional allele, the allele takes a scan of 0 (see ``Allele`` class for the consequences).

@@ -49,8 +49,8 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 		/// The value contains the class of the described object, followed by the keys that the other fields specify for the object.
 		fieldDescription = @{
 			@"panel": @[Panel.entity.name, @"name"],
-			@"marker": @[Mmarker.entity.name, @"name", @"start", @"end", @"channel", @"ploidy", @"motiveLength"],
-			@"bin": @[Bin.entity.name, @"name", @"start", @"end"],
+			@"marker": @[Mmarker.entity.name,regionNameKey, regionStartKey, regionEndKey, @"channel", @"ploidy", @"motiveLength"],
+			@"bin": @[Bin.entity.name, regionNameKey, regionStartKey, regionEndKey],
 		};
 		
 		/// the colors corresponding to channels, as the text file specifies color names. The index of the color in the array is the channel
@@ -177,8 +177,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 		line++;
 		
 		/// We identify the entity described in the line
-		NSString *type = [columns.firstObject stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet];
-		type = type.lowercaseString;
+		NSString *type = [columns.firstObject stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet].lowercaseString;
 		
 		if([type rangeOfString:@"#"].location == 0 || (type.length == 0 && columns.count == 1)) {
 			/// we skip comment lines or empty lines
@@ -402,7 +401,7 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 
 /// Generate an entity (Panel, Marker or Bin) corresponding to a line containing fields
-- (NSManagedObject *)entityForType:(NSString *)type withFields:(NSArray <NSString *>*)fields atLine:(int)line ofFile:(NSString *)path error:(NSError *__autoreleasing *)error {
+- (__kindof NSManagedObject *)entityForType:(NSString *)type withFields:(NSArray <NSString *>*)fields atLine:(int)line ofFile:(NSString *)path error:(NSError *__autoreleasing *)error {
 	
 	NSArray *keys =  fieldDescription[type];
 	NSString *entityName = keys.firstObject;

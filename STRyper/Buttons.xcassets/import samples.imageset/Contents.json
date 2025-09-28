@@ -1,12 +1,25 @@
 {
   "images" : [
     {
-      "filename" : "import samples 2.pdf",
+      "filename" : "import samples.pdf",
+      "idiom" : "mac"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "import samples dark.pdf",
       "idiom" : "mac"
     }
   ],
   "info" : {
     "author" : "xcode",
     "version" : 1
+  },
+  "properties" : {
+    "preserves-vector-representation" : true
   }
 }

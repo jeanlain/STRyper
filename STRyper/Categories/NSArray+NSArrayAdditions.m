@@ -82,6 +82,16 @@
 }
 
 
+- (BOOL)containsAllObjectsOf:(NSArray *)array {
+	for(id object in array) {
+		if([self indexOfObjectIdenticalTo:object] == NSNotFound) {
+			return NO;
+		}
+	}
+	return YES;
+}
+
+
 - (NSArray *)arrayByRemovingObjectsIdenticalInArray:(NSArray *)array {
 	NSMapTable *identityMap = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsObjectPointerPersonality valueOptions:0];
 	for (id obj in array) {
@@ -128,6 +138,16 @@
 }
 
 
+
+- (NSArray *)filteredArrayUsingBlock2:(BOOL (^)(id obj))predicateBlock { /// currently not used (testing)
+	NSParameterAssert(predicateBlock != nil);
+
+	return [self filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id  _Nullable evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
+		return predicateBlock(evaluatedObject);
+	}]];
+}
+
+
 - (NSArray *)mappedArrayUsingBlock:(id (^)(id obj, NSUInteger idx, BOOL *stop))block {
 	NSParameterAssert(block != nil);
 	
@@ -152,6 +172,21 @@
 	return [self filteredArrayUsingBlock:^BOOL(id  _Nonnull evaluatedObject, NSUInteger idx) {
 		return evaluatedObject != object;
 	}];
+}
+
+
+- (NSArray *)uniqueValuesForKeyPath:(NSString *)keyPath {
+	NSMutableArray *result = NSMutableArray.new;
+	NSMutableSet *seen = NSMutableSet.new;
+	
+	for (id obj in self) {
+		id value = [obj valueForKeyPath:keyPath];
+		if (value && ![seen containsObject:value]) {
+			[result addObject:value];
+			[seen addObject:value];
+		}
+	}
+	return result;
 }
 
 

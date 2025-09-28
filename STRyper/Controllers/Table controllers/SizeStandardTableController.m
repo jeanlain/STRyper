@@ -24,7 +24,8 @@
 #import "Chromatogram.h"
 #import "SizeStandardSize.h"
 #import "SampleTableController.h"
-#import "MainWindowController.h"
+#import "ProgressWindow.h"
+
 @class SizeTableController;
 
 
@@ -188,15 +189,60 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 
 - (IBAction)applySizeStandard:(NSMenuItem *)sender {
 	SizeStandard *selectedSizeStandard = self.tableContent.selectedObjects.firstObject;
-	SampleTableController *sharedController = SampleTableController.sharedController;
-	if(selectedSizeStandard && sharedController) {
-		if(sender.tag == 1) {
-			[sharedController applySizeStandard:selectedSizeStandard toSamples:sharedController.samples.arrangedObjects];
-		} else if(sender.tag == 2) {
-			[sharedController applySizeStandard:selectedSizeStandard toSamples:sharedController.samples.selectedObjects];
-		}
+	NSArrayController *samples = SampleTableController.sharedController.samples;
+	if(selectedSizeStandard && samples) {
+		NSArray *targetSamples = sender.tag == 1? samples.arrangedObjects : samples.selectedObjects;
+		[self applySizeStandard:selectedSizeStandard toSamples:targetSamples];
 	}
 }
+
+
+
+- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
+	NSManagedObjectContext *MOC = sampleArray.firstObject.managedObjectContext;
+	if(!MOC) {
+		return;
+	}
+	/// We  show progress but don't use a background context because materializing all samples in this context woud take a long time.
+	/// So we progress in batches on the view context between which we update the UI via a progress window.
+	NSInteger batchSize = 30;
+	NSInteger sampleCount = sampleArray.count;
+	NSProgress *progress = [NSProgress progressWithTotalUnitCount:sampleCount];
+	NSUndoManager *undoManager = MOC.undoManager;
+	[undoManager setActionName:@"Apply Size Standard"];
+	[undoManager beginUndoGrouping];
+	
+	ProgressWindow *progressWindow = ProgressWindow.new;
+	[progressWindow showProgressWindowForProgress:progress afterDelay:0.2 modal:YES parentWindow:self.view.window];
+	__block NSInteger samplesProcessed = 0;
+	
+	__block void (^processNextBatch)(void); /// The block that processes a batch of samples.
+	void (^heapBlock)(void) = ^{  /// We will launch processing of  the next batch within the current batch. To avoid block self-reference, we use another block.
+		NSInteger max = samplesProcessed+batchSize;
+		for (NSInteger i = samplesProcessed; i < max; i++) {
+			if (progress.isCancelled || i >= sampleCount) {
+				[AppDelegate.sharedInstance saveAction:self];
+				[undoManager endUndoGrouping];
+				[progressWindow stopShowingProgressAndClose];
+				return;
+			}
+			Chromatogram *sample = sampleArray[i];
+			sample.appliedSizeStandard = standard;
+			samplesProcessed++;
+		}
+		/// We schedule the next batch after a short delay to let UI update.
+		progress.completedUnitCount = samplesProcessed;
+		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.001  * NSEC_PER_SEC)),
+					dispatch_get_main_queue(), ^{
+						if (processNextBatch) processNextBatch();
+					});
+	};
+	
+	processNextBatch = heapBlock;
+	processNextBatch(); /// We launch the first batch.
+}
+
+
 
 
 

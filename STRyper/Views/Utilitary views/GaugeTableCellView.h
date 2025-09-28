@@ -37,7 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The thickness of the gauge in points.
 ///
 /// The default value is 3.5 points.
-@property (nonatomic) float gaugeThickness;
+@property (nonatomic) CGFloat gaugeThickness;
 
 /// The value that is represented by the width of the gauge.
 ///

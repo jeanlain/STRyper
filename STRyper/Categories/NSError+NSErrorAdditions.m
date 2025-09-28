@@ -60,7 +60,7 @@ NSString *const STRyperErrorDomain = @"jpeccoud.STRyper";
 
 + (instancetype)managedObjectValidationErrorWithDescription:(NSString *)description suggestion:(NSString *)suggestion object:(id)object reason:(NSString *)reason {
 	NSDictionary *userInfo = @{
-		NSAffectedObjectsErrorKey:@[object],
+		NSAffectedObjectsErrorKey: object != nil? @[object]:nil,
 		NSLocalizedDescriptionKey: NSLocalizedString(description, nil),
 		NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(suggestion, nil),
 		NSLocalizedFailureReasonErrorKey: NSLocalizedString(reason, nil)

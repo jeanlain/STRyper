@@ -37,8 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The managed object context associated with the receiver.
 ///
-/// - Important: `managedObjectContext` must be the context to which the receiver is an undo manager.
-/// Hence, this property must be set after the receiver has been set as the  `undoManager` of the `managedObjectContext`.
+/// - Important: The setter sets the receiver as the undo manager of `managedObjectContext`.
 @property (weak, nonatomic) NSManagedObjectContext *managedObjectContext;
 
 

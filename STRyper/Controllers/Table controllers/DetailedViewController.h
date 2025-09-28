@@ -21,9 +21,9 @@
 
 
 #import "TraceView.h"
+#import "TraceOutlineView.h"
 #import "SourceListController.h"
 #import "TableViewController.h"
-#import "TraceViewDelegate.h"
 
 
 /// A singleton class that manages the detailed view showing chromatogram traces or molecular markers in ``STRyper``.
@@ -33,24 +33,22 @@
 ///
 /// When it shows genotypes or chromatograms, and depending on the ``stackMode`` property, the detailed view also shows "regular" table rows with sample metadata,
 /// like the table managed by the ``SampleTableController``.
-@interface DetailedViewController : TableViewController <TraceViewDelegate, NSOutlineViewDelegate, NSOutlineViewDataSource>
+@interface DetailedViewController : TableViewController <TraceViewDelegate, TraceOutlineViewDelegate, NSOutlineViewDataSource>
 
-
-/// The samples (``Chromatogram`` objects), genotypes (``Genotype`` objects)  or markers (``Mmarker`` objects) shown in the detailed view.
-///
-/// Setting this property reloads the content of the detailed view. The provided array must contain objects from only one of the classes listed above.
-///
-/// NOTE: if there are too many objects in the array (>400 samples or >1000 genotypes), no item will be shown in the detailed view.
-/// A button will be shown instead, whose action is ``loadContent:``, and the content is set to an array containing only `NSNull`.
-//@property (nonatomic) NSArray *contentArray;
 
 /// Forces the controller to set its ``TableViewController/contentArray`` to the  selected samples/genotypes/markers and to show them in the detailed view.
 /// - Parameter sender: The object that sent the message. It is not used by the method.
 ///
 /// This methods considers that the content set by setting ``TableViewController/contentArray`` may not be loaded if it contains to many elements.
--(IBAction)loadContent:(NSButton *)sender;
+-(IBAction)confirmLoadContent:(NSButton *)sender;
+
+/// Whether the detailed view shows genotypes (the ``TableViewController/contentArray`` contains ``Genotype`` objects).
+@property (readonly) BOOL showGenotypes;
+
+/// Whether the detailed view shows markers (the ``TableViewController/contentArray`` contains ``Mmarker`` objects).
+@property (readonly) BOOL showMarkers;
 															
-/// An integer that specifies how the detailed view displays traces when its show samples.
+/// An integer that specifies how the detailed view displays traces when it shows chromatograms.
 typedef NS_ENUM(NSUInteger, StackMode) {
 	
 	/// Each trace is shown in a separate row.
@@ -74,12 +72,22 @@ typedef NS_ENUM(NSUInteger, StackMode) {
 @property (nonatomic) StackMode stackMode;
 
 
-/// The number of rows showing traces to fit the visible height of the detailed view.
+/// Whether genotypes of a given marker should be stacked in the same row.
 ///
-/// The effective value is constrained to 1...5.
+/// This property has a visible effect only when the ``showGenotypes`` returns `YES`.
+@property (nonatomic) BOOL stackGenotypes;
+
+/// The desired number of rows showing traces to fit the visible height of the detailed view.
+///
+/// The effective value is constrained to 1...5. Changing it resize the rows vertically.
+///
+/// Depending on the height of visible area of the detailed view, and given that the height of rows is
+/// constrained to [40, 1000] points,  this number may differ from effective number of rows that can fit the view.
 @property (nonatomic) NSUInteger numberOfRowsPerWindow;
 
 /// Whether the ``TraceView/visibleRange`` of trace views should be synchronized between rows.
+///
+/// Synchronization is effective only when the detail view shows chromatograms (``showMarkers`` and ``showGenotypes`` return `NO`).
 @property (nonatomic) BOOL synchronizeViews;
 
 /// Records the synchronized visible range of trace views in the user defaults
@@ -102,8 +110,6 @@ typedef NS_ENUM(NSUInteger, TopFluoMode) {
 @property (nonatomic) TopFluoMode topFluoMode;
 
 /// Shows the system print panel to print traces, or an alert if there is nothing to print.
-///
-/// Currently, this prints the ``TableViewController/tableView`` showing traces.
 -(IBAction)print:(id)sender;
 
 @end

@@ -24,54 +24,80 @@
 @implementation STableRowView {
 	/// To know if we have already registered to a notification.
 	BOOL registered;
-	
 }
 
 
-- (void)viewDidMoveToWindow {
-	if(!registered) {
-		/// We need to react when the tableview scrolls.
-		[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(setSubviewFrame:) name:NSViewBoundsDidChangeNotification object:self.enclosingScrollView.contentView];
-		registered = YES;
+- (void)setMainSubview:(NSScrollView *)mainSubView {
+	if(_mainSubview) {
+		[_mainSubview removeFromSuperview];
 	}
-}
-
-- (void)setEmbeddedScrollView:(NSScrollView *)mainSubView {
-	if(_embeddedScrollView) {
-		[_embeddedScrollView removeFromSuperview];
+	_mainSubview = mainSubView;
+	if(mainSubView) {
+		[self addSubview:mainSubView];
+		[self registerForNotificationsWithSuperview:self.superview];
+	} else if(registered) {
+		[NSNotificationCenter.defaultCenter removeObserver:self];
+		registered = NO;
 	}
-	_embeddedScrollView = mainSubView;
-	[self addSubview:mainSubView];
 	self.needsLayout = YES;
+}
+
+
+-(void)registerForNotificationsWithSuperview:(NSView *)superView {
+	if(!registered) {
+		if([superView isKindOfClass:NSTableView.class] && superView.superview) {
+			[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(clipViewBoundsDidChange:) name:NSViewBoundsDidChangeNotification object:superView.superview];
+			registered = YES;
+		}
+	}
 }
 
 
 -(void)layout {
 	[super layout];
-	[self setSubviewFrame:nil];
+	NSView *clipView = self.superview.superview;
+	if(clipView) {
+		[self setSubviewFrameWithClipView:clipView];
+	}
+}
+
+
+- (void)viewWillMoveToSuperview:(NSView *)newSuperview {
+	/// When the row view is removed (during view recycling or tableview reload) and is (or a subview) is the first responder
+	/// the window may becomes the first responder, which is not what we want. It's better to make the table view the first responder.
+	[super viewWillMoveToSuperview:newSuperview];
+	if(newSuperview == nil) {
+		NSWindow *window = self.window;
+		NSResponder *firstResponder = self.window.firstResponder;
+		if(firstResponder == self || ([firstResponder isKindOfClass:NSView.class] && [(NSView *)firstResponder isDescendantOf:self])) {
+			[window makeFirstResponder:self.superview];
+		}
+	} else {
+		[self registerForNotificationsWithSuperview:newSuperview];
+	}
+}
+
+
+-(void)clipViewBoundsDidChange:(NSNotification *)notification {
+	[self setSubviewFrameWithClipView:notification.object];
 }
 
 
 /// Makes our first subview as wide as the tableview's clip view.
--(void)setSubviewFrame:(NSNotification *)notification {
-	NSView *subview = self.embeddedScrollView;
+-(void)setSubviewFrameWithClipView:(NSView *)clipView {
+	NSView *subview = self.mainSubview;
 
 	if(!subview) {
 		return;
 	}
-	/// We obtain the visible width of our tableview
-	/// for that, we use the clipview of the tableview's scrollview.
-	NSView *clipView = self.enclosingScrollView.contentView;
-	if(!clipView) {
-		return;
-	}
 	
-	float xOrigin = clipView.bounds.origin.x;
+	NSRect bounds = clipView.bounds;
+	float xOrigin = bounds.origin.x;
 	if(xOrigin < 0) {
 		xOrigin = 0;
 	}
 	
-	NSRect frame = NSMakeRect(xOrigin, 0, clipView.frame.size.width, self.frame.size.height);
+	NSRect frame = NSMakeRect(xOrigin, 0, bounds.size.width, self.frame.size.height);
 	NSRect subviewFrame = subview.frame;
 	if (frame.size.width > 30 && (fabs(frame.origin.x - subviewFrame.origin.x) > 0.5 ||
 								fabs(frame.size.width - subviewFrame.size.width) > 0.5)) {

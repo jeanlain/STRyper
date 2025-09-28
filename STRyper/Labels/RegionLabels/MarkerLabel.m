@@ -85,23 +85,19 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	self = [super init];
 	if (self) {
 		channel = -1;
-		layer.masksToBounds = YES;			/// the marker's name is clipped by the layer to avoid overlapping between marker names
 		layer.borderColor = NSColor.grayColor.CGColor;
 		layer.bounds = CGRectMake(0, -3, 50, 20);
 		/// we use -3 because we place the layer bottom edge 3 points below the view, so as to hide the bottom edge of the border when it is highlighted.
 		
 		stringLayer.fontSize = 10.0;
-		stringLayer.allowsFontSubpixelQuantization = YES;
 		stringLayer.anchorPoint = CGPointMake(0,0);
-		[layer addSublayer:stringLayer];
 		
-		[layer addSublayer:bandLayer];
 		actionButtonLayer = CALayer.new;
 		actionButtonLayer.hidden = YES;
 		actionButtonLayer.delegate = self;
-		actionButtonLayer.anchorPoint = CGPointMake(0, 0);
+		actionButtonLayer.anchorPoint = CGPointMake(0.5, 0);
 		actionButtonLayer.bounds = CGRectMake(0, 0, 15, 15);
-		[layer addSublayer:actionButtonLayer];
+		[bandLayer addSublayer:actionButtonLayer];
 		
 		disabledColor = [NSColor colorWithCalibratedWhite:0.8 alpha:1.0];
 	}
@@ -124,12 +120,15 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	super.view = view;
 	if(layer && view) {
 		[view.backgroundLayer addSublayer:layer];
+		/// The bandLayer is not a sublayer of the layer, to avoid appearing behind the layer's border.
+		[view.backgroundLayer addSublayer:bandLayer];
 		traceView = ((MarkerView *)view).traceView;
 	}
 }
 
 
 - (void)updateAppearance {
+	bandLayer.backgroundColor = NULL;
 	BOOL highlighted = self.highlighted;
 	BOOL hovered = self.hovered;
 	BOOL enabled = self.enabled;
@@ -155,9 +154,14 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	[super updateAppearance];
 }
 
+- (void)setHovered:(BOOL)hovered {
+	super.hovered = hovered;
+	bandLayer.zPosition = hovered? 1:0; /// Makes sure the marker names is not masked by the name of another marker nearby.
+}
 
 - (void)updateForTheme {
-	[super updateForTheme];
+	stringLayer.foregroundColor = NSColor.textColor.CGColor;
+	stringLayer.backgroundColor = self.view.backgroundColor.CGColor;
 	defaultColor = self.view.colorsForChannels[channel];
 	/// We use a horizontal segment to represent the marker range. The color is based on the channel, but a bit brighter
 	/// The color is brighter when the label is hovered
@@ -259,26 +263,27 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	NSRect superLayerBounds = layer.superlayer.bounds;
 	float startSize = self.startSize;
 	float endSize = self.endSize;
-	float startX = [self.view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
+	CGFloat startX = [self.view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
 	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(superLayerBounds));
 	self.frame = regionRect;
 	
-	/// if the label is not in the view's bounds (with some 2-point margin) and wasn't previously, we don't need to update the layer. The label isn't visible
 	NSRect intersection = NSIntersectionRect(regionRect, NSInsetRect(superLayerBounds, -2, 0));
-	if(intersection.size.width <= 0.1 && !CGRectIntersectsRect(layer.frame, superLayerBounds)) {
-		return;
-	}
+
 	/// to avoid drawing a layer that is very large (at very high hScale), we won't draw what is not visible
-	if(intersection.size.width > 0) {
+	if(intersection.size.width > 2) {
 		regionRect = intersection;
 	} else {
-		/// if the label is not visible, we don't use the intersection rect (which is NSZeroRect) as it doesn't correspond to the label's start
-		/// If we did, this may make the label move to the left
-		regionRect.size.width = 1;
+		/// if the region is not visible, we just place the layers outside the view.
+		if(CGRectIntersectsRect(bandLayer.frame, superLayerBounds)) {
+			/// We need to do it only if the layer is still shown.
+			layer.position = CGPointMake(0, 200);
+			bandLayer.position = layer.position;
+		}
+		return;
 	}
 	/// the rectangle symbolizing the marker starts a big below the view to hide the bottom edge
 	layer.frame = CGRectMake(regionRect.origin.x, -3, regionRect.size.width, regionRect.size.height + 3);
-	bandLayer.frame = CGRectMake(0, 0, regionRect.size.width, 3); /// The band layer is a 3-point-thick bar.
+	bandLayer.frame = CGRectMake(regionRect.origin.x, 0, regionRect.size.width, 3); /// The band layer is a 3-point-thick bar.
 	
 	[self layoutInternalLayers];
 	
@@ -290,14 +295,20 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 -(void)layoutInternalLayers {
-	NSRect visibleMarkerRect = NSIntersectionRect(regionRect, layer.superlayer.bounds);
-	CGPoint position = CGPointMake(NSMidX(visibleMarkerRect) - regionRect.origin.x - NSMidX(stringLayer.bounds), 3);
-	if(!actionButtonLayer.hidden) {
-		position.x -= actionButtonLayer.bounds.size.width/2 - 0.5;
-		if(position.x < 1) {
-			position.x = 1;		/// makes sure the button is visible even if the label is very short
+	NSRect visibleMarkerRect = NSIntersectionRect(regionRect, bandLayer.superlayer.bounds);
+	CGFloat visibleWidth = visibleMarkerRect.size.width;
+	CGPoint position = CGPointMake(visibleWidth/2, 3);
+	if(visibleWidth > 0) {
+		position.x = visibleWidth/2 - stringLayer.bounds.size.width/2;
+		if(!actionButtonLayer.hidden) {
+			CGFloat buttonWidth = actionButtonLayer.bounds.size.width;
+			position.x = MAX(buttonWidth/2+1, position.x - 0.5); /// makes sure the button is visible even if the label is very narrow
+			if(visibleWidth < buttonWidth) {
+				position.x = visibleWidth/2;
+			}
 		}
 	}
+
 	/// we position the button even if hidden. Otherwise, it may arrive from a distance when we get hovered
 	actionButtonLayer.position = position;
 	
@@ -357,7 +368,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	_menu = super.menu;
 	if(_menu.itemArray.count < 4) {
 		[_menu addItemWithTitle:@"Zoom to Marker" action:@selector(zoom:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameLoupeBadge]];
+		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameZoomToMarker]];
 		[_menu addItem:NSMenuItem.separatorItem];
 		[_menu addItemWithTitle:@"Generate Bins" action:@selector(spawnAddBinsPopover:) keyEquivalent:@""];
 		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameBinset]];
@@ -407,7 +418,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	
 	if(menuItem.action == @selector(pasteOffset:)) {
 		NSDictionary *dic = Chromatogram.markerOffsetDictionaryFromGeneralPasteBoard;
-		if(dic && traceView.trace) {
+		if(dic && (traceView.trace || traceView.loadedGenotypes.count > 0)) {
 			NSString *URI = self.region.objectID.URIRepresentation.absoluteString;
 			NSData *offsetData = dic[URI];
 			if([offsetData isKindOfClass:NSData.class] && offsetData.length == sizeof(MarkerOffset)) {
@@ -616,9 +627,32 @@ enum addBinPopoverTag : NSInteger {
 		cancelButton.action = @selector(close);
 		cancelButton.target = addBinsPopover;
 	}
+	
+	Mmarker *marker = self.region;
+	float markerStart =  ceilf(marker.start) +1;
+	float markerEnd = floorf(marker.end -1);
+	
+	if(_binSetStart < markerStart || _binSetStart > markerEnd) {
+		self.binSetStart = markerStart;
+	}
+	if(_binSetEnd < markerStart || _binSetEnd > markerEnd) {
+		self.binSetEnd = markerEnd;
+	}
+	
+	if(_binSetEnd < _binSetStart) {
+		self.binSetStart = markerStart;
+		self.binSetEnd = markerEnd;
+	}
+	
+	if(_binSpacing != marker.motiveLength-1) {
+		self.binSpacing = marker.motiveLength-1;
+	}
+	if(_binWidth < 0.5 || _binWidth > 1.5) {
+		self.binWidth = 1.0;
+	}
+	
 	if(addBinsPopover.delegate != self) {
 		NSView *view = addBinsPopover.contentViewController.view;
-		Mmarker *marker = self.region;
 		NSTextField *startBinTextField = [view viewWithTag:binStartTextFieldTag];
 		NSTextField *endBinTextField = [view viewWithTag:binEndTextFieldTag];
 		NSSlider *binWidthSlider = [view viewWithTag:binWidthSliderTag];
@@ -626,18 +660,6 @@ enum addBinPopoverTag : NSInteger {
 		NSPopUpButton *binSpacingButton = [view viewWithTag:binSpacingButtonTag];
 		NSButton *removeAllBinsButton = [view viewWithTag:existingBinsCheckboxTag];
 		
-		if(_binSetStart <= 0) {
-			self.binSetStart = ceilf(marker.start) +1;
-		}
-		if(_binSetEnd <= 0) {
-			self.binSetEnd = floorf(marker.end -1);
-		}
-		if(_binSpacing < 1 || _binSpacing > 7) {
-			self.binSpacing = marker.motiveLength-1;
-		}
-		if(_binWidth < 0.5 || _binWidth > 1.5) {
-			self.binWidth = 1.0;
-		}
 		
 		NSDictionary *option = @{NSValidatesImmediatelyBindingOption:@YES};
 		[startBinTextField bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(binSetStart)) options:option];
@@ -748,6 +770,7 @@ enum addBinPopoverTag : NSInteger {
 /// Adds a set of bins to our marker based on specifications defined by the user on the popover (to which the sender belongs)
 -(void)addBinSet:(NSButton *)sender {
 	NSView *view = addBinsPopover.contentViewController.view;
+	[view.window makeFirstResponder:nil]; /// forces the validation of controls in the popover, hence updates bounds properties
 	NSButton *removeAllBinsButton = [view viewWithTag:existingBinsCheckboxTag];
 	
 	Mmarker *marker = self.region;

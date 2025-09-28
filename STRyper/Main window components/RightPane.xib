@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
+        <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -14,17 +15,17 @@
         <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <userDefaultsController representsSharedInstance="YES" id="KQm-tu-aY2"/>
-        <customView translatesAutoresizingMaskIntoConstraints="NO" id="TaJ-5Y-vS7" userLabel="Right Pane">
-            <rect key="frame" x="0.0" y="0.0" width="652" height="322"/>
+        <customView misplaced="YES" translatesAutoresizingMaskIntoConstraints="NO" id="TaJ-5Y-vS7" userLabel="Right Pane">
+            <rect key="frame" x="0.0" y="0.0" width="652" height="263"/>
             <subviews>
-                <scrollView misplaced="YES" borderType="none" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="0.0" translatesAutoresizingMaskIntoConstraints="NO" id="MzI-yj-wFf">
-                    <rect key="frame" x="0.0" y="29" width="652" height="293"/>
+                <scrollView borderType="none" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="0.0" translatesAutoresizingMaskIntoConstraints="NO" id="MzI-yj-wFf">
+                    <rect key="frame" x="0.0" y="30" width="652" height="205"/>
                     <clipView key="contentView" drawsBackground="NO" id="odp-jd-7as">
-                        <rect key="frame" x="0.0" y="0.0" width="652" height="293"/>
+                        <rect key="frame" x="0.0" y="0.0" width="652" height="205"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <outlineView identifier="traceOutlineView" verticalHuggingPriority="750" tag="3" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" selectionHighlightStyle="none" multipleSelection="NO" autosaveColumns="NO" typeSelect="NO" rowHeight="16" headerView="c1B-BF-T33" viewBased="YES" floatsGroupRows="NO" outlineTableColumn="zpk-aZ-Se7" id="0qS-ci-Tr3">
-                                <rect key="frame" x="0.0" y="0.0" width="652" height="265"/>
+                            <outlineView identifier="traceOutlineView" verticalHuggingPriority="750" tag="3" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" selectionHighlightStyle="none" multipleSelection="NO" autosaveColumns="NO" typeSelect="NO" rowHeight="16" headerView="c1B-BF-T33" viewBased="YES" floatsGroupRows="NO" outlineTableColumn="zpk-aZ-Se7" id="0qS-ci-Tr3" customClass="TraceOutlineView">
+                                <rect key="frame" x="0.0" y="0.0" width="652" height="177"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <size key="intercellSpacing" width="3" height="0.0"/>
                                 <color key="backgroundColor" name="windowBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -47,7 +48,7 @@
                                                 <rect key="frame" x="1" y="0.0" width="181" height="96"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
-                                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="AuF-mM-PES">
+                                                    <textField focusRingType="none" verticalHuggingPriority="750" placeholderIntrinsicWidth="149" placeholderIntrinsicHeight="16" translatesAutoresizingMaskIntoConstraints="NO" id="AuF-mM-PES">
                                                         <rect key="frame" x="14" y="40" width="153" height="16"/>
                                                         <textFieldCell key="cell" alignment="center" title="No data for this channel" id="3Zi-IZ-n5W">
                                                             <font key="font" metaFont="system"/>
@@ -113,11 +114,11 @@
                         <nil key="backgroundColor"/>
                     </clipView>
                     <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="7Jw-gM-kpN">
-                        <rect key="frame" x="0.0" y="277" width="652" height="16"/>
+                        <rect key="frame" x="0.0" y="189" width="652" height="16"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </scroller>
-                    <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="NO" id="6JR-Nv-5mi">
-                        <rect key="frame" x="636" y="28" width="16" height="265"/>
+                    <scroller key="verticalScroller" wantsLayer="YES" verticalHuggingPriority="750" doubleValue="0.69999999999999996" horizontal="NO" id="6JR-Nv-5mi">
+                        <rect key="frame" x="636" y="28" width="16" height="177"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </scroller>
                     <tableHeaderView key="headerView" wantsLayer="YES" id="c1B-BF-T33" customClass="TableHeaderView">
@@ -171,7 +172,7 @@
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                     <connections>
-                        <action selector="channelsToShow:" target="-2" id="kuA-gw-zoM"/>
+                        <action selector="toggleChannelVisibility:" target="-2" id="kuA-gw-zoM"/>
                     </connections>
                 </button>
                 <button identifier="green" toolTip="Option-click to only show this channel" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="qWz-lV-an7" userLabel="green Button">
@@ -181,7 +182,7 @@
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                     <connections>
-                        <action selector="channelsToShow:" target="-2" id="LKA-M8-t1Z"/>
+                        <action selector="toggleChannelVisibility:" target="-2" id="LKA-M8-t1Z"/>
                     </connections>
                 </button>
                 <button identifier="black" toolTip="Option-click to only show this channel" tag="2" translatesAutoresizingMaskIntoConstraints="NO" id="y5f-Y3-ZVL" userLabel="black Button">
@@ -191,7 +192,7 @@
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                     <connections>
-                        <action selector="channelsToShow:" target="-2" id="UyT-iq-sWc"/>
+                        <action selector="toggleChannelVisibility:" target="-2" id="UyT-iq-sWc"/>
                     </connections>
                 </button>
                 <button identifier="red" toolTip="Option-click to only show this channel" tag="3" translatesAutoresizingMaskIntoConstraints="NO" id="4DP-HO-d6o" userLabel="red Button">
@@ -201,7 +202,7 @@
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                     <connections>
-                        <action selector="channelsToShow:" target="-2" id="Twz-ze-LCk"/>
+                        <action selector="toggleChannelVisibility:" target="-2" id="Twz-ze-LCk"/>
                     </connections>
                 </button>
                 <button identifier="orange" toolTip="Option-click to only show this channel" tag="4" translatesAutoresizingMaskIntoConstraints="NO" id="DFZ-jG-3HR" userLabel="orange Button">
@@ -211,7 +212,7 @@
                         <font key="font" metaFont="system"/>
                     </buttonCell>
                     <connections>
-                        <action selector="channelsToShow:" target="-2" id="xD6-4M-IB1"/>
+                        <action selector="toggleChannelVisibility:" target="-2" id="xD6-4M-IB1"/>
                     </connections>
                 </button>
                 <segmentedControl focusRingType="none" verticalHuggingPriority="750" tag="-5" translatesAutoresizingMaskIntoConstraints="NO" id="p5z-uG-8w6" userLabel="stackMode">

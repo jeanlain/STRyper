@@ -55,22 +55,6 @@ NS_ASSUME_NONNULL_BEGIN
 -(void) addSamplesFromFiles:(NSArray<NSString *>*)filePaths toFolder:(SampleFolder *)folder;
 
 
-/// Applies a marker panel to samples (Chromatogram objects).
-///
-/// The method displays an alert to notify the user if samples lack adequate channel data for markers of the panel.
-/// - Parameters:
-///   - panel: The panel to apply.
-///   - sampleArray: The  samples that `panel` should be applied to.
-- (void)applyPanel:(Panel*) panel toSamples:(NSArray<Chromatogram *>*)sampleArray;
-
-/// Applies a size standard to samples (Chromatogram objects).
-///
-/// - Parameters:
-///   - standard: The size standard to apply.
-///   - sampleArray: The  samples that `standard` should be applied to.
-- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray<Chromatogram *> *)sampleArray;
-
-
 /// Copies of the samples referenced in the pasteboard and adds them to the selected folder.
 ///
 /// The samples to paste are retrieved from the pasteboard if it declares the `ChromatogramPasteBoardType`.

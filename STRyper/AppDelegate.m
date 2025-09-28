@@ -94,7 +94,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
 + (void)initialize {
 	
-	/// We set the default settings.
+	/// We set the default values of application settings.
 	NSDictionary *defaults = @{ShowOffScale: @YES,
 							   OutlinePeaks: @NO,
 							   ShowPeakTooltips: @NO,
@@ -153,8 +153,16 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	
 	NSManagedObjectContext *MOC = self.managedObjectContext;
 	if(!MOC) {
-		NSLog(@"Failed to load the database.");
-		abort();
+		/// The following alert should in principle no be shown, as the measures we take in case of database error either
+		/// lead to the user quitting the app or removing the database.
+		NSAlert *alert = [NSAlert alertWithError:[NSError errorWithDescription:@"Failed to load the database." suggestion:@"Please see FAQ in the guide."]];
+		[alert addButtonWithTitle:@"Quit"];
+		[alert addButtonWithTitle:@"Open User Guide"];
+		NSModalResponse response = [alert runModal];
+		if(response != NSAlertFirstButtonReturn) {
+			[self showHelp:self];
+		}
+		exit(EXIT_FAILURE);
 	}
 	
 	/// We check the version of the persistent store to improve the detection of crosstalk in traces if necessary.
@@ -166,13 +174,24 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 			NSArray *identifiers = data[NSStoreModelVersionIdentifiersKey];
 			if(identifiers && ![identifiers containsObject:@"1.2"]) {
 				NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:Chromatogram.entity.name];
-				NSArray *samples = [MOC executeFetchRequest:request error:nil];
-				for(Chromatogram *sample in samples) {
-					[sample inferOffscaleChannel];
-					for(Trace *trace in sample.traces) {
-						[trace findCrossTalk];
+				NSManagedObjectContext *MOC = self.persistentContainer.newBackgroundContext;
+				[MOC performBlockAndWait:^{
+					NSArray *samples = [MOC executeFetchRequest:request error:nil];
+					int n = 0;
+					for(Chromatogram *sample in samples) {
+						n++;
+						@autoreleasepool {
+							[sample inferOffscaleChannel];
+							for(Trace *trace in sample.traces) {
+								[trace findCrossTalk];
+							}
+							if(n > 300) {
+								[MOC save:nil];
+								n = 0;
+							}
+						}
 					}
-				}
+				}];
 			}
 		}
 	}
@@ -384,7 +403,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							if(result != NSAlertFirstButtonReturn) {
 								[NSWorkspace.sharedWorkspace selectFile:folder inFileViewerRootedAtPath:@""];
 							}
-							return;
+							exit(EXIT_FAILURE);
 						}
 						NSArray<NSString *> *folderContent = [manager contentsOfDirectoryAtPath:folder error:&fileError];
 						if(!fileError) {
@@ -446,7 +465,11 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 						/// If the store description does not specify the URL, I don't know what to do.
 						alert.messageText = @"STRyper cannot run because of an issue with its database.";
 						[alert addButtonWithTitle:@"Quit"];
-						[alert runModal];
+						[alert addButtonWithTitle:@"Report Issue"];
+						NSModalResponse response = [alert runModal];
+						if(response != NSAlertFirstButtonReturn) {
+							[NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"https://github.com/jeanlain/STRyper/issues"]];
+						}
 					}
 				}
 			}];
@@ -455,8 +478,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	
 	if(failure) {
 		if(!retry) {
-			[NSApp terminate:self];
-			return nil;
+			exit(EXIT_FAILURE);
 		}
 		/// If retry is YES, the problematic database was moved in the backup folder. Retrying should create a new database.
 		[_persistentContainer loadPersistentStoresWithCompletionHandler:^(NSPersistentStoreDescription *storeDescription, NSError *error) {
@@ -464,9 +486,12 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 				NSAlert *alert = NSAlert.new;
 				alert.messageText = @"Sorry, the new database could not be created.";
 				[alert addButtonWithTitle:@"Quit"];
-				//[alert addButtonWithTitle:@"Report Issue"];		/// button no implemented yet. TO DO
-				[alert runModal];
-				abort();
+				[alert addButtonWithTitle:@"Report Issue"];
+				NSModalResponse response = [alert runModal];
+				if(response != NSAlertFirstButtonReturn) {
+					[NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"https://github.com/jeanlain/STRyper/issues"]];
+				}
+				exit(EXIT_FAILURE);
 			}
 		}];
 	}
@@ -475,15 +500,14 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
 
 - (NSManagedObjectContext *)managedObjectContext {
-	if (_managedObjectContext) {
-		return _managedObjectContext;
+	if (!_managedObjectContext) {
+		_managedObjectContext = self.persistentContainer.viewContext;
+		if(_managedObjectContext) {
+			CDUndoManager *undoManager = CDUndoManager.new;
+			undoManager.managedObjectContext = _managedObjectContext;
+			_managedObjectContext.automaticallyMergesChangesFromParent = YES;
+		}
 	}
-	
-	_managedObjectContext = self.persistentContainer.viewContext;
-	CDUndoManager *undoManager = CDUndoManager.new;
-	_managedObjectContext.undoManager = undoManager;
-	undoManager.managedObjectContext = _managedObjectContext;
-	_managedObjectContext.automaticallyMergesChangesFromParent = YES;
 	return _managedObjectContext;
 }
 
@@ -617,7 +641,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	FolderListController *folderListController = FolderListController.sharedController;
 	SampleFolder *trashFolder = folderListController.trashFolder;
 	
-	/// If there are some orphan (invisible) folders (which happens if one undoes the import of a folder – this is a bug), we put them to the trash for removal.
+	/// If there are some orphan (invisible) folders (which happens if one undoes the import of a folder in a buggy version of the app), we put them to the trash for removal.
 	NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"Folder"];
 	NSArray<Folder *> *folders = [self.managedObjectContext executeFetchRequest:request error:nil];
 	NSArray<NSString *> *baseFolderNames = [@[trashFolder, folderListController.rootFolder, PanelListController.sharedController.rootFolder, folderListController.smartFolderContainer] valueForKeyPath:@"@unionOfObjects.name"];
@@ -628,7 +652,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 				if([folder isKindOfClass:SampleFolder.class] || [folder isKindOfClass:SmartFolder.class]) {
 					[trashFolder addSubfoldersObject:folder];
 				} else {
-					/// If a panel or panel folder has not parent (which should not happen), we do not remove it.
+					/// If a panel or panel folder has no parent (which should not happen), we do not remove it.
 					/// Doing so may delete genotypes. We just place it at the root.
 					folder.parent = PanelListController.sharedController.rootFolder;
 					folder.name = [folder.name stringByAppendingString:@"-restored"];

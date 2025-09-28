@@ -37,20 +37,18 @@
 @implementation FittingView {
 	NSBezierPath *curve;		/// the path used to draw the curve
 	NSColor *traceColor;		/// the curve is drawn using this color
-	NSInteger nScans;			/// number of scan in the chromatogram, for quick reference
-	float hScale;				/// number of quartz points per scan (x axis)
-	float vScale;				/// number of quartz points per base pair (y axis)
-
+	CGFloat vScale;				/// number of quartz points per base pair (y axis)
+	NSAttributedString *string; /// The test to show when the fitting curve cannot be drawn.
+	NSUInteger sampleCount;		/// Number of loaded samples
+	
 	/// We show a horizontal dashed line to indicate the size in base pairs corresponding to the current mouse location
 	CAShapeLayer *dashedLineLayer;
 	CATextLayer *sizeLayer;		/// this show the size at the mouse location
-	float upperLimit;			/// beyond this limit (in points, for the Y dimension of the view), the dashedLineLayer does not draw fully, to avoid overlaps with other elements
-	NSInteger firstScan;		/// the scan at x = 0 in the view bounds
-	NSInteger lastScan;			/// the scan at the max x in the view bounds
+	int firstScan;				/// the scan at x = 0 in the view bounds
+	int lastScan;				/// the scan at the max x in the view bounds
 	BOOL changedAppearance;		/// true when the colors of the dashedLineLayer needs to be set (to react to change in theme, in particular)
-	BOOL noSizing;				/// true when we cannot show the curve (for various reasons)
-	float lowestSubviewPosition;	/// used to avoid showing the dashLineLayer behind our subviews
-	float maxXSubviewPosition;	/// used to avoid showing the dashLineLayer behind our subviews
+	CGFloat lowestSubviewPosition;	/// used to avoid showing the dashLineLayer behind our subviews
+	CGFloat maxXSubviewPosition;	/// used to avoid showing the dashLineLayer behind our subviews
 }
 
 # pragma mark - init and attribute setting
@@ -79,12 +77,6 @@
 		curve = NSBezierPath.new;
 		curve.lineWidth = 1.0;
 		
-		_textField = [NSTextField labelWithString:@"No sample selected"];
-		_textField.translatesAutoresizingMaskIntoConstraints = NO;
-		[self addSubview:_textField];
-		[[_textField.centerYAnchor constraintEqualToAnchor:self.centerYAnchor] setActive:YES];
-		[[_textField.centerXAnchor constraintEqualToAnchor:self.centerXAnchor] setActive:YES];
-		
 		
 		/// initializing the horizontal dashed line layer ands its text layer
 		dashedLineLayer = CAShapeLayer.new;
@@ -98,7 +90,7 @@
 		sizeLayer = CATextLayer.new;
 		sizeLayer.font = (__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:10.0]);
 		sizeLayer.fontSize = 10.0;
-		sizeLayer.contentsScale = 2.0;
+		sizeLayer.contentsScale = 3.0;
 		sizeLayer.bounds = CGRectMake(0, 0, 45, 12);
 		sizeLayer.anchorPoint = CGPointMake(1, 0);
 		sizeLayer.delegate = self;
@@ -116,6 +108,10 @@
 		[self addTrackingArea:trackingArea];
 		traceColor = NSColor.orangeColor;
 	}
+	_noSampleString = @"No sample selected";
+	_multipleSampleString = @"Multiple samples selected";
+	_noSizingString = @"No size standard applied";
+	_failedSizingString = @"Sample sizing failed";
 }
 
 
@@ -127,38 +123,6 @@
 }
 
 
-- (NSString *)noSampleString {
-	if(!_noSampleString) {
-		_noSampleString = @"No sample selected";
-	}
-	return _noSampleString;
-}
-
-
-- (NSString *)multipleSampleString {
-	if(!_multipleSampleString) {
-		_multipleSampleString = @"Multiple samples selected";
-	}
-	return _multipleSampleString;
-}
-
-
-- (NSString *)noSizingString {
-	if(!_noSizingString) {
-		_noSizingString = @"Sample not sized";
-	}
-	return _noSizingString;
-}
-
-
-- (NSString *)failedSizingString {
-	if(!_failedSizingString) {
-		_failedSizingString = @"Sample sizing failed";
-	}
-	return _failedSizingString;
-}
-
-
 - (BOOL)isOpaque {
 	return NO;
 }
@@ -166,8 +130,9 @@
 
 # pragma mark - dashed line
 
-- (void)resizeSubviewsWithOldSize:(NSSize)oldSize {
-	[super resizeSubviewsWithOldSize:oldSize];
+- (void)setFrameSize:(NSSize)newSize {
+	[super setFrameSize:newSize];
+	[self updateLimits];
 	[self updateDashedLine];
 
 }
@@ -191,18 +156,17 @@
 -(void)updateLimits {
 	lowestSubviewPosition = INFINITY;
 	maxXSubviewPosition = 0;
-	float superviewBounds = NSMaxY(self.superview.bounds);
+	CGFloat superviewHeight = NSMaxY(self.superview.bounds);
 	for(NSView *view in self.superview.subviews) {
-		if(view == self) {
-			continue;
-		}
-		float y = superviewBounds - NSMaxY(view.frame);
-		if(y < lowestSubviewPosition) {
-			lowestSubviewPosition = y;
-		}
-		float x = NSMaxX(view.frame);
-		if(x > maxXSubviewPosition) {
-			maxXSubviewPosition = x;
+		if([view isKindOfClass:NSPopUpButton.class]) {
+			CGFloat y = superviewHeight - NSMaxY(view.frame);
+			if(y < lowestSubviewPosition) {
+				lowestSubviewPosition = y;
+			}
+			CGFloat x = NSMaxX(view.frame);
+			if(x > maxXSubviewPosition) {
+				maxXSubviewPosition = x;
+			}
 		}
 	}
 	NSPoint position = [self convertPoint:self.window.mouseLocationOutsideOfEventStream fromView:nil];
@@ -213,13 +177,13 @@
 # pragma mark - setting content
 
 - (void)setSamples:(NSArray<Chromatogram *> *)samples {
-	if(samples.count == 1) {
+	sampleCount = samples.count;
+	if(sampleCount == 1) {
 		/// we show the curve only if one sample is selected
 		Chromatogram *sample = samples.firstObject;
 		self.trace = sample.ladderTrace;
 		traceColor = self.trace.channel == redChannelNumber ? [NSColor colorNamed:ACColorNameRedChannelColor] : [NSColor colorNamed:ACColorNameOrangeChannelColor];
 	} else {
-		self.textField.stringValue = samples.count > 1 ? self.multipleSampleString : self.noSampleString;
 		self.trace = nil;
 	}
 }
@@ -234,7 +198,6 @@
 	if(sample) {
 		/// we observe changes in the sizing of the sample, to redraw the curve if needed
 		[sample addObserver:self forKeyPath:ChromatogramCoefsKey options:NSKeyValueObservingOptionNew context:nil];
-		nScans = sample.sizes.length / sizeof(float);
 	}
 	self.needsUpdateDisplay = YES;
 }
@@ -261,51 +224,43 @@
 -(void) updateDisplay {
 	Chromatogram *sample = self.trace.chromatogram;
 	/// if there sample is not sized, we hide certain elements
-	noSizing = sample == nil || sample.sizingQuality == nil;
-	if(noSizing) {
+	string = nil;
+	if(sample == nil || sample.sizingQuality == nil) {
+		NSString *stringToShow;
 		dashedLineLayer.hidden = YES;
-	}
-
-	if(sample && noSizing) {
-		self.textField.stringValue = sample.sizeStandard == nil? self.noSizingString : self.failedSizingString;
-	}
-	self.textField.hidden = !noSizing;
-	
-	if(!noSizing) {
+		if(sampleCount > 1) {
+			stringToShow = self.multipleSampleString;
+		} else if(!sample) {
+			stringToShow = self.noSampleString;
+		} else {
+			stringToShow = sample.sizeStandard == nil? self.noSizingString : self.failedSizingString;
+		}
+		NSDictionary *attributes = @{NSFontAttributeName: [NSFont boldSystemFontOfSize:13], NSForegroundColorAttributeName:NSColor.labelColor};
+		string = [[NSAttributedString alloc] initWithString:stringToShow attributes:attributes];
+	} else {
 		/// we scale the plot such that the line corresponding to a linear regression between scan and size is the diagonal of the view (ascending from left to right)
 		/// The first scan is the one corresponding to size 0 according to this regression
 		float minSize = INFINITY;
 		float maxSize = 0;
-		int nFragments = 0;
+		int nFragments = 0; /// number of fragments assigned to sizes
 		for(LadderFragment *fragment in self.trace.fragments) {
-			if(fragment.scan > 0) {
+			if(fragment.scan > 0) { /// fragments with scan 0 are not assigned
 				nFragments++;
 				float size = fragment.size;
-				if(size < minSize) {
-					minSize = size;
-				}
-				if(size > maxSize) {
-					maxSize = size;
-				}
+				minSize = MIN(size, minSize);
+				maxSize = MAX(size, maxSize);
 			}
 		}
 		
-		float margin = (maxSize - minSize)/ 20;
-		minSize -= margin; maxSize += margin;
-		
-		if(minSize > 0) {
-			minSize = 0;
-		}
-		float endSize = nScans * sample.sizingSlope + sample.intercept;
-		if(maxSize < endSize) {
-			maxSize = endSize;
-		}
 		if(nFragments > 3) {
-			firstScan = (int)((minSize - sample.intercept)/sample.sizingSlope);
-			lastScan = (int)((maxSize - sample.intercept)/sample.sizingSlope);
+			float margin = (maxSize - minSize)/ 20;
+			minSize = MIN(0, minSize-margin);
+			maxSize = MAX(sample.nScans * sample.sizingSlope + sample.intercept, maxSize+margin);
+			firstScan = (minSize - sample.intercept)/sample.sizingSlope;
+			lastScan = (maxSize - sample.intercept)/sample.sizingSlope;
 		} else {
 			firstScan = 0;
-			lastScan = nScans;
+			lastScan = sample.nScans;
 		}
 		/// we update the coordinates used to draw the dash line layer in the next cycle as some subviews are not yet updated to new sample data
 		[self performSelector:@selector(updateLimits) withObject:nil afterDelay:0.0];
@@ -326,14 +281,19 @@
 	if(_needsUpdateDisplay) {
 		[self updateDisplay];
 	}
-	
-	if(noSizing) {
+		
+	NSRect bounds = self.bounds;
+	if(string) {
+		NSSize stringSize = string.size;
+		NSPoint point = NSMakePoint(NSMidX(bounds)-stringSize.width/2, 0);
+		point.y = MIN(lowestSubviewPosition-15, NSMidY(bounds)) - stringSize.height/2;
+		[string drawAtPoint:point];
 		return;
 	}
 	
 	/// to adapt to the app theme, the background color of this layer must be set during drawRect:
 	if(changedAppearance) {
-		sizeLayer.backgroundColor = [NSColor.windowBackgroundColor colorWithAlphaComponent:0.7].CGColor;
+		sizeLayer.backgroundColor = [[NSColor colorNamed:ACColorNameViewBackgroundColor] colorWithAlphaComponent:0.7].CGColor;
 		sizeLayer.foregroundColor = NSColor.labelColor.CGColor;
 		changedAppearance = NO;
 	}
@@ -343,11 +303,8 @@
 		return;
 	}
 	
-	NSData *sizeData = sample.sizes;
-	const float *sizes = sizeData.bytes;
-	NSRect bounds = self.bounds;
-	float width = bounds.size.width;
-	float height = bounds.size.height;
+	CGFloat width = bounds.size.width;
+	CGFloat height = bounds.size.height;
 
 	/// we won't add a point to the curve for every scan. We add approximately one point every two quartz points
 	/// The increment is the number of scans from one point to the next
@@ -358,7 +315,7 @@
 		
 	/// the vertical scale is our height divided by the size at the last scan
 	vScale = height / (lastScan*sample.sizingSlope + sample.intercept);
-	hScale = width / (lastScan - firstScan);
+	CGFloat hScale = width / (lastScan - firstScan);
 	
 	/// if the fitting method is not the linear regression, we draw a line corresponding to the linear regression, for comparison
 	if(sample.polynomialOrder > 0) {
@@ -367,16 +324,16 @@
 		[NSBezierPath strokeLineFromPoint:NSMakePoint(0, 0) toPoint:NSMakePoint(width, height)];
 	}
 	/// We now draw the curve corresponding to the current fitting method
-	int maxPointsInCurve = 40;
+	const int maxPointsInCurve = 40;
 	/// We stoke the curve if it has enough points. Numbers between 10-100 seem to yield the best performance
 	NSPoint pointArray[maxPointsInCurve];          		/// points to add to the curve
 	int pointsInPath = 0;
 	
 	[traceColor setStroke];
-	NSInteger startScan = MAX(firstScan, 0);
-
-	for(NSInteger scan = startScan; scan < nScans; scan += increment) {
-		CGPoint point = CGPointMake((scan - firstScan) * hScale, sizes[scan]*vScale );
+	int startScan = MAX(firstScan, 0);
+	int nScans = sample.nScans;
+	for(int scan = startScan; scan < nScans; scan += increment) {
+		CGPoint point = CGPointMake((scan - firstScan) * hScale, [sample sizeForScan:scan] *vScale);
 		pointArray[pointsInPath] = point;
 		pointsInPath++;
 
@@ -411,23 +368,22 @@
 
 - (void)mouseEntered:(NSEvent *)event {
 	[NSCursor.arrowCursor set];
-	if(self.trace && !noSizing) {
+	if(self.trace && !string) {
 		dashedLineLayer.hidden = NO;
 	}
 }
 
 
 - (void)mouseMoved:(NSEvent *)event {
-	if(noSizing) {
-		return;
+	if(!string) {
+		[self showPosition: [self convertPoint:event.locationInWindow fromView:nil]];
 	}
-	[self showPosition: [self convertPoint:event.locationInWindow fromView:nil]];
 }
 
 
 -(void)showPosition:(NSPoint)mouseLocation {
 	if(!dashedLineLayer.isHidden) {
-		float currentSize = mouseLocation.y / vScale;
+		CGFloat currentSize = mouseLocation.y / vScale;
 		sizeLayer.string = [[NSString stringWithFormat:@"%.01f", currentSize] stringByAppendingString:@" bp"];
 		dashedLineLayer.position = CGPointMake(NSMaxX(self.bounds), mouseLocation.y);
 		dashedLineLayer.strokeStart = mouseLocation.y < lowestSubviewPosition? 0.0: maxXSubviewPosition/self.bounds.size.width;

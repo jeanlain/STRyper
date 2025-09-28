@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -43,8 +43,9 @@
                                         </textFieldCell>
                                         <tableColumnResizingMask key="resizingMask" resizeWithTable="YES"/>
                                         <prototypeCellViews>
-                                            <tableCellView identifier="topSection" translatesAutoresizingMaskIntoConstraints="NO" id="MOI-44-gMg" userLabel="Root folder">
+                                            <tableCellView identifier="topSection" id="MOI-44-gMg" userLabel="Root folder">
                                                 <rect key="frame" x="11" y="0.0" width="177" height="24"/>
+                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
                                                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="eeL-8V-gaW">
                                                         <rect key="frame" x="0.0" y="5" width="177" height="14"/>
@@ -64,8 +65,9 @@
                                                     <outlet property="textField" destination="eeL-8V-gaW" id="qwm-Kb-rim"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="smartFolderSection" translatesAutoresizingMaskIntoConstraints="NO" id="WBA-HX-Tel" userLabel="Smart folder section">
+                                            <tableCellView identifier="smartFolderSection" id="WBA-HX-Tel" userLabel="Smart folder section">
                                                 <rect key="frame" x="11" y="24" width="177" height="24"/>
+                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
                                                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="WN6-gp-lpY">
                                                         <rect key="frame" x="0.0" y="5" width="177" height="14"/>
@@ -85,8 +87,9 @@
                                                     <outlet property="textField" destination="WN6-gp-lpY" id="u3X-0A-aYN"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="mainCell" translatesAutoresizingMaskIntoConstraints="NO" id="xeg-Pz-wUh" userLabel="Regular folder">
+                                            <tableCellView identifier="mainCell" id="xeg-Pz-wUh" userLabel="Regular folder">
                                                 <rect key="frame" x="11" y="48" width="177" height="29"/>
+                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
                                                     <imageView wantsLayer="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Olk-L0-eP8">
                                                         <rect key="frame" x="0.0" y="0.0" width="30" height="29"/>
@@ -125,8 +128,9 @@
                                                     <outlet property="textField" destination="mHu-ul-Uvi" id="6tg-Yu-QBd"/>
                                                 </connections>
                                             </tableCellView>
-                                            <tableCellView identifier="trashCell" translatesAutoresizingMaskIntoConstraints="NO" id="r4s-cZ-ZwP" userLabel="Trash folder">
+                                            <tableCellView identifier="trashCell" id="r4s-cZ-ZwP" userLabel="Trash folder">
                                                 <rect key="frame" x="11" y="77" width="177" height="24"/>
+                                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
                                                     <imageView wantsLayer="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Uzp-hb-4MP">
                                                         <rect key="frame" x="0.0" y="5" width="15" height="15"/>
@@ -164,7 +168,6 @@
                         <nil key="backgroundColor"/>
                         <edgeInsets key="contentInsets" left="0.0" right="0.0" top="0.0" bottom="0.0"/>
                     </clipView>
-                    <edgeInsets key="contentInsets" left="0.0" right="0.0" top="0.0" bottom="0.0"/>
                     <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="qot-MM-6Wz">
                         <rect key="frame" x="0.0" y="433" width="200" height="16"/>
                         <autoresizingMask key="autoresizingMask"/>

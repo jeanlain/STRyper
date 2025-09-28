@@ -87,7 +87,7 @@
 	/// We fit the sort criteria editor its intrinsic height so that it doesn't have to scroll.
 	/// The editor itself cannot be resized (possibly due to contraints), so, we resize ourselves, which resizes the editor.
 	NSSize intrinsicContentSize = sortCriteriaEditor.intrinsicContentSize;
-	float tableHeight = intrinsicContentSize.height;
+	CGFloat tableHeight = intrinsicContentSize.height;
 	if(tableHeight < 10) {
 		return;
 	}

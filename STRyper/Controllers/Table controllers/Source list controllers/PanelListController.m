@@ -395,8 +395,10 @@
 	
 	Folder *decodedFolder = [folder addPanelsFromTextFile:url.path error:&error];
 		
-	if(error) {
-		[MainWindowController.sharedController showAlertForError:error];
+	if(error || !decodedFolder) {
+		if(error) {
+			[MainWindowController.sharedController showAlertForError:error];
+		}
 		return;
 	}
 			
@@ -441,7 +443,7 @@
 		openPanel.prompt = @"Import";
 		openPanel.canChooseDirectories = NO;
 		openPanel.allowsMultipleSelection = NO;
-		openPanel.message = @"Import bin sets from a Genemapper file";
+		openPanel.message = @"Import bin sets from a text file";
 		openPanel.allowedFileTypes = @[@"public.plain-text"];
 		[openPanel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
 			if (result == NSModalResponseOK) {
@@ -475,7 +477,7 @@
 		return;
 	}
 	
-	[panel takeBinSetFromGenemapperFile:url.path error:&error];
+	NSSet *importedBins = [panel updateBinsWithFile:url.path error:&error];
 	
 	if(error) {
 		[MainWindowController.sharedController showAlertForError:error];
@@ -493,6 +495,20 @@
 			}];
 			return;
 		}
+		
+		NSArray<NSString *> *markerNames = [importedBins.allObjects valueForKeyPath:@"@distinctUnionOfObjects.marker.name"];
+		markerNames = [markerNames sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+		NSInteger markerCount = markerNames.count;
+		if(markerCount > 0) {
+			NSString *s = markerCount > 1? @"s" : @"";
+			NSAlert *alert = NSAlert.new;
+			alert.icon = [NSImage imageNamed:ACImageNameCheckGreen];
+			alert.messageText = [NSString stringWithFormat:@"Bins were imported for marker%@ '%@'.", s, [markerNames componentsJoinedByString:@"', '"]];
+			[alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
+				
+			}];
+			
+		}
 
 		[AppDelegate.sharedInstance saveAction:self];
 	}
@@ -501,14 +517,93 @@
 
 -(IBAction)applyPanel:(NSMenuItem *)sender {
 	Panel *selectedPanel = self.selectedFolder;
-	SampleTableController *sharedController = SampleTableController.sharedController;
-	if(selectedPanel.isPanel && sharedController) {
-		if(sender.tag == 1) {
-			[sharedController applyPanel:selectedPanel toSamples:sharedController.samples.arrangedObjects];
-		} else if(sender.tag == 2) {
-			[sharedController applyPanel:selectedPanel toSamples:sharedController.samples.selectedObjects];
+	NSArrayController *samples = SampleTableController.sharedController.samples;
+	if(selectedPanel.isPanel && samples) {
+		NSArray *targetSamples = sender.tag == 1? samples.arrangedObjects : samples.selectedObjects;
+		if(targetSamples.count > 0) {
+			[self applyPanel:selectedPanel toSamples:targetSamples];
 		}
 	}
+}
+
+
+/// Applies panel to each sample of sampleArray.
+- (void)applyPanel:(Panel*) panel toSamples:(NSArray <Chromatogram *>*)sampleArray {
+	if(sampleArray.count == 0) {
+		return;
+	}
+	
+	/// We don't do this in a child context as it takes longer.
+	NSMutableArray *errors = NSMutableArray.new;
+	NSArray *redMarkers = [panel markersForChannel:redChannelNumber];
+	if(redMarkers.count >0) {
+		NSString *redMarkerNames = [[redMarkers valueForKeyPath:@"@unionOfObjects.name"] componentsJoinedByString:@" '"];
+		for(Chromatogram *sample in sampleArray) {
+			if(sample.traces.count < 5) {
+				NSString *description = [NSString stringWithFormat:@"Sample %@ cannot be genotyped at marker(s) '%@' because it lacks adequate fluorescence data.", sample.sampleName, redMarkerNames];
+				NSError *error = [NSError errorWithDescription:description suggestion:@""];
+				[errors addObject:error];
+			}
+		}
+	}
+	
+	[self.undoManager setActionName:@"Apply Marker Panel"];
+	NSString *alleleName = [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName];
+	/// we set the panel's samples in one operation
+	[panel addSamples:[NSSet setWithArray:sampleArray]];
+	for(Chromatogram *sample in sampleArray) {
+		[sample applyPanelWithAlleleName:alleleName];
+	}
+	
+	if(errors.count > 0) {
+		NSError *error;
+		if(errors.count == 1) {
+			error = errors.firstObject;
+		} else {
+			NSString *description = [NSString stringWithFormat:@"%ld sample(s) will not be analyzable for all markers of panel '%@'.", errors.count, panel.name];
+			error = [NSError errorWithDomain:STRyperErrorDomain
+										code:NSManagedObjectValidationError
+									userInfo:@{NSDetailedErrorsKey: errors.copy,
+											   NSLocalizedDescriptionKey: NSLocalizedString(description, nil),
+											   NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(@"See the log for details.", nil)
+											 }];
+		}
+		[MainWindowController.sharedController showAlertForError:error];
+	}
+	[AppDelegate.sharedInstance saveAction:self];
+}
+
+
+
+
+- (NSMenu *)menuForPanelsWithTarget:(id)target fontSize:(CGFloat)fontSize {
+	return [self menuForPanels:self.rootFolder.subfolders withTarget:target fontSize:fontSize];
+}
+
+
+- (NSMenu *)menuForPanels:(NSOrderedSet *)panelFolders withTarget:(id)target fontSize:(CGFloat)fontSize {
+	if(!panelFolders.count) {
+		return nil;
+	}
+	NSMenu *menu = NSMenu.new;
+	menu.font = [NSFont systemFontOfSize:fontSize];
+	for(PanelFolder *panelFolder in panelFolders) {
+		BOOL isPanel = panelFolder.isPanel;
+		if(!isPanel && panelFolder.subfolders.count == 0) {
+			continue;
+		}
+		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:panelFolder.name action:@selector(applyPanel:) keyEquivalent:@""];
+		item.offStateImage = isPanel? [NSImage imageNamed:ACImageNamePanelBadgeMenu] : [NSImage imageNamed:ACImageNameFolderBadge];
+		[menu addItem:item];
+		if(isPanel) {
+			item.target = target;
+			item.representedObject = panelFolder;
+		} else {
+			item.action = nil;
+			item.submenu = [self menuForPanels:panelFolder.subfolders withTarget:target fontSize:fontSize];
+		}
+	}
+	return menu;
 }
 
 @end

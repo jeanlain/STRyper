@@ -37,7 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An integer that represents the channel (wavelength) of the fluorescence data.
 ///
-/// This number denotes the conventional order of the channels of a capillary sequencer: blue, green, black/yellow, red, orange.
+/// A `ChannelNumber` denotes the conventional order of the channels of a capillary sequencer: blue, green, black/yellow, red, orange.
 ///
 /// The channel number corresponds to the ABIF convention minus one, as the [the ABIF file format specifications](https://www.wikidata.org/wiki/Q43992376) use numbers from 1 to 5 to denote channels.
 typedef NS_ENUM(int16_t, ChannelNumber) {
@@ -206,6 +206,8 @@ typedef struct BaseRange {
 /// Returns a BaseRange struct given its members.
 BaseRange MakeBaseRange(float start, float len);
 
+extern const BaseRange ZeroBaseRange;
+
 /// The visible range of the trace in a view.
 ///
 /// A trace is likely to be displayed in a row of a table. As `NSTableView` objects shuffle and reuse views for rows and cells,
@@ -257,8 +259,8 @@ BaseRange MakeBaseRange(float start, float len);
 ///   This method can be called to prepare drawing asynchronously.
 -(void) prepareDrawPathFromSize:(float) startSize
 			  toSize:(float)endSize
-			  vScale:(float)vScale
-			  hScale:(float)hScale
+			  vScale:(CGFloat)vScale
+			  hScale:(CGFloat)hScale
 		  leftOffset:(float)leftOffset
 		  useRawData:(BOOL)useRawData
  maintainPeakHeights:(BOOL) maintainPeakHeights

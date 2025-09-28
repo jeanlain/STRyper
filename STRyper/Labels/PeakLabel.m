@@ -41,7 +41,6 @@
 
 @implementation PeakLabel {
 	__weak Trace *trace;					/// The trace of which the label represents a peak
-	__weak Mmarker *marker; 				/// see property with the same name
 	__weak RegionLabel *targetBinLabel;		/// the bin label that is the current target of a drag
 	NSPoint startPoint;						/// to implement dragging behavior. Position of the dragging handle fixed point
 	NSToolTipTag toolTipTag;				/// The tag of the tooltip showing peak information on our view
@@ -87,7 +86,7 @@
 	_scan = peak.scansToTip + peak.startScan;
 	_endScan = _scan + peak.scansFromTip;
 	_crossTalk = peak.crossTalk;	
-	trace = self.view.trace;  /// if the label is asiigned another peak  it is safer to update the trace as well.
+	trace = self.view.trace;  /// if the label is assigned another peak  it is safer to update the trace as well.
 							  /// We could do it via KVO, but it's faster this way.
 							  /// It the view gets a new trace, it has to assign labels to new peaks anyway (or create new labels).
 }
@@ -196,8 +195,9 @@
 	if(view.hScale <= 0) {
 		return;
 	}
-	float startX = round([view xForScan:self.startScan] - 0.5);
-	self.frame = NSMakeRect(startX, 0, [view xForScan:self.endScan] - startX, NSMaxY(view.bounds));
+	Chromatogram *sample = trace.chromatogram;
+	CGFloat startX = round([view xForScan:self.startScan ofSample:sample] - 0.5);
+	self.frame = NSMakeRect(startX, 0, [view xForScan:self.endScan ofSample:sample] - startX, NSMaxY(view.bounds));
 }
 
 
@@ -219,7 +219,7 @@
 
 - (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
 	if(tag == toolTipTag) {
-		BOOL noSizing = trace.chromatogram.sizingQuality.floatValue == 0;
+		BOOL noSizing = trace.chromatogram.sizingQuality.floatValue <= 0;
 		NSString *sizeInfo = @"unavailable";
 		if(!noSizing) {
 			sizeInfo = [NSString stringWithFormat:@"%.01f bp", self.size];
@@ -324,6 +324,7 @@ static CALayer *dragLineLayer;
 		
 		/// We find the target bin that corresponds to the handle position
 		NSArray *binLabels;
+		Mmarker *marker = self.marker;
 		for(RegionLabel *markerLabel in view.markerLabels) {
 			if(markerLabel.region == marker) {
 				binLabels = markerLabel.binLabels;
@@ -341,9 +342,9 @@ static CALayer *dragLineLayer;
 		NSPoint dragHandleEndPosition = mouseLocation;
 		if(!targetBinLabel) {
 			/// If the handled has passed the first or last bin label, we lock it to either bin.
-			float clickX = view.clickedPoint.x;
+			CGFloat clickX = view.clickedPoint.x;
 			RegionLabel *firstBinLabel = binLabels.firstObject, *lastBinLabel = binLabels.lastObject;
-			float firstMidX = NSMidX(firstBinLabel.frame), lastMidX = NSMidX(lastBinLabel.frame);
+			CGFloat firstMidX = NSMidX(firstBinLabel.frame), lastMidX = NSMidX(lastBinLabel.frame);
 			if(clickX > firstMidX && dragHandleEndPosition.x < firstMidX) {
 				targetBinLabel = firstBinLabel;
 			} else if(clickX < lastMidX && dragHandleEndPosition.x > lastMidX) {
@@ -357,7 +358,7 @@ static CALayer *dragLineLayer;
 			/// We could enable them just for this situation, but this won't be more elegant nor easier.
 			targetBinLabel.hovered = YES;
 			/// if the mouse is within a bin, we set the x position of the handle to the middle of the bin (some sort of magnetism)
-			float midBinX = NSMidX(targetBinLabel.frame);
+			CGFloat midBinX = NSMidX(targetBinLabel.frame);
 			if(self.dragHandleEndPosition.x != midBinX) {
 				/// If the handle was not previously in the bin, we signify magnetism with haptic feedback
 				[NSHapticFeedbackManager.defaultPerformer performFeedbackPattern:NSHapticFeedbackPatternAlignment
@@ -371,9 +372,9 @@ static CALayer *dragLineLayer;
 		/// we prepare the layer that draws the handle.
 		/// This layer goes from the start point of the drag to the end point, and takes the whole view height
 		/// We could make it larger, but performance is better when the layer is not larger than needed
-		float distX = ceil(startPoint.x - dragHandleEndPosition.x);
-		float x = distX < 0? startPoint.x : dragHandleEndPosition.x;
-		CGRect frame = CGRectMake(x - 5, 0, fabsf(distX) + 10, view.frame.size.height);
+		CGFloat distX = ceil(startPoint.x - dragHandleEndPosition.x);
+		CGFloat x = distX < 0? startPoint.x : dragHandleEndPosition.x;
+		CGRect frame = CGRectMake(x - 5, 0, fabs(distX) + 10, view.frame.size.height);
 		dragLineLayer.position = frame.origin;
 		dragLineLayer.bounds = frame; /// so the layer coordinates match those of its super layer (hence the trace view).
 		[dragLineLayer setNeedsDisplay];
@@ -408,7 +409,7 @@ static CALayer *dragLineLayer;
 		TraceView *view = self.view;
 		NSPoint mouseLocation = view.mouseLocation;
 		if(dragged) {
-			if(!view.showDisabledBins || !view.panel) {
+			if(!view.showDisabledBins || view.markerLabels.count == 0) {
 				/// The user would do nothing with the handle if there is no bin.
 				return;
 			}
@@ -416,12 +417,12 @@ static CALayer *dragLineLayer;
 			/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
 			/// This avoids assigning the peak to an allele for what could be a simple click.
 			NSPoint clickedPoint = view.clickedPoint;
-			float dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
+			CGFloat dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
 			if(dist < 5) {
 				return;
 			}
 			
-			marker = self.marker;
+			Mmarker *marker = self.marker;
 			if(marker.bins.count == 0) {
 				return;
 			}
@@ -438,7 +439,7 @@ static CALayer *dragLineLayer;
 			/// we set the start point of the drag line, which we place horizontally at the peak tip (and vertically where the mouse was clicked)
 			startPoint = self.view.clickedPoint;
 			startPoint.y -=2;	/// this makes the handle closer to the cursor arrow tip
-			startPoint.x = [self.view xForScan:self.scan];
+			startPoint.x = [self.view xForScan:self.scan ofSample:trace.chromatogram];
 			dragLineLayer.delegate = self;
 			[self.view.backgroundLayer addSublayer:dragLineLayer];
 		} else {
@@ -507,7 +508,7 @@ static CALayer *dragLineLayer;
 			allele.name = name;
 		}
 			
-		genotype.status = genotypeStatusManual;
+		genotype.proposedStatus = genotypeStatusManual;
 		[self.view.undoManager setActionName:@"Edit Genotype"];
 	}
 }
@@ -527,7 +528,7 @@ static CALayer *dragLineLayer;
 		CGRect origin = CGRectMake(start.x-4,start.y -4, 8, 8);
 		
 		NSPoint endPoint = _dragHandleEndPosition;
-		float maxY = NSMaxY(self.view.bounds) -18;
+		CGFloat maxY = NSMaxY(self.view.bounds) -18;
 		BOOL outOfBounds = NO;
 		if(endPoint.y > maxY) {
 			outOfBounds = endPoint.y > maxY + 5;
@@ -537,7 +538,7 @@ static CALayer *dragLineLayer;
 			endPoint.y = 2;
 		}
 		endPoint.y += 2;
-		layer.opacity = outOfBounds? 0.5 : 1;
+		layer.opacity = outOfBounds? 0.3 : 1;
 				
 		CGRect current = CGRectMake(endPoint.x-4, endPoint.y-4, 8, 8);
 		
@@ -565,7 +566,7 @@ static CALayer *dragLineLayer;
 			if(newFragment) {
 				newFragment.scan = self.scan;
 				[newFragment findNameFromBins];
-				genotype.status = genotypeStatusManual;
+				genotype.proposedStatus = genotypeStatusManual;
 				[self.view.undoManager setActionName:@"Add Additional Peak"];
 			}
 		}
@@ -602,7 +603,7 @@ static CALayer *dragLineLayer;
 				break;
 			 }
 		 }
-		genotype.status = genotypeStatusManual;
+		genotype.proposedStatus = genotypeStatusManual;
 		[self.view.undoManager setActionName:@"Edit Genotype"];
 	}
 }

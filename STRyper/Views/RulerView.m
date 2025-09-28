@@ -24,7 +24,7 @@
 #import "RegionLabel.h"
 #import "MarkerView.h"
 
-const float ruleThickness = 14.0;			/// the thickness of the ruler
+const CGFloat ruleThickness = 14.0;			/// the thickness of the ruler
 
 /// Variables that manage the loupe cursors
 static NSCursor *loupeCursor;
@@ -56,19 +56,26 @@ static CALayer *currentPositionMarkerLayer;
 static CATextLayer *currentPositionLayer;		/// the layer showing the current position in base pairs
 static NSColor *rulerLabelColor;
 
+@interface RulerView ()
+
+@property (nonatomic, readonly) NSButton *applySizeStandardButton;
+@property (nonatomic) BOOL needsUpdateSizeStandardButton;
+
+
+@end
+
+
 @implementation RulerView {
 	BOOL altKeyDown;					/// Whether the option key is being pressed
 	NSPoint mouseLocation;
 	BOOL mouseDown;						/// tells if the user has clicked the view (and the button is still down)
 	BOOL isDraggingForZoom;        		/// tells if the user is performing a zoom by dragging the mouse
-	float startPoint;   				/// the location of the last mouseDown event, used to compute the area that is covered by a mouse drag
+	CGFloat startPoint;   				/// the location of the last mouseDown event, used to compute the area that is covered by a mouse drag
 	float startSize;
 	NSTimeInterval timeStamp;    		/// the timestamp of the last mouseDown event, to avoid zooming by a simple click
 	__weak TraceView *traceView; 		/// the traceView associated with this view
 	float *offsets;						/// allow side labels to show at the correct position in the range of a marker, considering its offset
 	NSMenu *menu;						/// the view's contextual menu (allowing to zoom to the default range)
-	NSTimeInterval startScrollTime;		/// The start time of a scroll action, which we use to interpret a swipe event
-	float horizontalScrollAmount;
 	NSButton *zoomToFitButton;
 	CATextLayer *perfLayer;
 }
@@ -157,7 +164,7 @@ static NSColor *rulerLabelColor;
 - (instancetype)initWithFrame:(NSRect)frameRect {
 	self = [super initWithFrame:frameRect];
 	if (self) {
-		_backgroundColor = NSColor.windowBackgroundColor;
+		_backgroundColor = [NSColor colorNamed:ACColorNameViewBackgroundColor];
 		/// we initialize the offset. There is one per size label.
 		NSTrackingArea *trackingArea = [[NSTrackingArea alloc] initWithRect:frameRect
 																	options: NSTrackingMouseEnteredAndExited | NSTrackingInVisibleRect | NSTrackingActiveInKeyWindow
@@ -170,23 +177,6 @@ static NSColor *rulerLabelColor;
 //		zoomToFitButton.hidden = YES;
 	}
 	return self;
-}
-
-
-- (NSPopUpButton *)applySizeStandardButton {
-	if(!_applySizeStandardButton) {
-		_applySizeStandardButton = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 100, 20) pullsDown:YES];
-		_applySizeStandardButton.font = [NSFont systemFontOfSize:10.0];
-		_applySizeStandardButton.title = @"Apply Size Standard";
-		_applySizeStandardButton.bezelStyle = NSBezelStyleRecessed;
-		_applySizeStandardButton.showsBorderOnlyWhileMouseInside = YES;
-		_applySizeStandardButton.translatesAutoresizingMaskIntoConstraints = NO;
-		[self addSubview:_applySizeStandardButton];
-		/// we center the button horizontally and vertically in its view
-		[[_applySizeStandardButton.centerXAnchor constraintEqualToAnchor:self.centerXAnchor] setActive:YES];
-		[[_applySizeStandardButton.bottomAnchor constraintEqualToAnchor:self.bottomAnchor] setActive:YES];
-	}
-	return _applySizeStandardButton;
 }
 
 
@@ -245,22 +235,6 @@ static NSColor *rulerLabelColor;
 	[traceView addObserver:self forKeyPath:@"trace.chromatogram.sizeStandard"
 				   options:NSKeyValueObservingOptionNew|NSKeyValueObservingOptionInitial 
 				   context:sampleSizeStandardChangedContext];
-}
-
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-	if (context == sampleSizeStandardChangedContext) {
-		if(_applySizeStandardButton) {
-			Chromatogram *sample = traceView.trace.chromatogram;
-			_applySizeStandardButton.hidden = !sample || sample.sizeStandard != nil;
-			if(!_applySizeStandardButton.hidden) {
-				self.needsDisplay = YES;
-				self.currentPosition = -1000;
-			}
-		}
-	} else {
-		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-	}
 }
 
 
@@ -361,7 +335,7 @@ static NSColor *rulerLabelColor;
 		self.needsChangeAppearance = YES;
 	}
 	currentPositionLayer.string = [NSString stringWithFormat:@"%.01f", positionToShow];
-	float pos = [self xForSize:position];
+	CGFloat pos = [self xForSize:position];
 	currentPositionMarkerLayer.position = CGPointMake(pos, NSMaxY(self.bounds)-1);
 }
 
@@ -375,7 +349,7 @@ static NSColor *rulerLabelColor;
 }
 
 /// returns the increment between consecutive size labels to show, considering the horizontal scale of the traceView
-int rulerLabelIncrementForHScale(float hScale) {
+int rulerLabelIncrementForHScale(CGFloat hScale) {
 	if(hScale > 50) {
 		return 1;
 	}
@@ -404,11 +378,15 @@ int rulerLabelIncrementForHScale(float hScale) {
 		self.needsUpdateOffsets = NO;
 	}
 	
+	if(_needsUpdateSizeStandardButton) {
+		[self updateSizeStandardButton];
+	}
+	
 	NSRect bounds = self.bounds;
 	
 	[_backgroundColor setFill];
 	NSRectFill(bounds);
-	float topY = NSMaxY(bounds);
+	CGFloat topY = NSMaxY(bounds);
 	
 	/// We draw a thin line at the bottom of the view
 	[rulerLabelColor setFill];
@@ -438,18 +416,20 @@ int rulerLabelIncrementForHScale(float hScale) {
 	if (isDraggingForZoom && !traceView.isMoving) {
 		/// draws dragging selection as a grey rectangle (for zooming)
 		[NSColor.secondaryLabelColor setFill];
-		float startSizeX = [self xForSize:startSize];
+		CGFloat startSizeX = [self xForSize:startSize];
 		NSBezierPath *selection = [NSBezierPath bezierPathWithRect:NSMakeRect(startSizeX, topY-3, mouseLocation.x - startSizeX, topY)];
 		[selection fill];
+	}
+	
+	if(_applySizeStandardButton && !_applySizeStandardButton.hidden) {
+		return;
 	}
 	
 	Chromatogram *sample = traceView.trace.chromatogram;
 	NSNumber *sizingQuality = sample.sizingQuality;
 	if(sample && sizingQuality.floatValue <= 0) {
 		if(!sample.sizeStandard) {
-			if(!_applySizeStandardButton) {
-				[noSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - noSizingWidth/2, topY-15)];
-			}
+			[noSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - noSizingWidth/2, topY-15)];
 		} else {
 			if(sizingQuality != nil) {
 				[poorSizing drawAtPoint: NSMakePoint(NSMidX(bounds) - poorSizingWidth/2, topY-15)];
@@ -461,29 +441,29 @@ int rulerLabelIncrementForHScale(float hScale) {
 	}
 	
 	/// we draw ruler of sizes in base pairs at the top of the view
-	float hScale = traceView.hScale;
+	CGFloat hScale = traceView.hScale;
 	int labelIncrement = rulerLabelIncrementForHScale(hScale);
 	
 	/// we determine the range of sizes in the dirty rectangle
-	float startX = dirtyRect.origin.x;
+	CGFloat startX = dirtyRect.origin.x;
 	if (startX < 0) {
 		startX = 0;
 	}
-	float startSize = [self sizeForX:startX] ;
-	float endSize = startSize + dirtyRect.size.width / hScale +1;
+	CGFloat startSize = [self sizeForX:startX] ;
+	CGFloat endSize = startSize + dirtyRect.size.width / hScale +1;
 	
 	if(endSize > MAX_TRACE_LENGTH) {
 		endSize = MAX_TRACE_LENGTH;
 	}
 	
-	float previousX = traceView.leftInset - 1;
+	CGFloat previousX = traceView.leftInset - 1;
 	for (int size = 0; size <= endSize; size+=labelIncrement) {
 		/// we cannot start at startSize since it's a float and size must be an index, and we need to start at a given increment
 		float offset= offsets? offsets[size]:0;
 		if(offset <= -1000.0) {
 			continue;
 		}
-		float x = [self xForSize:size + offset];
+		CGFloat x = [self xForSize:size + offset];
 		
 		if(x >= previousX) { /// To avoid overlap between size labels at the edge of a marker with an offset.
 			/// We draw only if the label is in the visible area of the trace view
@@ -497,19 +477,19 @@ int rulerLabelIncrementForHScale(float hScale) {
 	}
 	
 	if(self.needsChangeAppearance) {
-		currentPositionLayer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
+		currentPositionLayer.backgroundColor = self.backgroundColor.CGColor;
 		currentPositionLayer.foregroundColor = rulerLabelColor.CGColor;
 		self.needsChangeAppearance = NO;
 	}
 }
 
 
-- (float)sizeForX:(float)x {
+- (float)sizeForX:(CGFloat)x {
 	return (traceView.visibleOrigin -traceView.leftInset + x) / traceView.hScale + traceView.sampleStartSize;
 }
 
 
-- (float)xForSize:(float)size {
+- (CGFloat)xForSize:(float)size {
 	return (size - traceView.sampleStartSize) * traceView.hScale - traceView.visibleOrigin + traceView.leftInset;
 }
 
@@ -517,9 +497,10 @@ int rulerLabelIncrementForHScale(float hScale) {
 
 
 - (void)resetCursorRects {
+	[super resetCursorRects];
 	NSRect rect = self.bounds;
 	/// We show the loupe cursor, but we avoid the top of the view if its covered by the accessory view (which should be the marker view).
-	float height = self.reservedThicknessForAccessoryView;
+	CGFloat height = self.reservedThicknessForAccessoryView;
 	if(height > 0) {
 		height += 0.5;
 		/// This creates a separation with cursor rects of the marker view, which avoids issues where the wrong cursor may be set.
@@ -533,7 +514,17 @@ int rulerLabelIncrementForHScale(float hScale) {
 	
 	NSRect visibleRect = self.visibleRect;
 	NSCursor *cursor = altKeyDown? loupeCursorMinus : loupeCursor;
-	[self addCursorRect:NSIntersectionRect(rect, visibleRect) cursor:cursor];
+	if(@available(macOS 11.0, *)) {
+		[self addCursorRect:NSIntersectionRect(rect, visibleRect) cursor:cursor];
+		[self addCursorRectsForSubviewsInRect:visibleRect];
+	} else {
+		[self addCursorRectsForSubviewsInRect:visibleRect];
+		[self addCursorRect:NSIntersectionRect(rect, visibleRect) cursor:cursor];
+	}
+}
+
+
+-(void)addCursorRectsForSubviewsInRect:(NSRect)visibleRect {
 	for(NSView *view in self.subviews) {
 		if(!view.hidden) {
 			[self addCursorRect: NSIntersectionRect(view.frame, visibleRect) cursor:NSCursor.arrowCursor];
@@ -605,8 +596,8 @@ int rulerLabelIncrementForHScale(float hScale) {
 - (void)autoscrollWithLocation:(NSPoint)location {
 	/// if the mouse is dragged beyond our bounds (in the x dimension), we make the traceView scroll
 	NSRect traceViewBounds = traceView.bounds;
-	float visibleOrigin = traceView.visibleOrigin;
-	float delta = location.x - [self convertPoint:NSMakePoint(visibleOrigin, 0) fromView:traceView].x;
+	CGFloat visibleOrigin = traceView.visibleOrigin;
+	CGFloat delta = location.x - [self convertPoint:NSMakePoint(visibleOrigin, 0) fromView:traceView].x;
 	if(delta < 0) {	/// the mouse has passed the left limit
 		if(visibleOrigin <= traceViewBounds.origin.x) {
 			return;	/// this would scroll the traceView too far the right
@@ -614,7 +605,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 	} else {
 		delta = location.x - NSMaxX(self.bounds);
 		if(delta > 0) {	/// the mouse has passed the right limit
-			float newOrigin = visibleOrigin + delta;
+			CGFloat newOrigin = visibleOrigin + delta;
 			if(newOrigin + traceView.visibleRect.size.width > NSMaxX(traceViewBounds)) {
 				return;
 			}
@@ -641,7 +632,7 @@ int rulerLabelIncrementForHScale(float hScale) {
 		}
 		self.needsDisplay = YES;  	/// even if the zoom did not occur (which tiggers a redisplay) we need to clear the selection rectangle
 	} else {
-		float zoomFactor = 4.0;
+		CGFloat zoomFactor = 4.0;
 		BOOL altKeyPressed = (event.modifierFlags & NSEventModifierFlagOption) != 0;
 		if(altKeyPressed) {
 			/// The user wants to zoom out.
@@ -673,6 +664,68 @@ int rulerLabelIncrementForHScale(float hScale) {
 	}
 	return menu;
 }
+
+# pragma mark - size standards
+
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+	if (context == sampleSizeStandardChangedContext) {
+		self.needsUpdateSizeStandardButton = YES;
+	} else {
+		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+	}
+}
+
+
+- (void)setNeedsUpdateSizeStandardButton:(BOOL)needsUpdateSizeStandardButton {
+	_needsUpdateSizeStandardButton = needsUpdateSizeStandardButton;
+	if(needsUpdateSizeStandardButton) {
+		self.needsDisplay = YES;
+	}
+}
+
+
+-(void) updateSizeStandardButton {
+	Chromatogram *sample = traceView.trace.chromatogram;
+	BOOL showButton = sample != nil && sample.sizeStandard == nil && traceView.trace.fragments.count == 0;
+	if(showButton) {
+		self.applySizeStandardButton.hidden = NO;
+		self.currentPosition = -1000;
+	} else if(_applySizeStandardButton) {
+		[self.applySizeStandardButton removeFromSuperview];
+		_applySizeStandardButton = nil;
+	}
+	_needsUpdateSizeStandardButton = NO;
+}
+
+
+- (NSButton *)applySizeStandardButton {
+	if(!_applySizeStandardButton) {
+		_applySizeStandardButton = [NSButton buttonWithTitle:@"Apply Size Standard" target:self action:@selector(showApplySizeStandardMenu:)];
+		_applySizeStandardButton.controlSize = NSControlSizeMini;
+		_applySizeStandardButton.bezelStyle = NSBezelStyleRecessed;
+		_applySizeStandardButton.image = [NSImage imageNamed:ACImageNameDownPointingChevron];
+		_applySizeStandardButton.imagePosition = NSImageTrailing;
+		_applySizeStandardButton.font = [NSFont controlContentFontOfSize:10.0];
+		_applySizeStandardButton.showsBorderOnlyWhileMouseInside = YES;
+		_applySizeStandardButton.translatesAutoresizingMaskIntoConstraints = NO;
+		[self addSubview:_applySizeStandardButton];
+		/// we center the button horizontally and vertically in its view
+		[[_applySizeStandardButton.centerXAnchor constraintEqualToAnchor:self.centerXAnchor] setActive:YES];
+		[[_applySizeStandardButton.bottomAnchor constraintEqualToAnchor:self.bottomAnchor] setActive:YES];
+	}
+	return _applySizeStandardButton;
+}
+
+
+- (void)showApplySizeStandardMenu:(id)sender {
+	NSButton *button = (NSButton *)sender;
+	NSRect frame = button.bounds;
+	NSPoint location = NSMakePoint(NSMinX(frame), NSMaxY(frame)+4);
+	NSMenu *panelMenu = [traceView.delegate menuForSizeStandardsForView:traceView withFontSize:[NSFont smallSystemFontSize]];
+	[panelMenu popUpMenuPositioningItem:nil atLocation:location inView:button];
+}
+
 
 # pragma mark - other
 

@@ -53,7 +53,37 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)traceView:(TraceView *)traceView didStartMovingToRange:(BaseRange)range;
 
 
-- (void)traceView:(TraceView *)traceView didClickTrace:(Trace *)trace;
+/// Asks the delegate to reveal an item shown on the trace view.
+///
+/// This method assumes that that are many trace views and that the delegate has access to a list of items
+/// shown by these views.
+/// This method can be used to reveal the item in the source list.
+/// - Parameters:
+///   - traceView:The trace view that sent the message
+///   - item: The item to reveal.
+///   - isolate: Wether the item should be the only item shown. If `NO`, the item will be revealed without changing
+///   the items that are shown.
+- (void)traceView:(nullable TraceView*) traceView revealSourceItem:(id)item isolate:(BOOL)isolate;
+
+
+/// Returns a menu that allows applying a size standard to samples show on a `TraceView`.
+///
+/// The `view`, or an associated view, may call this method to show a menu that allows the user
+/// applying a ``SizeStandard`` to ``Chromatogram`` objects shown.
+/// - Parameters:
+///   - view: the ``TraceView`` showing samples to apply a ``SizeStandard`` to.
+///   - fontSize: The desired font size for the menu.
+- (NSMenu *)menuForSizeStandardsForView:(TraceView *)view withFontSize:(CGFloat)fontSize;
+
+
+/// Returns a menu that allows applying a panel to samples show on a `TraceView`.
+///
+/// The `view` or an associated view may call this method to show a menu that allows the user
+/// applying a ``Panel`` to ``Chromatogram`` objects shown.
+/// - Parameters:
+///   - view: the ``TraceView`` showing samples to apply a ``Panel`` to.
+///   - fontSize: The desired font size for the menu.
+- (NSMenu *)menuFoPanelsForView:(TraceView *)view withFontSize:(CGFloat)fontSize;
 
 
 @end

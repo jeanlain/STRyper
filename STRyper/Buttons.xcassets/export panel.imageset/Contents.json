@@ -3,6 +3,16 @@
     {
       "filename" : "export panel.pdf",
       "idiom" : "mac"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "export panel dark.pdf",
+      "idiom" : "mac"
     }
   ],
   "info" : {
@@ -10,6 +20,7 @@
     "version" : 1
   },
   "properties" : {
+    "preserves-vector-representation" : true,
     "template-rendering-intent" : "original"
   }
 }

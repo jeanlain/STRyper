@@ -92,7 +92,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 }
 
 
-- (BOOL)takeBinSetFromGenemapperFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
+- (nullable NSSet<Bin*> *)updateBinsWithFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error {
 	
 	NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath: path error:nil];
 	if( attributes.fileSize > 1e6) {
@@ -107,7 +107,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 			}];
 		}
 		
-		return NO;
+		return nil;
 	}
 	
 	NSError *readError = nil;
@@ -116,30 +116,32 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 		if (error != NULL) {
 			*error = readError;
 		}
-		return NO;
+		return nil;
 	}
 	
 	binSetString = [binSetString stringByReplacingOccurrencesOfString:@"\r\n" withString:@"\n"];
 	
 	/// Will contain errors founds, to report as many as possible to the user, so they can correct all without retrying.
 	NSMutableArray *errors = NSMutableArray.new;
-	
-	int unknownMarkerErrors = 0;
-	BOOL markerFound = NO,
-	binFound = NO,
-	panelFound = NO;
+
+	NSMutableSet<Bin*> *binsAdded = NSMutableSet.new; /// bins added to markers
+	NSMutableArray<NSString*> *markerNames = NSMutableArray.new; /// names of markers found in the file
+	BOOL binFound = NO, /// Whether bin description were found for markers of the panel
+	panelFound = NO,	/// Whether any panel name was found
+	thisPanelFound = NO, /// Whether the name corresponding to this panel was found.
+	geneMapperFile = NO; /// Whether the file is a GeneMapper file
 	
 	NSArray *lines = [binSetString componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
 	NSMutableArray *fields = [NSMutableArray arrayWithCapacity:lines.count];
-	for (NSString *row in lines) {
+	for (NSString *line in lines) {
 		/// fields are separated by tabulations.
-		[fields addObject:[row componentsSeparatedByString:@"\t"]];
+		[fields addObject:[line componentsSeparatedByString:@"\t"]];
 	}
 	
-	Mmarker *currentMarker;
+	Mmarker *currentMarker; /// The marker for which the current line describes a bin.
 	
-	int line = 0;			/// the line number is used to show the user which line is problematic in case of failure
-	for (NSArray *columns in fields) {
+	int line = 0;			/// to show the user which line is problematic in case of error
+	for (NSArray<NSString *> *columns in fields) {
 		
 		line++;
 		NSString *firstField = [columns.firstObject stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet].lowercaseString;
@@ -152,58 +154,102 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 			continue;
 		}
 		
-		if([firstField isEqualToString:@"panel name"]) {
-			if(panelFound) {
-				if(error != NULL) {
-					NSString *reason = @"The file contains bins from several marker panels.";
-					*error = [NSError fileReadErrorWithDescription:reason
-														suggestion:@"Only bins from a single marker panel can be imported."
-														  filePath:path
-															reason:reason];
-				}
-				return NO;
+		if(columns.count < 2) {
+			if (error != NULL) {
+				NSString *reason = [NSString stringWithFormat:@"Insufficient number of fields at line %d.", line];
+				*error = [NSError fileReadErrorWithDescription:reason
+													suggestion:@"Check that fields are separated by tabulations."
+													  filePath:path
+														reason:reason];
 			}
-			panelFound = YES;
+			return nil;
 		}
 		
-		if([firstField isEqualToString:@"marker name"]) {
-			currentMarker = nil;
-			NSString *markerName = @"";
-			
-			if(columns.count >= 2) {
-				markerName = columns[1];
-				for(Mmarker *marker in self.markers) {
-					if([marker.name isEqualToString:markerName]) {
-						currentMarker = marker;
-						marker.bins = nil;
-						markerFound = YES;
-						break;
-					}
+		
+		if([@[@"panel name", @"panel"] containsObject:firstField]) {
+			if(!geneMapperFile) {
+				geneMapperFile = [firstField isEqualToString:@"panel name"];
+			}
+			if(thisPanelFound) {
+				/// The target panel has already been found, this should be the description of the next panel.
+				/// There is no need to read lines further.
+				break;
+			}
+			panelFound = YES;
+			NSString *panelName = columns[1];
+			thisPanelFound = [panelName isEqualToString:self.name];
+			continue;
+		}
+		
+		if((geneMapperFile && [firstField isEqualToString:@"marker name"]) || [firstField isEqualToString:@"marker"]) {
+			if(!panelFound) {
+				if (error != NULL) {
+					NSString *reason = [NSString stringWithFormat:@"Line %d: a marker name is specified before any panel.", line];
+					*error = [NSError fileReadErrorWithDescription:reason
+														suggestion:@"Ensure that a line starts with 'panel' or 'Panel Name' early in the file."
+														  filePath:path
+															reason:reason];
 				}
+				return nil;
+			}
+			currentMarker = nil;
+			if(!thisPanelFound) {
+				/// The marker is not in the panel we want.
+				continue;
 			}
 			
-			if(!currentMarker) {
-				unknownMarkerErrors++;
-				NSError *anError;
-				if(markerName.length > 0) {
-					NSString *reason = [NSString stringWithFormat:@"Line %d: marker '%@' is not in panel '%@'.", line, markerName, self.name];
-					anError = [NSError fileReadErrorWithDescription:reason
-														suggestion:@"Please check the marker name."
-														  filePath:path
-															reason:reason];
-				} else {
-					NSString *reason = [NSString stringWithFormat:@"Line %d: marker name is missing.", line];
-					anError = [NSError fileReadErrorWithDescription:reason
-														suggestion:@"Please specify the marker name in the second column"
+			NSString *markerName = columns[1];
+			if([markerNames containsObject:markerName]) {
+				if (error != NULL) {
+					NSString *reason = [NSString stringWithFormat:@"Line %d: marker %@ is listed twice in the panel.", line, markerName];
+					*error = [NSError fileReadErrorWithDescription:reason
+														suggestion:@"Each marker must appear only once per panel."
 														  filePath:path
 															reason:reason];
 				}
-				[errors addObject:anError];
+				return nil;
+			}
+			for(Mmarker *marker in self.markers) {
+				if([marker.name isEqualToString:markerName]) {
+					currentMarker = marker;
+					marker.bins = nil;
+					[markerNames addObject:markerName];
+					break;
+				}
 			}
 		} else {
 			if(currentMarker) {
+				Bin *bin = nil;
 				NSError *binError;
-				Bin *bin = [self binWithGenemapperFields:columns atLine:line ofFile:path error:&binError];
+				if(!geneMapperFile) {
+					if(![firstField isEqualToString:@"bin"]) {
+						if (error != NULL) {
+							NSString *reason = [NSString stringWithFormat:@"Line %d should start with 'bin', but %@ was found.", line, firstField];
+							*error = [NSError fileReadErrorWithDescription:reason
+																suggestion:@"Ensure that all lines between marker descriptions describe bins."
+																  filePath:path
+																	reason:reason];
+						}
+						return nil;
+					}
+					
+					binFound = YES;
+					if(columns.count < 4) {
+						if (error != NULL) {
+							NSString *reason = [NSString stringWithFormat:@"Line %d: was expecting 4 columns for bin description but found %ld.", line, columns.count];
+							*error = [NSError fileReadErrorWithDescription:reason
+																suggestion:@"Check the file. Encoding must be ASCII or UTF-8 and fields separated by tabs"
+																  filePath:path
+																	reason:reason];
+						}
+						return nil;
+					}
+					NSArray *retainedFields = [columns objectsAtIndexes: [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(1, 3)]];
+					bin = [(PanelFolder *)self.parent entityForType:firstField withFields:retainedFields atLine:line ofFile:path error:&binError];
+				} else {
+					bin = [self binWithGenemapperFields:columns atLine:line ofFile:path error:&binError];
+				}
+				
 				if(binError) {
 					[errors addObject:binError];
 				} else {
@@ -226,6 +272,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 						}
 					} else {
 						binFound = YES;
+						[binsAdded addObject:bin];
 					}
 				}
 			}
@@ -238,22 +285,38 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 		} else {
 			*error = [NSError fileReadErrorWithFileName:path Errors:errors];
 		}
-	} else if(!markerFound) {
+	} else if(!panelFound) {
 		if(error != NULL) {
-			NSString *reason = [NSString stringWithFormat:@"No marker was found."];
+			NSString *reason = [NSString stringWithFormat:@"No line specifying a panel was found in the file."];
 			*error = [NSError fileReadErrorWithDescription:reason
-												suggestion:@"Verify that 'Marker Name' appears at the beginning of a line."
+												suggestion:@"Verify that a line starts with 'panel' or 'Panel Name' (GeneMapper format)."
+												  filePath:path
+													reason:reason];
+		}
+	} else if(!thisPanelFound) {
+		if(error != NULL) {
+			NSString *reason = [NSString stringWithFormat:@"No panel named '%@' was found in the file.", self.name];
+			*error = [NSError fileReadErrorWithDescription:reason
+												suggestion:@"Verify that the panel name appears in the 2nd column after 'panel' or 'Panel Name' (GeneMapper format)."
+												  filePath:path
+													reason:reason];
+		}
+	} else if(markerNames.count == 0) {
+		if(error != NULL) {
+			NSString *reason = [NSString stringWithFormat:@"None of the markers of panel '%@' was found in the file.", self.name];
+			*error = [NSError fileReadErrorWithDescription:reason
+												suggestion:@"Verify that a line starts with 'Marker' or 'Marker Name' (GeneMapper format)."
 												  filePath:path
 													reason:reason];
 		}
 	} else if(!binFound && error != NULL) {
-		NSString *reason = [NSString stringWithFormat:@"No bin was found."];
+		NSString *reason = [NSString stringWithFormat:@"No bin description was found."];
 		*error = [NSError fileReadErrorWithDescription:reason
-											suggestion:@"Check that there are lines describing bins after the line describing a marker."
+											suggestion:@"Check for lines describing bins after the line describing a marker."
 											  filePath:path
 												reason:reason];
 	}
-	return errors.count == 0;
+	return binsAdded.copy;
 }
 
 

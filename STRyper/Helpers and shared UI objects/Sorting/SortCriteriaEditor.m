@@ -367,11 +367,11 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 		if(idx < imageComponents.count) {
 			NSImage *rowImage = imageComponents[idx];
 			NSSize imageSize = rowImage.size;
-			float offset = tableView.draggingDestinationFeedbackStyle == NSTableViewDraggingDestinationFeedbackStyleGap? imageSize.height : 0;
+			CGFloat offset = tableView.draggingDestinationFeedbackStyle == NSTableViewDraggingDestinationFeedbackStyleGap? imageSize.height : 0;
 			[draggingItem setDraggingFrame:NSMakeRect(-viewPoint.x, draggingItem.draggingFrame.origin.y - offset, imageSize.width, imageSize.height)
 								  contents:rowImage];
 		} else {
-			*stop = true;
+			*stop = YES;
 		}
 	}];
 }

@@ -126,18 +126,23 @@
 		searchPredicate = SampleTableController.sharedController.defaultFilterPredicate;
 	}
 	
-	if(searchPredicate.class != NSCompoundPredicate.class) {
+	if(searchPredicate && searchPredicate.class != NSCompoundPredicate.class) {
 		/// we make the search predicate a compound predicate to make sure it shows the "all/any/none" option.
 		searchPredicate = [NSCompoundPredicate andPredicateWithSubpredicates:@[searchPredicate]];
 	}
 	
-	searchWindow.predicate = searchPredicate;
-
-	[window beginSheet:searchWindow completionHandler:^(NSModalResponse returnCode) {
-		callbackBlock(returnCode);
-	}];
+	if(searchPredicate) {
+		searchWindow.predicate = searchPredicate;
+		
+		[window beginSheet:searchWindow completionHandler:^(NSModalResponse returnCode) {
+			callbackBlock(returnCode);
+		}];
+		
+		return YES;
+	}
 	
-	return YES;
+	NSLog(@"No search predicate to show.");			/// not very informative (TO IMPROVE)
+	return NO;
 }
 
 

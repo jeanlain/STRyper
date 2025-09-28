@@ -80,7 +80,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// or polyploidy.
 @property (nonatomic, readonly, nullable) NSSet<Allele *> *additionalFragments;
 
-/// A string describing the ``alleles``.
+/// A string describing the ``additionalFragments``.
 ///
 /// For additional fragments sorted by increasing size, the string include the size, the name (separated by a colon).
 /// Spaces separate fragments.
@@ -102,10 +102,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)binAlleles;
 
 /// The allele of shorter size for a diploid genotype, or the only allele.
-@property (nonatomic, readonly, nullable) Allele *allele1;
+@property (nonatomic, readonly, nullable, weak) Allele *allele1;
 
 /// The longer allele for a diploid genotype, or `nil` for a haploid.
-@property (nonatomic, readonly, nullable) Allele *allele2;
+@property (nonatomic, readonly, nullable, weak) Allele *allele2;
 
 /// Internal method called after attributes of alleles are changed, to update the ``allele1`` and ``allele2`` properties.
 - (void) _alleleAttributeDidChange;
@@ -159,6 +159,14 @@ typedef NS_ENUM(int32_t, GenotypeStatus) {
 ///
 /// The default value is `genotypeStatusNotCalled`.
 @property (nonatomic) GenotypeStatus status;
+
+/// Proposes a ``status`` for a genotype.
+///
+/// The method determines if `proposedStatus` should be applied. For instance,
+/// `genotypeStatusMarkerChanged` will be ignored if the current `status`
+/// is `genotypeStatusNotCalled`, since modifications of the ``marker``
+/// are irrelevant to genotyping if the genotype has not been called.
+-(void)setProposedStatus:(GenotypeStatus) proposedStatus;
 
 /// A text that explains the genotype's ``status``.
 ///
@@ -221,13 +229,21 @@ extern const MarkerOffset MarkerOffsetNone;
 /// The maximum fluorescence level that can be set by a view displaying the genotype.
 ///
 /// A genotype is likely to be displayed in a row of a table. As `NSTableView` objects shuffle and reuse views for rows and cells,
-/// a trace may be randomly shown in different views (``TraceView`` objects)..
+/// a genotype may be randomly shown in different views (``TraceView`` objects)..
 ///
 /// A ``TraceView`` can use this property to set  its ``TraceView/topFluoLevel``.
 @property (nonatomic) float topFluoLevel;
 
 /// The range of the genotype's ``marker`` when accounting for its offset.
 @property (nonatomic, readonly) BaseRange range;
+
+/// The visible range that can be set by a view displaying the genotype.
+///
+/// A genotype is likely to be displayed in a row of a table. As `NSTableView` objects shuffle and reuse views for rows and cells,
+/// a genotype may be randomly shown in different views (``TraceView`` objects)..
+///
+/// A ``TraceView`` can use this property to set  its ``TraceView/visibleRange``.
+@property (nonatomic) BaseRange visibleRange;
 
 @end
 

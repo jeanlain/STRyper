@@ -58,7 +58,7 @@ NS_ASSUME_NONNULL_BEGIN
 	Panel *_panel;
 	
 	/// Backs the ``hScale`` readonly property and allows subclasses to set it.
-	float _hScale;
+	CGFloat _hScale;
 		
 	/// Backs the ``sampleStartSize`` readonly property and allows subclasses to set it.
 	float _sampleStartSize;
@@ -108,7 +108,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The horizontal scale of the view, in points per base pair.
 ///
 /// In subclasses, this property is ≤0 if the view hasn't finished loading the contents, denoting that its value must not be used to position elements.
-@property (nonatomic, readonly) float hScale;
+@property (nonatomic, readonly) CGFloat hScale;
 
 /// The corresponding ``Chromatogram/startSize`` property for the ``Chromatogram`` object that is shown in the view.
 ///
@@ -123,13 +123,13 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This method relies on the ivar backing ``hScale`` and ``sampleStartSize``.
 /// - Parameter xPosition: The position along the x axis of the view that is converted to a size in base pairs.
--(float)sizeForX:(float)xPosition;
+-(float)sizeForX:(CGFloat)xPosition;
 
 /// Returns the position (in quartz points) along the x axis for a given size in base pairs
 ///
 /// This method relies on the ivar backing ``hScale`` and ``sampleStartSize``.
 /// - Parameter size: The size in base pairs that is converted into a position along the x axis of the view.
--(float)xForSize:(float)size;
+-(CGFloat)xForSize:(float)size;
 ///*****************
 
 #pragma mark - message sent by view labels
@@ -212,6 +212,10 @@ NS_ASSUME_NONNULL_BEGIN
 ///   - labels: Labels that can be reused.
 - (NSArray<RegionLabel *> *) regionLabelsForRegions:(NSArray<Region *> *)regions
 										reuseLabels:(nullable NSArray<RegionLabel *> *)labels;
+
+/// The background color of the view.
+@property (nonatomic) NSColor * backgroundColor;
+
 
 /// The layer that hosts the layer of the view's ``markerLabels``.
 @property (readonly, nonatomic) CALayer *backgroundLayer;

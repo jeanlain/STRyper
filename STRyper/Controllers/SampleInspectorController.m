@@ -24,17 +24,17 @@
 #import "SizeStandardTableController.h"
 #import "Chromatogram.h"
 #import "FittingView.h"
-#import "MainWindowController.h"
+#import "InfoTableRowView.h"
 
 static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 @interface SampleInspectorController () {
 	
-	__weak IBOutlet NSOutlineView *outlineView;  /// The outline view that constitute the sample inspector (designed in a nib).
+	__weak IBOutlet InfoOutlineView *outlineView;  /// The outline view that constitute the sample inspector (designed in a nib).
 												 /// The singleton object is is the datasource and delegate of the outline view.
 	
 	NSArrayController *sampleController;		/// This controller facilitates binding with the samples of which we show information.
-															  
+	CGFloat fittingViewHeight;					/// The height of the row showing the fitting view, which adapts to the table height.
 }
 
 /// The different peak thresholds the user can define for a ladder trace. We use this property to bind to the an NSPopupButton menu contents.
@@ -89,6 +89,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 	if(self) {
 		_peakThreshold = @[@10, @50, @100, @200, @500];
 		sampleController = NSArrayController.new;
+		fittingViewHeight = 500;
 	}
 	return self;
 }
@@ -96,9 +97,27 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+	outlineView.backgroundColor = [NSColor colorNamed:ACColorNameViewBackgroundColor];
+	outlineView.drawGridForMainSectionsOnly = YES;
 	outlineView.autosaveExpandedItems = YES;
 	outlineView.autosaveTableColumns = YES;
 	outlineView.autosaveName = @"sampleInspector";
+}
+
+
+- (void)viewDidAppear {
+	[super viewDidAppear];
+	[self updateFittingViewHeightAfterDelay];
+}
+
+
+- (void)viewDidLayout {
+	[super viewDidLayout];
+	if(self.view.inLiveResize) { /// This check is important, because when the outline view first appears, this method
+								 /// if called successively, at times when updating the row height leaves the outline view
+								 /// in an inconsistent state, which causes an exception when it is then resized horizontally.
+		[self updateFittingViewHeight];
+	}
 }
 
 
@@ -183,7 +202,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 	if([item isKindOfClass:NSArray.class]) {	/// we provide the row view for the child of a main section
 												/// the row views have the section titles as identifiers set in IB
 												/// they are placed within the outline view in the xib file
-
+		
 		NSTableRowView *rowView = [outlineView makeViewWithIdentifier:[item firstObject] owner:self];
 		for(NSView *subView in rowView.subviews) {
 			if([subView isKindOfClass:NSTextField.class]) {
@@ -197,15 +216,15 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 					if(textField.drawsBackground) {
 						/// these textfields are those that show dye names.
 						[textField bind:NSValueBinding toObject:sampleController
-						  withKeyPath:keyPath options:@{NSNoSelectionPlaceholderBindingOption: @"", NSMultipleValuesPlaceholderBindingOption: @"…"}];
+							withKeyPath:keyPath options:@{NSNoSelectionPlaceholderBindingOption: @"", NSMultipleValuesPlaceholderBindingOption: @"…"}];
 						/// Since they draw their background, it is better to hide them when the selected samples don't have the corresponding dye
 						[textField bind:NSHiddenBinding toObject:sampleController
-						  withKeyPath:keyPath options:@{NSValueTransformerNameBindingOption: NSIsNilTransformerName}];
+							withKeyPath:keyPath options:@{NSValueTransformerNameBindingOption: NSIsNilTransformerName}];
 						[textField bind:@"hidden2" toObject:sampleController		/// we also hide them when no sample is selected (the above binding is insufficient)
-						  withKeyPath:@"content.@count" options:@{NSValueTransformerNameBindingOption: NSNegateBooleanTransformerName}];
+							withKeyPath:@"content.@count" options:@{NSValueTransformerNameBindingOption: NSNegateBooleanTransformerName}];
 					} else {
 						[textField bind:NSValueBinding toObject:sampleController
-						  withKeyPath:keyPath options:@{NSValidatesImmediatelyBindingOption: @YES}];
+							withKeyPath:keyPath options:@{NSValidatesImmediatelyBindingOption: @YES}];
 					}
 				}
 			} else if([subView isKindOfClass:NSPopUpButton.class]) {
@@ -224,16 +243,16 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 					/// and the selected item is the size standard of the selected sample(s)
 					[popup bind:NSSelectedObjectBinding toObject:sampleController withKeyPath: boundKeyPath options:nil];
 					popup.menu.delegate = self;
-
+					
 				} else if([popup.identifier isEqualToString:@"polynomialOrder"]) {
 					/// the fitting method used by a size standard is the index of the selected menu item of a popup button showing the fitting method
 					[popup bind:NSSelectedIndexBinding toObject:sampleController withKeyPath:boundKeyPath
-						  options:@{NSMultipleValuesPlaceholderBindingOption : @(-1), NSNoSelectionPlaceholderBindingOption : @(-1)}];
+						options:@{NSMultipleValuesPlaceholderBindingOption : @(-1), NSNoSelectionPlaceholderBindingOption : @(-1)}];
 				} else if([popup.identifier isEqualToString:@"peakThreshold"]) {
 					[popup bind:NSContentBinding toObject:self withKeyPath:subView.identifier options:nil];
 					[popup bind:NSSelectedObjectBinding toObject:sampleController
-					  withKeyPath:[@"selection.ladderTrace." stringByAppendingString:subView.identifier]
-						  options:@{NSMultipleValuesPlaceholderBindingOption : @(-1), NSNoSelectionPlaceholderBindingOption : @100}];
+					withKeyPath:[@"selection.ladderTrace." stringByAppendingString:subView.identifier]
+						options:@{NSMultipleValuesPlaceholderBindingOption : @(-1), NSNoSelectionPlaceholderBindingOption : @100}];
 				}
 			} else if([subView isKindOfClass:FittingView.class]) {
 				/// we show the fit of the sizing with a special view (see FittingView class)
@@ -247,13 +266,17 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 		}
 		return rowView;
 	}
-	/// for main section titles, we just use a standard row view. We could use any identifier.
-	return [outlineView makeViewWithIdentifier:@"StandardRowView" owner:self];
+	/// for main section titles:
+	return InfoTableRowView.new;
 }
+
 
 
 - (CGFloat)outlineView:(NSOutlineView *)outlineView heightOfRowByItem:(id)item {
 	if([item isKindOfClass:NSArray.class]) {
+		if([item containsObject:@"Sizing"]) {
+			return fittingViewHeight;
+		}
 		/// the height of a row must be that of the row view as set in the xib.
 		NSTableRowView *rowView = [outlineView makeViewWithIdentifier:[item firstObject] owner:nil];
 		if(rowView) {
@@ -264,19 +287,53 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 }
 
 
+-(void)updateFittingViewHeightAfterDelay {
+	[self performSelector:@selector(updateFittingViewHeight) withObject:nil afterDelay:0];
+}
+
+
+-(void) updateFittingViewHeight {
+	CGFloat newHeight = outlineView.bounds.size.width;
+	NSInteger row = [outlineView rowForItem:@[@"Sizing"]];
+	if(row > 0) {
+		NSRect rect = [outlineView rectOfRow:row];
+		NSView *clipView = outlineView.superview;
+		rect = [clipView convertRect:rect fromView:outlineView];
+		CGFloat margin = clipView.bounds.size.height - NSMinY(rect) - 3;
+		if(margin < newHeight) {
+			newHeight = MAX(150, margin);
+		}
+		
+		if(fabs(newHeight - fittingViewHeight) >= 1) {
+			fittingViewHeight = newHeight;
+			NSAnimationContext.currentContext.duration = 0;
+			[NSAnimationContext beginGrouping];
+			[outlineView beginUpdates];
+			[outlineView noteHeightOfRowsWithIndexesChanged:[NSIndexSet indexSetWithIndex:row]];
+			[NSAnimationContext endGrouping];
+			[outlineView endUpdates];
+		}
+	}
+}
+
+
 - (BOOL)outlineView:(NSOutlineView *)outlineView isGroupItem:(id)item {
 	/// each main section is a (floating) group item
 	return [item isKindOfClass:NSString.class];
 }
 
 
-- (void)outlineView:(NSOutlineView *)outlineView didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
-	if(rowView.frame.size.height > 20.0) {
-		/// We use a grey color for the rows within sections, to help differentiate section headers from their content.
-		/// Setting the background color in rowViewForItem has no effect.
-		rowView.backgroundColor = NSColor.windowBackgroundColor; // NSColor.alternatingContentBackgroundColors.lastObject;
-	}
+
+
+- (void)outlineViewItemDidExpand:(NSNotification *)notification {
+	[self updateFittingViewHeightAfterDelay];
 }
+
+
+- (void)outlineViewItemDidCollapse:(NSNotification *)notification {
+	[self updateFittingViewHeightAfterDelay];
+}
+
 
 /// the expandable "items" are NSString instances (the group items). So they can be coded in a plist file as is.
 - (id)outlineView:(NSOutlineView *)outlineView persistentObjectForItem:(id)item {

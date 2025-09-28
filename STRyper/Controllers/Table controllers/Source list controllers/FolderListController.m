@@ -340,7 +340,8 @@
 			draggedABIFFilePaths = nil;
 			return YES;
 		}
-		if(draggedFolderArchiveURL && (destination == nil || destination.parent || destination == self.rootFolder) && !destination.isSmartFolder) {
+		Folder *rootFolder = self.rootFolder;
+		if(draggedFolderArchiveURL && (destination == nil || destination.parent || destination == rootFolder) && !destination.isSmartFolder) {
 			[self importFolderFromURL:draggedFolderArchiveURL intoFolder:(SampleFolder *)destination atIndex:index];
 			draggedFolderArchiveURL = nil;
 			return YES;
@@ -453,6 +454,7 @@
 	NSManagedObjectContext *MOC = self.managedObjectContext;
 	if(!parentFolder) {
 		parentFolder = self.rootFolder;
+		index = -1; /// Makes sure that the item is drop at the last index (see code below)
 	}
 	if(MOC.hasChanges && ![MOC save:nil]) {
 		NSError *error = [NSError errorWithDescription:@"The folder could not be imported because an inconsistency in the database." suggestion:@"You may quit the application and try again."];
@@ -468,7 +470,7 @@
 	}
 	NSProgress *importProgress = NSProgress.new;
 	ProgressWindow *progressWindow = ProgressWindow.new;
-	[progressWindow showProgressWindowForProgress:importProgress afterDelay:0.2 modal:YES parentWindow:self.view.window];
+	[progressWindow showProgressWindowForProgress:importProgress afterDelay:0 modal:YES parentWindow:self.view.window];
 
 	[FileImporter.sharedFileImporter importFolderFromURL:url progress:importProgress completionHandler:^(NSError * _Nullable error, SampleFolder * _Nullable importedFolder) {
 		if(!parentFolder.managedObjectContext || parentFolder.isDeleted) {
@@ -479,7 +481,7 @@
 			SampleFolder *theFolder = [MOC existingObjectWithID:importedFolder.objectID error:&error];
 			if(!error && theFolder) {
 				if(index < 0 || index > parentFolder.subfolders.count) {
-					theFolder.parent = parentFolder;
+					theFolder.parent = parentFolder; /// which simply adds the imported folder at the last index.
 				} else {
 					[parentFolder insertObject:theFolder inSubfoldersAtIndex:index];
 				}

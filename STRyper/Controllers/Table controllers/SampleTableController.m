@@ -86,8 +86,7 @@
 
 
 - (NSArray<NSString *> *)orderedColumnIDs {
-	/// "sampleName" is not included as it is already in the xib (this column contains the prototypes for the table cell views)
-	return @[@"sampleTypeColumn", @"sampleSizeStandardColumn", @"sizingColumn", @"samplePanelColumn", @"runNameColumn", @"samplePlateColumn",
+	return @[@"sampleNameColumn", @"sampleTypeColumn", @"sampleSizeStandardColumn", @"sizingColumn", @"samplePanelColumn", @"runNameColumn", @"samplePlateColumn",
 			 @"sampleWellColumn",@"sampleLaneColumn", @"sampleRunDateColumn", @"sampleFileColumn",  @"sampleImportedDateColumn",
 			 @"instrumentColumn", @"protocolColumn",@"getTypeColumn", @"ownerColumn", @"resultsGroupColumn", @"commentColumn"];
 }
@@ -98,24 +97,24 @@
 	
 	if(!columnDescription) {
 		columnDescription = @{
-			@"sampleNameColumn": 		@{KeyPathToBind: ChromatogramSampleNameKey, ColumnTitle: @"Name", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"sampleTypeColumn": 		@{KeyPathToBind: ChromatogramSampleTypeKey, ColumnTitle: @"Sample Type", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
-			@"sampleSizeStandardColumn":@{KeyPathToBind: @"sizeStandard.name", ColumnTitle: @"Size Standard", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"sizingColumn":			@{KeyPathToBind: ChromatogramSizingQualityKey, ColumnTitle: @"Sizing Quality", CellViewID: @"gaugeCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"samplePanelColumn": 		@{KeyPathToBind: @"panel.name",ColumnTitle: @"Panel", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"runNameColumn": 			@{KeyPathToBind: ChromatogramRunNameKey,ColumnTitle: @"Run", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
-			@"samplePlateColumn": 		@{KeyPathToBind: ChromatogramPlateKey, ColumnTitle: @"Plate", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"sampleWellColumn": 		@{KeyPathToBind: ChromatogramWellKey,ColumnTitle: @"Well", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"sampleLaneColumn": 		@{KeyPathToBind: ChromatogramLaneKey,ColumnTitle: @"Capillary", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO},
-			@"sampleRunDateColumn":		@{KeyPathToBind: ChromatogramRunStopTimeKey,ColumnTitle: @"Run Date", CellViewID: @"dateCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"sampleImportedDateColumn":		@{KeyPathToBind: ChromatogramImportDateKey,ColumnTitle: @"Date of Import", CellViewID: @"dateCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO},
-			@"sampleFileColumn":		@{KeyPathToBind: ChromatogramSourceFileKey,ColumnTitle: @"Source File", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO},
-			@"instrumentColumn":		@{KeyPathToBind: ChromatogramInstrumentKey,ColumnTitle: @"Instrument", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
-			@"protocolColumn":			@{KeyPathToBind: ChromatogramProtocolKey,ColumnTitle: @"Protocol", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
-			@"getTypeColumn":			@{KeyPathToBind: ChromatogramGelTypeKey,ColumnTitle: @"Gel Type", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
-			@"ownerColumn":			@{KeyPathToBind: ChromatogramOwnerKey,ColumnTitle: @"Owner", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
-			@"resultsGroupColumn":			@{KeyPathToBind: ChromatogramResultsGroupKey,ColumnTitle: @"Results Group", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
-			@"commentColumn":			@{KeyPathToBind: ChromatogramCommentKey,ColumnTitle: @"Comment", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
+			@"sampleNameColumn": 		@{KeyPathToBind: ChromatogramSampleNameKey, ColumnTitle: @"Name", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Editable sample identifier"},
+			@"sampleTypeColumn": 		@{KeyPathToBind: ChromatogramSampleTypeKey, ColumnTitle: @"Sample Type", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Editable type of sample (e.g., negative control, etc.)"},
+			@"sampleSizeStandardColumn":@{KeyPathToBind: @"sizeStandard.name", ColumnTitle: @"Size Standard", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Size standard used\n(e.g. Genescan 500)"},
+			@"sizingColumn":			@{KeyPathToBind: ChromatogramSizingQualityKey, ColumnTitle: @"Sizing Quality", CellViewID: @"gaugeCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Quality of electrophoresis\nas estimated via the size standard"},
+			@"samplePanelColumn": 		@{KeyPathToBind: @"panel.name",ColumnTitle: @"Panel", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Panel of markers analyzed for the sample"},
+			@"runNameColumn": 			@{KeyPathToBind: ChromatogramRunNameKey,ColumnTitle: @"Run", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Sequencing run identifier"},
+			@"samplePlateColumn": 		@{KeyPathToBind: ChromatogramPlateKey, ColumnTitle: @"Plate", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip: @"Sequencing plate identifier"},
+			@"sampleWellColumn": 		@{KeyPathToBind: ChromatogramWellKey,ColumnTitle: @"Well", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Well of the sample in the plate"},
+			@"sampleLaneColumn": 		@{KeyPathToBind: ChromatogramLaneKey,ColumnTitle: @"Capillary", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Capillary where the sample migrated"},
+			@"sampleRunDateColumn":		@{KeyPathToBind: ChromatogramRunStopTimeKey,ColumnTitle: @"Run Date", CellViewID: @"dateCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Date/time of sequencer run"},
+			@"sampleImportedDateColumn":		@{KeyPathToBind: ChromatogramImportDateKey,ColumnTitle: @"Date of Import", CellViewID: @"dateCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Time of import in STRyper"},
+			@"sampleFileColumn":		@{KeyPathToBind: ChromatogramSourceFileKey,ColumnTitle: @"Source File", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Path to chromatogram file"},
+			@"instrumentColumn":		@{KeyPathToBind: ChromatogramInstrumentKey,ColumnTitle: @"Sequencer", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Model of the sequencer"},
+			@"protocolColumn":			@{KeyPathToBind: ChromatogramProtocolKey,ColumnTitle: @"Protocol", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Electrophoresis protocol used"},
+			@"getTypeColumn":			@{KeyPathToBind: ChromatogramGelTypeKey,ColumnTitle: @"Gel Type", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip: @"Electrophoresis gel used"},
+			@"ownerColumn":			@{KeyPathToBind: ChromatogramOwnerKey,ColumnTitle: @"Owner", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Identifier of the result's owner"},
+			@"resultsGroupColumn": @{KeyPathToBind: ChromatogramResultsGroupKey,ColumnTitle: @"Results Group", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES},
+			@"commentColumn":			@{KeyPathToBind: ChromatogramCommentKey,ColumnTitle: @"Comment", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Editable comment"},
 		};
 	}
 	return columnDescription;
@@ -326,7 +325,7 @@
 		if(!panel) {
 			return NO;
 		}
-		[self applyPanel:panel toSamples:self.samples.arrangedObjects];
+		[PanelListController.sharedController applyPanel:panel toSamples:self.samples.arrangedObjects];
 		return YES;
 	}
 	
@@ -340,7 +339,7 @@
 			return NO;
 		}
 		
-		[self applySizeStandard:draggedSizeStandard toSamples:self.samples.arrangedObjects];
+		[SizeStandardTableController.sharedController applySizeStandard:draggedSizeStandard toSamples:self.samples.arrangedObjects];
 		return YES;
 	}
 	
@@ -354,8 +353,9 @@
 	if(MainWindowController.sharedController.sourceController == self) {
 		return YES;
 	}
-	return ![self.samples.selectionIndexes containsIndex: row];
-	
+	NSIndexSet *selectedRows = tableView.selectedRowIndexes;
+	NSIndexSet *selectedItems = self.samples.selectionIndexes;
+	return ![selectedItems containsIndexes:selectedRows] || ![selectedItems containsIndex:row];
 }
 
 
@@ -485,12 +485,12 @@
 			if([item.identifier isEqualToString:@"Panels"]) {
 				/// we populate the menu allowing to apply a panel with available panels.
 				/// We do it by providing a new menu to the parent item rather than updating the menu itself (by adding items),
-				/// because our recursive method below only returns an NSMenu (which cannot replace the "menu" argument in menuNeedsUpdate)
-				if (PanelListController.sharedController.rootFolder.subfolders > 0) {
+				NSMenu *panelMenu = [PanelListController.sharedController menuForPanelsWithTarget:self fontSize:menu.font.pointSize];
+				if (panelMenu.itemArray.count > 0) {
 					item.hidden = NO;
-					item.submenu = [self menuForPanels:PanelListController.sharedController.rootFolder.subfolders];	/// we populate it with a hierarchical menu representing the available panels within folders
+					item.submenu = panelMenu;	/// we populate it with a hierarchical menu representing the available panels within folders
 				} else {
-					item.hidden = YES;													/// we don't show it if there is no panel
+					item.hidden = YES;
 				}
 			}
 		}
@@ -552,40 +552,16 @@
 				item.action = @selector(pasteOffsets:);
 				item.target = self;
 				NSString *URI = marker.objectID.URIRepresentation.absoluteString;
-				item.representedObject = [dic dictionaryWithValuesForKeys:@[URI]];
-				[menu addItem:item];
+				if(URI) {
+					item.representedObject = [dic dictionaryWithValuesForKeys:@[URI]];
+					[menu addItem:item];
+				}
 			}
 		}
 	}
 	
 	[super menuNeedsUpdate:menu];
 }
-
-
-- (NSMenu *)menuForPanels:(NSOrderedSet *)panelFolders {
-	if(!panelFolders.count) {
-		return nil;
-	}
-	NSMenu *menu = NSMenu.new;
-	for(PanelFolder *panelFolder in panelFolders) {
-		BOOL isPanel = panelFolder.isPanel;
-		if(!isPanel && panelFolder.subfolders.count == 0) {
-			continue;
-		}
-		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:panelFolder.name action:@selector(applyPanel:) keyEquivalent:@""];
-		item.offStateImage = isPanel? [NSImage imageNamed:ACImageNamePanelBadgeMenu] : [NSImage imageNamed:ACImageNameFolderBadge];
-		[menu addItem:item];
-		if(isPanel) {
-			item.target = self;
-			item.representedObject = panelFolder;
-		} else {
-			item.action = nil;
-			item.submenu = [self menuForPanels:panelFolder.subfolders];
-		}
-	}
-	return menu;
-}
-
 
 
 
@@ -602,68 +578,10 @@
 	if(!standard) {
 		return;
 	}
-	[self applySizeStandard:standard toSamples:[self validTargetsOfSender:sender]];
+	[SizeStandardTableController.sharedController applySizeStandard:standard toSamples:[self validTargetsOfSender:sender]];
 }
 
 
-
-- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
-    NSManagedObjectContext *MOC = sampleArray.firstObject.managedObjectContext;
-    if(!MOC) {
-        return;
-    }
-    /// We  show progress but don't use a background context because materializing all samples in this context woud take a long time.
-    /// So we progress in batches on the view context between which we update the UI via a progress window.
-	NSInteger batchSize = 30;
-    NSInteger sampleCount = sampleArray.count;
-	NSProgress *progress = [NSProgress progressWithTotalUnitCount:sampleCount];
-    NSUndoManager *undoManager = MOC.undoManager;
-    [undoManager setActionName:@"Apply Size Standard"];
-    [undoManager beginUndoGrouping];
-    
-	ProgressWindow *progressWindow = ProgressWindow.new;
-	[progressWindow showProgressWindowForProgress:progress afterDelay:0.2 modal:YES parentWindow:self.view.window];
-	__block NSInteger samplesProcessed = 0;
-    
-	__block void (^processNextBatch)(void); /// The block that processes a batch of samples.
-    void (^heapBlock)(void) = ^{  /// We will launch processing of  the next batch within the current batch. To avoid block self-reference, we use another block.
-        NSInteger max = samplesProcessed+batchSize;
-        for (NSInteger i = samplesProcessed; i < max; i++) {
-			if (progress.isCancelled || i >= sampleCount) {
-                [AppDelegate.sharedInstance saveAction:self];
-                [undoManager endUndoGrouping];
-                [progressWindow stopShowingProgressAndClose];
-				return;
-			}
-            Chromatogram *sample = sampleArray[i];
-			sample.appliedSizeStandard = standard;
-			samplesProcessed++;
-		}
-        /// We schedule the next batch after a short delay to let UI update.
-        progress.completedUnitCount = samplesProcessed;
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.001  * NSEC_PER_SEC)),
-                    dispatch_get_main_queue(), ^{
-                        if (processNextBatch) processNextBatch();
-                    });
-	};
-	
-    processNextBatch = heapBlock;
-	processNextBatch(); /// We launch the first batch.
-}
-
-
-- (void)applySizeStandard_:(SizeStandard*) standard toSamples:(NSArray <Chromatogram *> *)sampleArray {
-	if(sampleArray.count > 0) {
-		[self.undoManager setActionName:@"Apply Size Standard"];
-		for (Chromatogram *sample in sampleArray) {
-			@autoreleasepool {
-				/// we don't do that in a child context without undo manager because fetching all chromatograms takes longer
-				sample.appliedSizeStandard = standard;
-			}
-		}
-		[AppDelegate.sharedInstance saveAction:self];
-	}
-}
 
 /// Applies a fitting method (inferred from the sender) to target samples.
 - (IBAction)applyFittingMethod:(NSMenuItem *)sender {
@@ -684,66 +602,19 @@
 
 /// Applies a panel (inferred from the sender) to target samples.
 - (IBAction)applyPanel:(id)sender {
-	
+	PanelListController *panelListController = PanelListController.sharedController;
 	Panel *panel;
 	if([sender class] == NSMenuItem.class) {
 		panel = [sender representedObject];
 	} else {
-		panel = (Panel *)PanelListController.sharedController.selectedFolder;
+		panel = (Panel *)panelListController.selectedFolder;
 	}
 	if(!panel.isPanel) {
 		return;
 	}
-	[self applyPanel:panel toSamples: [self validTargetsOfSender:sender]];
+	[panelListController applyPanel:panel toSamples: [self validTargetsOfSender:sender]];
 	
 }
-
-/// Applies panel to each sample of sampleArray.
-- (void)applyPanel:(Panel*) panel toSamples:(NSArray <Chromatogram *>*)sampleArray {
-	if(sampleArray.count == 0) {
-		return;
-	}
-	
-	/// We don't do this in a child context as it takes longer.
-	NSMutableArray *errors = NSMutableArray.new;
-	NSArray *redMarkers = [panel markersForChannel:redChannelNumber];
-	if(redMarkers.count >0) {
-		NSString *redMarkerNames = [[redMarkers valueForKeyPath:@"@unionOfObjects.name"] componentsJoinedByString:@" '"];
-		for(Chromatogram *sample in sampleArray) {
-			if(sample.traces.count < 5) {
-				NSString *description = [NSString stringWithFormat:@"Sample %@ cannot be genotyped at marker(s) '%@' because it lacks adequate fluorescence data.", sample.sampleName, redMarkerNames];
-				NSError *error = [NSError errorWithDescription:description suggestion:@""];
-				[errors addObject:error];
-			}
-		}
-	}
-	
-	[self.undoManager setActionName:@"Apply Marker Panel"];
-	NSString *alleleName = [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName];
-	/// we set the panel's samples in one operation
-	[panel addSamples:[NSSet setWithArray:sampleArray]];
-	for(Chromatogram *sample in sampleArray) {
-		[sample applyPanelWithAlleleName:alleleName];
-	}
-	
-	if(errors.count > 0) {
-		NSError *error;
-		if(errors.count == 1) {
-			error = errors.firstObject;
-		} else {
-			NSString *description = [NSString stringWithFormat:@"%ld sample(s) will not be analyzable for all markers of panel '%@'.", errors.count, panel.name];
-			error = [NSError errorWithDomain:STRyperErrorDomain
-										code:NSManagedObjectValidationError
-									userInfo:@{NSDetailedErrorsKey: errors.copy,
-											   NSLocalizedDescriptionKey: NSLocalizedString(description, nil),
-											   NSLocalizedRecoverySuggestionErrorKey: NSLocalizedString(@"See the log for details.", nil)
-											 }];
-		}
-		[MainWindowController.sharedController showAlertForError:error];
-	}
-	[AppDelegate.sharedInstance saveAction:self];
-}
-
 
 
 - (IBAction)callGenotypes:(id)sender {
@@ -798,17 +669,13 @@
 
 /// puts target samples into the trash folder (which is emptied when the application quits)
 - (void)deleteItems:(NSArray *)items {
+	/// We remove them from the table first, as adding the from to the trash can trigger an update of the
+	/// table for each sample, even though we don't do it one by one.
+	[self.samples removeObjects:items];
 	NSSet *samples = [NSSet setWithArray:items];
-	SampleFolder *selectedFolder = self.selectedFolder;
-	if([selectedFolder respondsToSelector:@selector(removeSamples:)]) {
-		/// we remove samples from the selected folder first, otherwise the sample table may update for each removed sample that is added
-		/// to the trash folder in the next instruction. That may take some time if many samples are removed
-		[selectedFolder removeSamples:samples];
-	}
-	
 	[FolderListController.sharedController.trashFolder addSamples:samples];
-	
 }
+
 
 -(IBAction)showInFinder:(id)sender {
 	NSArray<Chromatogram *> *targetSamples = [self validTargetsOfSender:sender];
@@ -817,7 +684,7 @@
 		if(path) {
 			BOOL reachable = [NSWorkspace.sharedWorkspace selectFile:path inFileViewerRootedAtPath:@""];
 			if(!reachable) {
-				NSError *error = [NSError errorWithDescription:@"The file could not be shown."
+				NSError *error = [NSError errorWithDescription:@"Source file not found."
 													suggestion: @"The file may have been moved or deleted since it was imported."];
 				[NSApp presentError:error];
 			}
@@ -886,7 +753,7 @@
 	
 	NSOpenPanel* panel = NSOpenPanel.openPanel;
 	panel.prompt = @"Import";
-	panel.canChooseDirectories = NO;
+	panel.canChooseDirectories = YES;
 	panel.allowsMultipleSelection = YES;
 	panel.message = [NSString stringWithFormat: @"Select chromatogram files to import into folder '%@'.", selectedFolder.name];
 	panel.allowedFileTypes = @[@"com.appliedbiosystems.abif.fsa", @"com.appliedbiosystems.abif.hid"];
@@ -1278,12 +1145,17 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 	/// for float attributes, we modify the template so that it only shows the < and > operators (equality is not very relevant for floats)
 	NSMutableArray *finalTemplates = rowTemplates.mutableCopy;
 	for(NSPredicateEditorRowTemplate *template in rowTemplates) {
-		if(template.rightExpressionAttributeType == NSFloatAttributeType){
+		if([self IsPredicateEditorRowTemplateNumeric:template]){
+			NSArray *operators = template.operators;
+			if(template.rightExpressionAttributeType == NSFloatAttributeType) {
+				/// for floating point, equality operators make no sense
+				operators = @[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)];
+			}
 			NSPredicateEditorRowTemplate *replacementTemplate = [[AggregatePredicateEditorRowTemplate alloc]
 																 initWithLeftExpressions:template.leftExpressions
-																 rightExpressionAttributeType:NSFloatAttributeType
+																 rightExpressionAttributeType:template.rightExpressionAttributeType
 																 modifier:template.modifier
-																 operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)]
+																 operators:operators
 																 options: 0];
 			finalTemplates[[rowTemplates indexOfObjectIdenticalTo:template]] = replacementTemplate;
 		}

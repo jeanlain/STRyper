@@ -435,7 +435,7 @@ const float DefaultReadLength = 550.0;
 	/// The number of points is, of course, the number of ladder fragments
 	NSUInteger nFragments = trace.fragments.count;
 	
-	float scans[nFragments];		/// arrays used to compute the polynomial
+	float scans[nFragments];		/// arrays used to compute the polynomial (VLA)
 	float sizes[nFragments];
 
 	float readLength = (float)DefaultReadLength;	/// the read length we will set in case sizing fails
@@ -511,7 +511,7 @@ const float DefaultReadLength = 550.0;
 	/// For that, we sort sizes and scans
 	vDSP_vsort(sizes, nPoints, 1);
 	vDSP_vsort(scans, nPoints, 1);
-	float offsets[nPoints];
+	float *offsets = malloc(nPoints * sizeof(float));
 	float maxDiffOffset = 0.0;
 	for (int i = 0; i < nPoints; i++) {
 		offsets[i] = sizes[i] - yGivenPolynomial(scans[i], coefs, k+1);
@@ -547,8 +547,8 @@ const float DefaultReadLength = 550.0;
 		}
 	}
 	
-	[self setSizingQuality: @(score)];
-	
+	self.sizingQuality = @(score);
+	free(offsets);
 }
 
 
@@ -614,10 +614,10 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	
 	/// we create matrices A and b that specifies the system of equations, as explained in https://neutrium.net/mathematics/least-squares-fitting-of-a-polynomial/ (here A corresponds to the matrix they call "M")
 	int dim =  k+1;					/// the dimension of the A matrix used for fitting
-	float A[dim*dim];				/// the A matrix in the equation Ax = b that we will solve. x represents the coefficient to estimate. We use a 1-dimension array rather than a matrix [dim][dim] to avoid a warning in the sposv call bellow
-	float exponents[nPoints];		/// array that we use to populate A.
-	float x2power[nPoints];			/// array that we use to populate A (scans raised to exponents)
-	float xy[nPoints];				/// array that we use to populate b (sizes * scans raised to exponents).
+	float A[dim*dim];				/// the A matrix in the equation Ax = b that we will solve. x represents the coefficient to estimate. We use a 1-dimension array rather than a matrix [dim][dim] to avoid a warning in the sposv call bellow (VLA)
+	float *exponents = malloc(nPoints * sizeof(float));		/// array that we use to populate A.
+	float *x2power = malloc(nPoints * sizeof(float));			/// array that we use to populate A (scans raised to exponents)
+	float *xy = malloc(nPoints * sizeof(float));				/// array that we use to populate b (sizes * scans raised to exponents).
 	float sum;						/// will hold temporary results from summations
 	
 	for (int n = 0; n <= 2*k; n++) {
@@ -637,6 +637,7 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 			A[i*dim + j] = sum;
 		}
 	}
+	free(exponents); free(x2power); free(xy);
 	
 	/// we solve the system Ax = b using LAPACK's sposv, as the A matrix is always symmetric and positive definite
 	char uplo = 'U';		/// specifies the lower triangle of the matrix (this doesn't matter since we have filled the whole matrix)
@@ -929,7 +930,7 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 		for(Allele *allele in genotype.alleles) {
 			[allele computeSize];
 		}
-		genotype.status = genotype.status == genotypeStatusNoSizing? genotypeStatusNotCalled : genotypeStatusSizingChanged;
+		genotype.proposedStatus = genotypeStatusSizingChanged;
 	}
 }
 
@@ -938,9 +939,14 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 	[self managedObjectOriginal_setSizingQuality:sizingQuality];
 	if(sizingQuality.floatValue <= 0) {
 		for(Genotype *genotype in self.genotypes) {
-			genotype.status = genotypeStatusNoSizing;
-			for(Allele *allele in genotype.alleles) {
-				allele.size = -1000;
+			genotype.proposedStatus = genotypeStatusNoSizing;
+			for(Allele *allele in genotype.alleles.copy) {
+				if(allele.additional) {
+					[allele removeFromGenotypeAndDelete];
+				} else {
+					allele.scan = 0;
+				}
+		//		allele.size = -1000;
 			}
 		}
 	}

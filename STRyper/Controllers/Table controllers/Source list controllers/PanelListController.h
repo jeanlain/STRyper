@@ -35,6 +35,23 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter sender: The object that sent this message. It is used to infer the destination folder of the importer panels.
 - (IBAction)importPanels:(id)sender;
 
+/// Applies a marker panel to samples (Chromatogram objects).
+///
+/// The method displays an alert to notify the user if samples lack adequate channel data for markers of the panel.
+/// - Parameters:
+///   - panel: The panel to apply.
+///   - sampleArray: The  samples that `panel` should be applied to.
+- (void)applyPanel:(Panel*) panel toSamples:(NSArray<Chromatogram *>*)sampleArray;
+
+
+/// Returns a hierarchical menu that list the available panel in their folder.
+///
+/// Menu items will have the action `applyPanel:`.
+/// - Parameters:
+///   - target: The targets of menu items in the menu.
+///   - fontSize: The size of font for the menu.
+-(nullable NSMenu *) menuForPanelsWithTarget:(id) target fontSize:(CGFloat)fontSize;
+
 @end
 
 NS_ASSUME_NONNULL_END

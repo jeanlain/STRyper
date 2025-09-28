@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
+        <deployment identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -52,7 +53,7 @@
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="g8G-aH-xxe"/>
-                <menuItem title="Add Panel" offStateImage="panelBadge" tag="4" id="j4M-X4-dDa">
+                <menuItem title="Add Panel" offStateImage="panelBadgeMenu" tag="4" id="j4M-X4-dDa">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="addFolder:" target="-2" id="K5C-aA-koJ"/>
@@ -97,7 +98,7 @@
                     <rect key="frame" x="0.0" y="0.0" width="258" height="328"/>
                     <subviews>
                         <popUpButton toolTip="New panel/folder" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="T6b-gG-WBE" userLabel="+">
-                            <rect key="frame" x="1" y="8" width="34" height="14"/>
+                            <rect key="frame" x="1" y="8" width="38" height="14"/>
                             <popUpButtonCell key="cell" type="recessed" bezelStyle="recessed" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" id="xEx-lV-DlA">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                 <font key="font" metaFont="cellTitle"/>
@@ -106,7 +107,7 @@
                                         <menuItem image="add" hidden="YES" id="FVo-Kf-QHh">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                         </menuItem>
-                                        <menuItem title="New Panel" offStateImage="panelBadge" tag="4" id="t24-C7-NOb">
+                                        <menuItem title="New Panel" offStateImage="panelBadgeMenu" tag="4" id="t24-C7-NOb">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="addFolder:" target="-2" id="Num-eg-w54"/>
@@ -130,16 +131,16 @@
                             <color key="contentTintColor" name="secondaryLabelColor" catalog="System" colorSpace="catalog"/>
                         </popUpButton>
                         <popUpButton toolTip="Apply selected panel to samples" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="A2d-Dv-MtO" userLabel="Apply">
-                            <rect key="frame" x="45" y="5" width="72" height="19"/>
+                            <rect key="frame" x="49" y="5" width="91" height="19"/>
                             <popUpButtonCell key="cell" type="recessed" title="Apply To" bezelStyle="recessed" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="xAM-s1-8KM" id="PhL-9Q-I9X">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                 <font key="font" metaFont="cellTitle"/>
                                 <menu key="menu" autoenablesItems="NO" id="Ltr-eH-OBg">
                                     <items>
-                                        <menuItem title="Apply To" hidden="YES" id="xAM-s1-8KM" userLabel="Apply To:">
+                                        <menuItem title="Apply To" image="circle arrow up" hidden="YES" id="xAM-s1-8KM" userLabel="Apply To:">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                         </menuItem>
-                                        <menuItem title="Visible Samples" tag="1" id="DMk-v9-xBf" userLabel="Visible Samples">
+                                        <menuItem title="Listed Samples" tag="1" id="DMk-v9-xBf" userLabel="Visible Samples">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="applyPanel:" target="-2" id="hod-Ln-Ftj"/>
@@ -189,7 +190,7 @@
                                                         <rect key="frame" x="8" y="0.0" width="241" height="24"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
-                                                            <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
+                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
                                                                 <rect key="frame" x="0.0" y="4" width="241" height="16"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Marker panels" id="7FA-Ui-YsX">
                                                                     <font key="font" usesAppearanceFont="YES"/>
@@ -215,7 +216,7 @@
                                                                 <rect key="frame" x="3" y="3" width="25" height="20"/>
                                                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="Panel" id="7bN-jX-rDv"/>
                                                             </imageView>
-                                                            <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
+                                                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
                                                                 <rect key="frame" x="29" y="5" width="212" height="14"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" title="Name" id="sPR-x9-rNz">
                                                                     <font key="font" metaFont="smallSystem"/>
@@ -367,7 +368,7 @@
                                 <binding destination="-2" name="enabled" keyPath="selectedFolder.isPanel" id="0mW-Sm-Waa"/>
                             </connections>
                         </button>
-                        <button toolTip="Import bins from Genemapper file" tag="5" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jSp-0o-5pJ" userLabel="import bin set">
+                        <button toolTip="Import bins from file" tag="5" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jSp-0o-5pJ" userLabel="import bin set">
                             <rect key="frame" x="28" y="33" width="104" height="19"/>
                             <buttonCell key="cell" type="recessed" title="Import Bins" bezelStyle="recessed" image="binset" imagePosition="leading" alignment="center" state="on" borderStyle="border" inset="2" id="Y05-AJ-eq4">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
@@ -399,11 +400,12 @@
         <image name="Panel" width="25" height="20"/>
         <image name="add" width="14" height="14"/>
         <image name="binset" width="14" height="14"/>
+        <image name="circle arrow up" width="15" height="15"/>
         <image name="edited" width="15" height="15"/>
         <image name="export" width="15" height="17"/>
-        <image name="folderBadge" width="20" height="15"/>
+        <image name="folderBadge" width="16" height="15"/>
         <image name="import" width="15" height="16"/>
-        <image name="panelBadge" width="20" height="15"/>
+        <image name="panelBadgeMenu" width="16" height="15"/>
         <image name="trash" width="15" height="15"/>
     </resources>
 </document>

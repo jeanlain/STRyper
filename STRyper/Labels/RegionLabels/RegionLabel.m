@@ -36,7 +36,25 @@
 @end
 
 
-@implementation RegionLabel
+@implementation RegionLabel {
+	BOOL altDrag; 		/// YES when the option key is pressed during drag, allows "symmetrical" resizing of the region (only for bin  labels).
+	float allowedWidth; /// Use for resizing with the option key, as both edges are moved in this mode.
+	
+	/// The tacking area corresponding to the left edge of the label.
+	__weak NSTrackingArea *leftEdgeArea;
+	
+	/// The tacking area corresponding to the right edge of the label.
+	__weak NSTrackingArea *rightEdgeArea;
+	
+	/// The rectangle used by the tracking area covering the label edge.
+	NSRect leftEdgeRect, rightEdgeRect;
+	
+	/// Whether the label needs to adapt the ``stringLayer`` to a new name.
+	BOOL needsUpdateString;
+	
+	BOOL needsUpdateTrackingAreas;
+
+}
 
 @synthesize hoveredEdge = _hoveredEdge;
 
@@ -74,8 +92,8 @@ static NSManagedObjectContext *temporaryContext;
 
 + (nullable __kindof RegionLabel*)regionLabelWithNewRegionByDraggingInView:(__kindof LabelView *)view
 																	 error:(NSError * _Nullable __autoreleasing *)error {
-	float position = [view sizeForX:view.mouseLocation.x];         	/// the mouse position in base pairs
-	float clickedPosition =  [view sizeForX:view.clickedPoint.x];   /// the original clicked position in base pairs
+	CGFloat position = [view sizeForX:view.mouseLocation.x];         	/// the mouse position in base pairs
+	CGFloat clickedPosition =  [view sizeForX:view.clickedPoint.x];   /// the original clicked position in base pairs
 
 	Panel *panel;
 	Mmarker *marker;
@@ -99,8 +117,8 @@ static NSManagedObjectContext *temporaryContext;
 		return nil;
 	}
 		
-	float start = MIN(position, clickedPosition);
-	float end = MAX(clickedPosition, position);
+	CGFloat start = MIN(position, clickedPosition);
+	CGFloat end = MAX(clickedPosition, position);
 	
 	temporaryContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
 
@@ -166,6 +184,7 @@ static NSManagedObjectContext *temporaryContext;
 			stringLayer.drawsAsynchronously = YES;  			/// maybe that helps a bit (not noticeable)
 			stringLayer.font = (__bridge CFTypeRef _Nullable)[NSFont labelFontOfSize:8.5];
 			stringLayer.foregroundColor = NSColor.textColor.CGColor;
+			[bandLayer addSublayer:stringLayer];
 		}
 	}
 	return self;
@@ -236,10 +255,6 @@ static NSManagedObjectContext *temporaryContext;
 	[super removeFromView];
 }
 
-
-- (void)updateForTheme {
-	stringLayer.foregroundColor = NSColor.textColor.CGColor;
-}
 
 # pragma mark - reacting to region and view changes, geometry updates
 
@@ -379,13 +394,33 @@ static NSManagedObjectContext *temporaryContext;
 	[view updateCursor];
 }
 
-
+static id eventMonitor;			   /// to monitor when the alt key is pressed, for dragging.
 
 - (void)setClickedEdge:(RegionEdge)edge {
 	_clickedEdge = edge;
 	if(edge != noEdge) {
 		/// when a user clicks an edge we compute its allowed limits, which are used in -drag
 		[self setLimitsForEdge:edge];
+		if(self.isBinLabel && edge != betweenEdges && !eventMonitor) {
+			allowedWidth = self.region.allowedWidth;
+			/// We determine whether the alt key is pressed now.
+			altDrag = (NSApp.currentEvent.modifierFlags & NSEventModifierFlagOption) != 0;
+		
+			/// We also monitor when the option key is pressed, which may occur during drag.
+			eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskFlagsChanged
+																 handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
+				
+				if(self.clickedEdge == leftEdge || self.clickedEdge == rightEdge) {
+					
+					BOOL altDrag = (event.modifierFlags & NSEventModifierFlagOption) != 0;
+					if(altDrag != self->altDrag) {
+						self->altDrag = altDrag;
+						[self drag]; /// Updates the edge positions of the label in response to the key press, even when the mouse does not move.
+					}
+				}
+				return event;
+			}];
+		}
 	}
 }
 
@@ -605,25 +640,34 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 	NSPoint mouseLocation = view.mouseLocation;
 
 	/// We determine the position of the mouse in base pairs (trace coordinates)
-	float mousePos = [view sizeForX:mouseLocation.x];
+	CGFloat mousePos = [view sizeForX:mouseLocation.x];
 	float slope = self.offset.slope;
 	float intercept = self.offset.intercept;
-	float pos = (mousePos-intercept)/slope;    /// the position of the mouse in base pairs (in marker coordinates)
+	CGFloat pos = (mousePos-intercept)/slope;    /// the position of the mouse in base pairs (in marker coordinates)
 	
-	if (pos < leftLimit) {
-		pos = leftLimit;
-	}
-	if (pos > rightLimit) {
-		pos = rightLimit;
+	Region *region = self.region;
+	RegionEdge clickedEdge = self.clickedEdge;
+	float regionMiddle = (region.start + region.end)/2;
+	
+	if(altDrag) {
+		if(clickedEdge == rightEdge) {
+			pos = MIN(MAX(regionMiddle + 0.051, pos), regionMiddle + allowedWidth/2);
+		} else {
+			pos = MAX(MIN(regionMiddle - 0.051, pos), regionMiddle - allowedWidth/2);
+		}
+	} else {
+		pos = MIN(MAX(pos, leftLimit), rightLimit);
 	}
 	
-	if(self.clickedEdge == leftEdge) {
+	if(clickedEdge == leftEdge) {
 		self.dragged = YES;
 		self.start = pos;
-	} else if(self.clickedEdge == rightEdge) {
+		self.end = altDrag? regionMiddle*2 - pos : region.end;
+	} else if(clickedEdge == rightEdge) {
 		self.dragged = YES;
 		self.end = pos;
-	} else if(self.clickedEdge == betweenEdges && self.isBinLabel) {
+		self.start = altDrag? regionMiddle*2 - pos : region.start;
+	} else if(clickedEdge == betweenEdges && self.isBinLabel) {
 		if(!self.dragged) {
 			/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
 			/// This avoids moving the bin after a simple click
@@ -637,9 +681,9 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 		/// this requires a bit of computation to deduce where the edges should go, since they are not at the mouse exact location
 		TraceView *view = self.view;
 		MarkerOffset offset = self.offset;
-		float clickedPosition = ([view sizeForX:view.clickedPoint.x] - offset.intercept)/offset.slope;
-		float newStart = pos - (clickedPosition - self.region.start);
-		float newEnd = pos - (clickedPosition - self.region.end);
+		CGFloat clickedPosition = ([view sizeForX:view.clickedPoint.x] - offset.intercept)/offset.slope;
+		CGFloat newStart = pos - (clickedPosition - self.region.start);
+		CGFloat newEnd = pos - (clickedPosition - self.region.end);
 		if (newStart < leftLimit) {
 			newStart = leftLimit;
 			newEnd = leftLimit + self.end - self.start;
@@ -671,6 +715,8 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 			/// I suppose the tracking areas are not "ready" to react yet (an appkit bug?)
 			/// To reduce the risk of this happening, we send this message:
 			[self performSelector:@selector(_updateHoveredState) withObject:nil afterDelay:0.05];
+			eventMonitor = nil;
+			altDrag = NO;
 		}
 	}
 }
@@ -732,6 +778,8 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 			[self performSelector:@selector(spawnRegionPopover:) withObject:self afterDelay:0.05];
 			
 		} else if(MOC.hasChanges) {
+			NSString *actionName = self.isBinLabel? @"Edit Bin" : @"Resize Marker";
+			[self.view.undoManager setActionName:actionName];
 			[MOC save:&databaseError];
 		}
 	}
@@ -742,9 +790,6 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 		NSString *description = [NSString stringWithFormat:@"The %@ could not be modified because of a database error.", region.entity.name];
 		databaseError = [NSError errorWithDescription:description suggestion:@"You may try to restart the application."];
 		[[NSAlert alertWithError:databaseError] runModal];
-	} else {
-		NSString *actionName = self.isBinLabel? @"Edit Bin" : @"Resize Marker";
-		[self.view.undoManager setActionName:actionName];
 	}
 }
 
@@ -762,18 +807,22 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 	}
 
 	TraceView *view = self.view;
-	NSArray *targetSamples = [view.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
-	Mmarker *marker = (Mmarker *)self.region;
-	
-	if(!targetSamples || !marker) {
-		return NO;
+	NSArray<Genotype *> *genotypes;
+	if(view.loadedGenotypes.count > 0) {
+		genotypes = view.loadedGenotypes;
+	} else {
+		NSArray *targetSamples = [view.loadedTraces valueForKeyPath:@"@distinctUnionOfObjects.chromatogram"];
+		Mmarker *marker = (Mmarker *)self.region;
+		
+		if(!targetSamples || !marker) {
+			return NO;
+		}
+		
+		genotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
+		genotypes = [genotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
+			return genotype.marker == marker;
+		}];
 	}
-	
-	NSArray<Genotype *> *genotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
-	
-	genotypes = [genotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
-		return genotype.marker == marker;
-	}];
 	
 	if(genotypes.count > 0) {
 		NSData *offsetCoefs = [NSData dataWithBytes:&offset length:sizeof(offset)];

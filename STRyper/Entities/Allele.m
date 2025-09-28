@@ -84,9 +84,14 @@
 	return self;
 }
 
-
+static NSArray<NSString *> *observedAttributes;
 static void *attributeChangeContext = &attributeChangeContext;
 
++ (void)initialize {
+	if (self == [Allele class]) {
+		observedAttributes = @[@"genotype", @"size", @"name", @"scan"];
+	}
+}
 
 - (void)awakeFromFetch {
 	[super awakeFromFetch];
@@ -105,10 +110,9 @@ static void *attributeChangeContext = &attributeChangeContext;
 
 
 -(void) observeAttributes {
-	[self addObserver:self forKeyPath:@"genotype" options:NSKeyValueObservingOptionNew context:attributeChangeContext];
-	[self addObserver:self forKeyPath:@"size" options:NSKeyValueObservingOptionNew context:attributeChangeContext];
-	[self addObserver:self forKeyPath:@"name" options:NSKeyValueObservingOptionNew context:attributeChangeContext];
-	[self addObserver:self forKeyPath:@"scan" options:NSKeyValueObservingOptionNew context:attributeChangeContext];
+	for(NSString *attribute in observedAttributes) {
+		[self addObserver:self forKeyPath:attribute options:NSKeyValueObservingOptionNew context:attributeChangeContext];
+	}
 }
 
 
@@ -124,10 +128,9 @@ static void *attributeChangeContext = &attributeChangeContext;
 - (void)willTurnIntoFault {
 	[super willTurnIntoFault];
 	@try {
-		 [self removeObserver:self forKeyPath:@"size"];
-		 [self removeObserver:self forKeyPath:@"name"];
-		 [self removeObserver:self forKeyPath:@"scan"];
-		 [self removeObserver:self forKeyPath:@"genotype"];
+		for(NSString *attribute in observedAttributes) {
+			[self removeObserver:self forKeyPath:attribute];
+		}
 	 } @catch (NSException *exception) {
 		 // If observer wasn’t added, ignore exception
 	 }
@@ -184,6 +187,10 @@ static void *attributeChangeContext = &attributeChangeContext;
 	} else {
 		Chromatogram *sample = self.trace.chromatogram;
 		if(sample) {
+			if(sample.sizingQuality.floatValue <= 0) {
+				self.size = -1000;
+				return;
+			}
 			float size = [sample sizeForScan:self.scan];
 			if(self.genotype.offsetData) {
 				MarkerOffset offset = self.genotype.offset;

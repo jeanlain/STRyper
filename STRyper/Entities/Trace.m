@@ -37,6 +37,8 @@ TraceFragmentsKey = @"fragments";
 
 NSString * _Nonnull const previousTraceClassName = @"Trace";
 
+const BaseRange ZeroBaseRange = {.start = 0, .len = 0};
+
 @interface Trace () {
 	CGMutablePathRef  path;          /// C array of CGPathRef
 	CGPoint *pointsForPath;
@@ -103,9 +105,9 @@ static BOOL appleSilicon;			/// whether the Mac running the application has an A
 	if (self == [FluoTrace class]) {
 		/// We determine if the SoC is from Apple by reading the CPU brand.
 		/// There may be a better way by reading the architecture.
-		size_t size = 100;		/// To make sure that we can read the whole CPU name.
-		char string[size];
-		sysctlbyname("machdep.cpu.brand_string", &string, &size, nil, 0);
+		char string[100];
+		size_t size2 = 100;
+		sysctlbyname("machdep.cpu.brand_string", &string, &size2, nil, 0);
 		appleSilicon = strncmp(string, "Apple", 5) == 0;
 
 	}
@@ -840,7 +842,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 
 #pragma mark - drawing
 
-- (void)prepareDrawPathFromSize:(float)startSize toSize:(float)endSize vScale:(float)vScale hScale:(float)hScale leftOffset:(float)leftOffset useRawData:(BOOL)useRawData maintainPeakHeights:(BOOL)maintainPeakHeights minY:(CGFloat)minY {
+- (void)prepareDrawPathFromSize:(float)startSize toSize:(float)endSize vScale:(CGFloat)vScale hScale:(CGFloat)hScale leftOffset:(float)leftOffset useRawData:(BOOL)useRawData maintainPeakHeights:(BOOL)maintainPeakHeights minY:(CGFloat)minY {
 		
 	Chromatogram *sample = self.chromatogram;
 	NSData *fluoData = useRawData? self.primitiveRawData : [self adjustedDataMaintainingPeakHeights:maintainPeakHeights];
@@ -858,20 +860,10 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 		
 	/// we never draw scans that are after the maxScan, as they have lower sizes than the maxScan.
 	/// The curve would go back to the left and overlap itself
-	int	maxScan = sample.maxScan;
-	if(maxScan >= nRecordedScans) {
-		maxScan = (int)nRecordedScans -1;
-	}
+	int	maxScan = MIN(sample.maxScan, (int)nRecordedScans -1);
 		
 	/// the first scan for which me may draw the fluorescence is the before the startSize
-	int	startScan = [sample scanForSize:startSize]-1;
-	if(startScan < sample.minScan) {
-		/// but for the reason stated above, we don't draw scans before the minScan
-		startScan = sample.minScan;
-	}
-	if(startScan >= maxScan) {
-		return;
-	}
+	int	startScan = MIN(maxScan, MAX(sample.minScan, [sample scanForSize:startSize]-1));
 		
 	size_t maxPointsInCurve = 40;
 	CGPoint *pointArray = NULL;
@@ -912,7 +904,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 		if(size > endSize) {
 			outside = YES;
 		}
-		float x = (size - leftOffset) * hScale;
+		CGFloat x = (size - leftOffset) * hScale;
 		
 		int16_t scanFluo = fluo[scan];
 		if (scan < maxScan) {
@@ -982,7 +974,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	}
 	
 	NSInteger colorCount = offScaleColors.count;
-	const float lowerY = 1;
+	const CGFloat lowerY = 1;
 	NSColor *currentOffscaleColor;
 	
 	NSData *peakData = self.peaks;
@@ -1000,9 +992,9 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 			if(peakStartSize <= endSize && peakStartScan < endScan) {
 				int offScaleChannel = -(peakPTR->crossTalk + 1);
 				if(offScaleChannel >= 0 && offScaleChannel <= colorCount) {
-					float x = (peakStartSize- leftOffset)*hScale;
-					float y = -1;
-					CGPoint pointArray[endScan - peakStartScan + 3];
+					CGFloat x = (peakStartSize- leftOffset)*hScale;
+					CGFloat y = -1;
+					CGPoint *pointArray = malloc((endScan - peakStartScan + 3) * sizeof(CGPoint));
 					pointArray[0] = CGPointMake(x, y);
 					int nPointsInPath = 1;
 					
@@ -1024,6 +1016,8 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 					}
 					CGContextBeginPath(ctx);
 					CGContextAddLines(ctx, pointArray, nPointsInPath);
+					free(pointArray);
+					pointArray = NULL;
 					CGContextClosePath(ctx);
 					CGContextFillPath(ctx);
 				}

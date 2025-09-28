@@ -63,6 +63,30 @@ LadderFragmentOffsetKey = @"offset";
 	return @"";
 }
 
+
+- (NSNumber *)height {
+	int32_t scan = self.scan;
+	if(scan <= 0) {
+		return  nil;
+	}
+	
+	NSData *fluoData = self.trace.primitiveRawData;
+	if(fluoData) {
+		const int16_t *fluo = fluoData.bytes;
+		long nScans = fluoData.length/sizeof(int16_t);
+		if(nScans > scan && scan >= 0) {
+			return @(fluo[scan]);
+		}
+	}
+	return nil;
+}
+
+
++ (NSSet<NSString *> *)keyPathsForValuesAffectingHeight {
+	return [NSSet setWithObjects:@"scan", nil];
+}
+
+
 - (BOOL)additional {
 	return NO;
 }

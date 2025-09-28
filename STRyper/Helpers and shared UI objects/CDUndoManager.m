@@ -31,13 +31,13 @@
 		_managedObjectContext = nil;
 		[NSNotificationCenter.defaultCenter removeObserver:self];
 	}
-	if(managedObjectContext.undoManager == self) {
-		_managedObjectContext = managedObjectContext;
-		[NSNotificationCenter.defaultCenter addObserver:self
-											   selector:@selector(contextDidChange:)
-												   name:NSManagedObjectContextObjectsDidChangeNotification
-												 object:managedObjectContext];
-	}
+	_managedObjectContext = managedObjectContext;
+	_managedObjectContext.undoManager = self;
+	[NSNotificationCenter.defaultCenter addObserver:self
+										   selector:@selector(contextDidChange:)
+											   name:NSManagedObjectContextObjectsDidChangeNotification
+											 object:managedObjectContext];
+	
 }
 
 

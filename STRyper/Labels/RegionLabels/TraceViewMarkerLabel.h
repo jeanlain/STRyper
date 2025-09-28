@@ -64,7 +64,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// and sends ``RegionLabel/spawnRegionPopover:`` to corresponding ``BinLabel``, if any.
 ///
 /// A new bin is added only if the label's ``RegionLabel/editState`` is `editStateBins`
-/// and if ``Bin/binForMarker:desiredMidSize:desiredWidth:`` does not return `nil`.
+/// and if ``Mmarker/insertBinAtSize:desiredWidth:`` does not return `nil`.
 /// The desired bin width is 1 bp.
 /// - Parameter sender: The object that sent this message. It is ignored by the method.
 - (void)doubleClickAction:(id)sender;

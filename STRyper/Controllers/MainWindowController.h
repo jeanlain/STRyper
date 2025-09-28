@@ -94,8 +94,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// This sends ``TableViewController/moveSelectionByStep:`` to the ``sourceController``.
 - (IBAction)moveSelectionByStep:(id)sender;
 
-/// Toggles the left pane of the main split view.
-- (IBAction)toggleLeftPane:(id)sender;
 
 /// Toggles the right pane of the main split view.
 - (IBAction)toggleRightPane:(id)sender;

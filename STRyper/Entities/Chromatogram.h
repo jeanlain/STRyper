@@ -147,7 +147,7 @@ NS_ASSUME_NONNULL_BEGIN
 																
 /// Return the trace corresponding to a given channel.
 ///
-/// This method will return nil if none of the chromatogram's ``traces`` has a ``FluoTrace/channel`` that matches the argument, which would be an error.
+/// This method will return `nil` if none of the chromatogram's ``traces`` has a ``FluoTrace/channel`` that matches the argument.
 ///
 /// - Important: A `Chromatogram` must only have one trace per channel.
 /// - Parameter channel: The channel of the trace to retrieve.
@@ -294,13 +294,13 @@ extern const float DefaultReadLength;
 
 /// The size at the first recorded scan assuming a linear regression between scan number (x) and size (y) for the ``FluoTrace/fragments`` of the ``ladderTrace``.
 ///
-/// If no sizing is available, this method returns 0 or nil.
+/// If no sizing is available, this property is 0.
 /// In this case,  the ``sizes`` and ``coefs`` attributes must not be used to deduce the size of fragments.
 @property (nonatomic, readonly)  float intercept;
 
 /// The slope of the linear relationship between scan number (x) and size (y) for the ``FluoTrace/fragments`` of the ``ladderTrace``.
 ///
-/// If no sizing if available, the method returns `DefaultReadLength` divided by ``nScans``.
+/// If no sizing if available, the value is `DefaultReadLength` divided by ``nScans``.
 @property (nonatomic, readonly) float sizingSlope;
 
 /// Computes the relationship between sizes in base pairs and scan numbers fo the sample, using its molecular ladder.

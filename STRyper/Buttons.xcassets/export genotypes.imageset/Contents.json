@@ -3,6 +3,16 @@
     {
       "filename" : "export genotypes.pdf",
       "idiom" : "mac"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "export genotypes dark.pdf",
+      "idiom" : "mac"
     }
   ],
   "info" : {
@@ -10,6 +20,7 @@
     "version" : 1
   },
   "properties" : {
-    "template-rendering-intent" : "template"
+    "preserves-vector-representation" : true,
+    "template-rendering-intent" : "original"
   }
 }

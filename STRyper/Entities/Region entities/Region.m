@@ -107,6 +107,15 @@ regionEditStateKey = @"editState";
 }
 
 
+- (float) allowedWidth {
+	float leftLimit = [self allowedRangeForEdge:leftEdge].start;
+	BaseRange rightRange = [self allowedRangeForEdge:rightEdge];
+	float rightLimit = rightRange.start + rightRange.len;
+	float middle = (self.start + self.end)/2;
+	return MIN(middle - leftLimit, rightLimit - middle)*2;
+}
+
+
 - (void)autoName {
 	/// overridden
 }

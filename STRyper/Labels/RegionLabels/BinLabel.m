@@ -48,8 +48,6 @@
 		
 		layer.zPosition = -0.5; /// To show being traces in the host view.
 		layer.geometryFlipped = YES; /// This helps placing the bandLayer at the top of the layer.
-
-	
 		stringLayer.fontSize = 8.5;
 		stringLayer.alignmentMode = kCAAlignmentCenter;
 				
@@ -58,7 +56,6 @@
 		/// Instead, we never modify the bounds of the stringLayer (unless the text changes), only those of the bandLayer
 		bandLayer.anchorPoint = CGPointMake(0.5, 1);		/// this helps to position that layer within its parent (same for the following instruction)
 		bandLayer.zPosition = 1.0;							/// because for some unclear reasons, this layer may sometimes show behind traces
-		[bandLayer addSublayer:stringLayer];
 	}
 	
 	return self;
@@ -74,6 +71,8 @@
 			bandLayer.backgroundColor = view.binNameBackgroundColor;
 			bandLayer.borderColor = view.hoveredBinLabelColor;
 		}
+		stringLayer.foregroundColor = NULL;
+		stringLayer.foregroundColor = view.labelStringColor;
 		[view.backgroundLayer addSublayer:bandLayer];
 	}
 }
@@ -113,6 +112,8 @@
 
 
 - (void)updateAppearance {
+	layer.backgroundColor = NULL;
+	bandLayer.backgroundColor = NULL;
 	TraceView *view = self.view;
 	BOOL hovered = self.hovered;
 	BOOL highlighted = self.highlighted;
@@ -143,7 +144,8 @@
 	layer.backgroundColor = self.hovered? view.hoveredBinLabelColor : view.binLabelColor;
 	bandLayer.backgroundColor = view.binNameBackgroundColor;
 	bandLayer.borderColor = view.hoveredBinLabelColor;
-	[super updateForTheme];
+	stringLayer.foregroundColor = NULL;
+	stringLayer.foregroundColor = view.labelStringColor;
 }
 
 
@@ -179,14 +181,14 @@
 
 - (void)reposition {
 	TraceView *view = self.view;
-	float hScale = view.hScale;
+	CGFloat hScale = view.hScale;
 	if(hScale <= 0) {
 		return;
 	}
 
 	float startSize = self.startSize;
 	float endSize = self.endSize;
-	float startX = [view xForSize:startSize];
+	CGFloat startX = [view xForSize:startSize];
 	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(view.bounds));
 	
 	self.frame = regionRect;
@@ -229,7 +231,7 @@
 
 
 + (void)arrangeLabels:(NSArray *)binLabels withRepositioning:(BOOL)reposition {
-	float currentMaxX = 0;
+	CGFloat currentMaxX = 0;
 	for(BinLabel *binLabel in binLabels) {
 		if(!binLabel.hidden) {
 			if(reposition) {
@@ -237,18 +239,18 @@
 			}
 			CALayer *bandLayer = binLabel->bandLayer;
 			NSRect nameRect = bandLayer.frame;
-			float nameRectMinX = nameRect.origin.x;
+			CGFloat nameRectMinX = nameRect.origin.x;
 			BOOL hideBinName = nameRectMinX <= currentMaxX;
 			binLabel.binNameHidden = hideBinName;
 			if(!bandLayer.hidden) {
-				float nameRectMaxX = NSMaxX(nameRect);
+				CGFloat nameRectMaxX = NSMaxX(nameRect);
 				if(nameRectMaxX > currentMaxX) {
 					currentMaxX = nameRectMaxX;
 				}
 				if(hideBinName) {
 					/// Here, the overlaps with a previous one, which is normal if the label is hovered or highlighted
 					/// We go back to hide names of previous bins that overlap.
-					float nameRectMinX = nameRect.origin.x;
+					CGFloat nameRectMinX = nameRect.origin.x;
 					for(BinLabel *previousBinLabel in binLabels) {
 						if(previousBinLabel != binLabel) {
 							if(!previousBinLabel.binNameHidden && NSMaxX(previousBinLabel->bandLayer.frame) >= nameRectMinX) {

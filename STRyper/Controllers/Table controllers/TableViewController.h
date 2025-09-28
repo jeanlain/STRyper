@@ -91,7 +91,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// This property is intended to be used for its setter, which buffers successive changes
 /// to avoid reloading the table redundantly in the same cycle, and calls `_loadContent` just once.
 ///
-/// - Note: The getter is not guaranteed to return the elements show in the ``tableView``.
+/// - Important: The getter is not guaranteed to return the elements show in the ``tableView``.
 /// One may instead rely on ``tableContent``'s `arrangedObjects`.
 @property (nonatomic, copy) NSArray* contentArray;
 
@@ -105,8 +105,8 @@ extern NSBindingName const ContentArrayBinding;
 /// The default implementation set  ``contentArray`` as `content` of the
 /// ``tableContent`` `NSArrayController`.
 ///
-/// - Note: If default implement assumes that the `content` property of ``tableContent`` is not bound,
-/// and that `arrangedObjets`  is bound to the ``tableView``'s content.
+/// - Note: The default implementation assumes that the `content` property of ``tableContent`` is not bound,
+/// and that its `arrangedObjets` is bound to the ``tableView``'s content.
 -(void)_loadContent;
 
 ///The controller objet providing content to the ``tableView``.
@@ -161,7 +161,11 @@ IsColumnVisibleByDefault,
 /// Whether the column sorting is case-insensitive.
 ///
 /// The value for this key must be an `NSNumber` (bool).
-IsColumnSortingCaseInsensitive;
+IsColumnSortingCaseInsensitive,
+
+/// The tooltip to show at the column header, and at the correspond item of the
+/// table header menu to show/hide the column
+HeaderToolTip;
 
 
 /// The tableview that contains the prototypes for table cell view (by default, the receiver's ``tableView``).
@@ -526,6 +530,7 @@ IsColumnSortingCaseInsensitive;
 /// - Parameter filterPredicate: The filter predicate to apply.
 - (void)applyFilterPredicate:(nullable NSPredicate *)filterPredicate;
 
+- (BOOL) IsPredicateEditorRowTemplateNumeric:(NSPredicateEditorRowTemplate *)template;
 
 @end
 

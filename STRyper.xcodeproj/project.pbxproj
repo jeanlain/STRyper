@@ -81,6 +81,7 @@
 		0F9956082AF6B9CB00B282BB /* PreviewViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0F9956062AF6B9CB00B282BB /* PreviewViewController.xib */; };
 		0F99560D2AF6B9CB00B282BB /* QLPreviewABIF.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0F9955FC2AF6B9CB00B282BB /* QLPreviewABIF.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0F9956142AF6BD3400B282BB /* TracePreviewView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0F9956132AF6BD3400B282BB /* TracePreviewView.m */; };
+		0FA1F4E22E89240000FE842D /* InfoTableRowView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA1F4E12E89240000FE842D /* InfoTableRowView.m */; };
 		0FA623C7289E5540006A23FE /* SampleTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623C6289E5540006A23FE /* SampleTableController.m */; };
 		0FA623CA289E5580006A23FE /* MarkerTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623C9289E5580006A23FE /* MarkerTableController.m */; };
 		0FA623CD289E559D006A23FE /* SizeStandardTableController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FA623CC289E559D006A23FE /* SizeStandardTableController.m */; };
@@ -94,8 +95,9 @@
 		0FBB567E298C355A00110490 /* ProgressWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FBB567C298C355A00110490 /* ProgressWindow.m */; };
 		0FBF1BDD29353156005F4429 /* FileImporter.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FBF1BDB29353156005F4429 /* FileImporter.m */; };
 		0FC4C2E62A6C68AD00DAF6D5 /* TableSortPopover.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FC4C2E52A6C68AD00DAF6D5 /* TableSortPopover.m */; };
-		0FC5330B2E1D9E9000A0DFDB /* TraceViewTablePrinter.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FC5330A2E1D9E9000A0DFDB /* TraceViewTablePrinter.m */; };
+		0FC5330B2E1D9E9000A0DFDB /* TraceOutlineViewPrinter.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FC5330A2E1D9E9000A0DFDB /* TraceOutlineViewPrinter.m */; };
 		0FC9E33A2AF4280600E1215D /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0FC9E3392AF4280600E1215D /* Metal.framework */; };
+		0FD070982E889631004753F3 /* InfoOutlineView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FD070972E889631004753F3 /* InfoOutlineView.m */; };
 		0FD10D1628F08FD000FBB0A1 /* FittingView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FD10D1528F08FD000FBB0A1 /* FittingView.m */; };
 		0FD6F67C2AEC4F2200153694 /* NSArray+NSArrayAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FD6F67B2AEC4F2200153694 /* NSArray+NSArrayAdditions.m */; };
 		0FDDE85428F6A13B00A734BD /* TableHeaderView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FDDE85228F6A13B00A734BD /* TableHeaderView.m */; };
@@ -106,6 +108,7 @@
 		0FE33B022807539E00B9C5DB /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0FE33B002807539E00B9C5DB /* MainMenu.xib */; };
 		0FE33B042807539E00B9C5DB /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FE33B032807539E00B9C5DB /* main.m */; };
 		0FE3433F28A2A70400809BF9 /* LabelView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FE3433E28A2A70400809BF9 /* LabelView.m */; };
+		0FEADF9B2E48797600CC5AE6 /* TraceOutlineView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FEADF9A2E48797600CC5AE6 /* TraceOutlineView.m */; };
 		0FF5C83429D993880095D95A /* IndexImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FF5C83329D993880095D95A /* IndexImageView.m */; };
 		0FF7E0A82A6AE8B600E25863 /* NSMenuItem+NSMenuItemAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 0FF7E0A72A6AE8B600E25863 /* NSMenuItem+NSMenuItemAdditions.m */; };
 		0FFF1AF6296C17B6009C32F2 /* TableSort Popover.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0FFF1AF4296C17B6009C32F2 /* TableSort Popover.xib */; };
@@ -142,8 +145,8 @@
 		0F081946291EA50D00BF990A /* GaugeTableCellView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GaugeTableCellView.h; sourceTree = "<group>"; };
 		0F081947291EA50D00BF990A /* GaugeTableCellView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GaugeTableCellView.m; sourceTree = "<group>"; };
 		0F0D01FE29FE6841006D724F /* STRyper.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = STRyper.xcdatamodel; sourceTree = "<group>"; };
-		0F1257CA2940CCFD0080A3B4 /* SampleSearchHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SampleSearchHelper.h; path = "STRyper/Helpers and shared UI objects/search/SampleSearchHelper.h"; sourceTree = SOURCE_ROOT; };
-		0F1257CB2940CCFD0080A3B4 /* SampleSearchHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = SampleSearchHelper.m; path = "STRyper/Helpers and shared UI objects/search/SampleSearchHelper.m"; sourceTree = SOURCE_ROOT; };
+		0F1257CA2940CCFD0080A3B4 /* SampleSearchHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = SampleSearchHelper.h; path = "STRyper/Helpers and shared UI objects/Search/SampleSearchHelper.h"; sourceTree = SOURCE_ROOT; };
+		0F1257CB2940CCFD0080A3B4 /* SampleSearchHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = SampleSearchHelper.m; path = "STRyper/Helpers and shared UI objects/Search/SampleSearchHelper.m"; sourceTree = SOURCE_ROOT; };
 		0F12DF9329ABCA2B00931B66 /* SearchWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SearchWindow.h; sourceTree = "<group>"; };
 		0F12DF9429ABCA2B00931B66 /* SearchWindow.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SearchWindow.m; sourceTree = "<group>"; };
 		0F12DF9629ABD1BD00931B66 /* SearchWindow.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = SearchWindow.xib; sourceTree = "<group>"; };
@@ -162,11 +165,11 @@
 		0F2C9AEB29CF4F02001A0787 /* BinLabel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BinLabel.m; sourceTree = "<group>"; };
 		0F2C9AED29CF4F13001A0787 /* TraceViewMarkerLabel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TraceViewMarkerLabel.h; sourceTree = "<group>"; };
 		0F2C9AEE29CF4F13001A0787 /* TraceViewMarkerLabel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TraceViewMarkerLabel.m; sourceTree = "<group>"; };
-		0F2CB4332969735000B5532A /* NSPredicate+PredicateAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "NSPredicate+PredicateAdditions.h"; path = "STRyper/Helpers and shared UI objects/search/NSPredicate+PredicateAdditions.h"; sourceTree = SOURCE_ROOT; };
-		0F2CB4342969735000B5532A /* NSPredicate+PredicateAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = "NSPredicate+PredicateAdditions.m"; path = "STRyper/Helpers and shared UI objects/search/NSPredicate+PredicateAdditions.m"; sourceTree = SOURCE_ROOT; };
+		0F2CB4332969735000B5532A /* NSPredicate+PredicateAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "NSPredicate+PredicateAdditions.h"; path = "STRyper/Helpers and shared UI objects/Search/NSPredicate+PredicateAdditions.h"; sourceTree = SOURCE_ROOT; };
+		0F2CB4342969735000B5532A /* NSPredicate+PredicateAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = "NSPredicate+PredicateAdditions.m"; path = "STRyper/Helpers and shared UI objects/Search/NSPredicate+PredicateAdditions.m"; sourceTree = SOURCE_ROOT; };
 		0F2CB43729698B6F00B5532A /* NSSplitViewController+SplitViewControllerAdditions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSSplitViewController+SplitViewControllerAdditions.h"; sourceTree = "<group>"; };
 		0F2CB43829698B6F00B5532A /* NSSplitViewController+SplitViewControllerAdditions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSSplitViewController+SplitViewControllerAdditions.m"; sourceTree = "<group>"; };
-		0F31636D297B322E0084B491 /* TraceViewDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = TraceViewDelegate.h; path = "STRyper/controllers/Table controllers/TraceViewDelegate.h"; sourceTree = SOURCE_ROOT; };
+		0F31636D297B322E0084B491 /* TraceViewDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = TraceViewDelegate.h; path = "STRyper/Controllers/Table controllers/TraceViewDelegate.h"; sourceTree = SOURCE_ROOT; };
 		0F3B8BC52E172B380006D5BC /* CALayer+CALayerAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "CALayer+CALayerAdditions.h"; sourceTree = "<group>"; };
 		0F3B8BC62E172B380006D5BC /* CALayer+CALayerAdditions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "CALayer+CALayerAdditions.m"; sourceTree = "<group>"; };
 		0F3D2EF328075496006FAAF2 /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -263,6 +266,9 @@
 		0F99560A2AF6B9CB00B282BB /* QLPreviewABIF.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QLPreviewABIF.entitlements; sourceTree = "<group>"; };
 		0F9956122AF6BD3400B282BB /* TracePreviewView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TracePreviewView.h; sourceTree = "<group>"; };
 		0F9956132AF6BD3400B282BB /* TracePreviewView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TracePreviewView.m; sourceTree = "<group>"; };
+		0FA142B62E4A8C2000109537 /* TraceOutlineView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TraceOutlineView.h; sourceTree = "<group>"; };
+		0FA1F4E02E89240000FE842D /* InfoTableRowView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InfoTableRowView.h; sourceTree = "<group>"; };
+		0FA1F4E12E89240000FE842D /* InfoTableRowView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = InfoTableRowView.m; sourceTree = "<group>"; };
 		0FA623C5289E5540006A23FE /* SampleTableController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SampleTableController.h; sourceTree = "<group>"; };
 		0FA623C6289E5540006A23FE /* SampleTableController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SampleTableController.m; sourceTree = "<group>"; };
 		0FA623C8289E5580006A23FE /* MarkerTableController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MarkerTableController.h; sourceTree = "<group>"; };
@@ -289,9 +295,11 @@
 		0FC4C2E42A6C68AD00DAF6D5 /* TableSortPopover.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TableSortPopover.h; sourceTree = "<group>"; };
 		0FC4C2E52A6C68AD00DAF6D5 /* TableSortPopover.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TableSortPopover.m; sourceTree = "<group>"; };
 		0FC4C2E72A6C6E9C00DAF6D5 /* SortCriteriaEditorDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SortCriteriaEditorDelegate.h; sourceTree = "<group>"; };
-		0FC533092E1D9E9000A0DFDB /* TraceViewTablePrinter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TraceViewTablePrinter.h; sourceTree = "<group>"; };
-		0FC5330A2E1D9E9000A0DFDB /* TraceViewTablePrinter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TraceViewTablePrinter.m; sourceTree = "<group>"; };
+		0FC533092E1D9E9000A0DFDB /* TraceOutlineViewPrinter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TraceOutlineViewPrinter.h; sourceTree = "<group>"; };
+		0FC5330A2E1D9E9000A0DFDB /* TraceOutlineViewPrinter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TraceOutlineViewPrinter.m; sourceTree = "<group>"; };
 		0FC9E3392AF4280600E1215D /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		0FD070962E889631004753F3 /* InfoOutlineView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = InfoOutlineView.h; sourceTree = "<group>"; };
+		0FD070972E889631004753F3 /* InfoOutlineView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = InfoOutlineView.m; sourceTree = "<group>"; };
 		0FD10D1428F08FD000FBB0A1 /* FittingView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FittingView.h; sourceTree = "<group>"; };
 		0FD10D1528F08FD000FBB0A1 /* FittingView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FittingView.m; sourceTree = "<group>"; };
 		0FD6F67A2AEC4F2200153694 /* NSArray+NSArrayAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSArray+NSArrayAdditions.h"; sourceTree = "<group>"; };
@@ -309,6 +317,8 @@
 		0FE33B052807539E00B9C5DB /* STRyper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = STRyper.entitlements; sourceTree = "<group>"; };
 		0FE3433D28A2A70400809BF9 /* LabelView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LabelView.h; sourceTree = "<group>"; };
 		0FE3433E28A2A70400809BF9 /* LabelView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LabelView.m; sourceTree = "<group>"; };
+		0FEADF9A2E48797600CC5AE6 /* TraceOutlineView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = TraceOutlineView.m; path = STRyper/Views/TraceOutlineView.m; sourceTree = SOURCE_ROOT; };
+		0FEADF9C2E4879E700CC5AE6 /* TraceOutlineViewDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = TraceOutlineViewDelegate.h; path = "STRyper/Controllers/Table controllers/TraceOutlineViewDelegate.h"; sourceTree = SOURCE_ROOT; };
 		0FF5C83229D993880095D95A /* IndexImageView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = IndexImageView.h; path = "STRyper/Views/Utilitary views/IndexImageView.h"; sourceTree = SOURCE_ROOT; };
 		0FF5C83329D993880095D95A /* IndexImageView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = IndexImageView.m; path = "STRyper/Views/Utilitary views/IndexImageView.m"; sourceTree = SOURCE_ROOT; };
 		0FF7E0A62A6AE8B600E25863 /* NSMenuItem+NSMenuItemAdditions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSMenuItem+NSMenuItemAdditions.h"; sourceTree = "<group>"; };
@@ -352,8 +362,12 @@
 				0FB4EC4629A7D072007BCB56 /* HoveredTableRowView.m */,
 				0F2A950F29EEF32E0034833E /* STableRowView.h */,
 				0F2A951029EEF32E0034833E /* STableRowView.m */,
-				0FC533092E1D9E9000A0DFDB /* TraceViewTablePrinter.h */,
-				0FC5330A2E1D9E9000A0DFDB /* TraceViewTablePrinter.m */,
+				0FD070962E889631004753F3 /* InfoOutlineView.h */,
+				0FD070972E889631004753F3 /* InfoOutlineView.m */,
+				0FA1F4E02E89240000FE842D /* InfoTableRowView.h */,
+				0FA1F4E12E89240000FE842D /* InfoTableRowView.m */,
+				0FC533092E1D9E9000A0DFDB /* TraceOutlineViewPrinter.h */,
+				0FC5330A2E1D9E9000A0DFDB /* TraceOutlineViewPrinter.m */,
 			);
 			path = "Utilitary views";
 			sourceTree = "<group>";
@@ -416,6 +430,8 @@
 			isa = PBXGroup;
 			children = (
 				0F28868F298A70BD0079A199 /* Utilitary views */,
+				0FA142B62E4A8C2000109537 /* TraceOutlineView.h */,
+				0FEADF9A2E48797600CC5AE6 /* TraceOutlineView.m */,
 				0FE3433D28A2A70400809BF9 /* LabelView.h */,
 				0FE3433E28A2A70400809BF9 /* LabelView.m */,
 				0F3D2F1028075972006FAAF2 /* TraceView.h */,
@@ -591,6 +607,7 @@
 				0F3D2F2428075973006FAAF2 /* DetailedViewController.h */,
 				0F3D2F2E28075974006FAAF2 /* DetailedViewController.m */,
 				0F31636D297B322E0084B491 /* TraceViewDelegate.h */,
+				0FEADF9C2E4879E700CC5AE6 /* TraceOutlineViewDelegate.h */,
 				0F455EC828A00ECB0053A938 /* Source list controllers */,
 			);
 			path = "Table controllers";
@@ -730,7 +747,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					0F9955FB2AF6B9CB00B282BB = {
 						CreatedOnToolsVersion = 15.0.1;
@@ -838,6 +855,7 @@
 				0F2C9AEF29CF4F13001A0787 /* TraceViewMarkerLabel.m in Sources */,
 				0F455EC5289FA0390053A938 /* PanelListController.m in Sources */,
 				0F3D2F4728075974006FAAF2 /* TableViewController.m in Sources */,
+				0FD070982E889631004753F3 /* InfoOutlineView.m in Sources */,
 				0FBF1BDD29353156005F4429 /* FileImporter.m in Sources */,
 				0F12DF9529ABCA2B00931B66 /* SearchWindow.m in Sources */,
 				0F0D01FF29FE6841006D724F /* STRyper.xcdatamodeld in Sources */,
@@ -845,7 +863,7 @@
 				0F3D2F3F28075974006FAAF2 /* TraceScrollView.m in Sources */,
 				0F3D2F3E28075974006FAAF2 /* SourceListController.m in Sources */,
 				0F3B8BC72E172B380006D5BC /* CALayer+CALayerAdditions.m in Sources */,
-				0FC5330B2E1D9E9000A0DFDB /* TraceViewTablePrinter.m in Sources */,
+				0FC5330B2E1D9E9000A0DFDB /* TraceOutlineViewPrinter.m in Sources */,
 				0F3D2F4A28075974006FAAF2 /* SizeStandardSize.m in Sources */,
 				0F43C8542A6D4170005252DE /* SortCriteriaEditor.m in Sources */,
 				0FE3433F28A2A70400809BF9 /* LabelView.m in Sources */,
@@ -872,6 +890,7 @@
 				0FC4C2E62A6C68AD00DAF6D5 /* TableSortPopover.m in Sources */,
 				0F2CB43929698B6F00B5532A /* NSSplitViewController+SplitViewControllerAdditions.m in Sources */,
 				0FBB567E298C355A00110490 /* ProgressWindow.m in Sources */,
+				0FEADF9B2E48797600CC5AE6 /* TraceOutlineView.m in Sources */,
 				0F1BBF12291F91970094BA09 /* SampleInspectorController.m in Sources */,
 				0F3D2F4128075974006FAAF2 /* Panel.m in Sources */,
 				0FE1238C2A7C4EBB001C4FDC /* AggregatePredicateEditorRowTemplate.m in Sources */,
@@ -889,6 +908,7 @@
 				0F3D2F4C28075974006FAAF2 /* ViewLabel.m in Sources */,
 				0F3D2EF528075496006FAAF2 /* AppDelegate.m in Sources */,
 				0FD6F67C2AEC4F2200153694 /* NSArray+NSArrayAdditions.m in Sources */,
+				0FA1F4E22E89240000FE842D /* InfoTableRowView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -931,8 +951,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
-				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
+				CURRENT_PROJECT_VERSION = 15;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -946,8 +965,8 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = "1.4 beta";
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MARKETING_VERSION = "1.5 beta";
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper.QLPreviewABIF;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -964,8 +983,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
-				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
+				CURRENT_PROJECT_VERSION = 15;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -979,8 +997,8 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = "1.4 beta";
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MARKETING_VERSION = "1.5 beta";
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper.QLPreviewABIF;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1024,6 +1042,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -1084,6 +1103,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -1112,9 +1132,8 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = STRyper/Info.plist;
@@ -1127,8 +1146,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = "1.4 beta";
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MARKETING_VERSION = "1.5 beta";
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper;
 				PRODUCT_NAME = STRyper;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1146,9 +1165,8 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = Y3Y6Z3FDZK;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = STRyper/Info.plist;
@@ -1161,8 +1179,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = "$(RECOMMENDED_MACOSX_DEPLOYMENT_TARGET)";
-				MARKETING_VERSION = "1.4 beta";
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MARKETING_VERSION = "1.5 beta";
 				PRODUCT_BUNDLE_IDENTIFIER = jpeccoud.STRyper;
 				PRODUCT_NAME = STRyper;
 				SWIFT_EMIT_LOC_STRINGS = YES;

@@ -37,7 +37,8 @@ CellViewID =  @"cellViewID",
 ColumnTitle = @"columnTitle",
 IsTextFieldEditable = @"isTextFieldEditable",
 IsColumnVisibleByDefault = @"columnVisibleByDefault",
-IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive";
+IsColumnSortingCaseInsensitive = @"columnSortingCaseInsensitive",
+HeaderToolTip = @"headerToolTip";
 
 @interface TableViewController ()
 
@@ -151,6 +152,15 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 
 - (void)setContentArray:(NSArray *)contentArray {
 	_contentArray = contentArray.copy;
+	NSArray *currentContent = self.tableContent.content;
+	if(currentContent.count > 0 && ![_contentArray containsAllObjectsOf:currentContent]) {
+		/// As we defer the reloading of the table, it is important to immediately clear if from objects that it should no longer show.
+		/// Such objects may not be adequate for bindings with cell views (e.g. they have been deleted). Bindings to deleted objects cause crashes in some macOS versions.
+		/// So we simply clear the table once, as the principle of this method is to avoid successive updates.
+		/// We could clear the table without checking the condition above, but this would cause an unnecessary flash.
+		self.tableContent.content = nil;
+	}
+	
 	if(!_needLoadContent) {
 		_needLoadContent = YES;
 		[self performSelector:@selector(_loadContent) withObject:nil afterDelay:0];
@@ -201,6 +211,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 			col.minWidth = col.headerCell.cellSize.width ;
 		}
 		col.hidden = [colDescription.allKeys containsObject:IsColumnVisibleByDefault] && ![colDescription[IsColumnVisibleByDefault] boolValue];
+		col.headerToolTip = colDescription[HeaderToolTip];
 	}
 }
 
@@ -357,6 +368,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:col.title action:@selector(toggleColumnVisibility:) keyEquivalent:@""];
 			item.target = self;
 			item.representedObject = col;
+			item.toolTip = col.headerToolTip;
 			[menu addItem:item];
 		}
 		
@@ -870,9 +882,12 @@ static NSString *const KeypathKey = @"KeypathKey";
 	tableSortPopover.sortActionTarget = self;
 	NSTableHeaderView *headerView = self.tableView.headerView;
 	[tableSortPopover showRelativeToRect:headerView.bounds ofView:headerView preferredEdge:NSMaxYEdge];
-	NSVisualEffectView *popoverFrame = (NSVisualEffectView *)tableSortPopover.contentViewController.view.superview;
-	if([popoverFrame respondsToSelector:@selector(material)]) {
-		popoverFrame.material = NSVisualEffectMaterialContentBackground;
+	
+	if (@available(macOS 10.14, *)) {
+		NSVisualEffectView *popoverFrame = (NSVisualEffectView *)tableSortPopover.contentViewController.view.superview;
+		if([popoverFrame respondsToSelector:@selector(material)]) {
+			popoverFrame.material = NSVisualEffectMaterialContentBackground;
+		}
 	}
 }
 
@@ -921,6 +936,18 @@ static NSString *const KeypathKey = @"KeypathKey";
 		}
 	}
 }
+
+
+- (void)viewDidLayout {
+	if(_flashLayer && !_flashLayer.hidden&& self.view.inLiveResize) {
+		CGRect visibleRect = NSInsetRect(self.tableView.visibleRect, 1, 1);
+		CGRect flashLayerRect = _flashLayer.frame;
+		flashLayerRect.origin.x = visibleRect.origin.x;
+		flashLayerRect.size.width = visibleRect.size.width;
+		_flashLayer.frame = flashLayerRect;
+	}
+}
+
 
 
 - (CALayer *)flashLayer {
@@ -1314,7 +1341,7 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 		filterPredicate = self.defaultFilterPredicate;
 	}
 	
-	if(filterPredicate.class != NSCompoundPredicate.class) {
+	if(filterPredicate && filterPredicate.class != NSCompoundPredicate.class) {
 		/// we make the search predicate a compound predicate to make sure it shows the "all/any/none" option.
 		filterPredicate = [NSCompoundPredicate andPredicateWithSubpredicates:@[filterPredicate]];
 	}
@@ -1329,11 +1356,13 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 		
 	[filterPopover showRelativeToRect:sender.bounds ofView:sender preferredEdge:NSMinYEdge];
 	
-	/// We remove the visual effect of the popover, as this doesn't go well with the predicate editor.
-	/// We must do it after the popover is set to show, otherwise the visual effect view is not in place.
-	NSVisualEffectView *popoverFrame = (NSVisualEffectView *)contentView.superview;
-	if([popoverFrame respondsToSelector:@selector(material)]) {
-		popoverFrame.material = NSVisualEffectMaterialContentBackground;
+	if (@available(macOS 10.14, *)) {
+		/// We remove the visual effect of the popover, as this doesn't go well with the predicate editor.
+		/// We must do it after the popover is set to show, otherwise the visual effect view is not in place.
+		NSVisualEffectView *popoverFrame = (NSVisualEffectView *)contentView.superview;
+		if([popoverFrame respondsToSelector:@selector(material)]) {
+			popoverFrame.material = NSVisualEffectMaterialContentBackground;
+		}
 	}
 }
 
@@ -1379,6 +1408,16 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 	[self applyFilterPredicate:nil];
 }
 
+
+- (BOOL) IsPredicateEditorRowTemplateNumeric:(NSPredicateEditorRowTemplate *)template {
+	NSAttributeType t = template.rightExpressionAttributeType;
+	return (t == NSInteger16AttributeType ||
+			t == NSInteger32AttributeType ||
+			t == NSInteger64AttributeType ||
+			t == NSDecimalAttributeType ||
+			t == NSDoubleAttributeType ||
+			t == NSFloatAttributeType);
+}
 
 
 @end

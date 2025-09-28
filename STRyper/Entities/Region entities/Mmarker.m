@@ -38,7 +38,7 @@
 @implementation Mmarker
 
 @dynamic ploidy, channel, motiveLength, bins, panel, genotypes;
-@synthesize channelImage, channelName;
+@synthesize channelImage, channelName, visibleRange;
 
 NSString * _Nonnull const MarkerBinsKey = @"bins";
 NSString * _Nonnull const MarkerPanelKey = @"panel";
@@ -99,29 +99,30 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 - (void)setStart:(float)start {
 	/// when these attribute change, we make the user know that the marker has been modified for any genotype generated for this marker
 	if(self.start != start) {
-		for(Genotype *genotype in self.genotypes) {
-			GenotypeStatus status = genotype.status;
-			if(status != genotypeStatusNotCalled) {
-				genotype.status = genotypeStatusMarkerChanged;
-			}
-		}
 		[self managedObjectOriginal_setStart:start];
+		[self updateGenotypeStatuses];
 	}
 }
 
 
 - (void)setEnd:(float)end {		/// see -setStart:
 	if(self.end != end) {
-		for(Genotype *genotype in self.genotypes) {
-			GenotypeStatus status = genotype.status;
-			if(status != genotypeStatusNotCalled) {
-				genotype.status = genotypeStatusMarkerChanged;
-			}
-		}
 		[self managedObjectOriginal_setEnd:end];
+		[self updateGenotypeStatuses];
 	}
 }
 
+
+
+
+-(void) updateGenotypeStatuses {
+	NSManagedObjectContext *MOC = self.managedObjectContext;
+	[MOC performBlockAndWait:^{
+		for(Genotype *genotype in self.genotypes) {
+			genotype.proposedStatus = genotypeStatusMarkerChanged;
+		}
+	}];
+}
 
 
 - (void)setChannel:(int16_t)channel {
@@ -332,6 +333,64 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 			[allele managedObjectOriginal_setName:alleleName];
 		}
 	}
+}
+
+
+
+- (nullable Bin *)insertBinAtSize:(float)midSize desiredWidth:(float)width {
+	if(width < Bin.minimumWidth) {
+		return nil;
+	}
+	
+	float margin = Bin.minimumWidth/2;
+	if(midSize <= self.start || midSize >= self.end) {
+		/// Bin out of marker range
+		return nil;
+	}
+	
+	/// The maximum start and minimum end the bin can take.
+	float minStart = self.start + margin, maxEnd = self.end - margin;
+
+	for(Bin *bin in self.bins) {
+		float extendedBinEnd = bin.end + margin;
+		float extendedBinStart = bin.start - margin;
+		if(extendedBinEnd >= midSize && extendedBinStart <= midSize) {
+			/// Another bin overlaps the desired mid size
+			return nil;
+		}
+		
+		if(midSize - extendedBinEnd > 0 && extendedBinEnd > minStart) {
+			minStart = extendedBinEnd;
+		}
+		
+		if(midSize - extendedBinStart < 0 && extendedBinStart < maxEnd) {
+			maxEnd = extendedBinStart;
+		}
+	}
+	
+	if(maxEnd - minStart < margin*2) {
+		/// Not enough room for the bin.
+		return nil;
+	}
+	
+	float binStart = midSize - width/2, binEnd = midSize + width/2; /// The ideal bin range
+	if(maxEnd - minStart < width) {
+		binStart = minStart;
+		binEnd = maxEnd;
+	} else {
+		if(binStart < minStart) {
+			binStart = minStart;
+			binEnd = binStart + width;
+		}
+		
+		if(binEnd > maxEnd) {
+			binEnd = maxEnd;
+			binStart = binEnd - width;
+		}
+	}
+	
+	return [[Bin alloc] initWithStart:binStart end:binEnd marker:self];
+
 }
 
 #pragma mark - copying and archiving

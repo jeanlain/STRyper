@@ -42,7 +42,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The desired width of the view.
 ///
 /// The default is 30.0. The effective value is constrained to the range [0, 100];
-@property (nonatomic) float width;
+@property (nonatomic) CGFloat width;
 
 /// The background color of the view.
 ///

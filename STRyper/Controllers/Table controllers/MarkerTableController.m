@@ -93,13 +93,13 @@ static NSArray *channelColorImages;
 	static NSDictionary *columnDescription = nil;
 	if(!columnDescription) {
 		columnDescription = @{
-			@"markerNameColumn":	@{KeyPathToBind: @"name",ColumnTitle: @"Marker", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"markerChannelColumn":	@{KeyPathToBind: @"channelName", ImageIndexBinding: @"channel" ,ColumnTitle: @"Dye color", CellViewID: @"compositeCellViewText", IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"markerStartColumn":		@{KeyPathToBind: @"start",ColumnTitle: @"Start", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"markerEndColumn":		@{KeyPathToBind: @"end",ColumnTitle: @"End", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
+			@"markerNameColumn":	@{KeyPathToBind: @"name",ColumnTitle: @"Marker", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Name of marker"},
+			@"markerChannelColumn":	@{KeyPathToBind: @"channelName", ImageIndexBinding: @"channel" ,ColumnTitle: @"Dye color", CellViewID: @"compositeCellViewText", IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Color of the marker's dye"},
+			@"markerStartColumn":		@{KeyPathToBind: @"start",ColumnTitle: @"Start", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Start of the marker's range"},
+			@"markerEndColumn":		@{KeyPathToBind: @"end",ColumnTitle: @"End", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"End of the marker's range"},
 			/// For the column below, the cell view prototype is in a different table and we don't use the cell view ID
-			@"markerMotiveColumn":		@{KeyPathToBind: @"motiveLength",ColumnTitle: @"Motive", CellViewID: @"", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"markerPloidyColumn":		@{KeyPathToBind: @"ploidy",ColumnTitle: @"Ploidy", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO}
+			@"markerMotiveColumn":		@{KeyPathToBind: @"motiveLength",ColumnTitle: @"Motive", CellViewID: @"", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Length of the marker's repeat motive"},
+			@"markerPloidyColumn":		@{KeyPathToBind: @"ploidy",ColumnTitle: @"Ploidy", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Ploidy of the marker:\n1 for haploid, 2 for diploid"}
 		};
 	}
 	return columnDescription;
@@ -107,10 +107,7 @@ static NSArray *channelColorImages;
 
 
 - (NSArray<NSString *> *)orderedColumnIDs {
-	/// a column with id @"markerNameColumn" is already set in the nib.
-	/// This is because the table shifts to cell-based if it doesn't have a column in Xcode 14. 
-	/// So it must have a column, and we don't add it to the identifiers
-	return @[@"markerChannelColumn", @"markerStartColumn", @"markerEndColumn", @"markerMotiveColumn", @"markerPloidyColumn"];
+	return @[@"markerNameColumn", @"markerChannelColumn", @"markerStartColumn", @"markerEndColumn", @"markerMotiveColumn", @"markerPloidyColumn"];
 }
 
 

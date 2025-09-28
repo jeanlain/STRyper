@@ -58,6 +58,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The size is computed when the ``LadderFragment/scan`` property it set and should not normally be set independently,
 /// although it is settable by inheritance.
+/// The size takes into account the ``Genotype/offset`` of the ``genotype``.
 @property (nonatomic) float size;
 
 /// Makes the allele compute its size.

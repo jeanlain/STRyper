@@ -26,6 +26,8 @@
 /// The controls that allows defining the modifiers of the predicate
 @property (nonatomic) NSSegmentedControl *modifierControl;
 @property (nonatomic) NSNumberFormatter *formatter;
+@property (nonatomic) NSDictionary<NSString *, NSString *> *shortOperatorTitles;
+
 
 @end
 
@@ -57,27 +59,60 @@ NS_ENUM(NSUInteger, SelectedSegmentIndex) {
 		_formatter = NSNumberFormatter.new;
 		_formatter.numberStyle = NSNumberFormatterDecimalStyle;
 		_formatter.roundingMode = NSNumberFormatterRoundHalfDown;
-		_formatter.maximumFractionDigits = 3;
+		_formatter.maximumFractionDigits = self.rightExpressionAttributeType == NSFloatAttributeType ? 3:0;
 	}
 	return _formatter;
 }
 
 
+- (BOOL) isNumeric {
+	NSAttributeType t = self.rightExpressionAttributeType;
+	return (t == NSInteger16AttributeType ||
+			t == NSInteger32AttributeType ||
+			t == NSInteger64AttributeType ||
+			t == NSDecimalAttributeType ||
+			t == NSDoubleAttributeType ||
+			t == NSFloatAttributeType);
+}
+
+
+- (NSDictionary *)shortOperatorTitles {
+	if(!_shortOperatorTitles) {
+		_shortOperatorTitles = @{
+				@"is greater than"            : @"exceeds",
+				@"is greater than or equal to": @"is ≥",
+				@"is less than or equal to"   : @"is ≤",
+				@"contains"                   : @"has",
+				@"does not contain"           : @"lacks"
+			};
+
+	}
+	return _shortOperatorTitles;
+}
+
+
 - (NSArray<NSView *> *)templateViews {
 	NSArray *views = super.templateViews;
-	if(self.rightExpressionAttributeType == NSFloatAttributeType) {
+	if(self.isNumeric) {
 		for(NSView *view in views) {
 			if([view isKindOfClass:NSTextField.class]) {
 				NSTextField *textField = (NSTextField *)view;
 				if(textField.isEditable) {
 					if(!textField.formatter) {
 						textField.formatter = self.formatter;
-						textField.tag = -666;
 					}
 					NSSize frameSize = textField.frame.size;
 					if(frameSize.width < 100) {
 						frameSize.width = 100;
 						[textField setFrameSize:frameSize];
+					}
+				}
+			} else if([view isKindOfClass:NSPopUpButton.class]) {
+				for(NSMenuItem *item in [(NSPopUpButton *)view itemArray]) {
+					NSString *title = item.title;
+					NSString *replacement = self.shortOperatorTitles[title];
+					if(replacement) {
+						item.title = replacement;
 					}
 				}
 			}

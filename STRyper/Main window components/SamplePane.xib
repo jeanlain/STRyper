@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
+        <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
@@ -26,7 +27,7 @@
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     <clipView key="contentView" id="tYv-Hh-kQD">
                         <rect key="frame" x="0.0" y="0.0" width="584" height="324"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <autoresizingMask key="autoresizingMask"/>
                         <subviews>
                             <tableView identifier="sampleTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" alternatingRowBackgroundColors="YES" autosaveColumns="NO" rowHeight="16" rowSizeStyle="automatic" headerView="yhO-Rg-Mgn" viewBased="YES" floatsGroupRows="NO" id="KUu-Te-JeL" userLabel="sample table">
                                 <rect key="frame" x="0.0" y="0.0" width="584" height="296"/>
@@ -35,7 +36,7 @@
                                 <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                 <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                 <tableColumns>
-                                    <tableColumn identifier="sampleNameColumn" width="119" minWidth="16" maxWidth="1000" id="lFf-Km-lb0">
+                                    <tableColumn identifier="sampleNameColumn" width="119" minWidth="16" maxWidth="1000" headerToolTip="" id="lFf-Km-lb0">
                                         <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Name">
                                             <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" white="0.33333298560000002" alpha="1" colorSpace="calibratedWhite"/>
@@ -318,7 +319,7 @@
                         <rect key="frame" x="564" y="28" width="16" height="29"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </scroller>
-                    <tableHeaderView key="headerView" wantsLayer="YES" id="yhO-Rg-Mgn" customClass="TableHeaderView">
+                    <tableHeaderView key="headerView" wantsLayer="YES" id="yhO-Rg-Mgn">
                         <rect key="frame" x="0.0" y="0.0" width="584" height="28"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </tableHeaderView>
@@ -355,9 +356,9 @@
         </customView>
         <menu identifier="Samples" id="eeK-P8-7Rg" userLabel="Sample menu">
             <items>
-                <menuItem title="Apply Size Sandard" offStateImage="sizeStandard" identifier="sizeStandard" id="UKZ-0a-MWI">
+                <menuItem title="Apply Size Standard" offStateImage="sizeStandard" identifier="sizeStandard" id="UKZ-0a-MWI">
                     <modifierMask key="keyEquivalentModifierMask"/>
-                    <menu key="submenu" title="Apply Size Sandard" identifier="Standards" id="jtG-xf-a6Y" userLabel="SizeStandardList">
+                    <menu key="submenu" title="Apply Size Standard" identifier="Standards" id="jtG-xf-a6Y" userLabel="SizeStandardList">
                         <items>
                             <menuItem title="size standard" state="on" tag="-2" id="9fa-oR-UTW">
                                 <modifierMask key="keyEquivalentModifierMask"/>
@@ -372,19 +373,19 @@
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Fitting Method" identifier="fittingMethod" id="Egt-OF-2ks">
                         <items>
-                            <menuItem title="Linear regression" id="3e2-5S-J5j">
+                            <menuItem title="Linear Regression" id="3e2-5S-J5j">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <action selector="applyFittingMethod:" target="-2" id="ULp-Mg-WUu"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="2nd-order polynomial" tag="1" id="b6N-MZ-nHZ">
+                            <menuItem title="2nd-order Polynomial" tag="1" id="b6N-MZ-nHZ">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <action selector="applyFittingMethod:" target="-2" id="PJf-h6-Kx4"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="3rd-order polynomial" tag="2" id="t0g-XO-VCv">
+                            <menuItem title="3rd-order Polynomial" tag="2" id="t0g-XO-VCv">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <action selector="applyFittingMethod:" target="-2" id="opN-k7-tOs"/>
@@ -399,7 +400,7 @@
                 <menuItem isSeparatorItem="YES" id="COr-XA-1YT"/>
                 <menuItem title="Apply Marker Panel" offStateImage="panelBadgeMenu" tag="2" identifier="Panels" id="Wto-RE-pCe">
                     <modifierMask key="keyEquivalentModifierMask"/>
-                    <menu key="submenu" title="Apply Size Sandard" identifier="PanelList" id="Mqq-7Z-djr" userLabel="Panel list">
+                    <menu key="submenu" title="Apply Marker Panel" identifier="PanelList" id="Mqq-7Z-djr" userLabel="Panel list">
                         <connections>
                             <outlet property="delegate" destination="-2" id="nO6-RS-PBp"/>
                         </connections>
@@ -411,7 +412,7 @@
                         <action selector="callGenotypes:" target="-2" id="oDd-p2-GTa"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Select Gentoype(s)" offStateImage="circle arrow down" tag="1" id="egq-Pn-ySE">
+                <menuItem title="Select Genotype(s)" offStateImage="circle arrow down" tag="1" id="egq-Pn-ySE">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="showGenotypes:" target="-2" id="VVI-mp-5gl"/>
@@ -443,7 +444,7 @@
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="mAJ-HR-X7y"/>
-                <menuItem title="Show in Finder" offStateImage="NSQuickLookTemplate" id="GQE-ex-awC">
+                <menuItem title="Show in Finder" offStateImage="eye.fill" catalog="system" id="GQE-ex-awC">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="showInFinder:" target="-2" id="Lgz-11-Gki"/>
@@ -459,17 +460,17 @@
     </objects>
     <resources>
         <image name="NSActionTemplate" width="20" height="20"/>
-        <image name="NSQuickLookTemplate" width="26" height="17"/>
         <image name="bottomBar" width="20" height="20"/>
         <image name="callAllelesBadge" width="15" height="15"/>
         <image name="circle arrow down" width="15" height="15"/>
         <image name="copy" width="15" height="14"/>
+        <image name="eye.fill" catalog="system" width="21" height="13"/>
         <image name="filterButton" width="25" height="25"/>
         <image name="filterButton On" width="25" height="25"/>
         <image name="fittingMethod" width="15" height="15"/>
-        <image name="folderBadge" width="20" height="15"/>
+        <image name="folderBadge" width="16" height="15"/>
         <image name="looking left" width="15" height="15"/>
-        <image name="panelBadgeMenu" width="15" height="12"/>
+        <image name="panelBadgeMenu" width="16" height="15"/>
         <image name="paste offset" width="14" height="14"/>
         <image name="sizeStandard" width="15" height="15"/>
         <image name="trash" width="15" height="15"/>

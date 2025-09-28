@@ -25,7 +25,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-extern const float markerViewHeight;
+extern const CGFloat markerViewHeight;
 
 /// A view that shows molecular marker above a ``TraceView``.
 ///
@@ -60,11 +60,6 @@ extern const float markerViewHeight;
 
 /// Tells the the view that it needs to update its content (marker labels, button states) to reflect the ``LabelView/panel`` that it shows.
 @property (nonatomic) BOOL needsUpdateContent;
-
-/// The background color of the view.
-///
-/// The default value is the system window background color.
-@property (nonatomic) NSColor * backgroundColor;
 
 /// Make the ``traceView`` zoom to the marker that is to the left of the visible range, and returns the corresponding region label
 /// - Parameter sender: The object that sent this message.

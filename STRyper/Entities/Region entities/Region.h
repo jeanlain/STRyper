@@ -113,6 +113,11 @@ typedef NS_ENUM(NSUInteger, RegionEdge) {
 /// - Parameter edge: The edge for which to return range.
 -(BaseRange)allowedRangeForEdge:(RegionEdge)edge;
 
+/// The maximum width the region can have if its middle position does not change.
+///
+/// This methods relies on ``allowedRangeForEdge:``.
+@property (nonatomic, readonly) float allowedWidth;
+
 extern CodingObjectKey regionStartKey,
 regionEndKey,
 regionNameKey,

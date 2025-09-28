@@ -55,10 +55,10 @@
 @property (nonatomic) float currentPosition;
 
 /// Equivalent to ``LabelView/xForSize:``
-- (float)xForSize:(float)size;
+- (CGFloat)xForSize:(float)size;
 
 /// Equivalent to ``LabelView/sizeForX:``
-- (float)sizeForX:(float)x;
+- (float)sizeForX:(CGFloat)x;
 
 
 /// Tells the view whether it needs to change its appearance (dark/light) to conform to the app theme.
@@ -80,20 +80,9 @@
 /// This property should return `YES` if the offset of one or several marker(s) shown by the trace view has/have changed.
 @property (nonatomic) BOOL needsUpdateOffsets;
 
-/// A button shown by the ruler view, which be configured to apply size standard.
-///
-/// Once this property is accessed, the visibility of the button
-/// reflects whether the chromatogram of the``TraceView/trace`` shown by the trace view
-/// has a size standard applied to it. When visible, the button is horizontally centered in the ruler view.
-///
-/// Typically the button's `menu` would be configured to show a list of available size standards,
-/// with appropriate actions for menu items. By default, this menu has no item.
-/// - Important: Once this property is accessed, the button will be visible if the sample(s) shown
-/// in the trace view lack(s) a size standard. It is therefore important to configure the button's `menu`.
-@property (nonatomic, readonly) NSPopUpButton *applySizeStandardButton;
 
 /// The thickness of the ruler view = 14 pts.
-extern const float ruleThickness;
+extern const CGFloat ruleThickness;
 
 -(void) showTime:(NSString *) time;
 

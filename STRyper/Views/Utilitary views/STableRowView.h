@@ -23,22 +23,23 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// A row view that makes a designated `NSScrollView` subview as wide as its tableview's `clipView`.
+/// A row view that makes a designated subview as wide as its tableview's `superView`.
 ///
-/// This class addresses a very specific situation:
-/// if a tableview scrolls horizontally and if its rows contain a scrollview, the user may have to scroll two views (the one within the row and the tableview) to see the full content of a row.
+/// An `STableRowView` makes sure that its designated ``mainSubview`` is not clipped by the tableView's `superView` (which normally is a clipview).
 ///
-/// To avoid this, an `STableRowView` makes its subview as wide as its visible rectangle (determined by the width of the tableview's clipview).
+/// For instance, if the row view had a scrollview fitting its whole frame as a subview,
+/// the user may have to scroll two views (this scrollview and the tableview's) to see the full content of a row.
 ///
+/// To avoid this, an `STableRowView` makes its ``mainSubview`` as wide as its visible rectangle (determined by the width of the tableview's clipview).
 ///
 /// ``STRyper`` uses this class for table rows containing ``TraceScrollView`` views.
 @interface STableRowView : NSTableRowView
 
-/// The scrollview that should be resized to fit the tableView's clipView width.
+/// The subview that should be resized to fit the tableView's clipView width.
 ///
-/// Setting this property makes `embeddedScrollView` a subview of the receiver
-/// and removes any previous `embeddedScrollView` from the subviews.
-@property (nonatomic) __kindof NSScrollView *embeddedScrollView;
+/// Setting this property makes `mainSubview` a subview of the receiver
+/// and removes the previous `mainSubview` from the subviews.
+@property (nonatomic) __kindof NSView *mainSubview;
 
 @end
 

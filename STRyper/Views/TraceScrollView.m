@@ -32,7 +32,7 @@
 	VScaleView *vScaleView;   		/// the vertical scale view is created by the scroll view and added as a subview
 	__weak TraceView *traceView;	/// A shortcut to the document view (if a traceView)
 	RegionLabel *targetLabel;		/// the label of the marker to which we move to after a swipe gesture
-	float previousDeltaX;			/// The scrollingDeltaX of the last scrollWheel event, used to determine if we should move to the next/previous marker.
+	CGFloat previousDeltaX;			/// The scrollingDeltaX of the last scrollWheel event, used to determine if we should move to the next/previous marker.
 	BOOL needsUpdateVScaleViewBoundsOrigin;
 }
 
@@ -66,7 +66,6 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 -(void)setAttributes {
 	self.hasHorizontalScroller = YES;
 	self.verticalScrollElasticity = NSScrollElasticityNone;
-//	self.scrollerStyle = NSScrollerStyleLegacy;
 	self.usesPredominantAxisScrolling = NO;
 	self.borderType = NSNoBorder;
 	self.rulersVisible = YES;
@@ -88,6 +87,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 	} else {
 		if([self.subviews indexOfObjectIdenticalTo:vScaleView] != NSNotFound) {
 			[vScaleView removeFromSuperview];
+			vScaleView = nil;
 		}
 	}
 }
@@ -95,7 +95,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 
 -(void)clipViewBoundsDidChange:(NSNotification *)notification { // Debugging
 	NSClipView *clipView = self.contentView;
-	float boundsX = clipView.bounds.origin.x;
+	CGFloat boundsX = clipView.bounds.origin.x;
 	NSLog(@"notified: %f", boundsX);
 
 }
@@ -110,7 +110,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 - (void)setScrollerStyle:(NSScrollerStyle)scrollerStyle {
 	if(scrollerStyle == NSScrollerStyleLegacy || !self.alwaysShowsScroller) {
 		needsUpdateVScaleViewBoundsOrigin = YES;
-		[super setScrollerStyle:scrollerStyle];
+		super.scrollerStyle = scrollerStyle;
 	}
 }
 
@@ -141,6 +141,14 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 }
 
 
+- (void)setHorizontalRulerView:(NSRulerView *)horizontalRulerView {
+	/// We make sure the vScale view is above the ruler view.
+	/// On older macOS, it may not be.
+	[super setHorizontalRulerView:horizontalRulerView];
+	if(vScaleView) {
+		[self addSubview:vScaleView positioned:NSWindowAbove relativeTo:nil];
+	}
+}
 
 
 # pragma mark - tiling
@@ -153,7 +161,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 		return;
 	}
 
-	float topInset = 0;
+	CGFloat topInset = 0;
 	NSRulerView *rulerView = self.horizontalRulerView;
 	if(rulerView && !rulerView.isHidden) {
 		topInset = rulerView.frame.size.height -4 ;		/// the vScaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level displayed.
@@ -175,8 +183,8 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 		/// This happens when appkit imposes some scrolling  without calling `scrollClipView:toPoint:`
 		/// We scroll the view to fix any inconsistency.
 		NSClipView *clipView = self.contentView;
-		float boundX = clipView.bounds.origin.x;
-		float expectedBoundX = traceView.visibleOrigin - traceView.leftInset;
+		CGFloat boundX = clipView.bounds.origin.x;
+		CGFloat expectedBoundX = traceView.visibleOrigin - traceView.leftInset;
 		if(fabs(expectedBoundX - boundX) > 2) {
 			[clipView scrollToPoint:NSMakePoint(expectedBoundX, 0)];
 			[self reflectScrolledClipView:clipView];
@@ -191,7 +199,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 
 - (void)scrollClipView:(NSClipView *)aClipView toPoint:(NSPoint)aPoint {
 	NSScrollerPart hitPart = self.horizontalScroller.hitPart;
-	float hScale = traceView.hScale;
+	CGFloat hScale = traceView.hScale;
 	aPoint.x += traceView.leftInset;
 	
 	if(traceView.isResizing || hScale <= 0) {
@@ -209,9 +217,9 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 		
 		///But the scroll event can be also triggered without direct user input to allow the rubber band effect.
 		///We must allow scrolling in this case.
-		float traceViewWidth = traceView.bounds.size.width;
-		float clipViewFrameWidth = self.contentView.frame.size.width;
-		float currentPointX = aClipView.bounds.origin.x;
+		CGFloat traceViewWidth = traceView.bounds.size.width;
+		CGFloat clipViewFrameWidth = self.contentView.frame.size.width;
+		CGFloat currentPointX = aClipView.bounds.origin.x;
 		if(currentPointX >= 0 && currentPointX <= traceViewWidth - clipViewFrameWidth) {
 			/// Here the scroll point is within the traceView bounds, so there is no rubber band effect
 			/// We ignore the scrolling.
@@ -225,15 +233,15 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 
 - (void)scrollWheel:(NSEvent *)theEvent {
 
-	float deltaX = theEvent.scrollingDeltaX;
+	CGFloat deltaX = theEvent.scrollingDeltaX;
 	BOOL vertical = fabs(deltaX) < fabs(theEvent.scrollingDeltaY);
 	BOOL altKeyDown = (theEvent.modifierFlags & NSEventModifierFlagOption) != 0;
 	if (altKeyDown) {
 		if(vertical) {
 			/// if scrolling is mostly vertical and the alt key is pressed, we zoom the trace
 			NSPoint mouseLocation = [self.documentView convertPoint:theEvent.locationInWindow fromView:nil];
-			float zoomPoint = mouseLocation.x;
-			float zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
+			CGFloat zoomPoint = mouseLocation.x;
+			CGFloat zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
 			[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:NO];
 		}
 	} else {
@@ -280,17 +288,18 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 
 
 - (void)magnifyWithEvent:(NSEvent *)theEvent    {
-	float zoomFactor = 1+theEvent.magnification;
+	CGFloat zoomFactor = 1+theEvent.magnification;
 	NSPoint location = [traceView convertPoint:theEvent.locationInWindow fromView:nil];
-	float zoomPoint = location.x;
+	CGFloat zoomPoint = location.x;
 	[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:NO];
 }
 
 
 - (void)smartMagnifyWithEvent:(NSEvent *)theEvent {
-	float zoomFactor = 4.0;
+	BOOL altKeyDown = (theEvent.modifierFlags & NSEventModifierFlagOption) != 0;
+	CGFloat zoomFactor = altKeyDown? 0.25 : 4.0;
 	NSPoint location = [traceView convertPoint:theEvent.locationInWindow fromView:nil];
-	float zoomPoint = location.x;
+	CGFloat zoomPoint = location.x;
 	[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:YES];
 }
 
@@ -301,7 +310,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 		return;
 	}
 	/// We move between markers upon swipe
-	float deltaX = event.deltaX;
+	CGFloat deltaX = event.deltaX;
 	if(deltaX > 0) {
 		[markerView moveToNextMarker:self];
 	} else if(deltaX < 0) {

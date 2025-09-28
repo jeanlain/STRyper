@@ -198,12 +198,12 @@
 
 
 
-- (float)sizeForX:(float)xPosition {
+- (float)sizeForX:(CGFloat)xPosition {
 	return xPosition/_hScale + _sampleStartSize;	/// we don't use getters for speed reasons, this method may be called very often
 }
 
 
-- (float)xForSize:(float)size {
+- (CGFloat)xForSize:(float)size {
 	return (size - _sampleStartSize) * _hScale;
 }
 

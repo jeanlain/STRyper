@@ -31,7 +31,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// A view that shows traces and associated labels (``ViewLabel`` objects) for peaks, fragments, markers and bins.
+/// A view that shows traces and/or associated labels (``ViewLabel`` objects) for peaks, fragments, markers and bins.
 ///
 /// A trace view shows the fluorescence data of ``FluoTrace`` objects as curves whose colors reflect the trace ``FluoTrace/channel``.
 /// The view draws a plot in which the x axis represent the size in base pairs, and the y axis the trace fluorescence level, using the view coordinates system.
@@ -39,8 +39,10 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This view also shows ``Chromatogram/offscaleRegions`` as colored rectangles behind the curves.
 ///
-/// A trace view can show several traces at once. These could be all traces of a given  ``FluoTrace/chromatogram`` ("sample"), or of several samples.
-/// Alternatively, this view can show a marker only (the maker's ``Mmarker/bins``, but no trace).
+/// A trace view can show several traces at once. These could be all traces of a given  ``FluoTrace/chromatogram`` ("sample"),
+/// or of several samples (in which case traces must be from the same ``FluoTrace/channel``).
+/// A trace view can also show several genotypes, in which case it doe not show any trace. Genotypes are represented by compact ``FragmentLabel`` objects.
+/// Alternatively, the view can show a marker only (the maker's ``Mmarker/bins``, but no trace).
 ///
 /// - Important: A trace view must be a document view of an `NSScrollView` (subclass). It will not work otherwise.
 /// It is designed to scroll only horizontally. It resizes itself to fit its clipview vertically.
@@ -49,14 +51,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// and a ``VScaleView`` to show the vertical scale in fluorescence units.
 ///
 /// This view implements internal methods allowing the user to add/edit bins (class ``Bin``) by click & drag, and to add a missing peak to a trace, or to highlight a curve, by right-clicking or deep press.
-@interface TraceView : LabelView <CALayerDelegate>
+@interface TraceView : LabelView
 
 /// The view showing the fluorescence level representing the vertical scale of of the curves plotted by the trace view.
 ///
 /// This view corresponds to "left ruler in the ``STRyper`` user guide, and it is set by the ``TraceScrollView``, of which is is a subview.
 /// It is normally positioned on the left of the trace view, which it overlaps.
 ///
-/// This view is hidden if the trace view does not show traces.
+/// This view is hidden if the trace view only shows marker labels.
 @property (weak, nonatomic) VScaleView *vScaleView;
 
 /// The horizontal ruler view of the enclosing ``TraceScrollView``.
@@ -79,19 +81,22 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Makes the view load and show some content.
 ///
-/// The `object` must either be a ``FluoTrace``, an array of ``FluoTrace`` objects of the same ``FluoTrace/channel``,
-/// an object of class ``Genotype``, ``Mmarker`` or ``Chromatogram``.
-/// The managed object context of any loaded Chromatogram, Trace, Marker or Genotype must be the view context of the application.
+/// The `object` must be one of the following:
+/// - an array of ``FluoTrace`` objects, which must belong to the same ``FluoTrace/chromatogram`` or have the same ``FluoTrace/channel``.
+/// - an array of ``Genotype`` objects for the same ``Genotype/marker``,
+/// - an object of class ``Genotype``.
+/// - an object of class ``Mmarker``.
+/// - Important: The managed object context of any loaded Trace, Marker or Genotype must be the view context of the application.
 ///
 /// The view will only load the first 400 traces of the array if it contains more.
 ///
-/// If the `object` is a chromatogram, the view will show its  ``Chromatogram/traces``  (depending of the ``displayedChannels``).
-///
-/// If the `object` is a genotype, the view will show the traces associated the genotype's ``Genotype/sample``,
+/// If the `object` is a genotype, the view will show the traces of the genotype's ``Genotype/sample``,
 /// and will set its ``visibleRange``  to the range of its ``Genotype/marker``.
 ///
+/// If the object is an array of genotypes, the view will not show any trace. It will show alleles of the genotype as compact ``FragmentLabel`` objects.
+///
 /// If the `object` is a marker, the view will show no trace and and will set its ``visibleRange``  to the range of the marker.
-/// The marker's ``Mmarker/bins`` will also be shown if it has any.
+/// The marker's ``Mmarker/bins`` will also be shown if it has any. Other markers of the same panel and channel are shown as disabled marker labels.
 /// - Parameter object: The content to show in the view.
 -(void)loadContent:(id)object;
 
@@ -106,8 +111,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// If the views has loaded a ``Genotype``, it will be the trace of the corresponding ``Genotype/marker``.
 @property (nonatomic, readonly, nullable, weak) Trace *trace;
 
-/// The genotype the view has loaded .
+/// The genotype the view has loaded, if the object loaded in ``loadContent:`` is of class ``Genotype``.
 @property (nonatomic, readonly, nullable) Genotype *genotype;
+
+
+/// The genotypes that the view shows (as FragmentLabels for alleles),
+/// if the object loaded in ``loadContent:`` is an array of ``Genotype`` object
+@property (nonatomic, readonly, nullable) NSArray<Genotype *> *loadedGenotypes;
 
 /// The marker associated with the view.
 ///
@@ -118,9 +128,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The ``FluoTrace/channel`` of the trace(s) or marker shown by the view, from 0 to 4.
 ///
-/// The returned value is -1 if the view shows traces from different channels and a``Chromatogram`` was loaded.
-/// If the view has loaded a ``Genotype``, the value is the ``Mmarker/channel`` of its ``Genotype/marker``.
-/// This property may not reflect the ``displayedChannels`` property.
+/// The property may not reflect the ``displayedChannels`` property if:
+/// - the view shows traces from different channels and no genotype is loaded. The returned value is -1.
+/// - the view has loaded a ``Genotype`` or an array of genotypes.
+/// Here, the value is the ``Mmarker/channel`` of the ``Genotype/marker``.
 @property (nonatomic, readonly) ChannelNumber channel;
 
 
@@ -153,7 +164,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (readonly, nonatomic) CGColorRef alleleLabelBackgroundColor;
 
 /// The color used for the text of fragment labels (including alleles).
-@property (readonly, nonatomic) CGColorRef fragmentLabelStringColor;
+@property (readonly, nonatomic) CGColorRef labelStringColor;
 
 /// The color used by bin labels when not hovered.
 @property (readonly, nonatomic) CGColorRef binLabelColor;
@@ -256,9 +267,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) BaseRange defaultRange;
 
 
-/// The channels of the traces the view displays if it has loaded a sample or a genotype in ``loadContent:``.
+/// The channels of the traces the view displays.
 ///
-/// The value of this property has a visible effect only if the view has loaded a ``Chromatogram`` or a ``Genotype``.
+/// The value of this property has a visible effect only if the view has loaded traces for different channels.
 /// If a genotype was loaded, the corresponding trace will show regardless of this property.
 @property (nonatomic, copy) NSArray<NSNumber *>* displayedChannels;
 
@@ -281,7 +292,7 @@ ShowPeakTooltipsBinding;
 /// The left contentInset of the receiver's `NSScrollView`.
 ///
 /// This property determines the ``visibleOrigin`` and reflects the ``VScaleView/width`` of the ``vScaleView``.
-@property (nonatomic) float leftInset;
+@property (nonatomic) CGFloat leftInset;
 
 - (void)getRangeAndScale;
 
@@ -290,7 +301,7 @@ ShowPeakTooltipsBinding;
 /// The visible rectangle excludes the region that is masked by the ``vScaleView``,
 /// hence it does not start at the bounds origin of the view's clipView if the ``vScaleView`` is visible,
 /// hence if ``leftInset`` is positive.
-@property (nonatomic, readonly) float visibleOrigin;
+@property (nonatomic, readonly) CGFloat visibleOrigin;
 
 /// The range in base pairs that that the view shows in its visible rectangle.
 ///
@@ -343,7 +354,7 @@ ShowPeakTooltipsBinding;
 ///   - zoomFactor: The ratio in view widths after / before the zoom.
 ///   The ratio cannot be lower than 0.01 and is constrained such that the view's ``visibleRange`` is not wider that a certain length.
 ///   - animate: Whether the change in view geometry should be animated. If `YES`, this method calls ``setVisibleRange:animate:``.
-- (void)zoomTo:(float)xPosition withFactor:(float)zoomFactor animate:(BOOL)animate;
+- (void)zoomTo:(CGFloat)xPosition withFactor:(CGFloat)zoomFactor animate:(BOOL)animate;
 									
 /// Zooms the view from a start and end positions defined in base pairs, with animation.
 ///
@@ -385,7 +396,7 @@ ShowPeakTooltipsBinding;
 /// The vertical scale at which the view plots traces in points per fluorescence unit (RFU).
 ///
 /// This property is computed from ``topFluoLevel`` and the height of the view.
-@property (nonatomic, readonly) float vScale;
+@property (nonatomic, readonly) CGFloat vScale;
 
 /// Sets the view's ``topFluoLevel`` without notifying its ``delegate``.
 ///
@@ -424,22 +435,23 @@ ShowPeakTooltipsBinding;
 
 # pragma mark - methods used for drawing
 
-/// Returns the point, in the view coordinate system, corresponding to a given scan of the the view's ``trace``.
-///
-/// The returned value is the point composing the fluorescence curve representing the trace, for its fluorescence data at the `scan`.
-/// If the scan is out or range and if the view shows no trace, the components of the point will be 0.
-///
-/// The fluorescence data used is determined by the ``showRawData`` property.
-///
-/// The `x`component of the point is determined by ``xForScan:``.
-/// - Parameter scan: the scan for which the point should be returned.
-- (CGPoint)pointForScan:(uint)scan;
-
-/// Returns the horizontal location at which a data point (scan) of a trace should show in the view.
+/// Returns the horizontal location at which a data point (scan) of a chromatogram should appear in the view.
 ///
 /// This method uses the ``LabelView/hScale`` and ``LabelView/sampleStartSize`` properties.
 /// - Parameter scan: The scan for which the location should be returned.
-- (CGFloat)xForScan:(uint)scan;
+/// - Parameter sample: The sample to which the `scan` belongs.
+/// - Note: The methods does not check if the view shows the `sample`.
+- (CGFloat)xForScan:(uint)scan ofSample:(Chromatogram *)sample;
+
+
+/// Returns the vertical location at which a data point (scan) of a trace should appear in the view.
+///
+/// This method uses the ``vScale`` property.
+/// - Parameter scan: The scan for which the location should be returned.
+/// - Parameter trace: The trace to which the `scan` belongs.
+/// - Note:The methods does not check if the view shows the trace`.
+- (CGFloat)yForScan:(uint)scan ofTrace:(Trace *)trace;
+
 
 /// Returns a scan number (for the ``trace`` the view shows) at a horizontal position in the view coordinate system.
 ///
@@ -447,7 +459,7 @@ ShowPeakTooltipsBinding;
 ///
 /// The returned value is not guaranteed to represent a fluorescence data point. This value can for instance be negative, depending on `position`.
 /// - Parameter position: The position for which the scan should be returned.
-- (int)scanForX:(float)position;
+- (int)scanForX:(CGFloat)position;
 
 
 

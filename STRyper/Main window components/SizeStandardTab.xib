@@ -48,7 +48,7 @@
                                         <menuItem title="Apply To" hidden="YES" id="AAe-3z-D1L" userLabel="Apply To:">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                         </menuItem>
-                                        <menuItem title="Visible Samples" tag="1" id="aUv-HM-To6" userLabel="Visible Samples">
+                                        <menuItem title="Listed Samples" tag="1" id="aUv-HM-To6" userLabel="Visible Samples">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="applySizeStandard:" target="-2" id="3X9-84-jue"/>

@@ -76,6 +76,7 @@
 
 - (void)viewDidLoad {
 	[super viewDidLoad];
+
 	/// the order of the image in the array corresponds to genotypeStatus property of genotypes (an integer)
 	statusImages = @[[NSImage imageNamed:ACImageNameCircle],
 					 [NSImage imageNamed:ACImageNameZero],
@@ -89,7 +90,7 @@
 		
 		[self bind:ContentArrayBinding
 		  toObject:SampleTableController.sharedController.samples
-	   withKeyPath:@"content.@unionOfSets.genotypes" options:nil];
+	   withKeyPath:@"arrangedObjects.@unionOfSets.genotypes" options:nil];
 		
 	}
 }
@@ -108,19 +109,19 @@
 - (NSDictionary *)columnDescription {
 	if(!columnDescription) {
 		columnDescription = @{
-			@"genotypeSampleColumn":	@{KeyPathToBind: @"sample.sampleName",ColumnTitle: @"Sample", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"genotypeStatusColumn":	@{KeyPathToBind: @"statusText", ImageIndexBinding: @"status" ,ColumnTitle: @"Status", CellViewID: @"imageCellView", IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"genotypePanelColumn":		@{KeyPathToBind: @"sample.panel.name",ColumnTitle: @"Panel", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"genotypeMarkerColumn":	@{KeyPathToBind: @"marker.name", ColumnTitle: @"Marker", CellViewID: @"compositeCellViewText", ImageIndexBinding: @"marker.channel", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			/*	@"genotypeScan1Column":		@{KeyPathToBind: @"allele1.scan",ColumnTitle: @"Scan1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO},
-			 @"genotypeScan2Column":		@{KeyPathToBind: @"allele2.scan",ColumnTitle: @"Scan2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO},*/
-			@"genotypeSize1Column":		@{KeyPathToBind: @"allele1.visibleSize",ColumnTitle: @"Size1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"genotypeSize2Column":		@{KeyPathToBind: @"allele2.visibleSize",ColumnTitle: @"Size2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"genotypeAllele1Column":	@{KeyPathToBind: @"allele1.name",ColumnTitle: @"Allele1", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"genotypeAllele2Column":	@{KeyPathToBind: @"allele2.name",ColumnTitle: @"Allele2", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES},
-			@"genotypeOffsetColumn":	@{KeyPathToBind: @"offsetString",ColumnTitle: @"Offset", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO},
-			@"additionalFragmentsColumn":	@{KeyPathToBind: @"additionalFragmentString",ColumnTitle: @"Additional Peaks", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO},
-			@"genotypeNotesColumn":	@{KeyPathToBind: @"notes",ColumnTitle: @"Notes", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES}
+			@"genotypeSampleColumn":	@{KeyPathToBind: @"sample.sampleName",ColumnTitle: @"Sample", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Name of source sample"},
+			@"genotypeStatusColumn":	@{KeyPathToBind: @"statusText", ImageIndexBinding: @"status" ,ColumnTitle: @"Status", CellViewID: @"imageCellView", IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Status of genotype calling"},
+			@"genotypePanelColumn":		@{KeyPathToBind: @"sample.panel.name",ColumnTitle: @"Panel", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Panel of the genotype's marker"},
+			@"genotypeMarkerColumn":	@{KeyPathToBind: @"marker.name", ColumnTitle: @"Marker", CellViewID: @"compositeCellViewText", ImageIndexBinding: @"marker.channel", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Molecular marker of the genotype"},
+			@"genotypeHeight1Column":		@{KeyPathToBind: @"allele1.height",ColumnTitle: @"Height1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, HeaderToolTip:@"Height of the shorter allele's peak (RFU)"},
+			 @"genotypeHeight2Column":		@{KeyPathToBind: @"allele2.height",ColumnTitle: @"Height2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, HeaderToolTip:@"Height of the longer allele's peak (RFU)"},
+			@"genotypeSize1Column":		@{KeyPathToBind: @"allele1.visibleSize",ColumnTitle: @"Size1", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Estimated size of the shorter allele (bp)"},
+			@"genotypeSize2Column":		@{KeyPathToBind: @"allele2.visibleSize",ColumnTitle: @"Size2", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Estimated size of the longer allele (bp)"},
+			@"genotypeAllele1Column":	@{KeyPathToBind: @"allele1.name",ColumnTitle: @"Allele1", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Name of the shorter allele (editable)"},
+			@"genotypeAllele2Column":	@{KeyPathToBind: @"allele2.name",ColumnTitle: @"Allele2", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Name of the longer allele (editable)"},
+			@"genotypeOffsetColumn":	@{KeyPathToBind: @"offsetString",ColumnTitle: @"Offset", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Applied offset at the marker"},
+			@"additionalFragmentsColumn":	@{KeyPathToBind: @"additionalFragmentString",ColumnTitle: @"Additional Peaks", CellViewID: @"textFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @NO, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Additional peak(s) detected (size:name)"},
+			@"genotypeNotesColumn":	@{KeyPathToBind: @"notes",ColumnTitle: @"Notes", CellViewID: @"textFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @YES, HeaderToolTip:@"Editable notes"}
 		};
 	}
 	return columnDescription;
@@ -128,11 +129,8 @@
 
 
 - (NSArray<NSString *> *)orderedColumnIDs {
-	/// a column with id @"genotypeStatusColumn" (genotype status) is already set in IB.
-	/// This is because the table shifts to cell-based if it doesn't have a column in Xcode 14. So it must have a column.
-	/// We don't add it to the identifiers
-	return @[@"genotypeSampleColumn", @"genotypePanelColumn",@"genotypeMarkerColumn",/* @"genotypeScan1Column", @"genotypeScan2Column", */
-			 @"genotypeSize1Column",@"genotypeSize2Column", @"genotypeAllele1Column", @"genotypeAllele2Column", @"genotypeOffsetColumn", @"additionalFragmentsColumn", @"genotypeNotesColumn"];
+	return @[@"genotypeStatusColumn", @"genotypeSampleColumn", @"genotypePanelColumn",@"genotypeMarkerColumn",
+			 @"genotypeSize1Column",@"genotypeSize2Column", @"genotypeAllele1Column", @"genotypeAllele2Column", @"genotypeHeight1Column", @"genotypeHeight2Column", @"genotypeOffsetColumn", @"additionalFragmentsColumn", @"genotypeNotesColumn"];
 }
 
 
@@ -193,7 +191,7 @@
 - (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
 	NSString *ID = tableColumn.identifier;
 	
-	if([ID isEqualToString:@"genotypeAllele2Column"] || [ID isEqualToString:@"genotypeSize2Column"]) {
+	if([@[@"genotypeAllele2Column", @"genotypeSize2Column", @"genotypeHeight2Column"] containsObject:ID]) {
 		/// if the genotype is haploid, the columns for allele 2 should have no cell
 		NSArray *genotypes = self.genotypes.arrangedObjects;
 		if(genotypes.count > row) {
@@ -230,8 +228,8 @@
 	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
 	if(selectedFolder && selectedFolder != currentFolder) {
 		currentFolder = selectedFolder;
-		[self restoreSelectedItems];
 		[self filterGenotypesOfSelectedFolder];
+		[self restoreSelectedItems];
 	}
 }
 
@@ -314,7 +312,9 @@
 	if(MainWindowController.sharedController.sourceController == self) {
 		return YES;
 	}
-	return ![self.genotypes.selectionIndexes containsIndex: row];
+	NSIndexSet *selectedRows = tableView.selectedRowIndexes;
+	NSIndexSet *selectedItems = self.genotypes.selectionIndexes;
+	return ![selectedItems containsIndexes:selectedRows] || ![selectedItems containsIndex:row];
 }
 
 
@@ -352,62 +352,6 @@
 	
 }
 
-
--(void)checkGenotypesForAdenylation:(NSArray *)genotypes {
-	if(genotypes.count < 3) {
-		return;
-	}
-	
-	NSArray *markers = [genotypes valueForKeyPath:@"@distinctUnionOfObjects.marker"];
-	for(Mmarker *marker in markers) {
-		if(marker.ploidy < 2) {
-			continue;
-		}
-		
-		NSArray *genotypesAtMarker = [genotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
-			return genotype.marker == marker;
-		}];
-		
-		if(genotypesAtMarker.count < 3) {
-			continue;
-		}
-		
-		NSArray *possibleHeterozygotes = [genotypesAtMarker filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
-			return genotype.scanOfPossibleAllele > 0;
-		}];
-		
-		if(possibleHeterozygotes.count == 0) {
-			continue;
-		}
-		
-		NSArray *heterozygotes = [genotypesAtMarker filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
-			return genotype.scanOfPossibleAllele == -1;
-		}];
-		
-		if(heterozygotes.count < 2 && heterozygotes.count == genotypesAtMarker.count) {
-			continue;
-		}
-		
-		float meanLeftAdenylationRatio = [[heterozygotes valueForKeyPath:@"@avg.leftAdenylationRatio"] floatValue];
-		float meanRightAdenylationRatio = [[heterozygotes valueForKeyPath:@"@avg.rightAdenylationRatio"] floatValue];
-
-		for(Genotype *genotype in possibleHeterozygotes) {
-			BOOL assignAllele2 = NO;
-			if(genotype.allele1.scan < genotype.scanOfPossibleAllele) {
-				float adenylationRatio = genotype.rightAdenylationRatio;
-				assignAllele2 = (adenylationRatio > meanRightAdenylationRatio) * 6 && (adenylationRatio >= 0.5);
-			} else {
-				float adenylationRatio = genotype.leftAdenylationRatio;
-				assignAllele2 = (adenylationRatio > meanLeftAdenylationRatio * 6) && (adenylationRatio >= 0.5);
-			}
-			if(assignAllele2) {
-				Allele *allele2 = genotype.allele2;
-				allele2.scan = genotype.scanOfPossibleAllele;
-				[allele2 findNameFromBins];
-			}
-		}
-	}
-}
 
 
  /**********debugging******
@@ -453,7 +397,7 @@ static NSInteger genotypeIndex = 0;
 			edited = YES;
 		}
 		if(edited) {
-			genotype.status = genotypeStatusManual;
+            genotype.proposedStatus = genotypeStatusManual;
 		}
 	}
 	
@@ -692,6 +636,13 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 														operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)]
 														options:0];
 	
+	NSPredicateEditorRowTemplate *alleleHeightTemplate = [[AggregatePredicateEditorRowTemplate alloc]
+														initWithLeftExpressions:@[[NSExpression expressionForKeyPath:@"assignedAlleles.height"]]
+														rightExpressionAttributeType:NSInteger16AttributeType
+														modifier:NSAnyPredicateModifier
+														operators:@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)]
+														options:0];
+	
 	NSPredicateEditorRowTemplate *interceptTemplate = [[NSPredicateEditorRowTemplate alloc]
 														initWithLeftExpressions:@[[NSExpression expressionForKeyPath:NSStringFromSelector(@selector(offsetIntercept))]]
 														rightExpressionAttributeType:NSFloatAttributeType
@@ -700,7 +651,7 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 														options:0];
 	
 			
-	NSArray *finalTemplates = [@[statusTemplate, alleleNameTemplate, alleleSizeTemplate] arrayByAddingObjectsFromArray:rowTemplates];
+	NSArray *finalTemplates = [@[statusTemplate, alleleNameTemplate, alleleSizeTemplate, alleleHeightTemplate] arrayByAddingObjectsFromArray:rowTemplates];
 	 finalTemplates = [finalTemplates arrayByAddingObject:interceptTemplate];
 	
 	NSArray *compoundTypes = @[@(NSNotPredicateType), @(NSAndPredicateType),  @(NSOrPredicateType)];
@@ -710,23 +661,23 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 	predicateEditor.canRemoveAllRows = NO;
 	
 	/// We create a formatting dictionary to translate attribute names into menu item titles. We don't translate other fields (operators)
-	keyPaths = [@[@"status", @"assignedAlleles.name", @"assignedAlleles.size"] arrayByAddingObjectsFromArray:keyPaths];
+	keyPaths = [@[@"status", @"assignedAlleles.name", @"assignedAlleles.size", @"assignedAlleles.height"] arrayByAddingObjectsFromArray:keyPaths];
 	keyPaths = [keyPaths arrayByAddingObject:NSStringFromSelector(@selector(offsetIntercept))];
 
 	/// The titles for the menu items of the editor left popup buttons
-	NSArray *titles = @[@"Status", @"Allele Name", @"Allele Size", @"Marker Name", @"Panel Name", @"Notes", @"Offset"];
+	NSArray *titles = @[@"Status", @"Allele Name", @"Allele Size", @"Allele Height", @"Marker Name", @"Panel Name", @"Notes", @"Offset"];
 
 	NSMutableArray *keys = NSMutableArray.new;		/// the future keys of the dictionary
 	for(NSString *keyPath in keyPaths) {
 		if([keyPath isEqualToString:@"status"]) {
 			/// We need to translate each status number into a string.
-			for (int status = genotypeStatusNotCalled; status <= genotypeStatusNoSizing; status++) {
+			for (GenotypeStatus status = genotypeStatusNotCalled; status <= genotypeStatusNoSizing; status++) {
 				NSString *key = [NSString stringWithFormat: @"%@%@%@%d%@",  @"%[", keyPath, @"]@ %@ %[", status, @"]@"];
 				[keys addObject:key];
 			}
 		} else {
 			NSString *key = [NSString stringWithFormat: @"%@%@%@",  @"%[", keyPath, @"]@ %@ %@"];		/// see https://funwithobjc.tumblr.com/post/1482915398/localizing-nspredicateeditor
-			if([keyPath isEqualToString:@"assignedAlleles.name"] || [keyPath isEqualToString:@"assignedAlleles.size"]) {
+			if([@[@"assignedAlleles.name", @"assignedAlleles.size", @"assignedAlleles.height"] containsObject:keyPath]) {
 				key = [key stringByAppendingString: @" %@"];
 			}
 			[keys addObject:key];
@@ -744,7 +695,7 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 			}
 		} else {
 			NSString *value;
-			if([title isEqualToString:@"Allele Name"] || [title isEqualToString:@"Allele Size"]) {
+			if([@[@"Allele Name", @"Allele Size", @"Allele Height"] containsObject:title]) {
 				/// The segmented control, which is at the right of the first popup button in the template is moved left.
 				value = [NSString stringWithFormat: @"%@%@%@",  @"%2$@ %1$[", title, @"]@ %3$@ %4$@"];
 			} else {

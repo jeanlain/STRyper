@@ -67,7 +67,7 @@
 }
 
 
-- (void)setGaugeThickness:(float)gaugeThickness {
+- (void)setGaugeThickness:(CGFloat)gaugeThickness {
 	_gaugeThickness = gaugeThickness;
 	[self setGaugeSize];
 }

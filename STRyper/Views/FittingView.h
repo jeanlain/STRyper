@@ -45,7 +45,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// Setting this property makes the view draw the fitting curve if the array contains only one sample.
 ///
-/// If no sizing is available for the sample of if the array is of length > 1, the ``textField`` is shown instead.
+/// If no sizing is available for the sample of if the array is of length > 1, some explanatory text is shown instead.
 ///
 /// The array can contain several samples because the fitting view can be part of an inspector of selected samples (``SampleInspectorController`` class).
 ///
@@ -53,29 +53,25 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nullable, nonatomic) NSArray<Chromatogram *>* samples;
 
 
-/// The text field that the view shows if it cannot show a fitting curve.
-@property (readonly, nonatomic) NSTextField *textField;
-
-
-/// The string that the ``textField`` shows when the ``samples`` array does not contain any sample.
+/// The string that the view shows when the ``samples`` array does not contain any sample.
 ///
 /// The default value is "No sample selected".
 @property (nonatomic, copy) NSString *noSampleString;
 
 
-/// The string that the ``textField`` shows when the ``samples`` array contains several samples.
+/// The string that the view shows when the ``samples`` array contains several samples.
 ///
 /// The default value is "Multiple samples selected".
 @property (nonatomic, copy) NSString *multipleSampleString;
 
 
-/// The string that the ``textField`` shows when the sample is not sized.
+/// The string that the view shows when the sample is not sized.
 ///
-/// The default value is "Sample not sized".
+/// The default value is "No size standard applied".
 @property (nonatomic, copy) NSString *noSizingString;
 
 
-/// The string that the ``textField`` shows if sizing failed for the sample.
+/// The string that the view shows if sizing failed for the sample.
 ///
 /// The default value is "Sample sizing failed".
 @property (nonatomic, copy) NSString *failedSizingString;

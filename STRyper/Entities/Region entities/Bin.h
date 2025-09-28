@@ -52,17 +52,6 @@ NS_ASSUME_NONNULL_BEGIN
 -(nullable instancetype) initWithStart:(float) start end:(float) end marker:(Mmarker *)marker;
 
 
-/// Instantiates a new bin for a marker for a desired size (position) and width expressed in base pairs.
-///
-/// The method returns `nil` if there is no room for a new bin at the `midSize` in the `marker`.
-/// The exact position and width of the bin may be adjusted to avoid overlap with other ``Mmarker/bins``.
-/// - Parameters:
-///   - marker: The marker to which the bin will be added.
-///   - midSize: The desired mid position of the bin in base pairs.
-///   - width: The desired width of the bin in base pairs. It must be at least ``Region/minimumWidth``.
-+ (nullable instancetype)binForMarker:(Mmarker *)marker desiredMidSize:(float)midSize desiredWidth:(float)width;
-
-
 /// A string representation describing the attributes of the receiver.
 ///
 /// The string is composed of the ``Region/name``, ``Region/start`` and ``Region/end`` attributes, separated by tabs.

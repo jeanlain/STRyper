@@ -30,7 +30,6 @@
 #import "SizeStandardTableController.h"
 #import "SampleSearchHelper.h"
 #import "DetailedViewController.h"
-#import "FileImporter.h"
 
 
 @interface MainWindowController ()
@@ -60,9 +59,7 @@ typedef NS_ENUM(NSUInteger, bottomTab) {		/// the number of the tab in the botto
 
 
 @synthesize mainSplitViewController = _mainSplitViewController,
-verticalSplitViewController = _verticalSplitViewController,
-errorLogWindow = _errorLogWindow;
-
+verticalSplitViewController = _verticalSplitViewController;
 
 
 + (instancetype)sharedController {
@@ -84,8 +81,14 @@ errorLogWindow = _errorLogWindow;
 - (void)windowDidLoad {
 	[super windowDidLoad];
 	NSWindow *window = self.window;
-	window.titlebarAppearsTransparent = NO;
-//	window.styleMask |= NSWindowStyleMaskFullSizeContentView;
+	window.tabbingMode = NSWindowTabbingModeDisallowed;
+	if (@available(macOS 11.0, *)) {
+		window.styleMask |= NSWindowStyleMaskFullSizeContentView;
+		window.toolbarStyle = NSWindowToolbarStyleUnified;
+		window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleAutomatic;
+	} else {
+		window.titleVisibility = NSWindowTitleVisible;
+	}
 	
 	[window orderFront:self];
 	[window makeMainWindow];
@@ -101,10 +104,7 @@ errorLogWindow = _errorLogWindow;
 	///Adding the sample inspector to the tab view.
 	SampleInspectorController *sampleInspectorController = SampleInspectorController.sharedController;
 	if(sampleInspectorController.view) {
-		NSTabViewItem *item = NSTabViewItem.new;
-		item.view =  sampleInspectorController.view;
-		[tabView addTabViewItem:item];
-	///	[sampleInspectorController bind:@"samples" toObject:SampleTableController.sharedController.tableContent withKeyPath:@"selectedObjects" options:nil];
+		[tabView addTabViewItem:[NSTabViewItem tabViewItemWithViewController:sampleInspectorController]];
 	} else {
 		NSLog(@"failed to load the sample table.");
 		abort();
@@ -113,9 +113,7 @@ errorLogWindow = _errorLogWindow;
 	///Adding the genotype tab.
 	GenotypeTableController *genotypeTableController = GenotypeTableController.sharedController;
 	if(genotypeTableController.view) {
-		NSTabViewItem *item = NSTabViewItem.new;
-		item.view =  genotypeTableController.view;
-		[tabView addTabViewItem:item];		
+		[tabView addTabViewItem:[NSTabViewItem tabViewItemWithViewController:genotypeTableController]];
 	} else {
 		NSLog(@"failed to load the genotype table.");
 		abort();
@@ -125,9 +123,7 @@ errorLogWindow = _errorLogWindow;
 	///Adding the panel + marker tab.
 	PanelListController *panelListController = PanelListController.sharedController;
 	if(panelListController.view) {
-		NSTabViewItem *item = NSTabViewItem.new;
-		item.view = panelListController.view;;
-		[tabView addTabViewItem:item];
+		[tabView addTabViewItem:[NSTabViewItem tabViewItemWithViewController:panelListController]];
 	} else {
 		NSLog(@"failed to load the panel list.");
 		abort();
@@ -137,9 +133,7 @@ errorLogWindow = _errorLogWindow;
 	///Adding the size standard tab.
 	SizeStandardTableController *sizeStandardTableController = SizeStandardTableController.sharedController;
 	if(sizeStandardTableController.view) {
-		NSTabViewItem *item = NSTabViewItem.new;
-		item.view = sizeStandardTableController.view;;
-		[tabView addTabViewItem:item];
+		[tabView addTabViewItem:[NSTabViewItem tabViewItemWithViewController:sizeStandardTableController]];
 	} else {
 		NSLog(@"failed to load the size standard table.");
 		abort();
@@ -163,6 +157,7 @@ errorLogWindow = _errorLogWindow;
 	if(!toolbar) {
 		toolbar = [[NSToolbar alloc] initWithIdentifier:mainToolbarID];
 		toolbar.allowsUserCustomization = YES;
+		toolbar.displayMode = NSToolbarDisplayModeIconAndLabel;
 		toolbar.delegate = self;
 		toolbar.autosavesConfiguration = YES;
 		window.toolbar = toolbar;
@@ -193,13 +188,14 @@ errorLogWindow = _errorLogWindow;
 		/// we load the left pane (side bar)
 		if(FolderListController.sharedController.view) {
 			[_mainSplitViewController addSplitViewItem:[NSSplitViewItem sidebarWithViewController:FolderListController.sharedController]];
+			_mainSplitViewController.splitViewItems.firstObject.minimumThickness = 150;
 		} else {
 			return nil;
 		}
 		/// the middle pane, which is itself a vertical split view
 		if(self.verticalSplitViewController.view) {
 			NSSplitViewItem *item = [NSSplitViewItem contentListWithViewController:self.verticalSplitViewController];
-			item.minimumThickness = 250.0;
+			item.minimumThickness = 350.0;
 			item.canCollapse = NO;
 			[_mainSplitViewController addSplitViewItem:item];
 		} else {
@@ -214,7 +210,7 @@ errorLogWindow = _errorLogWindow;
 			item.canCollapse = YES;
 			/// we determine its minimum width based on the button shown at the bottom (which should not be clipped)
 			NSView *button = [view viewWithTag:-5];
-			float thickness = 420;
+			CGFloat thickness = 420;
 			if(button) {
 				thickness = NSMaxX(button.frame) + 5;
 			}
@@ -296,10 +292,12 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 		NSToolbarItem *redoButton = [[NSToolbarItem alloc] initWithItemIdentifier:redoButtonID];
 		undoButton.image = [NSImage imageNamed:ACImageNameUndo];
 		undoButton.label = @"Undo";
+		undoButton.paletteLabel = undoButton.label;
 		undoButton.action = @selector(undo:);
 		undoButton.target = self;
 		redoButton.image = [NSImage imageNamed:ACImageNameRedo];
 		redoButton.label = @"Redo";
+		redoButton.paletteLabel = redoButton.label;
 		redoButton.action = @selector(redo:);
 		redoButton.target = self;
 		undoRedo.subitems = @[undoButton, redoButton];
@@ -318,9 +316,9 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 	
 	if([itemIdentifier isEqualToString:leftPaneButtonID]) {
 		item.image = [NSImage imageNamed:ACImageNameSideBar];
-		item.label = @"Toggle sidebar";
+		item.label = @"Sidebar";
 		item.tag = 0;
-		item.action = @selector(toggleLeftPane:);
+		item.action = @selector(toggleSidebar:);
 	} else if([itemIdentifier isEqualToString:newFolderButtonID]) {
 		item.image = [NSImage imageNamed:ACImageNameNewFolder];
 		item.label = @"New folder";
@@ -354,7 +352,7 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 		item.action = @selector(toggleRightPane:);
 	} else if([itemIdentifier isEqualToString:deleteSelectionButtonID]) {
 		item.image = [NSImage imageNamed:ACImageNameLargeTrash];
-		item.label = @"Delete selection";
+		item.label = @"Delete";
 		item.target = nil;
 		item.action = @selector(remove:);
 	} else if([itemIdentifier isEqualToString:exportButtonID]) {
@@ -363,20 +361,36 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 		item.target = nil;
 		item.action = @selector(exportSelection:);
 	}
+	item.paletteLabel = item.label;
 	return item;
 }
 
 
 - (NSArray<NSToolbarItemIdentifier> *)toolbarDefaultItemIdentifiers:(NSToolbar *)toolbar {
-	return @[leftPaneButtonID, undoRedoGroup, NSToolbarSpaceItemIdentifier, newFolderButtonID,
+	NSMutableArray *items = @[leftPaneButtonID, undoRedoGroup, NSToolbarSpaceItemIdentifier, newFolderButtonID,
 			 importSamplesButtonID, importFolderButtonID, importPanelButtonID, NSToolbarSpaceItemIdentifier,
 			 exportButtonID, deleteSelectionButtonID, sampleSearchButtonID,
-			 NSToolbarFlexibleSpaceItemIdentifier, rightPaneButtonID]; ;
+			 NSToolbarFlexibleSpaceItemIdentifier, rightPaneButtonID].mutableCopy ;
+	
+	if (@available(macOS 11.0, *)) {
+		[items insertObject:NSToolbarSidebarTrackingSeparatorItemIdentifier atIndex:1];
+	}
+	return items.copy;
+}
+
+- (BOOL)toolbar:(NSToolbar *)toolbar itemIdentifier:(NSToolbarItemIdentifier)itemIdentifier canBeInsertedAtIndex:(NSInteger)index {
+	if(index <= 1 && ![itemIdentifier isEqualToString:leftPaneButtonID]) {
+		return NO;
+	}
+	return YES;
 }
 
 
-- (BOOL)toolbar:(NSToolbar *)toolbar itemIdentifier:(NSToolbarItemIdentifier)itemIdentifier canBeInsertedAtIndex:(NSInteger)index {
-	return YES;
+- (NSSet<NSToolbarItemIdentifier> *)toolbarImmovableItemIdentifiers:(NSToolbar *)toolbar {
+	if (@available(macOS 11.0, *)) {
+		return [NSSet setWithObjects: leftPaneButtonID, NSToolbarSidebarTrackingSeparatorItemIdentifier, nil];
+	}
+	return NSSet.new;
 }
 
 
@@ -390,12 +404,11 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 	/// For instance, when the user selects the genotype tab, the export button should export genotypes.
 	NSView *view = tabViewItem.view;
 	NSWindow *window = view.window;
-	if(window) {
+	if(window && tabViewItem.viewController) {
 		NSView *firstResponder = (NSView*)window.firstResponder;
-		if([firstResponder respondsToSelector:@selector(isDescendantOf:)] && [firstResponder isDescendantOf:view]) {
-			return;
+		if([firstResponder respondsToSelector:@selector(isDescendantOf:)] && ![firstResponder isDescendantOf:view]) {
+			[window makeFirstResponder:tabViewItem.viewController];
 		}
-		[window makeFirstResponder:view];
 	}
 }
 
@@ -487,7 +500,7 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		return [FolderListController.sharedController validateMenuItem:menuItem];
 	}
 	
-	if(menuItem.action == @selector(toggleLeftPane:)) {
+	if(menuItem.action == @selector(toggleSidebar:)) {
 		menuItem.title = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Show Folder List" : @"Hide Folder List";
 		return YES;
 	}
@@ -520,6 +533,9 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 	}
 	
 	if(menuItem.action == @selector(topFluoMode:)) {
+		if(DetailedViewController.sharedController.showMarkers) {
+			return NO;
+		}
 		/// Menu items that call this has a tag corresponding to the TraceTopFluoMode of the use default.
 		/// We add a check mark to the menu item it it corresponds to the current mode
 		TopFluoMode fluoMode = [NSUserDefaults.standardUserDefaults integerForKey:TraceTopFluoMode];
@@ -528,10 +544,23 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 	}
 	
 	if(menuItem.action == @selector(stackMode:)) {
+		NSInteger tag = menuItem.tag;
+		DetailedViewController *controller = DetailedViewController.sharedController;
+		if(tag == -1) { /// The item that contains the submenu to stack traces.
+						/// We only enable it when the detailed view shows samples.
+			return !controller.showMarkers && !controller.showGenotypes;
+		}
+		
+		if(tag == 3) { /// The menu item to stack genotypes per marker
+			[menuItem bind:NSEnabledBinding toObject:controller withKeyPath:@"showGenotypes" options:nil];
+			[menuItem bind:NSValueBinding toObject:controller withKeyPath:@"stackGenotypes" options:nil];
+			return controller.showGenotypes;
+		}
+		
 		/// Menu items that call this have a tag corresponding to the TraceStackMode of the use default.
 		/// We add a check mark to the menu item it it corresponds to the current mode
-		TopFluoMode fluoMode = [NSUserDefaults.standardUserDefaults integerForKey:TraceStackMode];
-		menuItem.state = menuItem.tag == fluoMode? NSControlStateValueOn : NSControlStateValueOff;
+		StackMode stackMode = [NSUserDefaults.standardUserDefaults integerForKey:TraceStackMode];
+		menuItem.state = tag == stackMode? NSControlStateValueOn : NSControlStateValueOff;
 		return YES;
 	}
 	
@@ -607,7 +636,7 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
--(void)toggleLeftPane:(id)sender {
+-(void)toggleSidebar:(id)sender {
 	[self.mainSplitViewController togglePane:sender];
 }
 
@@ -659,18 +688,6 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
-- (void)keyDown:(NSEvent *)event {
-	NSString *chars = event.charactersIgnoringModifiers;
-	if(chars.length > 0) {
-		unichar key = [chars characterAtIndex:0];
-		/// we send any up/down arrow key event to the active tableview
-		if ((key == NSUpArrowFunctionKey || key == NSDownArrowFunctionKey) && self.sourceController.tableView) {
-			[self.sourceController.tableView keyDown:event];
-		}
-	}
-}
-
-
 - (void)setActiveBottomTab:(NSInteger)activeBottomTab {
 	/// We determine if the sample inspector is shown. If not, there is not need to update it (via a binding)
 	
@@ -688,10 +705,10 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 
 - (BOOL)validateToolbarItem:(NSToolbarItem *)item {
 	NSString *toolTip;
-	if(item.action == @selector(toggleLeftPane:)) {
-		toolTip = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Expand left pane" : @"Collapse left pane";
+	if(item.action == @selector(toggleSidebar:)) {
+		toolTip = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Show folder list" : @"Hide folder list";
 	} else if(item.action == @selector(toggleRightPane:)) {
-		toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Expand detailed view" : @"Collapse detailed view";
+		toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Show detailed view" : @"Hide detailed view";
 	} else if(item.action == @selector(undo:)) {
 		toolTip = self.window.firstResponder.undoManager.undoMenuItemTitle;
 	} else if(item.action == @selector(redo:)) {
@@ -751,6 +768,7 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 	}
 }
 
+
 -(IBAction)redo:(id)sender {
 	if(![self.window tryToPerform:@selector(redo:) with:sender]) {
 		[self.window.firstResponder.undoManager redo];
@@ -790,6 +808,10 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 
 
 -(NSString *)populateErrorLogWithError:(NSError *)error {
+	if(!error) {
+		return nil;
+	}
+	
 	NSArray *errors = error.userInfo[NSDetailedErrorsKey];
 	if(errors.count == 0) {
 		errors = @[error];

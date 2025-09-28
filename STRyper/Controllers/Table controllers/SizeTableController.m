@@ -70,14 +70,18 @@
 	menu.delegate = self;
 }
 
+
 - (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
 	return @"Change Fragment Size";
 }
 
 
 - (BOOL)canRenameItem:(id)item {
-	SizeStandard *selectedStandard = SizeStandardTableController.sharedController.tableContent.selectedObjects.firstObject;
-	return selectedStandard.editable;
+	if([item respondsToSelector:@selector(sizeStandard)]) {
+		SizeStandard *selectedStandard = [item sizeStandard];
+		return selectedStandard.editable;
+	}
+	return NO;
 }
 
 
@@ -89,8 +93,8 @@
 	
 	SizeStandardSize *selectedFragment = self.tableContent.selectedObjects.firstObject;
 	short newSize = selectedFragment.size + 1;
-	if(newSize < 20) {
-		newSize = 20;
+	if(newSize < 10) {
+		newSize = 10;
 	}
 	
 	[self.undoManager setActionName:@"New Size"];

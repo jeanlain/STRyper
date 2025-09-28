@@ -28,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// An entity that defines the size range that alleles of the same genetic locus (molecular marker) can take.
 ///
-/// The range of a marker is used do determine if a `Peak` detected in a trace indicates the presence of an allele at a given locus.
+/// The range of a marker is used do determine if a `Peak` detected in a ``FluoTrace`` indicates the presence of an allele at a given locus.
 /// A marker also has ``bins`` that define the expected range of each allele of the locus.
 ///
 /// Marker are organized in panels (``Panel`` objects).
@@ -112,12 +112,37 @@ typedef NS_ENUM(int16_t, Ploidy) {
 @property (readonly, nonatomic) NSString *stringRepresentation;
 
 
+/// The visible range that can be set by a view displaying the marker.
+///
+/// A marker is likely to be displayed in a row of a table. As `NSTableView` objects shuffle and reuse views for rows and cells,
+/// a marker may be randomly shown in different views (``TraceView`` objects)..
+///
+/// A ``TraceView`` can use this property to set  its ``TraceView/visibleRange``.
+@property (nonatomic) BaseRange visibleRange;
+
+
 /// Makes the receiver create new genotypes for the ``Panel/samples`` of its ``panel``.
 /// - Parameter alleleName: The ``LadderFragment/name`` to give to new ``Genotype/alleles``.
 ///
 /// This method may be used after a marker is created and expects the absence of genotypes for the receiver.
 /// It would create redundant genotypes if it is not the case.
 - (void)createGenotypesWithAlleleName:(NSString *)alleleName;
+
+/// Adds a new bin for a desired size (position) and width expressed in base pairs, and returns the new bin.
+///
+/// The method does not insert a bin and returns `nil` if there is no room for a new bin at the `midSize` in the receiver.
+/// The exact position and width of the bin may be adjusted to avoid overlap with other ``bins``.
+/// - Parameters:
+///   - midSize: The desired mid position of the bin in base pairs.
+///   - width: The desired width of the bin in base pairs. It must be at least ``Region/minimumWidth``.
+- (nullable Bin *)insertBinAtSize:(float)midSize desiredWidth:(float)width;
+
+/// Makes the marker update the ``Genotype/status`` of its `genotypes`.
+///
+/// The marker calls ``Genotype/setProposedStatus:`` with `GenotypeStatusMarkerChanged`
+/// on each of its ``genotypes``.
+/// This method is called when the  coordinates of the marker change.
+-(void) updateGenotypeStatuses;
 
 @end
 

@@ -3,16 +3,6 @@
     {
       "filename" : "circle arrow down.pdf",
       "idiom" : "mac"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "filename" : "circle arrow down dark.pdf",
-      "idiom" : "mac"
     }
   ],
   "info" : {
@@ -20,6 +10,6 @@
     "version" : 1
   },
   "properties" : {
-    "template-rendering-intent" : "original"
+    "template-rendering-intent" : "template"
   }
 }

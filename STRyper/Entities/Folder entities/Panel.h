@@ -21,7 +21,7 @@
 
 @import Cocoa;
 
-@class Mmarker, Chromatogram, PanelFolder;
+@class Mmarker, Chromatogram, PanelFolder, Bin;
 #import "Folder.h"
 #import "Trace.h"
 
@@ -81,17 +81,19 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// A string representation of the panel, which can be used to export it to a text file.
 ///
-/// See the``STRyper`` user guide for details about the format of this string.
+/// See the ``STRyper`` user guide for details about the format of this string.
 -(NSString *)exportString;
 
 
-/// Adds a bins to markers of the panel, using descriptions in a text file.
+/// Sets bins for ``markers`` of the panel, using bin descriptions in a text file, and returns these bins.
 ///
-/// The method returns `NO` if an error occurred, otherwise it returns `YES`.
+/// The methods takes either a STRyper panel description file or a GeneMapper binset description file.
+/// All markers identified in the file will have their current bins replaced. Other markers will not.
+/// The method returns `nil` and sets the `error` if an error occurred decoding the file.
 /// - Parameters:
 ///   - path: The path of the file describing the bins.
 ///   - error: On output, points to any error that occurred.
-- (BOOL)takeBinSetFromGenemapperFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
+- (nullable NSSet<Bin*> *)updateBinsWithFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
 
 
 /***************************/

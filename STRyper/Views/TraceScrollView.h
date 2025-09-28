@@ -30,7 +30,6 @@
 /// It passes the scrolling event to the next responder when the user scrolls mostly vertically, as it should only scroll horizontally.
 /// For the same reason, a `TraceScrollView` does not have a vertical scroller by default.
 ///
-/// Instances of this class enforce the legacy scroller style, otherwise, the horizontal scroller would overlap with the curves shown by the document view.
 ///
 /// A `TraceScrollView` creates a ``VScaleView``  when it sets its document view, if this document view is a ``TraceView``.
 ///
@@ -43,7 +42,7 @@ extern const NSBindingName AllowSwipeBetweenMarkersBinding;
 
 /// Whether the scroll view always shows its horizontal scroller, irrespective of the system preference.
 ///
-/// If `YES`, this property enforce the legacy scroller style.
+/// If `YES`, this property enforces the legacy scroller style.
 @property (nonatomic) BOOL alwaysShowsScroller;
 extern const NSBindingName AlwaysShowsScrollerBinding;
 

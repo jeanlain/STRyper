@@ -133,7 +133,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 		return;
 	}
 	
-	LadderSize ladderSizes[sizeCount];									/// we use a variable-length array for this, as nSizes will never be very large
+	LadderSize *ladderSizes = malloc(sizeCount * sizeof(LadderSize));
 	int i = 0;
 	for(SizeStandardSize *fragment in sortedFragments) {
 		LadderSize size = {.size = (float)fragment.size, .ladderPeakPTR = NULL, .scan = 0};
@@ -148,14 +148,15 @@ typedef struct LadderSize {			/// describes a size in a size standard
 		/// we still create ladder fragments, which will have no scan but can still assigned manually on a traceView
 		[self setLadderFragmentsForTrace:trace WithSizes:ladderSizes sizeCount:sizeCount];
 		[sample setLinearCoefsForReadLength:ladderSizes[sizeCount-1].size + 50.0];
+		free(ladderSizes);
 		return;
 	}
 	
-	LadderPeak ladderPeaks[peakCount]; 	/// Array of LadderPeak structs based on the peaks of the trace
+	LadderPeak *ladderPeaks = malloc(peakCount * sizeof(LadderPeak)); 	/// array of LadderPeak structs based on the peaks of the trace
 	
 	/// We try to ignore short peaks that amount to noise, as they can mess with size assignment. For this, we first need to sort peaks by decreasing height (fluo level)
-	vDSP_Length indices[peakCount];  /// This requires an array of indices
-	float heights[peakCount];
+	vDSP_Length *indices = malloc(peakCount * sizeof(vDSP_Length));  /// This requires an array of indices
+	float *heights = malloc(peakCount * sizeof(float));
 	
 	const Peak *peaks = peakData.bytes;
 	
@@ -168,7 +169,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	}
 	
 	vDSP_vsorti(heights, indices, NULL, peakCount, -1);
-	
+	free(heights); heights = NULL;
 	/// We compute the peak height below which we will ignore peaks. This involve enumerating peaks by decreasing height.
 	/// But we must not stop before we have covered a sufficient scan range
 	/// as high artifacts that do not amount to crosstalk sometime  cluster in a narrow range (degraded fragments, camera errors).
@@ -198,9 +199,10 @@ typedef struct LadderSize {			/// describes a size in a size standard
 			n++;
 		}
 	}
+	free(indices);
 	
 	/// We now put pointers to the peak we retain in an array
-	LadderPeak *ladderPeakPTRs[peakCount];
+	LadderPeak **ladderPeakPTRs = malloc(peakCount * sizeof(LadderPeak*));
 	n = 0;
 	float sumHeight = 0;
 	for (int i = 0; i < peakCount; i++) {
@@ -219,6 +221,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	if (n < 3) {
 		[self setLadderFragmentsForTrace:trace WithSizes:ladderSizes sizeCount:sizeCount];
 		[sample setLinearCoefsForReadLength:ladderSizes[sizeCount-1].size + 50.0];
+		free(ladderPeaks); free(ladderSizes); free(ladderPeakPTRs);
 		return;
 	}
 	
@@ -261,6 +264,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	[self setLadderFragmentsForTrace:trace WithSizes:ladderSizes sizeCount:sizeCount];
 	
 	[sample computeFitting];
+	free(ladderPeaks); free(ladderSizes); free(ladderPeakPTRs);
 }
 
 

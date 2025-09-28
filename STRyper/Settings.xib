@@ -32,7 +32,7 @@
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </textFieldCell>
                     </textField>
-                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9YE-VV-kHo">
+                    <button toolTip="Apply the size standard specified in the chromatogram metadata" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="9YE-VV-kHo">
                         <rect key="frame" x="19" y="265" width="184" height="16"/>
                         <buttonCell key="cell" type="check" title="Detect size standard on import" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="mm8-J8-0jb">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>

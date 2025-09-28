@@ -51,9 +51,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// and it is expected to be called within a `-drawRect:` call on its hosting view.
 /// - Parameters:
 ///   - dirtyRect: The dirty rectangle of the `layer`. The method will not draw outside of it.
-///   - viewLayer: The layer corresponding to the coordinate system of `dirtyRect`.
+///   - layer: The layer corresponding to the coordinate system of `dirtyRect`.
 ///   - clip: Wether the text should be clipped by the rectangle returned by ``visibleRectInSuperLayer:``.
-///   - ctx: The graphics context to use. If `nil` the current context is used.
 - (void) drawStringInRect:(NSRect)dirtyRect ofLayer:(CALayer *)layer withClipping:(BOOL) clip;
 
 

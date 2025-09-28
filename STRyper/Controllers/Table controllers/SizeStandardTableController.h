@@ -21,7 +21,7 @@
 
 
 #import "TableViewController.h"
-@class Chromatogram;
+@class Chromatogram, SizeStandard;
 
 extern NSPasteboardType _Nonnull const SizeStandardDragType;
 
@@ -34,6 +34,15 @@ NS_ASSUME_NONNULL_BEGIN
 /// This class implement internal methods that allows the user to create a size standard by duplicating an existing one,
 /// and to apply a size standard by dragging it onto the sample table managed by the ``SampleTableController`` shared instance.
 @interface SizeStandardTableController : TableViewController
+
+
+/// Applies a size standard to samples (Chromatogram objects).
+///
+/// - Parameters:
+///   - standard: The size standard to apply.
+///   - sampleArray: The  samples that `standard` should be applied to.
+- (void)applySizeStandard:(SizeStandard*) standard toSamples:(NSArray<Chromatogram *> *)sampleArray;
+
 
 /// Applies a ``SizeStandard`` on a sample, based on its ``Chromatogram/standardName`` attribute.
 /// 

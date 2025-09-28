@@ -48,6 +48,10 @@
 /// It should typically not be a decimal number, but subclasses may use decimals.
 @property (nonatomic) float size;
 
+/// The fluorescence level of the ``trace`` at the ``scan`` of the fragment.
+/// The value is `nil` if ``scan`` is ≤ 0;
+@property (nonatomic, readonly) NSNumber *height;
+
 /// An estimate of the difference between the fragment's ``size`` and the size derived from its  ``scan`` and the sizing properties of its chromatogram.
 ///
 /// This attribute is used to evaluate the accuracy of the ``size`` of the ladder fragment, hence the ``Chromatogram/sizingQuality`` parameter of a sample.

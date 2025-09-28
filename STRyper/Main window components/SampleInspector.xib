@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
+        <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
@@ -21,11 +22,12 @@
                 <rect key="frame" x="0.0" y="0.0" width="467" height="845"/>
                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                 <subviews>
-                    <outlineView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="plain" selectionHighlightStyle="none" columnReordering="NO" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" typeSelect="NO" autosaveName="" viewBased="YES" indentationPerLevel="16" autosaveExpandedItems="YES" indentationMarkerFollowsCell="NO" outlineTableColumn="BmY-Na-dVQ" id="Sgz-4Y-9vU" userLabel="sample inspector">
+                    <outlineView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="plain" selectionHighlightStyle="none" columnReordering="NO" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" typeSelect="NO" autosaveName="" viewBased="YES" floatsGroupRows="NO" indentationPerLevel="16" autosaveExpandedItems="YES" indentationMarkerFollowsCell="NO" outlineTableColumn="BmY-Na-dVQ" id="Sgz-4Y-9vU" userLabel="sample inspector" customClass="InfoOutlineView">
                         <rect key="frame" x="0.0" y="0.0" width="467" height="845"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <size key="intercellSpacing" width="3" height="2"/>
                         <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                        <tableViewGridLines key="gridStyleMask" horizontal="YES"/>
                         <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                         <tableColumns>
                             <tableColumn identifier="AutomaticTableColumnIdentifier.0" width="464" minWidth="40" maxWidth="1000" id="BmY-Na-dVQ">
@@ -58,7 +60,7 @@
                                             <outlet property="textField" destination="pqP-Un-ZwY" id="UUx-ax-LBo"/>
                                         </connections>
                                     </tableCellView>
-                                    <customView identifier="Sample information" translatesAutoresizingMaskIntoConstraints="NO" id="Tky-Bz-Qcs" userLabel="Sample info" customClass="NSTableRowView">
+                                    <customView identifier="Sample information" translatesAutoresizingMaskIntoConstraints="NO" id="Tky-Bz-Qcs" userLabel="Sample info" customClass="InfoTableRowView">
                                         <rect key="frame" x="1" y="27" width="464" height="124"/>
                                         <subviews>
                                             <textField focusRingType="none" horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="rxj-R4-5gt">
@@ -146,7 +148,7 @@
                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingMiddle" selectable="YES" sendsActionOnEndEditing="YES" title="FAM" placeholderString="22/12/1980" drawsBackground="YES" id="PWR-V5-gsw">
                                                     <font key="font" metaFont="smallSystem"/>
                                                     <color key="textColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                                    <color key="backgroundColor" red="0.0" green="0.58980089430000004" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                                    <color key="backgroundColor" name="BlueChannelColor"/>
                                                 </textFieldCell>
                                             </textField>
                                             <textField identifier="dye2" focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="1" translatesAutoresizingMaskIntoConstraints="NO" id="yf0-cp-lwz">
@@ -154,7 +156,7 @@
                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingMiddle" selectable="YES" sendsActionOnEndEditing="YES" title="VIC" placeholderString="22/12/1980" drawsBackground="YES" id="BSa-01-ibY">
                                                     <font key="font" metaFont="smallSystem"/>
                                                     <color key="textColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                                    <color key="backgroundColor" red="0.40173605080000002" green="0.67815136909999996" blue="0.34893691539999999" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                                    <color key="backgroundColor" name="GreenChannelColor"/>
                                                 </textFieldCell>
                                             </textField>
                                             <textField identifier="dye3" focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="1" translatesAutoresizingMaskIntoConstraints="NO" id="Y5b-px-Pae">
@@ -162,7 +164,7 @@
                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingMiddle" selectable="YES" sendsActionOnEndEditing="YES" title="NED" placeholderString="22/12/1980" drawsBackground="YES" id="LwG-d7-kM4">
                                                     <font key="font" metaFont="smallSystem"/>
                                                     <color key="textColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                                    <color key="backgroundColor" red="0.42348909379999999" green="0.41996937989999999" blue="0.39607238769999997" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                                    <color key="backgroundColor" name="BlackChannelColor"/>
                                                 </textFieldCell>
                                             </textField>
                                             <textField identifier="dye4" focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="1" translatesAutoresizingMaskIntoConstraints="NO" id="yRS-pX-I4R" userLabel="ROX">
@@ -170,7 +172,7 @@
                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingMiddle" selectable="YES" sendsActionOnEndEditing="YES" title="ROX" placeholderString="22/12/1980" drawsBackground="YES" id="JXH-if-9fc">
                                                     <font key="font" metaFont="smallSystem"/>
                                                     <color key="textColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                                    <color key="backgroundColor" red="0.79177749159999999" green="0.28309270739999998" blue="0.2351639569" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                                    <color key="backgroundColor" name="RedChannelColor"/>
                                                 </textFieldCell>
                                             </textField>
                                             <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aof-uz-j8S">
@@ -218,7 +220,7 @@
                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingMiddle" selectable="YES" sendsActionOnEndEditing="YES" title="LIZ" placeholderString="22/12/1980" drawsBackground="YES" id="Lsn-6j-kk6">
                                                     <font key="font" metaFont="smallSystem"/>
                                                     <color key="textColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                                    <color key="backgroundColor" red="0.94004231689999995" green="0.5682082772" blue="0.22716048359999999" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                                    <color key="backgroundColor" name="OrangeChannelColor"/>
                                                 </textFieldCell>
                                             </textField>
                                         </subviews>
@@ -278,7 +280,7 @@
                                             <constraint firstItem="2E2-ek-lgI" firstAttribute="trailing" secondItem="afi-9v-Tot" secondAttribute="trailing" id="xdi-Zr-6hs"/>
                                         </constraints>
                                     </customView>
-                                    <customView identifier="Run information" translatesAutoresizingMaskIntoConstraints="NO" id="8FF-13-elx" userLabel="Run Info" customClass="NSTableRowView">
+                                    <customView identifier="Run information" translatesAutoresizingMaskIntoConstraints="NO" id="8FF-13-elx" userLabel="Run Info" customClass="InfoTableRowView">
                                         <rect key="frame" x="1" y="153" width="464" height="114"/>
                                         <subviews>
                                             <textField focusRingType="none" horizontalHuggingPriority="750" verticalHuggingPriority="750" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="0Eb-H9-ala">
@@ -440,13 +442,12 @@
                                             <constraint firstItem="kbs-Re-Dwy" firstAttribute="trailing" secondItem="vfz-Cj-YKC" secondAttribute="trailing" id="w79-KP-Mdl"/>
                                         </constraints>
                                     </customView>
-                                    <customView identifier="Sizing" id="XH8-mz-4tB" userLabel="Sizing" customClass="NSTableRowView">
+                                    <customView identifier="Sizing" id="XH8-mz-4tB" userLabel="Sizing" customClass="InfoTableRowView">
                                         <rect key="frame" x="1" y="269" width="464" height="500"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <subviews>
-                                            <customView id="38N-5C-afy" userLabel="Fitting View" customClass="FittingView">
-                                                <rect key="frame" x="1" y="1" width="462" height="500"/>
-                                                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                            <customView translatesAutoresizingMaskIntoConstraints="NO" id="38N-5C-afy" userLabel="Fitting View" customClass="FittingView">
+                                                <rect key="frame" x="0.0" y="0.0" width="464" height="500"/>
                                             </customView>
                                             <textField toolTip="Size standard name as encoded in the source file" focusRingType="none" horizontalHuggingPriority="755" verticalHuggingPriority="750" horizontalCompressionResistancePriority="755" verticalCompressionResistancePriority="751" translatesAutoresizingMaskIntoConstraints="NO" id="83v-Nc-X0W">
                                                 <rect key="frame" x="19" y="481" width="111" height="14"/>
@@ -551,6 +552,7 @@
                                             </popUpButton>
                                         </subviews>
                                         <constraints>
+                                            <constraint firstItem="38N-5C-afy" firstAttribute="leading" secondItem="XH8-mz-4tB" secondAttribute="leading" id="0Un-8m-DmF"/>
                                             <constraint firstItem="VyW-ML-aKt" firstAttribute="bottom" secondItem="83v-Nc-X0W" secondAttribute="bottom" id="0W2-T0-Nnm"/>
                                             <constraint firstItem="s3n-te-hJF" firstAttribute="trailing" secondItem="Dcq-eN-ThT" secondAttribute="trailing" id="4tK-pI-EZ4"/>
                                             <constraint firstItem="DON-4a-InD" firstAttribute="centerY" secondItem="E5d-aa-scq" secondAttribute="centerY" id="7G2-Xk-Kvx"/>
@@ -558,6 +560,7 @@
                                             <constraint firstItem="E5d-aa-scq" firstAttribute="top" secondItem="83v-Nc-X0W" secondAttribute="bottom" constant="2" id="AS4-H3-vll"/>
                                             <constraint firstItem="1Li-89-0rG" firstAttribute="leading" secondItem="XH8-mz-4tB" secondAttribute="leading" constant="10" id="CmD-vy-tGA"/>
                                             <constraint firstItem="hX8-6U-jde" firstAttribute="leading" secondItem="1Li-89-0rG" secondAttribute="trailing" constant="5" id="JZW-oi-EA4"/>
+                                            <constraint firstAttribute="trailing" secondItem="38N-5C-afy" secondAttribute="trailing" id="KJg-iV-qgw"/>
                                             <constraint firstItem="1Li-89-0rG" firstAttribute="top" secondItem="s3n-te-hJF" secondAttribute="bottom" constant="1" id="M6y-iH-yOL"/>
                                             <constraint firstItem="FRY-Yh-Z60" firstAttribute="bottom" secondItem="s3n-te-hJF" secondAttribute="bottom" id="MGo-YC-XWD"/>
                                             <constraint firstItem="s3n-te-hJF" firstAttribute="top" secondItem="Dcq-eN-ThT" secondAttribute="bottom" constant="1" id="O00-C1-1L3"/>
@@ -568,11 +571,13 @@
                                             <constraint firstItem="83v-Nc-X0W" firstAttribute="top" secondItem="XH8-mz-4tB" secondAttribute="top" constant="5" id="XHE-A8-0Nb"/>
                                             <constraint firstItem="QbX-pv-gq7" firstAttribute="leading" secondItem="Dcq-eN-ThT" secondAttribute="trailing" constant="5" id="aLE-OR-Sks"/>
                                             <constraint firstItem="Dcq-eN-ThT" firstAttribute="top" secondItem="E5d-aa-scq" secondAttribute="bottom" constant="3" id="aUY-YQ-7EI"/>
+                                            <constraint firstItem="38N-5C-afy" firstAttribute="top" secondItem="XH8-mz-4tB" secondAttribute="top" id="dvQ-pf-TKq"/>
                                             <constraint firstItem="FRY-Yh-Z60" firstAttribute="leading" secondItem="s3n-te-hJF" secondAttribute="trailing" constant="5" id="hmc-7g-j8x"/>
                                             <constraint firstItem="VyW-ML-aKt" firstAttribute="leading" secondItem="83v-Nc-X0W" secondAttribute="trailing" constant="5" id="iXT-yd-hhm"/>
                                             <constraint firstItem="Dcq-eN-ThT" firstAttribute="trailing" secondItem="E5d-aa-scq" secondAttribute="trailing" id="jL8-iy-eRL"/>
                                             <constraint firstItem="QbX-pv-gq7" firstAttribute="centerY" secondItem="Dcq-eN-ThT" secondAttribute="centerY" id="mum-Z6-yPA"/>
                                             <constraint firstItem="1Li-89-0rG" firstAttribute="trailing" secondItem="s3n-te-hJF" secondAttribute="trailing" id="o3p-RE-0oy"/>
+                                            <constraint firstAttribute="bottom" secondItem="38N-5C-afy" secondAttribute="bottom" id="pw7-XK-4F1"/>
                                             <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="VyW-ML-aKt" secondAttribute="trailing" constant="20" symbolic="YES" id="sAJ-9h-Ips"/>
                                             <constraint firstItem="s3n-te-hJF" firstAttribute="leading" secondItem="XH8-mz-4tB" secondAttribute="leading" constant="10" id="tBD-ln-Yha"/>
                                             <constraint firstItem="83v-Nc-X0W" firstAttribute="trailing" secondItem="E5d-aa-scq" secondAttribute="trailing" id="vTS-PS-4cO"/>
@@ -599,27 +604,22 @@
             </scroller>
             <point key="canvasLocation" x="-1206.5" y="983.5"/>
         </scrollView>
-        <popUpButton id="66C-m3-1Ju">
-            <rect key="frame" x="0.0" y="0.0" width="93" height="21"/>
-            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-            <popUpButtonCell key="cell" type="inline" title="Item 1" bezelStyle="inline" alignment="center" lineBreakMode="truncatingTail" state="on" borderStyle="border" imageScaling="proportionallyDown" inset="2" pullsDown="YES" selectedItem="ulJ-EK-plR" id="aae-Az-BrG">
-                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                <font key="font" metaFont="smallSystemBold"/>
-                <menu key="menu" id="aIb-KO-wua">
-                    <items>
-                        <menuItem title="Item 1" state="on" hidden="YES" id="ulJ-EK-plR"/>
-                        <menuItem title="Item 2" id="37X-Qa-nxT"/>
-                        <menuItem title="Item 3" id="U7w-5g-OIh"/>
-                    </items>
-                </menu>
-            </popUpButtonCell>
-            <color key="bezelColor" name="traceViewBackgroundColor"/>
-            <point key="canvasLocation" x="-872" y="820"/>
-        </popUpButton>
     </objects>
     <resources>
-        <namedColor name="traceViewBackgroundColor">
-            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        <namedColor name="BlackChannelColor">
+            <color red="0.37099999189376831" green="0.37099999189376831" blue="0.37099999189376831" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="BlueChannelColor">
+            <color red="0.25098039215686274" green="0.45098039215686275" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="GreenChannelColor">
+            <color red="0.0" green="0.69999998807907104" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="OrangeChannelColor">
+            <color red="1" green="0.58431372549019611" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="RedChannelColor">
+            <color red="1" green="0.23137254901960785" blue="0.18823529411764706" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
     </resources>
 </document>

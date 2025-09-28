@@ -26,10 +26,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// Adds convenience methods to toggle panes of a split-view.
 @interface NSSplitViewController (SplitViewControllerAdditions)
 
-/// Toggles the pane number which corresponds to the sender's tag
+/// Toggles the pane number that corresponds to the sender's tag.
 - (void)togglePane:(id)sender;
 
-/// Toggles the pane that is at index `number`
+/// Toggles the pane that is at index `number`.
 - (void)togglePaneNumber:(NSInteger)number;
 
 

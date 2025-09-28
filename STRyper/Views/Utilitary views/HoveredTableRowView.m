@@ -109,7 +109,7 @@
 	/// there may be a flexible solution using auto-layout, but it don't see a simple one.
 		
 	BOOL outlineButtonShown = outlineButton && !outlineButton.isHidden;
-	float width = self.hoveredButton.intrinsicContentSize.width;
+	CGFloat width = self.hoveredButton.intrinsicContentSize.width;
 
 	if(outlineButtonShown && NSMinX(outlineButton.frame)-5 < width) {
 		self.hoveredButton.hidden = YES;
@@ -118,7 +118,7 @@
 	}
 	
 	
-	float xOrigin = outlineButtonShown? NSMinX(outlineButton.frame) -width -5 : NSMaxX(self.bounds) - width - 10;
+	CGFloat xOrigin = outlineButtonShown? NSMinX(outlineButton.frame) -width -5 : NSMaxX(self.bounds) - width - 10;
 	[self.hoveredButton setFrame: NSMakeRect(xOrigin, 0, width, self.frame.size.height)];
 	
 	if(cellView) {

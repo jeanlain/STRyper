@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "import folder.pdf",
+      "filename" : "import folder square.pdf",
       "idiom" : "mac"
     }
   ],
@@ -10,6 +10,7 @@
     "version" : 1
   },
   "properties" : {
+    "preserves-vector-representation" : true,
     "template-rendering-intent" : "template"
   }
 }

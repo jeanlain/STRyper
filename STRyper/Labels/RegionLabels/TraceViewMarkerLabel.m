@@ -44,14 +44,14 @@
 	/// "outer" limits represent the maximum width the label can take. This ensure bins remain in the marker's range.
 	/// Inner limits represent the minimum width
 	/// The width is constrained as we do not allow shrinking the binset to an arbitrary level (or to set an offset that is too extreme).
-	float outerLeftLimit;
-	float outerRightLimit;
-	float innerLeftLimit;
-	float innerRightLimit;
+	CGFloat outerLeftLimit;
+	CGFloat outerRightLimit;
+	CGFloat innerLeftLimit;
+	CGFloat innerRightLimit;
 	
 	/// The position (in base pairs) that does not move when the label is resized and its represented by an vertical line (the anchor) when the label is dragged.
-	float anchorPos; /// It is computed in the coordinates of the marker represented by the label, given its offset.
-	float anchorPosInView;	/// The same, in view coordinates (still in base pairs).
+	CGFloat anchorPos; /// It is computed in the coordinates of the marker represented by the label, given its offset.
+	CGFloat anchorPosInView;	/// The same, in view coordinates (still in base pairs).
 
 	
 	CALayer *anchorSymbolLayer;		/// A symbol that conveys the notion that the anchor won't move during resizing.
@@ -195,11 +195,9 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (void)updateAppearance {
 	if(needsUpdateBinLabels) {
 		[self updateBinLabels];
-		self.allowsAnimations = NO;
-		[BinLabel arrangeLabels:self.binLabels withRepositioning:YES];
-		self.allowsAnimations = YES;
 	}
 	
+	layer.backgroundColor = NULL;
 	/// The label has no background color when no enabled.
 	layer.backgroundColor = self.enabled? self.view.traceViewMarkerLabelBackgroundColor : nil;
 	if(!self.highlighted) {
@@ -285,8 +283,8 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		if(self.highlighted && self.clickedEdge == betweenEdges) {
 			MarkerOffset offset = self.offset;
 			TraceView *view = self.view;
-			float clickedPosition = [view sizeForX:view.clickedPoint.x];
-			float clickedPositionInMarker = (clickedPosition - offset.intercept)/offset.slope;
+			CGFloat clickedPosition = [view sizeForX:view.clickedPoint.x];
+			CGFloat clickedPositionInMarker = (clickedPosition - offset.intercept)/offset.slope;
 			if(clickedPositionInMarker > self.start +1 && clickedPositionInMarker < self.end -1) {
 				anchorPos = clickedPositionInMarker;
 				anchorPosInView = clickedPosition;
@@ -454,7 +452,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		self.enabled = NO;
 	} else if(editState == editStateBins) {
 		self.enabled = YES;
-		self.highlighted = NO;		/// When the user edits bins individually, the marker label behind bins (us) is not highlighted
+		self.highlighted = NO;		/// When the user edits bins individually, the marker label behind bins (this label) is not highlighted
 									/// it should not show its border and should not be resizable nor draggable
 									/// it's only purpose is to show where bins can be added and to set a cursor when hovered to denote that
 		binEnabledState = YES;
@@ -481,7 +479,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		float slope = self.offset.slope;
 		float intercept = self.offset.intercept;
 
-		float anchorViewPos = anchorPos*slope + intercept;
+		CGFloat anchorViewPos = anchorPos*slope + intercept;
 		if(self.editState == editStateBinSet) {
 			/// When the user moves the bin set, the bin widths are preserved.
 			/// The limits must ensure that bins remain within the marker range and don't overlap.
@@ -558,11 +556,11 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		
 		if(anchorPos <= end -1 && anchorPos >= start +1) {		/// if the anchor point is between edges, moving an edge affects the other edge
 																/// this may modify the allowed limits
-			float anchorPositionRatio = (anchorPos - start) / (end - anchorPos);
-			float estimatedOuterLeftLimit = anchorViewPos - (outerRightLimit - anchorViewPos) * anchorPositionRatio;
-			float estimatedInnerLeftLimit = anchorViewPos - (innerRightLimit - anchorViewPos) * anchorPositionRatio;
-			float estimatedOuterRightLimit = anchorViewPos + (anchorViewPos - outerLeftLimit) / anchorPositionRatio;
-			float estimatedInnerRightLimit = anchorViewPos + (anchorViewPos - innerLeftLimit) / anchorPositionRatio;
+			CGFloat anchorPositionRatio = (anchorPos - start) / (end - anchorPos);
+			CGFloat estimatedOuterLeftLimit = anchorViewPos - (outerRightLimit - anchorViewPos) * anchorPositionRatio;
+			CGFloat estimatedInnerLeftLimit = anchorViewPos - (innerRightLimit - anchorViewPos) * anchorPositionRatio;
+			CGFloat estimatedOuterRightLimit = anchorViewPos + (anchorViewPos - outerLeftLimit) / anchorPositionRatio;
+			CGFloat estimatedInnerRightLimit = anchorViewPos + (anchorViewPos - innerLeftLimit) / anchorPositionRatio;
 			if(outerLeftLimit < estimatedOuterLeftLimit) {
 				outerLeftLimit = estimatedOuterLeftLimit;
 			}
@@ -603,7 +601,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			outerRightLimit = end + rightMargin;
 			innerRightLimit = end - leftMargin;
 		} else {
-			float maxDistance = (end - start)/20;
+			CGFloat maxDistance = (end - start)/20;
 			if(maxDistance < 2.0) {
 				maxDistance = 2.0;
 			}
@@ -625,7 +623,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		/// We do not start the drag if the user has not dragged the mouse horizontally for at least 2 points.
 		/// This is to avoid a drag by a single click.
 		NSPoint clickedPoint = view.clickedPoint;
-		float dist = fabs(mouseLocation.x - clickedPoint.x);
+		CGFloat dist = fabs(mouseLocation.x - clickedPoint.x);
 		if(dist < 2) {
 			return;
 		}
@@ -634,7 +632,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	
 	/// This implementation computes the label's offset even if the user is moving the bin set and not modifying a marker offset,
 	/// but we use this offset differently depending on the edit state
-	float mousePos = [view sizeForX:mouseLocation.x];
+	CGFloat mousePos = [view sizeForX:mouseLocation.x];
 	float slope = self.offset.slope;
 	float intercept = self.offset.intercept;
 	Region *marker = self.region;
@@ -649,7 +647,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		}
 		/// we compute the slope corresponding to the mouse position. It is computed such that the offset of the anchor does not change
 		float draggedEdgePos = self.clickedEdge == leftEdge? markerStart : markerEnd;
-		float anchorViewPos = anchorPos * slope + intercept;
+		CGFloat anchorViewPos = anchorPos * slope + intercept;
 		slope = (mousePos - anchorViewPos) / (draggedEdgePos - anchorPos);
 		intercept = anchorViewPos - slope * anchorPos;
 		
@@ -710,9 +708,9 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 }
 
 
--(void) updateAnchorPos:(float)pos {
+-(void) updateAnchorPos:(CGFloat)pos {
 	/// We try to restore the anchor position for when the user undoes a drag.
-	float previousAnchorPos = anchorPos;
+	CGFloat previousAnchorPos = anchorPos;
 	[self.view.undoManager registerUndoWithTarget:self handler:^(TraceViewMarkerLabel *target) {
 		[target updateAnchorPos:previousAnchorPos];
 	}];
@@ -782,17 +780,17 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 
 - (void)reposition {
 	TraceView *view = self.view;
-	float hScale = view.hScale;
+	CGFloat hScale = view.hScale;
 	if(hScale <= 0) {
 		return;
 	}
 	
 	float startSize = self.startSize;
 	float endSize = self.endSize;
-	float startX = [view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
+	CGFloat startX = [view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
 	
 	NSRect viewBounds = view.bounds;
-	float viewBoundsOrigin = viewBounds.origin.y;
+	CGFloat viewBoundsOrigin = viewBounds.origin.y;
 	regionRect = NSMakeRect(startX, viewBoundsOrigin, (endSize - startSize) * hScale, NSMaxY(viewBounds));
 	self.frame = regionRect;
 
@@ -812,7 +810,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	}
 	if(_outerLayer && !_outerLayer.hidden) {
 		startX =  [view xForSize:outerLeftLimit];
-		float endX = [view xForSize:outerRightLimit];
+		CGFloat endX = [view xForSize:outerRightLimit];
 		_outerLayer.frame = NSMakeRect(startX, viewBoundsOrigin, endX-startX, NSMaxY(viewBounds));
 		if(_innerLayer && !_innerLayer.hidden) {
 			startX =  [view xForSize:innerLeftLimit];
@@ -873,9 +871,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		float midBinDist =(bin2.end + bin2.start)/2 - (bin1.end + bin1.start)/2;
 		float edgeDist = bin2.start - bin1.end;
 		float shrinkRatio = (midBinDist - edgeDist + 0.05) / midBinDist;
-		if(shrinkRatio > maxShrinkRatio) {
-			maxShrinkRatio = shrinkRatio;
-		}
+		maxShrinkRatio = MAX(shrinkRatio, maxShrinkRatio);
 	}
 	return maxShrinkRatio;
 }
@@ -908,7 +904,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	TraceView *view = self.view;
 	
 	NSArray *newBinLabels = [view regionLabelsForRegions:marker.bins.allObjects reuseLabels:self.binLabels];
-	BOOL hide = !view.showDisabledBins && !self.enabled && view.trace != nil;		/// we hide the new bin labels if needed.
+	BOOL hide = !self.enabled && !view.showDisabledBins && (view.trace || view.loadedGenotypes.count > 0);		/// we hide the new bin labels if needed.
 	BOOL enable = self.editState == editStateBins;
 	for(BinLabel *binLabel in newBinLabels) {
 		binLabel.parentLabel = self;
@@ -923,6 +919,11 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		}
 		return NSOrderedDescending;
 	}];
+	
+	self.allowsAnimations = NO;
+	[BinLabel arrangeLabels:self.binLabels withRepositioning:YES];
+	self.allowsAnimations = YES;
+	
 	needsUpdateBinLabels = NO;
 }
 
@@ -974,27 +975,24 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			float intercept = self.offset.intercept;
 			size = (size-intercept)/slope;    /// the position of the mouse in base pairs (in marker coordinates)
 
-			Bin *newBin = [Bin binForMarker:marker desiredMidSize:size desiredWidth:1.0];
+			Bin *newBin = [marker insertBinAtSize:size desiredWidth:1.0];
 			if(newBin) {
-				[newBin autoName];
 				[view.undoManager setActionName:@"Add Bin"];
-				/// We let some time for the bin labels to update before spawning the region popover for the new bin.
-				/// There is no bin label for the new bin yet.
-				[self performSelector:@selector(spawnRegionPopoverForNewBin:) withObject:newBin afterDelay:0.05];
+				[self updateBinLabels];
+				for(BinLabel *binLabel in self.binLabels) {
+					if(binLabel.region == newBin) {
+						binLabel.highlighted = YES;
+						[binLabel spawnRegionPopover:self];
+						return;
+					}
+				}
 			}
 		}
 	}
 }
 
 
--(void)spawnRegionPopoverForNewBin:(Bin *)bin {
-	for(BinLabel *binLabel in self.binLabels) {
-		if(binLabel.region == bin) {
-			[binLabel spawnRegionPopover:self];
-			return;
-		}
-	}
-}
+
 
 
 @end

@@ -28,7 +28,7 @@
 
 @interface TracePreviewView ()
 
-@property (nonatomic) float hScale;
+@property (nonatomic) CGFloat hScale;
 
 @end
 
@@ -125,7 +125,7 @@ static NSColor *backgroundColor;
 	short lowerFluo = 1 / vScale; 	/// to quickly evaluate if some scans should be drawn
 
 	int maxPointsInCurve = appleSilicon? 40 : 400;			/// we stoke the curve if it has enough points.
-	NSPoint pointArray[maxPointsInCurve];          			/// points to add to the curve
+	NSPoint pointArray[maxPointsInCurve];          			/// points to add to the curve (VLA)
 	int startScan = dirtyRect.origin.x / hScale -3;			/// The 3-scan margin is necessary to avoid drawing artifacts.
 	if(startScan < 0) {
 		startScan = 0;
@@ -147,8 +147,8 @@ static NSColor *backgroundColor;
 		
 		NSColor *curveColor = colorsForChannel[color];
 		CGContextSetStrokeColorWithColor(ctx, curveColor.CGColor);
-		float lastX = startScan * hScale;
-		float y = fluo[startScan]*vScale;
+		CGFloat lastX = startScan * hScale;
+		CGFloat y = fluo[startScan]*vScale;
 		if (y < 1) {
 			y = 0;
 		}
@@ -157,7 +157,7 @@ static NSColor *backgroundColor;
 				
 		for(int scan = startScan+1; scan <= maxScan; scan++) {
 			
-			float x = scan * hScale;
+			CGFloat x = scan * hScale;
 			
 			int16_t scanFluo = fluo[scan];
 			if (scan < maxScan-1) {
@@ -213,14 +213,14 @@ static NSColor *backgroundColor;
 }
 
 
-- (void)setHScale:(float)hScale {
+- (void)setHScale:(CGFloat)hScale {
 	if(hScale < 0.05) {
 		hScale = 0.05;
 	}
 	
 	NSSize boundSize = self.superview.bounds.size;
-	float superviewWidth = boundSize.width;
-	float minScale = superviewWidth / totScans;
+	CGFloat superviewWidth = boundSize.width;
+	CGFloat minScale = superviewWidth / totScans;
 	if(hScale < minScale) {
 		hScale = minScale;
 	} else if(hScale > 2) {
@@ -230,7 +230,7 @@ static NSColor *backgroundColor;
 	if(hScale != _hScale) {
 		_hScale = hScale;
 		NSSize currentSize = self.frame.size;
-		float newWidth = totScans * hScale;
+		CGFloat newWidth = totScans * hScale;
 		if(newWidth < superviewWidth) {
 			newWidth = superviewWidth;
 		}
@@ -244,7 +244,7 @@ static NSColor *backgroundColor;
 
 
 - (void)resizeWithOldSuperviewSize:(NSSize)oldSize {
-	float width = self.superview.bounds.size.width;
+	CGFloat width = self.superview.bounds.size.width;
 	if(width > self.frame.size.width || !hasBeenZoomed) {
 		self.hScale = width / totScans;
 	}
@@ -278,7 +278,7 @@ static NSColor *backgroundColor;
 
 
 - (void)magnifyWithEvent:(NSEvent *)theEvent    {
-	float zoomFactor = 1+theEvent.magnification;
+	CGFloat zoomFactor = 1+theEvent.magnification;
 	NSPoint location = [self convertPoint:theEvent.locationInWindow fromView:nil];
 	[self zoomTo:location.x withFactor:zoomFactor];
 	
@@ -288,32 +288,32 @@ static NSColor *backgroundColor;
 
 - (void)scrollWheel:(NSEvent *)theEvent {
 	
-	float deltaX = theEvent.scrollingDeltaX;
+	CGFloat deltaX = theEvent.scrollingDeltaX;
 	BOOL vertical = fabs(deltaX) < fabs(theEvent.scrollingDeltaY);
 	BOOL altKeyDown = (theEvent.modifierFlags & NSEventModifierFlagOption) != 0;
 	if (altKeyDown && vertical) {
 		/// if scrolling is mostly vertical and the alt key is pressed, we zoom the trace
 		NSPoint mouseLocation = [self convertPoint:theEvent.locationInWindow fromView:nil];
-		float zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
+		CGFloat zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
 		[self zoomTo:mouseLocation.x withFactor:zoomFactor];
 	}
 	else [super scrollWheel:theEvent];
 }
 
 
-- (void)zoomTo:(float) zoomPoint withFactor:(float)zoomFactor {
+- (void)zoomTo:(CGFloat) zoomPoint withFactor:(CGFloat)zoomFactor {
 	
 	if (zoomFactor <= 0) {
 		zoomFactor = 0.01;
 	}
 	
-	float newScale = self.hScale * zoomFactor;
-	float ratio = zoomPoint / self.frame.size.width;;
-	float distanceFromLeft = zoomPoint - self.visibleRect.origin.x;
+	CGFloat newScale = self.hScale * zoomFactor;
+	CGFloat ratio = zoomPoint / self.frame.size.width;;
+	CGFloat distanceFromLeft = zoomPoint - self.visibleRect.origin.x;
 
 	self.hScale = newScale;
 	
-	float newVisibleOrigin = ratio * self.frame.size.width - distanceFromLeft;
+	CGFloat newVisibleOrigin = ratio * self.frame.size.width - distanceFromLeft;
 	if(newVisibleOrigin < 0) {
 		newVisibleOrigin = 0;
 	}

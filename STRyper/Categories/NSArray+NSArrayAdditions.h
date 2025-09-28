@@ -40,7 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Pointer identity is used.
 -(BOOL) isEquivalentTo:(NSArray *) array;
 
-/// Returns whether an array contains the object of the receiver.
+/// Returns whether an array contains the objects of the receiver.
 /// - Parameter array: The array to compare.
 ///
 /// Pointer identity is used.
@@ -51,6 +51,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// Pointer equality is used for the test. 
 /// - Parameter array: An array.
 -(BOOL) sharesObjectsWithArray:(NSArray *)array;
+
+
+/// Convenience method that returns whether the receiver contains all objects of another array.
+///
+/// Pointer equality is used for the test.
+/// - Parameter array: An array.
+-(BOOL) containsAllObjectsOf:(NSArray *)array;
 
 /// Returns an array from which objects of another array are removed.
 /// - Parameter array: An array.
@@ -68,6 +75,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// Returns an array from which objects that are identical to an object are removed.
 /// - Parameter object: An object.
 -(NSArray *) arrayByRemovingObject:(id)object;
+
+
+/// Returns the unique values at a keypath for objects in the array, in the order of occurrence of each new value.
+///
+/// This method workarounds the fact that `@distinctUnionOfObjects` does not guarantee an order for the values.
+/// - Parameter keyPath: A keypath for which objects in the array may return a value.
+- (NSArray *)uniqueValuesForKeyPath:(NSString *)keyPath;
 
 @end
 

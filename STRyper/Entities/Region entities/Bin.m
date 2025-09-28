@@ -41,70 +41,16 @@
 	
 	self = [super initWithContext:marker.managedObjectContext];
 	if(self) {
-		self.start = start;
+		self.start = start; /// This won't change genotype statuses at the marker because the bin does not have
+							/// a marker yet.
 		self.end = end;
 		self.marker = marker;
-		[self autoName];
+		[self autoName]; /// This updates genotype statuses (see `setName:`)
+						 
 	}
 	return self;
 }
 
-
-+ (instancetype)binForMarker:(Mmarker *)marker desiredMidSize:(float)midSize desiredWidth:(float)width {
-	if(!marker.managedObjectContext || width < self.minimumWidth) {
-		return nil;
-	}
-	
-	float margin = self.minimumWidth/2;
-	if(midSize <= marker.start || midSize >= marker.end) {
-		/// Bin out of marker range
-		return nil;
-	}
-	
-	/// The maximum start and minimum end the bin can take.
-	float minStart = marker.start + margin, maxEnd = marker.end - margin;
-
-	for(Bin *bin in marker.bins) {
-		float extendedBinEnd = bin.end + margin;
-		float extendedBinStart = bin.start - margin;
-		if(extendedBinEnd >= midSize && extendedBinStart <= midSize) {
-			/// Another bin overlaps the desired mid size
-			return nil;
-		}
-		
-		if(midSize - extendedBinEnd > 0 && extendedBinEnd > minStart) {
-			minStart = extendedBinEnd;
-		}
-		
-		if(midSize - extendedBinStart < 0 && extendedBinStart < maxEnd) {
-			maxEnd = extendedBinStart;
-		}
-	}
-	
-	if(maxEnd - minStart < margin*2) {
-		/// Not enough room for the bin.
-		return nil;
-	}
-	
-	float binStart = midSize - width/2, binEnd = midSize + width/2; /// The ideal bin range
-	if(maxEnd - minStart < width) {
-		binStart = minStart;
-		binEnd = maxEnd;
-	} else {
-		if(binStart < minStart) {
-			binStart = minStart;
-			binEnd = binStart + width;
-		}
-		
-		if(binEnd > maxEnd) {
-			binEnd = maxEnd;
-			binStart = binEnd - width;
-		}
-	}
-	
-	return [[Bin alloc] initWithStart:binStart end:binEnd marker:marker];
-
-}
 
 
 - (NSArray *)siblings {
@@ -177,12 +123,7 @@
 - (void)setStart:(float)start {
 	/// Like for markers, when a bin is edited, we mark the status of genotypes accordingly
 	if(start != self.start) {
-		for(Genotype *genotype in self.marker.genotypes) {
-			GenotypeStatus status = genotype.status;
-			if(status != genotypeStatusNotCalled) {
-				genotype.status = genotypeStatusMarkerChanged;
-			}
-		}
+		[self.marker updateGenotypeStatuses];
 		[self managedObjectOriginal_setStart:start];
 	}
 }
@@ -190,12 +131,7 @@
 
 - (void)setEnd:(float)end {
 	if(end != self.end) {
-		for(Genotype *genotype in self.marker.genotypes) {
-			GenotypeStatus status = genotype.status;
-			if(status != genotypeStatusNotCalled) {
-				genotype.status = genotypeStatusMarkerChanged;
-			}
-		}
+		[self.marker updateGenotypeStatuses];
 		[self managedObjectOriginal_setEnd:end];
 	}
 }
@@ -204,12 +140,7 @@
 - (void)setName:(NSString *)name {
 	if(![name isEqualToString:self.name]) {
 		[self managedObjectOriginal_setName:name];
-		for(Genotype *genotype in self.marker.genotypes) {
-			GenotypeStatus status = genotype.status;
-			if(status != genotypeStatusNotCalled) {
-				genotype.status = genotypeStatusMarkerChanged;
-			}
-		}
+		[self.marker updateGenotypeStatuses];
 	}
 }
 

@@ -57,6 +57,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///   - error: On output, any error that occurred.
 - (nullable __kindof Folder *) addPanelsFromTextFile:(NSString *)path error:(NSError *__autoreleasing  _Nullable *)error;
 
+- (__kindof NSManagedObject *)entityForType:(NSString *)type withFields:(NSArray <NSString *>*)fields atLine:(int)line ofFile:(NSString *)path error:(NSError *__autoreleasing *)error;
 
 /// When its ``Folder/subfolders`` change, a panel folder posts a notification with this name to the default notification center.
 extern NSNotificationName const _Nonnull PanelFolderSubfoldersDidChangeNotification;

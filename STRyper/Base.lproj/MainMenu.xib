@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
+        <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
     </dependencies>
     <objects>
@@ -278,7 +279,7 @@ CA
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Traces" id="gG3-5G-iiV">
                         <items>
-                            <menuItem title="Stack Traces" id="dJH-z4-ZfU">
+                            <menuItem title="Stack Traces" tag="-1" id="dJH-z4-ZfU">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <menu key="submenu" title="Stack Traces" id="vgJ-Of-R4K">
                                     <items>
@@ -299,6 +300,14 @@ CA
                                         </menuItem>
                                     </items>
                                 </menu>
+                                <connections>
+                                    <action selector="stackMode:" target="-1" id="zYf-EN-iN8"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Stack Genotypes per Marker" tag="3" keyEquivalent="M" id="doy-wa-Pwd">
+                                <connections>
+                                    <action selector="stackMode:" target="-1" id="3zb-ML-lDh"/>
+                                </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="JIn-1e-H1N"/>
                             <menuItem title="Synchronized Horizontally" state="on" alternate="YES" keyEquivalent="h" id="ODv-hn-m6Z">
@@ -423,7 +432,7 @@ CA
                             <menuItem title="Hide Folder List" id="jnp-VA-BfW">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
-                                    <action selector="toggleLeftPane:" target="-1" id="vVb-qB-aKL"/>
+                                    <action selector="toggleSidebar:" target="-1" id="s7I-sL-NXs"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Hide Bottom Pane" tag="1" id="iWU-KQ-OFz">

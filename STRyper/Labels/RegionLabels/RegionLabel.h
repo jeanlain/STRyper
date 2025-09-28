@@ -43,15 +43,6 @@ NS_ASSUME_NONNULL_BEGIN
 	
 	/// Used to determine the limit up to which a label edge can move when it is dragged and avoid on-the-fly computation
     float leftLimit, rightLimit;
-		
-	/// The tacking area corresponding to the left edge of the label.
-	__weak NSTrackingArea *leftEdgeArea;
-	
-	/// The tacking area corresponding to the right edge of the label.
-	__weak NSTrackingArea *rightEdgeArea;				
-	
-	/// The rectangle used by the tracking area covering the label edge.
-	NSRect leftEdgeRect, rightEdgeRect;
 	
 	/// A rectangle representing the visible area of the label (may be different from the the value returned by ``ViewLabel/frame``)
 	NSRect regionRect;
@@ -73,11 +64,6 @@ NS_ASSUME_NONNULL_BEGIN
 	
 	/// Backs the readonly ``binLabels`` property, and allows it to be set by subclasses.
 	NSArray *_binLabels;
-	
-	/// Whether the label needs to adapt the ``stringLayer`` to a new name.
-	BOOL needsUpdateString;
-	
-	BOOL needsUpdateTrackingAreas;
 }
 
 /// Returns a label representing a region, added to a view.
@@ -210,8 +196,7 @@ typedef NS_ENUM(NSUInteger, EditState) {
 - (void)drag;
 
 /// Layout the internal core animations layers of the labels.
-/// The default implementation only adapts the ``stringLayer`` of the receiver to a new name
-/// if ``needsUpdateString`` is `YES`.
+/// The default implementation  does nothing.
 /// Subclasses may perform additional modifications.
 -(void)layoutInternalLayers;
 

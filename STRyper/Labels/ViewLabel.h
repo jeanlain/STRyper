@@ -237,7 +237,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The name of the delete action, which the view can use to populate the Edit menu (form the main app menu).
 ///
-/// This returns nothing by default. Subclasses are expected to override this method.
+/// This default value is nil. Subclasses are expected to override this method.
 /// - Parameter sender: The object that sent this message.
 @property (nullable, nonatomic, readonly) NSString* deleteActionTitle;
 
