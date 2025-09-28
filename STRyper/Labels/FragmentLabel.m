@@ -873,7 +873,7 @@ void spreadLabels(NSRect *frames, vDSP_Length* indices, CGFloat *yOrigins, vDSP_
 		} else {
 			item = [[NSMenuItem alloc] initWithTitle:@"View Chromatogram" action:@selector(isolateAllele:)
 												   keyEquivalent:@""];
-			item.offStateImage = [NSImage imageNamed:ACImageNameCallAllelesBadge];
+			item.image = [NSImage imageNamed:ACImageNameCallAllelesBadge];
 		}
 		item.target = self;
 		[menu addItem:item];

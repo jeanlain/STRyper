@@ -2774,7 +2774,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			[menu addItem:[NSMenuItem separatorItem]];
 		}
 		[menu addItem:item];
-		item.offStateImage = [NSImage imageNamed:ACImageNameLookingLeft];
+		item.image = [NSImage imageNamed:ACImageNameLookingLeft];
 		item.representedObject = clickedTrace;
 		item.target = self;
 		return menu;

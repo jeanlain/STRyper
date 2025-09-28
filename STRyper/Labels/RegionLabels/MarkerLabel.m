@@ -368,26 +368,26 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	_menu = super.menu;
 	if(_menu.itemArray.count < 4) {
 		[_menu addItemWithTitle:@"Zoom to Marker" action:@selector(zoom:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameZoomToMarker]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameZoomToMarker];
 		[_menu addItem:NSMenuItem.separatorItem];
 		[_menu addItemWithTitle:@"Generate Bins" action:@selector(spawnAddBinsPopover:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameBinset]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameBinset];
 		[_menu addItemWithTitle:@"Edit Bins" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameEditBins]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameEditBins];
 		[_menu.itemArray.lastObject setTag:editStateBins];
 		[_menu addItemWithTitle:@"Move all Bins" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameMoveBins]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameMoveBins];
 		[_menu.itemArray.lastObject setTag:editStateBinSet];
 		[_menu addItem:NSMenuItem.separatorItem];
 		[_menu addItemWithTitle:@"Adjust Offset" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameMarkerOffset]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameMarkerOffset];
 		[_menu.itemArray.lastObject setTag:editStateOffset];
 		[_menu addItemWithTitle:@"Copy Offset" action:@selector(copyOffset:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameCopy]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameCopy];
 		[_menu addItemWithTitle:@"Paste Offset" action:@selector(pasteOffset:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNamePasteOffset]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNamePasteOffset];
 		[_menu addItemWithTitle:@"Remove Offset" action:@selector(removeOffset:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameClose]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameClose];
 		
 		for(NSMenuItem *item in self.menu.itemArray) {
 			if(!item.submenu) {

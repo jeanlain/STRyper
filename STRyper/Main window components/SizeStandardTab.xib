@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
+        <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -39,13 +40,13 @@
                             </connections>
                         </button>
                         <popUpButton toolTip="Apply selected size standard to samples" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="FTU-gM-pEU" userLabel="Apply">
-                            <rect key="frame" x="76" y="5" width="72" height="19"/>
+                            <rect key="frame" x="76" y="5" width="91" height="19"/>
                             <popUpButtonCell key="cell" type="recessed" title="Apply To" bezelStyle="recessed" imagePosition="left" alignment="left" lineBreakMode="truncatingTail" borderStyle="border" inset="2" pullsDown="YES" autoenablesItems="NO" altersStateOfSelectedItem="NO" selectedItem="AAe-3z-D1L" id="qc0-U5-YBi">
                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES" changeBackground="YES" changeGray="YES"/>
                                 <font key="font" metaFont="cellTitle"/>
                                 <menu key="menu" autoenablesItems="NO" id="uhz-BL-0wV">
                                     <items>
-                                        <menuItem title="Apply To" hidden="YES" id="AAe-3z-D1L" userLabel="Apply To:">
+                                        <menuItem title="Apply To" image="circle arrow up badge" hidden="YES" id="AAe-3z-D1L" userLabel="Apply To:">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                         </menuItem>
                                         <menuItem title="Listed Samples" tag="1" id="aUv-HM-To6" userLabel="Visible Samples">
@@ -298,6 +299,7 @@
     </objects>
     <resources>
         <image name="add" width="14" height="14"/>
+        <image name="circle arrow up badge" width="15" height="15"/>
         <image name="padlock" width="14" height="14"/>
         <image name="remove" width="14" height="14"/>
     </resources>

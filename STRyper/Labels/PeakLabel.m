@@ -127,17 +127,17 @@
 	
 	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Remove Peak" action:@selector(removeFragment:) keyEquivalent:@""];
 	item.target = self;
-	item.offStateImage = [NSImage imageNamed:ACImageNameRemoveFragment];
+	item.image = [NSImage imageNamed:ACImageNameRemoveFragment];
 	[menu addItem:item];
 	
 	item = [[NSMenuItem alloc] initWithTitle:@"Add Allele" action:@selector(attachAllele:) keyEquivalent:@""];
 	item.target = self;
-	item.offStateImage = [NSImage imageNamed:ACImageNameAllele];
+	item.image = [NSImage imageNamed:ACImageNameAllele];
 	[menu addItem:item];
 	
 	item = [[NSMenuItem alloc] initWithTitle:@"Add Label" action:@selector(attachAdditionalFragment:) keyEquivalent:@""];
 	item.target = self;
-	item.offStateImage = [NSImage imageNamed:ACImageNameAdditionalPeak];
+	item.image = [NSImage imageNamed:ACImageNameAdditionalPeak];
 	[menu addItem:item];
 	
 	return menu;

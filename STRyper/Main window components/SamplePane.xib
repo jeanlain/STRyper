@@ -356,7 +356,7 @@
         </customView>
         <menu identifier="Samples" id="eeK-P8-7Rg" userLabel="Sample menu">
             <items>
-                <menuItem title="Apply Size Standard" offStateImage="sizeStandard" identifier="sizeStandard" id="UKZ-0a-MWI">
+                <menuItem title="Apply Size Standard" image="sizeStandard" identifier="sizeStandard" id="UKZ-0a-MWI">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Apply Size Standard" identifier="Standards" id="jtG-xf-a6Y" userLabel="SizeStandardList">
                         <items>
@@ -369,7 +369,7 @@
                         </connections>
                     </menu>
                 </menuItem>
-                <menuItem title="Fitting Method" offStateImage="fittingMethod" id="gM8-PH-fYb">
+                <menuItem title="Fitting Method" image="fittingMethod" id="gM8-PH-fYb">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Fitting Method" identifier="fittingMethod" id="Egt-OF-2ks">
                         <items>
@@ -398,7 +398,7 @@
                     </menu>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="COr-XA-1YT"/>
-                <menuItem title="Apply Marker Panel" offStateImage="panelBadgeMenu" tag="2" identifier="Panels" id="Wto-RE-pCe">
+                <menuItem title="Apply Marker Panel" image="panelBadgeMenu" tag="2" identifier="Panels" id="Wto-RE-pCe">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Apply Marker Panel" identifier="PanelList" id="Mqq-7Z-djr" userLabel="Panel list">
                         <connections>
@@ -406,45 +406,45 @@
                         </connections>
                     </menu>
                 </menuItem>
-                <menuItem title="Find Alleles" offStateImage="callAllelesBadge" id="W0E-mx-gbK">
+                <menuItem title="Find Alleles" image="callAllelesBadge" id="W0E-mx-gbK">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="callGenotypes:" target="-2" id="oDd-p2-GTa"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Select Genotype(s)" offStateImage="circle arrow down" tag="1" id="egq-Pn-ySE">
+                <menuItem title="Select Genotype(s)" image="circle arrow down" tag="1" id="egq-Pn-ySE">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="showGenotypes:" target="-2" id="VVI-mp-5gl"/>
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="CNB-Eb-LiT"/>
-                <menuItem title="Reveal in Parent Folder" offStateImage="folderBadge" tag="1" id="tYS-0o-Cdv">
+                <menuItem title="Reveal in Parent Folder" image="folderBadge" tag="1" id="tYS-0o-Cdv">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="revealInParentFolder:" target="-2" id="96a-Cy-REV"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Copy" offStateImage="copy" id="YUd-Nn-SnN">
+                <menuItem title="Copy" image="copy" id="YUd-Nn-SnN">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="copy:" target="-2" id="bsM-pM-8Tc"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Paste Marker Offsets" offStateImage="paste offset" identifier="pasteOffsets" id="RcH-KH-mzB">
+                <menuItem title="Paste Marker Offsets" image="paste offset" identifier="pasteOffsets" id="RcH-KH-mzB">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="pasteOffsets:" target="-2" id="c1o-OF-0vc"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Delete" offStateImage="trash" id="HDd-Uo-Jo3">
+                <menuItem title="Delete" image="trash" id="HDd-Uo-Jo3">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="remove:" target="-2" id="iG4-EZ-MFR"/>
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="mAJ-HR-X7y"/>
-                <menuItem title="Show in Finder" offStateImage="eye.fill" catalog="system" id="GQE-ex-awC">
+                <menuItem title="Show in Finder" id="GQE-ex-awC">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="showInFinder:" target="-2" id="Lgz-11-Gki"/>
@@ -464,11 +464,10 @@
         <image name="callAllelesBadge" width="15" height="15"/>
         <image name="circle arrow down" width="15" height="15"/>
         <image name="copy" width="15" height="14"/>
-        <image name="eye.fill" catalog="system" width="21" height="13"/>
         <image name="filterButton" width="25" height="25"/>
         <image name="filterButton On" width="25" height="25"/>
         <image name="fittingMethod" width="15" height="15"/>
-        <image name="folderBadge" width="16" height="15"/>
+        <image name="folderBadge" width="14" height="12"/>
         <image name="looking left" width="15" height="15"/>
         <image name="panelBadgeMenu" width="16" height="15"/>
         <image name="paste offset" width="14" height="14"/>

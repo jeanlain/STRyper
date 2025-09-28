@@ -535,7 +535,7 @@ static id eventMonitor;			   /// to monitor when the alt key is pressed, for dra
 	if(_menu == nil) {
 		_menu = NSMenu.new;
 		[_menu addItemWithTitle:@"Edit Name and Range" action:@selector(spawnRegionPopover:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameEdited]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameEdited];
 		for(NSMenuItem *item in self.menu.itemArray) {
 			item.target = self;
 		}

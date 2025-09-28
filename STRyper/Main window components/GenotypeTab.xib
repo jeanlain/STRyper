@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
+        <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="Named colors" minToolsVersion="9.0"/>
         <capability name="System colors introduced in macOS 10.14" minToolsVersion="10.0"/>
@@ -141,50 +142,50 @@
         <arrayController mode="entity" entityName="" editable="NO" selectsInsertedObjects="NO" avoidsEmptySelection="NO" id="t85-dl-98d" userLabel="Genotypes"/>
         <menu identifier="Genotypes" id="iKd-rY-qln" userLabel="Genotype menu">
             <items>
-                <menuItem title="Select Source Sample(s)" offStateImage="circle arrow up badge" tag="1" id="QVy-ar-pUX">
+                <menuItem title="Select Source Sample(s)" image="circle arrow up badge" tag="1" id="QVy-ar-pUX">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="selectSamples:" target="-2" id="e55-wK-ZgY"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Find Alleles" offStateImage="callAllelesBadge" id="8Qs-Zp-pFu">
+                <menuItem title="Find Alleles" image="callAllelesBadge" id="8Qs-Zp-pFu">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="callAlleles:" target="-2" id="YgG-dJ-EMu"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Bin Alleles" offStateImage="bin alleles badge" id="GDe-kb-xmu">
+                <menuItem title="Bin Alleles" image="bin alleles badge" id="GDe-kb-xmu">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="binAlleles:" target="-2" id="3Hb-Ty-dtJ"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Remove additional peaks" offStateImage="remove fragment" id="boL-bF-Chx">
+                <menuItem title="Remove additional peaks" image="remove fragment" id="boL-bF-Chx">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="removeAdditionalFragments:" target="-2" id="NBT-dW-rFM"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Remove Offset(s)" offStateImage="close" id="Ef6-hr-YRw">
+                <menuItem title="Remove Offset(s)" image="close" id="Ef6-hr-YRw">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="removeOffsets:" target="-2" id="LBe-Cb-VjF"/>
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="gtQ-cy-wxo"/>
-                <menuItem title="Copy" offStateImage="copy" id="XqU-TZ-hGC">
+                <menuItem title="Copy" image="copy" id="XqU-TZ-hGC">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="copy:" target="-2" id="gYo-GI-8sL"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Paste Marker Offset" offStateImage="paste offset" identifier="pasteOffsets" id="ZhD-0H-nhv">
+                <menuItem title="Paste Marker Offset" image="paste offset" identifier="pasteOffsets" id="ZhD-0H-nhv">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="pasteOffset:" target="-2" id="yDV-HJ-m71"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Export to Text File…" offStateImage="export" id="EcG-k0-wtA">
+                <menuItem title="Export to Text File…" image="export" id="EcG-k0-wtA">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="exportSelection:" target="-2" id="Oeo-Wr-dwt"/>

@@ -277,7 +277,7 @@
 	if(_menu.itemArray.count < 2) {
 		/// we just add a menu item allowing to delete our bin
 		[_menu addItemWithTitle:@"Delete" action:@selector(deleteAction:) keyEquivalent:@""];
-		[_menu.itemArray.lastObject setOffStateImage:[NSImage imageNamed:ACImageNameTrash]];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameTrash];
 		for(NSMenuItem *item in self.menu.itemArray) {
 			item.target = self;
 		}

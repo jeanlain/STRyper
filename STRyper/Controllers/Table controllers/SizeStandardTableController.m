@@ -67,15 +67,15 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 	[super viewDidLoad];
 	NSMenu *menu = NSMenu.new;
 	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Duplicate" action:@selector(duplicateStandard:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:ACImageNameCopy];
+	item.image = [NSImage imageNamed:ACImageNameCopy];
 	item.target = self;
 	[menu addItem:item];
 	item = [[NSMenuItem alloc] initWithTitle:@"Rename" action:@selector(rename:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:ACImageNameEdited];
+	item.image = [NSImage imageNamed:ACImageNameEdited];
 	item.target = self;
 	[menu addItem:item];
 	item = [[NSMenuItem alloc] initWithTitle:@"Delete" action:@selector(remove:) keyEquivalent:@""];
-	item.offStateImage = [NSImage imageNamed:ACImageNameTrash];
+	item.image = [NSImage imageNamed:ACImageNameTrash];
 	item.target = self;
 	[menu addItem:item];
 	self.tableView.menu = menu;

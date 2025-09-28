@@ -40,45 +40,45 @@
         </popover>
         <menu id="vcq-wz-ppO" userLabel="panel outlineview menu">
             <items>
-                <menuItem title="Rename" offStateImage="edited" id="Gcv-Gs-e9K">
+                <menuItem title="Rename" image="edited" id="Gcv-Gs-e9K">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="rename:" target="-2" id="Gxg-qX-8aN"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Delete" offStateImage="trash" id="ldR-YE-2a0">
+                <menuItem title="Delete" image="trash" id="ldR-YE-2a0">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="remove:" target="-2" id="kNB-CP-Czv"/>
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="g8G-aH-xxe"/>
-                <menuItem title="Add Panel" offStateImage="panelBadgeMenu" tag="4" id="j4M-X4-dDa">
+                <menuItem title="Add Panel" image="panelBadgeMenu" tag="4" id="j4M-X4-dDa">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="addFolder:" target="-2" id="K5C-aA-koJ"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Add Subfolder" offStateImage="folderBadge" tag="1" id="P4M-aJ-kpb">
+                <menuItem title="Add Subfolder" image="folderBadge" tag="1" id="P4M-aJ-kpb">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="addFolder:" target="-2" id="v5z-DL-rDx"/>
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="J5H-eF-Izb"/>
-                <menuItem title="Export to Text File…" offStateImage="export" tag="5" id="G9K-mB-0tl">
+                <menuItem title="Export to Text File…" image="export" tag="5" id="G9K-mB-0tl">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="exportSelection:" target="-2" id="Wm5-aQ-5Bv"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Import Panels from File…" offStateImage="import" tag="1" id="2kL-np-h37">
+                <menuItem title="Import Panels from File…" image="import" tag="1" id="2kL-np-h37">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="importPanels:" target="-2" id="ehO-WY-a9T"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Import Bins from File…" offStateImage="binset" tag="1" id="F1A-Nu-04u">
+                <menuItem title="Import Bins from File…" image="binset" tag="1" id="F1A-Nu-04u">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="importBinSet:" target="-2" id="bMi-Z2-IDn"/>
@@ -190,7 +190,7 @@
                                                         <rect key="frame" x="8" y="0.0" width="241" height="24"/>
                                                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                         <subviews>
-                                                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
+                                                            <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="dAW-rY-AWx">
                                                                 <rect key="frame" x="0.0" y="4" width="241" height="16"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Marker panels" id="7FA-Ui-YsX">
                                                                     <font key="font" usesAppearanceFont="YES"/>
@@ -216,7 +216,7 @@
                                                                 <rect key="frame" x="3" y="3" width="25" height="20"/>
                                                                 <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="Panel" id="7bN-jX-rDv"/>
                                                             </imageView>
-                                                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
+                                                            <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" allowsExpansionToolTips="YES" translatesAutoresizingMaskIntoConstraints="NO" id="XbY-Eq-tHV">
                                                                 <rect key="frame" x="29" y="5" width="212" height="14"/>
                                                                 <textFieldCell key="cell" lineBreakMode="truncatingTail" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" title="Name" id="sPR-x9-rNz">
                                                                     <font key="font" metaFont="smallSystem"/>
@@ -403,7 +403,7 @@
         <image name="circle arrow up" width="15" height="15"/>
         <image name="edited" width="15" height="15"/>
         <image name="export" width="15" height="17"/>
-        <image name="folderBadge" width="16" height="15"/>
+        <image name="folderBadge" width="14" height="12"/>
         <image name="import" width="15" height="16"/>
         <image name="panelBadgeMenu" width="16" height="15"/>
         <image name="trash" width="15" height="15"/>

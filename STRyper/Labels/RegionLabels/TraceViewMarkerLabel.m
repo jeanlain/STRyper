@@ -244,19 +244,19 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	NSString *title = [NSString stringWithFormat:@"Generate Bins for '%@'", marker.name];
 	item = [[NSMenuItem alloc] initWithTitle:title action:@selector(spawnAddBinsPopover:) keyEquivalent:@""];
 	item.target = targetLabel;
-	[item setOffStateImage:[NSImage imageNamed:ACImageNameBinset]];
+	item.image = [NSImage imageNamed:ACImageNameBinset];
 	[menu addItem:item];
 
 	item = [[NSMenuItem alloc] initWithTitle:@"Edit Bins Manually" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
 	item.target = self;
 	item.tag = editStateBins;
-	[item setOffStateImage:[NSImage imageNamed:ACImageNameEditBins]];
+	item.image = [NSImage imageNamed:ACImageNameEditBins];
 	[menu addItem:item];
 	
 	item = [[NSMenuItem alloc] initWithTitle:@"Move all Bins" action:@selector(setEditStateFromMenuItem:) keyEquivalent:@""];
 	item.target = self;
 	item.tag = editStateBinSet;
-	[item setOffStateImage:[NSImage imageNamed:ACImageNameMoveBins]];
+	item.image = [NSImage imageNamed:ACImageNameMoveBins];
 	[menu addItem:item];
 	
 	return menu;

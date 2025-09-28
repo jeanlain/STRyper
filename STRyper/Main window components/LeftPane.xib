@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
+        <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -182,32 +183,32 @@
         </customView>
         <menu id="xH1-t8-NTf" userLabel="folder outlineview menu">
             <items>
-                <menuItem title="Rename" offStateImage="edited" id="f90-YI-Zpv">
+                <menuItem title="Rename" image="edited" id="f90-YI-Zpv">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="rename:" target="-2" id="gVO-Dr-z2U"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Add Subfolder" offStateImage="folderBadge" tag="1" id="RrO-0U-rPx">
+                <menuItem title="Add Subfolder" image="folderBadge" tag="1" id="RrO-0U-rPx">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="addFolder:" target="-2" id="p4N-sX-VUi"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Modify Search Criteria…" offStateImage="loupeBadge" tag="4" id="kd8-AZ-ee0">
+                <menuItem title="Modify Search Criteria…" image="loupeBadge" tag="4" id="kd8-AZ-ee0">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="editSmartFolder:" target="-2" id="80V-Xp-g2g"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Delete" offStateImage="trash" id="zpP-IH-yyt">
+                <menuItem title="Delete" image="trash" id="zpP-IH-yyt">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="remove:" target="-2" id="2ZD-ST-Z7X"/>
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="LYw-QX-Ja9"/>
-                <menuItem title="Export to Archive..." offStateImage="export" tag="1" id="oT5-9f-V7z">
+                <menuItem title="Export to Archive..." image="export" tag="1" id="oT5-9f-V7z">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="exportSelection:" target="-2" id="Eui-Qf-xdE"/>
@@ -224,7 +225,7 @@
         <image name="Smart folder" width="25" height="20"/>
         <image name="edited" width="15" height="15"/>
         <image name="export" width="15" height="17"/>
-        <image name="folderBadge" width="20" height="15"/>
+        <image name="folderBadge" width="14" height="12"/>
         <image name="loupeBadge" width="15" height="15"/>
         <image name="trash" width="15" height="15"/>
     </resources>

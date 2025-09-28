@@ -593,7 +593,7 @@
 			continue;
 		}
 		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:panelFolder.name action:@selector(applyPanel:) keyEquivalent:@""];
-		item.offStateImage = isPanel? [NSImage imageNamed:ACImageNamePanelBadgeMenu] : [NSImage imageNamed:ACImageNameFolderBadge];
+		item.image = isPanel? [NSImage imageNamed:ACImageNamePanelBadgeMenu] : [NSImage imageNamed:ACImageNameFolderBadge];
 		[menu addItem:item];
 		if(isPanel) {
 			item.target = target;
