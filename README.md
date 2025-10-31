@@ -20,7 +20,7 @@ STRyper requires a Mac running macOS 10.13 or higher, as this OS is the developm
 If you are using macOS 15 "Sequoia" or a more recent version, make sure to use STRyper ≥1.2.1. Any previous version will not be compatible. 
 
 ## Installation
-Download the latest [release](https://github.com/jeanlain/STRyper/releases), unzip the file an put STRyper.app anywhere you like on your Mac.
+Download the latest [release](https://github.com/jeanlain/STRyper/releases), unzip the file an put STRyper.app in your "Applications" folder.
 
 ## Installation from source
 This is only for Xcode users. Clone the repository and open the project in Xcode. You may then build the application from Xcode.
