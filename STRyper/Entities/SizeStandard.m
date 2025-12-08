@@ -359,14 +359,15 @@ void assignPeaksToSizes(LadderPeak **ladderPeakPTRs, LadderSize *ladderSizes, in
 		ladderPeakPTR->offset = INFINITY;
 		for(int j = sizeIndex; j >= 0; j--) {
 			/// we inspect sizes from right to left to see which is the most suitable for the peak
-			/// to predict the location of the peak to a lower size than the last assigned one, we use the  slope and intercept
+			/// to predict the location of the peak to a lower size than the last assigned one, we use the slope and intercept
 			float predictedSize = (j < leftAssignedSize)? localSlope*ladderPeakPTR->scan + localIntercept : slope*ladderPeakPTR->scan + intercept;
 			float offset = ladderSizes[j].size - predictedSize;
-			float offsetRatio = offset / ladderPeakPTR->offset ;
+			float previousOffset = ladderPeakPTR->offset;
+			float offsetRatio = offset / previousOffset ;
 			if(fabs(offsetRatio) < 1) {
 				/// if the peak is closer to the current size than the previous size
-				if(offsetRatio <= -0.3 && ladderPeakPTR->offset > -10) {
-					/// we do further inspection if the current size isn't much closer (not more than 3x closer) and if the previous offset is not too large.
+				if(offsetRatio < 0 && (previousOffset - fabs(offset)) < 7 && previousOffset < 10) {
+					/// we do further inspection if the current size isn't much closer (7bp closer) or if the previous offset is not too large.
 					/// The negative ratio means that the peak is between both sizes (previous offset is negative, current is positive)
 					/// We do these checks to make sure the previous size isn't skipped with no peak assigned
 					LadderSize previousSize = ladderSizes[j+1];

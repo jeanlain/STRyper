@@ -767,7 +767,7 @@ static const CGFloat maxTraceRowHeight = 1000.0;
 		stackSegmentedControl.segmentCount = 2;
 		[stackSegmentedControl setToolTip:@"One genotype per row" forSegment:0];
 		[stackSegmentedControl setToolTip:@"Stack genotypes by marker" forSegment:1];
-		[stackSegmentedControl setImage:[NSImage imageNamed:ACImageNameCallAllelesBadge] forSegment:0];
+		[stackSegmentedControl setImage:[NSImage imageNamed:ACImageNameCallGenotypes] forSegment:0];
 		[stackSegmentedControl setImage:[NSImage imageNamed:ACImageNameStackGenotypes] forSegment:1];
 		[stackSegmentedControl bind:NSSelectedIndexBinding toObject:self withKeyPath:@"stackGenotypes" options:nil];
 	} else {

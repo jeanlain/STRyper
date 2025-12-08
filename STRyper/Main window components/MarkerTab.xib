@@ -107,19 +107,19 @@
                                         <menuItem image="add" hidden="YES" id="FVo-Kf-QHh">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                         </menuItem>
-                                        <menuItem title="New Panel" offStateImage="panelBadgeMenu" tag="4" id="t24-C7-NOb">
+                                        <menuItem title="New Panel" image="panelBadgeMenu" tag="4" id="t24-C7-NOb">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="addFolder:" target="-2" id="Num-eg-w54"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="New Folder" offStateImage="folderBadge" id="dvT-dl-z7K">
+                                        <menuItem title="New Folder" image="folderBadge" id="dvT-dl-z7K">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="addFolder:" target="-2" id="cKj-Wd-f07"/>
                                             </connections>
                                         </menuItem>
-                                        <menuItem title="Import Panels from File" offStateImage="import" id="lVV-u0-zrA">
+                                        <menuItem title="Import Panels from File" image="import" id="lVV-u0-zrA">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="importPanels:" target="-2" id="ELo-Ga-LnW"/>

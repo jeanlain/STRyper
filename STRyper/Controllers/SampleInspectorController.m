@@ -318,8 +318,8 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 
 - (BOOL)outlineView:(NSOutlineView *)outlineView isGroupItem:(id)item {
-	/// each main section is a (floating) group item
-	return [item isKindOfClass:NSString.class];
+	/// each main section is a (floating) group item // Disabled, as the outline view is not configured to show group rows
+	return NO;// [item isKindOfClass:NSString.class];
 }
 
 

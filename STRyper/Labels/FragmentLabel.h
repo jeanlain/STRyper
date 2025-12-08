@@ -37,7 +37,7 @@
 
 /// Returns a label that is initialized given a fragment.
 /// 
-/// The method assumes that the `fragment` is among the ``FluoTrace/fragments`` of the ``TraceView/trace`` the `view` shows.
+/// - Important: The `fragment` must belong to the ``FluoTrace/fragments`` of the ``TraceView/trace`` that the `view` shows.
 /// - Parameters:
 ///   - fragment: The fragment that the label will represent.
 ///   - view: The view on which the label will show.

@@ -105,7 +105,7 @@
 	}
 }
 
-
+/*
 - (void)keyDown:(NSEvent *)event {
 	/// we intercept up/down arrow key events, which our tableview may consume for nothing useful, 
 	/// while the user may expect to select the previous/next sample as if the source tableview was active.
@@ -119,7 +119,7 @@
 	}
 	[super keyDown:event];
 }
-
+*/
 
 - (void)dealloc {
 	if(registered) {

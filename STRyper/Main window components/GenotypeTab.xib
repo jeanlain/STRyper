@@ -166,7 +166,7 @@
                         <action selector="removeAdditionalFragments:" target="-2" id="NBT-dW-rFM"/>
                     </connections>
                 </menuItem>
-                <menuItem title="Remove Offset(s)" image="close" id="Ef6-hr-YRw">
+                <menuItem title="Remove Offset(s)" image="reset" id="Ef6-hr-YRw">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
                         <action selector="removeOffsets:" target="-2" id="LBe-Cb-VjF"/>
@@ -263,13 +263,13 @@
         <image name="callAllelesBadge" width="15" height="15"/>
         <image name="circle arrow up" width="15" height="15"/>
         <image name="circle arrow up badge" width="15" height="15"/>
-        <image name="close" width="15" height="15"/>
         <image name="copy" width="15" height="14"/>
         <image name="export" width="15" height="17"/>
         <image name="filterButton" width="25" height="25"/>
         <image name="filterButton On" width="25" height="25"/>
         <image name="paste offset" width="14" height="14"/>
         <image name="remove fragment" width="16" height="15"/>
+        <image name="reset" width="14" height="14"/>
         <namedColor name="AccentColor">
             <color red="0.0" green="0.46000000000000002" blue="0.89000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

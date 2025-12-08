@@ -164,7 +164,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 	CGFloat topInset = 0;
 	NSRulerView *rulerView = self.horizontalRulerView;
 	if(rulerView && !rulerView.isHidden) {
-		topInset = rulerView.frame.size.height -4 ;		/// the vScaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level displayed.
+		topInset = rulerView.frame.size.height -4 ;		/// the vScaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level it displays.
 	}
 	NSRect newFrame = NSMakeRect(0, topInset, vScaleView.width, self.frame.size.height - topInset);
 	if(!NSEqualRects(vScaleView.frame, newFrame)) {

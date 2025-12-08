@@ -387,7 +387,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		[_menu addItemWithTitle:@"Paste Offset" action:@selector(pasteOffset:) keyEquivalent:@""];
 		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNamePasteOffset];
 		[_menu addItemWithTitle:@"Remove Offset" action:@selector(removeOffset:) keyEquivalent:@""];
-		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameClose];
+		_menu.itemArray.lastObject.image = [NSImage imageNamed:ACImageNameReset];
 		
 		for(NSMenuItem *item in self.menu.itemArray) {
 			if(!item.submenu) {

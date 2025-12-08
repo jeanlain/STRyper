@@ -184,11 +184,12 @@ static NSColor *rulerLabelColor;
 	if(!zoomToFitButton) {
 		zoomToFitButton = [NSButton buttonWithImage:[NSImage imageNamed:ACImageNameZoomToFit] target:self action:@selector(zoomToFit:)];
 		[zoomToFitButton setFrame:NSMakeRect(0, 0, 30, ruleThickness)];
+		zoomToFitButton.controlSize = NSControlSizeMini;
 		zoomToFitButton.bezelStyle = NSBezelStyleRecessed;
 		zoomToFitButton.bordered = NO;
 		zoomToFitButton.showsBorderOnlyWhileMouseInside = YES;
 		zoomToFitButton.imagePosition = NSImageOnly;
-		zoomToFitButton.imageScaling = NSImageScaleNone;
+		zoomToFitButton.imageScaling = NSImageScaleProportionallyDown;
 		zoomToFitButton.translatesAutoresizingMaskIntoConstraints = NO;
 		zoomToFitButton.toolTip = @"Zoom to default range";
 	}
