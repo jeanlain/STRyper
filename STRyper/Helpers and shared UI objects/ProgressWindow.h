@@ -61,14 +61,20 @@ NS_ASSUME_NONNULL_BEGIN
 /// Shows the progress window after some delay.
 ///
 /// A delay can be specified to avoid showing the progress window for operations that turn out to be very short.
+/// If the `progress` is finished or cancelled before the `delay` expires, the window does not show.
 ///
 /// The progress indicator is updated by monitoring the progress' `completedUnitCount`, and the ``operationTextField`` shows the progress' `localizedDescription`.
+/// The progress indicator is indeterminate if the `progress` is `nil` or has a negative `totalUnitCount`.
 ///
 /// If the progress is cancelled, the progress window calls ``stopShowingProgressAndClose`` on itself.
+///
+/// - Note: Calling this method successively on the same window before the progress is finished has no effect..
 /// - Parameters:
 ///   - progress: The progress to be monitored by the receiver. If it is nil, the ``progressBar`` is set to indeterminate.
 ///   - delay: The delay after which the progress window should show.
-///   - modal: If YES, the progress window is shown as a modal sheet attached to `window`, otherwise it shows as a separate window centered over the `window`
+///   - modal: If YES, the progress window is shown as a modal sheet attached to `window`.
+///   Before the sheet shows, UI interaction (events) is blocked except for the escape key, which cancels the ``progress``.
+///   If `NO`, the window shows as a separate window centered over the `window`.
 ///   - window: The window relative to which the progress window should show.
 -(void)showProgressWindowForProgress:(nullable NSProgress *)progress afterDelay:(NSTimeInterval)delay modal:(BOOL)modal parentWindow:(NSWindow *)window;
 

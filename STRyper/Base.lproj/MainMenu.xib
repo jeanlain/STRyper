@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -447,29 +447,35 @@ CA
                                     <action selector="toggleRightPane:" target="-1" id="h8B-Pg-41z"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="Show All Panes" id="yxL-J2-HiO">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="showAllPanes:" target="-1" id="YWw-jo-KiX"/>
+                                </connections>
+                            </menuItem>
                             <menuItem isSeparatorItem="YES" id="Hhc-6l-WT2"/>
                             <menuItem title="Sample Inspector" keyEquivalent="a" id="nl6-6u-TdY">
                                 <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
                                 <connections>
-                                    <action selector="activateTab:" target="-1" id="vrn-m5-BbU"/>
+                                    <action selector="selectTabViewItemAtIndexSpecifiedBy:" target="-1" id="vrn-m5-BbU"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="Genotype List" tag="1" keyEquivalent="g" id="a42-bW-OAh">
+                            <menuItem title="Genotype Table" tag="1" keyEquivalent="g" id="a42-bW-OAh">
                                 <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
                                 <connections>
-                                    <action selector="activateTab:" target="-1" id="oEt-0Y-slR"/>
+                                    <action selector="selectTabViewItemAtIndexSpecifiedBy:" target="-1" id="oEt-0Y-slR"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Marker Library" tag="2" keyEquivalent="m" id="s0c-c8-FGm">
                                 <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
                                 <connections>
-                                    <action selector="activateTab:" target="-1" id="BCs-Tw-LHN"/>
+                                    <action selector="selectTabViewItemAtIndexSpecifiedBy:" target="-1" id="BCs-Tw-LHN"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Size Standard Library" tag="3" keyEquivalent="l" id="lqA-66-3HD">
                                 <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
                                 <connections>
-                                    <action selector="activateTab:" target="-1" id="Exf-Ca-jAD"/>
+                                    <action selector="selectTabViewItemAtIndexSpecifiedBy:" target="-1" id="Exf-Ca-jAD"/>
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="AOe-w4-B1U"/>
@@ -523,7 +529,7 @@ CA
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Help" systemMenu="help" id="F2S-fz-NVQ">
                         <items>
-                            <menuItem title="STRyper Help" keyEquivalent="?" id="FKE-Sm-Kum">
+                            <menuItem title="STRyper User Guide" keyEquivalent="?" id="FKE-Sm-Kum">
                                 <connections>
                                     <action selector="showHelp:" target="Voe-Tx-rLC" id="Tqx-b2-efg"/>
                                 </connections>

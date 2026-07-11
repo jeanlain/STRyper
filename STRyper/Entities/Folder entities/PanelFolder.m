@@ -468,12 +468,17 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 }
 
 
-- (nullable NSString *) exportString {
+- (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
+	return @[FolderArchivePasteboardType, FolderDragType, NSPasteboardTypeString];
+}
+
+
+- (nullable NSString *) stringRepresentation {
 	NSArray *panels = self.allPanels.allObjects;
 	
 	if(panels.count > 0) {
 		NSArray *sortedPanels = [panels sortedArrayUsingKey:@"name" ascending:YES];
-		NSArray *panelString = [sortedPanels valueForKeyPath:@"@unionOfObjects.exportString"];
+		NSArray *panelString = [sortedPanels valueForKeyPath:@"@unionOfObjects.stringRepresentation"];
 		return [panelString componentsJoinedByString:@"\n"];
 	}
 	return nil;
@@ -486,12 +491,17 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 
 
 - (void)encodeWithCoder:(NSCoder *)coder {
-	/// If a Folder Panel is encoded when a sample folder is archived, it means that the samples have at least one panel within a folder.
-	/// So we encode our parent folder to preserve the original hierarchy up to the root. We do not encode the subfolders, which may contain irrelevant panels
 	[super encodeWithCoder:coder];
-	if(self.parent.parent) {
-		/// we do not encode the root folder (which has no parent and is invisible to the user)
-		[coder encodeObject:self.parent forKey:@"parent"];
+	if(coder.requiresSecureCoding) {
+		/// When a sample folder is archived, we encode the parent folder to preserve the original hierarchy up to the root.
+		/// We do not encode the subfolders, which may contain irrelevant panels. Panels are encoded alongside from another direction (when samples are encoded)
+		if(self.parent.parent) {
+			/// we do not encode the top-level folder (which is invisible to the user)
+			[coder encodeObject:self.parent forKey:@"parent"];
+		}
+	} else {
+		/// Otherwise, we encode the folder content.
+		[coder encodeObject:self.subfolders forKey:@"subfolders"];
 	}
 }
 
@@ -499,7 +509,11 @@ NSString * _Nonnull const PanelSamplesKey = @"samples";
 - (instancetype)initWithCoder:(NSCoder *)coder {
 	self = [super initWithCoder:coder];
 	if(self) {
-		self.parent = [coder decodeObjectOfClass:PanelFolder.class forKey:@"parent"];
+		if(coder.requiresSecureCoding) {
+			self.parent = [coder decodeObjectOfClass:PanelFolder.class forKey:@"parent"];
+		} else {
+			self.subfolders = [coder decodeObjectOfClasses:[NSSet setWithObjects:Folder.class, NSSet.class, nil] forKey:@"subfolders"];
+		}
 	}
 	return self;
 }

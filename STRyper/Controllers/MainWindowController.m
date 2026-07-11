@@ -36,6 +36,7 @@
 
 /// Property bound to the active tab number of the tabView
 @property (nonatomic) NSInteger activeBottomTab;
+@property (weak, nonatomic) TableViewController* clickedSourceController;
 
 @end
 
@@ -47,15 +48,10 @@
 	
 	/// backs the ``errorLogWindow`` property.
 	IBOutlet NSPanel *_errorLogWindow;
+	
+	id mouseDownMonitor;
+	__weak SampleFolder *previousSelectedFolder;
 }
-
-
-typedef NS_ENUM(NSUInteger, bottomTab) {		/// the number of the tab in the bottom tab view
-	sampleInspectorTab,
-	genotypeTab,
-	markerTab,
-	sizeStandardTab
-} ;
 
 
 @synthesize mainSplitViewController = _mainSplitViewController,
@@ -106,7 +102,7 @@ verticalSplitViewController = _verticalSplitViewController;
 	if(sampleInspectorController.view) {
 		[tabView addTabViewItem:[NSTabViewItem tabViewItemWithViewController:sampleInspectorController]];
 	} else {
-		NSLog(@"failed to load the sample table.");
+		NSLog(@"failed to load the sample inspector.");
 		abort();
 	}
 		
@@ -140,15 +136,12 @@ verticalSplitViewController = _verticalSplitViewController;
 	}
 	
 	/// To remember which tab is shown and to synchronize the NSSegmentedControl button activating tab and the tabView, we use a property set in user defaults.
-	[tabView bind:NSSelectedIndexBinding toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
-    _activeBottomTab = -1; /// To force calling the setter in the binding below.
-    [self bind:@"activeBottomTab" toObject:NSUserDefaults.standardUserDefaults withKeyPath:BottomTab options:nil];
-
+    _selectedTabViewItemIndex = -1; /// To force calling the setter below.
+	self.selectedTabViewItemIndex = [NSUserDefaults.standardUserDefaults integerForKey:BottomTab];
 	
 	if(!SampleSearchHelper.sharedHelper) {
-		/// we init the search controller as must perform the search in case there are smart folder in the database
 		NSLog(@"failed to load the search helper.");
-		/// but we don't abort if it is absent.
+		abort();
 	}
 	
 	tabView.delegate = self;
@@ -163,7 +156,51 @@ verticalSplitViewController = _verticalSplitViewController;
 		window.toolbar = toolbar;
 	}
 	
-	[self restoreSelection];
+	[FolderListController.sharedController addObserver:self 
+											forKeyPath:@"selectedFolder"
+											   options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+											   context:selectedFolderChangedContext];
+	
+	if(!mouseDownMonitor) {
+		mouseDownMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:(NSEventMaskLeftMouseDown) handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
+			TableViewController *sourceController = [self sourceControllerForMouseEvent:event];
+			if(sourceController && sourceController != self.sourceController) {
+				/// We detect where the click occurred WRT selected rows of the clicked table view.
+				NSTableView *focusView = sourceController.tableView;
+				NSPoint clickedLocation = [focusView convertPoint:event.locationInWindow fromView:nil];
+				NSInteger clickedRow = [focusView rowAtPoint:clickedLocation];
+				NSIndexSet *selectedRows = focusView.selectedRowIndexes;
+				if(clickedRow < 0 || [selectedRows containsIndex:clickedRow]) {
+					/// If the source changes and the clicked row is already selected or the click occurred outside rows
+					/// we consume the event as it is better to avoid changing the selection. We set the source controller now.
+					self.sourceController = sourceController;
+					return nil;
+				}
+				/// If the selected row should change (a click occurred on a non-selected row), we don't set the source controller
+				/// as it will be set only when the selection changes (see `observeValueForKeyPath:`), which occurs on mouseUp.
+				/// If we set the source controller now, the viewer would update twice in a row.
+				self.clickedSourceController = sourceController;
+			}
+			return event;
+		}];
+	}
+	
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[self restoreSourceController];
+	});
+	
+}
+
+
+- (void)windowWillClose:(NSNotification *)notification {
+	if(mouseDownMonitor) {
+		[NSEvent removeMonitor:mouseDownMonitor];
+		mouseDownMonitor = nil;
+	}
+	Folder *selectedFolder = FolderListController.sharedController.selectedFolder;
+	[self recordSelectedItemsOfController:GenotypeTableController.sharedController forFolder:selectedFolder atKey:SelectedGenotypesKey];
+	[self recordSelectedItemsOfController:SampleTableController.sharedController forFolder:selectedFolder atKey:SelectedSamplesKey];
+
 }
 
 
@@ -212,7 +249,7 @@ verticalSplitViewController = _verticalSplitViewController;
 			NSView *button = [view viewWithTag:-5];
 			CGFloat thickness = 420;
 			if(button) {
-				thickness = NSMaxX(button.frame) + 5;
+				thickness = NSMaxX(button.frame) + 5.0;
 			}
 			item.minimumThickness = thickness;
 			item.collapseBehavior = NSSplitViewItemCollapseBehaviorPreferResizingSiblingsWithFixedSplitView;	
@@ -248,7 +285,7 @@ verticalSplitViewController = _verticalSplitViewController;
 		SampleTableController *sampleTableController = SampleTableController.sharedController;
 		if(sampleTableController.view) {
 			NSSplitViewItem *item = [NSSplitViewItem contentListWithViewController:sampleTableController];
-			item.minimumThickness = 30.0;
+			item.minimumThickness = 79;
 			item.canCollapse = NO;
 			[_verticalSplitViewController addSplitViewItem:item];
 		} else {
@@ -293,12 +330,12 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 		undoButton.image = [NSImage imageNamed:ACImageNameUndo];
 		undoButton.label = @"Undo";
 		undoButton.paletteLabel = undoButton.label;
-		undoButton.action = @selector(undo:);
+		undoButton.action = @selector(undoFromToolbarItem:);
 		undoButton.target = self;
 		redoButton.image = [NSImage imageNamed:ACImageNameRedo];
 		redoButton.label = @"Redo";
 		redoButton.paletteLabel = redoButton.label;
-		redoButton.action = @selector(redo:);
+		redoButton.action = @selector(redoFromToolbarItem:);
 		redoButton.target = self;
 		undoRedo.subitems = @[undoButton, redoButton];
 		if (@available(macOS 10.15, *)) {
@@ -347,7 +384,7 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 		item.action = @selector(addSampleOrSmartFolder:);
 	} else if([itemIdentifier isEqualToString:rightPaneButtonID]) {
 		item.image = [NSImage imageNamed:ACImageNameRightsideBar];
-		item.label = @"Detailed view";
+		item.label = @"Viewer";
 		item.tag = 2;
 		item.action = @selector(toggleRightPane:);
 	} else if([itemIdentifier isEqualToString:deleteSelectionButtonID]) {
@@ -404,9 +441,10 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 	/// For instance, when the user selects the genotype tab, the export button should export genotypes.
 	NSView *view = tabViewItem.view;
 	NSWindow *window = view.window;
-	if(window && tabViewItem.viewController) {
-		NSView *firstResponder = (NSView*)window.firstResponder;
-		if([firstResponder respondsToSelector:@selector(isDescendantOf:)] && ![firstResponder isDescendantOf:view]) {
+	if(window && view) {
+		id firstResponder = window.firstResponder;
+		if(![firstResponder respondsToSelector:@selector(isDescendantOf:)] || (![firstResponder isDescendantOf:view] && firstResponder != view)) {
+			/// If the first responder does not respond to the selector, it is the window itself.
 			[window makeFirstResponder:tabViewItem.viewController];
 		}
 	}
@@ -418,7 +456,7 @@ static const NSToolbarItemIdentifier undoRedoGroup = @"undoRedoGroup",
 }
 
 
-# pragma mark - setting the contents of the detailed outline view
+# pragma mark - setting the contents of the viewer
 
 UserDefaultKey SourceControllerKey = @"sourceControllerKey";
 static NSString *GenotypeTableControllerKey = @"GenotypeTableControllerKey";
@@ -429,19 +467,23 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 
 - (void)setSourceController:(TableViewController *)controller {
 	/// this message in sent by a TableViewController when its table is clicked (and in other circumstances), so that its selected items show in the detailed outline view
-	if(controller.tableView == nil || controller.tableContent == nil) {
+	NSTableView *activeTableView = controller.tableView;
+	if(activeTableView == nil) {
 		return;
 	}
 	
+	self.clickedSourceController = nil;
 	if(controller == GenotypeTableController.sharedController) {
 		/// if we 	activate the genotype table, we make sure its tab is visible
 		/// we do it even if it was already the active table, as it could have been masked since then
-		[self activateTabNumber: genotypeTab];
+		self.selectedTabViewItemIndex = genotypeTab;
 	}
 	if(controller != self.sourceController) {
+		[self.sourceController flashItem:nil];
+		[self.sourceController hideFocusLayer];
 		_sourceController = controller;
+		[controller showFocusLayer];
 		
-		NSTableView *activeTableView = controller.tableView;
 		if(activeTableView.window.firstResponder != activeTableView) {
 			[activeTableView.window makeFirstResponder:activeTableView];
 		}
@@ -465,9 +507,7 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
--(void) restoreSelection {
-	[SampleTableController.sharedController restoreSelectedItems];
-	[GenotypeTableController.sharedController restoreSelectedItems];
+-(void) restoreSourceController {
 	NSString *key = [NSUserDefaults.standardUserDefaults stringForKey:SourceControllerKey];
 	if([key isEqualToString:GenotypeTableControllerKey]) {
 		self.sourceController = GenotypeTableController.sharedController;
@@ -477,6 +517,207 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		self.sourceController = MarkerTableController.sharedController;
 	}
 }
+
+
+- (void)setClickedSourceController:(TableViewController *)clickedSourceController {
+	if(_clickedSourceController) {
+		[_clickedSourceController removeObserver:self forKeyPath:SelectedObjectsBinding];
+	}
+	_clickedSourceController = clickedSourceController;
+	if(clickedSourceController) {
+		[clickedSourceController addObserver:self
+								  forKeyPath:SelectedObjectsBinding
+									 options:NSKeyValueObservingOptionNew
+									 context:selectionChangedContext];
+	}
+}
+
+
+/// Assuming a mouse event, returns the `sourceController` corresponding to the table view where the event occurred.
+/// - Parameter event: A left mouse down event.
+- (nullable TableViewController *) sourceControllerForMouseEvent:(NSEvent*) event {
+	
+	if(!self.window.isKeyWindow || event.window != self.window) {
+		return nil;
+	}
+	
+	NSView *contentView = self.window.contentView;
+	NSPoint clickedLocation = [contentView convertPoint:event.locationInWindow fromView:nil];
+	NSView *clickedView = [contentView hitTest:clickedLocation];
+	if(!clickedView) {
+		return nil;
+	}
+	
+	NSTableView *focusView = nil;
+	
+	if([clickedView isKindOfClass:NSTableView.class]) {
+		focusView = (NSTableView *)clickedView;
+	} else {
+		/// The clicked view may be a subview of the table view.
+		/// In practice, this doesn't happen has hitTest on a table view does not appear to return a subview.
+		NSView *superView = clickedView.superview;
+		while(superView) {
+			if([superView isKindOfClass:NSTableView.class]) {
+				focusView = (NSTableView*)superView;
+				break;
+			}
+			superView = superView.superview;
+		}
+	}
+	
+	TableViewController *controller = (id)focusView.delegate;
+	if(controller == self.sourceController) {
+		return nil;
+	}
+	
+	if(controller == SampleTableController.sharedController || controller == GenotypeTableController.sharedController || controller == MarkerTableController.sharedController) {
+		return controller;
+	}
+	return nil;
+}
+
+/// Observance contexts to determine the source controller and update selected objects when selecting folders.
+static void *selectionChangedContext = &selectionChangedContext;
+static void *selectedFolderChangedContext = &selectedFolderChangedContext;
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+	if (context == selectionChangedContext) {
+		if(object != self.sourceController && object == self.clickedSourceController) {
+			/// If the selected objects (table rows) have changed in a table controller
+			/// we make it the source, unless the change was caused by selection of another folder.
+			self.sourceController = object;
+		}
+	} else if(context == selectedFolderChangedContext) {
+		[self recordSelectedItemsOfController:SampleTableController.sharedController forFolder:previousSelectedFolder atKey:SelectedSamplesKey];
+		[self recordSelectedItemsOfController:GenotypeTableController.sharedController forFolder:previousSelectedFolder atKey:SelectedGenotypesKey];
+		previousSelectedFolder = [object valueForKeyPath:keyPath];
+
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[self restoreSelectedItemsOfController:SampleTableController.sharedController atKey:SelectedSamplesKey];
+			[self restoreSelectedItemsOfController:GenotypeTableController.sharedController atKey:SelectedGenotypesKey];
+		});
+	} else {
+		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+	}
+}
+
+
+
+/// Records the selected items of a table controller for a given folder in the user defaults at a key, and returns of this was done successfully.
+///
+/// This allows restoring selected items when selecting a folder (including at launch).
+/// - Parameter folder: A folder.
+/// - Parameter controller: The object that controls the table showing items of the folder.
+/// - Parameter key: The user defaults key at which to record the selected items.
+-(BOOL)recordSelectedItemsOfController:(TableViewController *) controller forFolder:(Folder *)folder atKey:(UserDefaultKey)key {
+	/// We record the selected items via their object IDs as an array within a dictionary. The array is stored at a key which is is the folder ID string.
+	/// The dictionary itself is saved in the user default at `key`.
+	
+	if(folder.objectID.isTemporaryID && ![folder.managedObjectContext obtainPermanentIDsForObjects:@[folder] error:nil]) {
+		NSLog(@"Could not obtain permanent id for folder %@", folder.objectID);
+		return NO;
+	}
+	
+	NSString *folderID = folder.objectID.URIRepresentation.absoluteString;
+	if(!folderID) {
+		return NO;
+	}
+	
+	NSInteger maxRecorded = 100; /// We don't record more selected items than that for a folder.
+	NSArray *selectedObjects = controller.selectedObjects;
+	if(![controller.managedObjectContext obtainPermanentIDsForObjects:selectedObjects error:nil]) {
+		return NO;
+	}
+	
+	NSMutableDictionary *dic = [NSUserDefaults.standardUserDefaults dictionaryForKey:key].mutableCopy;
+	if(!dic) {
+		if(selectedObjects.count == 0) {
+			return YES; /// If there is no dictionary to record the selected items and there is none to record, there is nothing to do.
+		}
+		dic = NSMutableDictionary.new;
+	}
+	
+	/// We don't save the whole object id string as they could use a lot of space in the preference fine. We only save the last path component, which is very short.
+	NSArray *selectedItemIDs = [selectedObjects valueForKeyPath:@"@unionOfObjects.objectID.URIRepresentation.lastPathComponent"];
+	NSInteger count = selectedItemIDs.count;
+	if(count > 0) {
+		if(maxRecorded > 0 && count > maxRecorded) {
+			selectedItemIDs = [selectedItemIDs objectsAtIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, maxRecorded)]];
+		}
+		dic[folderID] = selectedItemIDs;
+	} else {
+		[dic removeObjectForKey:folderID];
+	}
+	[NSUserDefaults.standardUserDefaults setObject:dic forKey:key];
+	return YES;
+}
+
+
+/// Restore the selected items of a table controller, retrieved at a user defaults key for the current selected folder.
+/// Returns whether the selection was made.
+///
+/// See `recordSelectedItemsOfController:forFolder:atKey:` for how the selected items are recorded in the user defaults.
+/// - Parameters:
+///   - controller: A table controller that shows content on the viewer.
+///   - key: The user default key at which selected items can be retrieved.
+-(BOOL)restoreSelectedItemsOfController:(TableViewController *) controller atKey:(UserDefaultKey)key {
+	
+	/// Not very elegant, but since the content loading of the table controller is deferred, the controller may
+	/// not have refreshed the content with the new selected folder yet. So we force it.
+	/// This should be fine as there is a single content update when the selected folder changes.
+	/// This also avoids a deferred refresh that may lead to selecting this controller as source after its selected objects change.
+	[controller _loadContentIfNeeded];
+	
+	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
+	if(!selectedFolder) {
+		return NO;
+	}
+	
+	if(selectedFolder.objectID.isTemporaryID && ![selectedFolder.managedObjectContext obtainPermanentIDsForObjects:@[selectedFolder] error:nil]) {
+		NSLog(@"Could not obtain permanent id for folder %@", selectedFolder.objectID);
+		return NO;
+	}
+	NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
+	
+	if(folderID) {
+		NSDictionary *dic = [NSUserDefaults.standardUserDefaults dictionaryForKey:key];
+		if(dic) {
+			NSArray *itemIDs = dic[folderID];
+			if([itemIDs isKindOfClass:NSArray.class]) {
+				NSString *prefix = [self URIStringPrefixForController:controller];
+				if(!prefix) {
+					return NO;
+				}
+				NSMutableArray *selectedItems = NSMutableArray.new;
+				for(NSString *itemID in itemIDs) {
+					NSString *longID = [prefix stringByAppendingString:itemID];
+					id object = [controller.managedObjectContext objectForURIString:longID expectedClass:nil];
+					if(object) {
+						[selectedItems addObject:object];
+					} else {
+						return NO;
+					}
+				}
+				
+				return [controller selectObjects:selectedItems];
+			}
+		}
+	}
+	return NO;
+}
+
+
+- (NSString *)URIStringPrefixForController:(TableViewController *)controller {
+	NSManagedObject *anObject = [controller.content firstObject];
+	if([anObject respondsToSelector:@selector(objectID)]) {
+		if(anObject.objectID.isTemporaryID && [anObject.managedObjectContext obtainPermanentIDsForObjects:@[anObject] error:nil]) {
+			return nil;
+		}
+		return anObject.objectID.URIRepresentation.URLByDeletingLastPathComponent.absoluteString;
+	}
+	return nil;
+}
+
 
 
 # pragma mark -
@@ -519,11 +760,11 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		return [self.sourceController validateMenuItem:menuItem];
 	}
 	
-	if(menuItem.action == @selector(activateTab:)) {
+	if(menuItem.action == @selector(selectTabViewItemAtIndexSpecifiedBy:)) {
 		/// we show the tick-mark if the menu corresponds to the tab that is active and if the bottom pane is not collapsed.
 		/// The tag of the menu refers to the index of the tab
 		BOOL collapsed = self.verticalSplitViewController.splitViewItems.lastObject.isCollapsed;
-		menuItem.state = menuItem.tag == [tabView.tabViewItems indexOfObject: tabView.selectedTabViewItem] && !collapsed? NSControlStateValueOn : NSControlStateValueOff;
+		menuItem.state = menuItem.tag == self.selectedTabViewItemIndex && !collapsed? NSControlStateValueOn : NSControlStateValueOff;
 		return YES;
 	}
 	
@@ -547,7 +788,7 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		NSInteger tag = menuItem.tag;
 		DetailedViewController *controller = DetailedViewController.sharedController;
 		if(tag == -1) { /// The item that contains the submenu to stack traces.
-						/// We only enable it when the detailed view shows samples.
+						/// We only enable it when the viewer shows samples.
 			return !controller.showMarkers && !controller.showGenotypes;
 		}
 		
@@ -621,32 +862,32 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
-- (void)addSampleOrSmartFolder:(id)sender {
+- (IBAction)addSampleOrSmartFolder:(id)sender {
 	[FolderListController.sharedController addFolder:sender];
 }
 
 
-- (void)moveSelectionByStep:(id)sender {
+- (IBAction)moveSelectionByStep:(id)sender {
 	[self.sourceController moveSelectionByStep:sender];
 }
 
 
--(void)importSamples:(id)sender {
+-(IBAction)importSamples:(id)sender {
 	[SampleTableController.sharedController importSamples:sender];
 }
 
 
--(void)toggleSidebar:(id)sender {
+-(IBAction)toggleSidebar:(id)sender {
 	[self.mainSplitViewController togglePane:sender];
 }
 
 
--(void)toggleRightPane:(id)sender {
+-(IBAction)toggleRightPane:(id)sender {
 	[self.mainSplitViewController togglePane:sender];
 }
 
 
--(void)toggleBottomPane:(id)sender {
+-(IBAction)toggleBottomPane:(id)sender {
 	BOOL collapsed = self.verticalSplitViewController.splitViewItems.lastObject.isCollapsed;
 	[self.verticalSplitViewController togglePane:sender];
 	if([sender respondsToSelector:@selector(setToolTip:)]) {
@@ -655,31 +896,40 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
-- (void)editSmartFolder:(id)sender {
+- (IBAction)showAllPanes:(id)sender {
+	NSSplitViewController *mainSplitViewController = self.mainSplitViewController;
+	mainSplitViewController.splitViewItems.firstObject.collapsed = NO;
+	mainSplitViewController.splitViewItems.lastObject.collapsed = NO;
+	self.verticalSplitViewController.splitViewItems.lastObject.collapsed = NO;
+
+}
+
+
+- (IBAction)editSmartFolder:(id)sender {
 	[FolderListController.sharedController editSmartFolder:sender];
 }
 
 
--(void) importFolder:(id)sender {
+-(IBAction) importFolder:(id)sender {
 	[FolderListController.sharedController importFolder:sender];
 }
 
 
-- (void)importPanels:(id)sender {
+- (IBAction)importPanels:(id)sender {
 	[PanelListController.sharedController importPanels:sender];
 }
 
 
--(void) activateTab:(id)sender {
+-(IBAction) selectTabViewItemAtIndexSpecifiedBy:(id)sender {
 	if([sender respondsToSelector:@selector(tag)]) {
-		[self activateTabNumber:[sender tag]];
+		[self selectTabViewItemAtIndex:[sender tag]];
 	}
 }
 
 
-- (void)activateTabNumber:(NSInteger)number {
+- (void)selectTabViewItemAtIndex:(NSInteger)number {
 	if(number >= 0 && number <= tabView.tabViewItems.count) {
-		[NSUserDefaults.standardUserDefaults setInteger:number forKey:BottomTab];		/// this activates the corresponding tab, as the tabview's selected index is bound to the user defaults key.
+		self.selectedTabViewItemIndex = number;
 		NSSplitViewItem *item = self.verticalSplitViewController.splitViewItems.lastObject;
 		if(item.collapsed) {
 			[self.verticalSplitViewController togglePaneNumber:1];
@@ -687,17 +937,11 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 	}
 }
 
-
-- (void)setActiveBottomTab:(NSInteger)activeBottomTab {
-	/// We determine if the sample inspector is shown. If not, there is not need to update it (via a binding)
-	
-	_activeBottomTab = activeBottomTab;
-	SampleInspectorController *sampleInspectorController = SampleInspectorController.sharedController;
-	if(activeBottomTab == sampleInspectorTab) {
-		[sampleInspectorController bind:@"samples" toObject:SampleTableController.sharedController.tableContent withKeyPath:NSSelectedObjectsBinding options:nil];
-	} else {
-		[sampleInspectorController unbind:@"samples"];
-		sampleInspectorController.samples = nil;
+- (void)setSelectedTabViewItemIndex:(NSInteger)selectedTabViewItemIndex {
+	if(selectedTabViewItemIndex != _selectedTabViewItemIndex && selectedTabViewItemIndex < tabView.numberOfTabViewItems) {
+		_selectedTabViewItemIndex = selectedTabViewItemIndex;
+		[NSUserDefaults.standardUserDefaults setInteger:selectedTabViewItemIndex forKey:BottomTab];
+		[tabView selectTabViewItemAtIndex:selectedTabViewItemIndex];
 	}
 }
 
@@ -708,10 +952,10 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 	if(item.action == @selector(toggleSidebar:)) {
 		toolTip = [self.mainSplitViewController.splitViewItems.firstObject isCollapsed]? @"Show folder list" : @"Hide folder list";
 	} else if(item.action == @selector(toggleRightPane:)) {
-		toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Show detailed view" : @"Hide detailed view";
-	} else if(item.action == @selector(undo:)) {
+		toolTip = [self.mainSplitViewController.splitViewItems.lastObject isCollapsed]? @"Show viewer" : @"Hide viewer";
+	} else if(item.action == @selector(undoFromToolbarItem:)) {
 		toolTip = self.window.firstResponder.undoManager.undoMenuItemTitle;
-	} else if(item.action == @selector(redo:)) {
+	} else if(item.action == @selector(redoFromToolbarItem:)) {
 		toolTip = self.window.firstResponder.undoManager.redoMenuItemTitle;
 	} else if(item.action == @selector(exportSelection:)) {
 		TableViewController *exporter =  self.relevantExporter;
@@ -725,10 +969,10 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 		item.toolTip = toolTip;
 	}
 	
-	if(item.action == @selector(undo:)) {
+	if(item.action == @selector(undoFromToolbarItem:)) {
 		return self.window.firstResponder.undoManager.canUndo;
 	}
-	if(item.action == @selector(redo:)) {
+	if(item.action == @selector(redoFromToolbarItem:)) {
 		return self.window.firstResponder.undoManager.canRedo;
 	}
 	return YES;
@@ -737,17 +981,17 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 
 /// The object that could handle an `exportSelection:` message that has not be handled in the responder chain.
 -(TableViewController *)relevantExporter {
-	/// If the detailed view is active, it is intuitive to export something related to what it shows (markers, samples, genotypes).
+	/// If the viewer is active, it is intuitive to export something related to what it shows (markers, samples, genotypes).
 	NSView *firstResponder = (NSView *)self.window.firstResponder;
 	if([firstResponder respondsToSelector:@selector(isDescendantOf:)]) {
 		if([firstResponder isDescendantOf:DetailedViewController.sharedController.view]) {
-			/// The detailed view is active. In this case, what to export pertains to the source controller.
+			/// The viewer is active. In this case, what to export pertains to the source controller.
 			TableViewController *sourceController = self.sourceController;
 			if([sourceController isKindOfClass:MarkerTableController.class]) {
 				return PanelListController.sharedController;
 			}
 			if(sourceController == SampleTableController.sharedController) {
-				/// If the detailed view shows samples, it makes sense to be able to export the selected folder.
+				/// If the viewer shows samples, it makes sense to be able to export the selected folder.
 				return FolderListController.sharedController;
 			}
 			return sourceController;
@@ -761,18 +1005,21 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
--(IBAction)undo:(id)sender {
-	if(![self.window tryToPerform:@selector(undo:) with:sender]) {
-		/// The condition above should avoid calling undo ourselves on the undo manager, but we do it anyway.
-		[self.window.firstResponder.undoManager undo];
-	}
+/// Responds to the undo toolbar item action.
+///
+/// We did not name this method `undo:` to avoid recursion, given its implementation.
+/// - Parameter sender: The object that sent this message.
+-(IBAction)undoFromToolbarItem:(id)sender {
+	[NSApp sendAction:@selector(undo:) to:nil from:sender];
 }
 
 
--(IBAction)redo:(id)sender {
-	if(![self.window tryToPerform:@selector(redo:) with:sender]) {
-		[self.window.firstResponder.undoManager redo];
-	}
+/// Responds to the redo toolbar item action.
+///
+/// We did not name this method `redo:` to avoid recursion, given its implementation.
+/// - Parameter sender: The object that sent this message.
+-(IBAction)redoFromToolbarItem:(id)sender {
+	[NSApp sendAction:@selector(redo:) to:nil from:sender];
 }
 
 
@@ -883,5 +1130,11 @@ static NSString *NoSourceControllerKey = @"NoSourceControllerKey";
 }
 
 
+/// Implemented to suppress an xCode warning about the selector being not recognized.
+- (void)undo:(id)sender {
+}
+
+- (void)redo:(id)sender {
+}
 
 @end

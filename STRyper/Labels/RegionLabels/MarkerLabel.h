@@ -21,14 +21,15 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// A label that represents a molecular marker on a ``MarkerView``.
+/// A resizable label that represents a molecular marker (``Mmarker`` class) on a ``MarkerView``.
 ///
-/// When it is ``ViewLabel/hovered`` or ``ViewLabel/highlighted``, the label shows a button that pops the label's ``ViewLabel/menu``.
+/// The range of the marker is represented by a horizontal segments below the marker's name.
 ///
-/// This  menu allowing several actions described in the ``STRyper`` user guide.
+/// When the name is clicked, the label spawns its drop-down ``ViewLabel/menu``.
+/// This  menu enables actions described in the ``STRyper`` user guide.
 ///
-/// To implement some of these actions, the label must find an label representing its marker among the ``LabelView/markerLabels`` of its marker view's ``MarkerView/traceView``.
-@interface MarkerLabel : RegionLabel <NSMenuDelegate, NSViewToolTipOwner>
+/// To implement some of these actions, the label must find an label representing its ``RegionLabel/region`` among the ``LabelView/markerLabels`` of its marker view's ``MarkerView/traceView``.
+@interface MarkerLabel : RegionLabel <NSMenuDelegate>
 
 /// Returns a menu that allows zooming to the range of the marker the the label represents, change some of its attributes,
 /// or perform other actions affecting the label's ``RegionLabel/editState``.

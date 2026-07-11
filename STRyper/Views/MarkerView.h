@@ -58,6 +58,13 @@ extern const CGFloat markerViewHeight;
 /// - Parameter range: the range for which the safe range should be computed.
 - (BaseRange)safeRangeForBaseRange:(BaseRange)range;
 
+
+/// Zooms the trace view to the range of a marker label, with animation
+///
+/// This method assumes that the `label` is among the ``LabelView/markerLabels`` that the view shows.
+/// - Parameter label: The label whose range should occupy the whole visible width of the view.
+- (void)zoomToMarkerLabel:(RegionLabel *)label;
+
 /// Tells the the view that it needs to update its content (marker labels, button states) to reflect the ``LabelView/panel`` that it shows.
 @property (nonatomic) BOOL needsUpdateContent;
 

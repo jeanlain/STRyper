@@ -28,6 +28,7 @@
 #import "GenotypeTableController.h"
 #import "DetailedViewController.h"
 #import "SmartFolder.h"
+#import "PanelFolder.h"
 
 @interface AppDelegate ()
 
@@ -87,12 +88,17 @@ MissingAlleleName = @"MissingAlleleName",
 DefaultSizingOrder = @"DefaultSizingOrder",
 AnnotateAdditionalPeaks = @"AnnotateAdditionalPeaks",
 BottomTab = @"BottomTab",
-CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
+CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch",
+SelectedSamplesKey = @"SelectedSamples",
+SelectedGenotypesKey = @"selectedGenotypes", /// Yes, there is an inconsistency in the uppercase, but correcting it without losing the selected genotypes in the prefs would be tedious
+SampleInspectorSections = @"SampleInspectorSections";
 
 @synthesize managedObjectContext = _managedObjectContext, childContext = _childContext;
 
 
 + (void)initialize {
+	/// The section titles of the sample inspector are identifiers of view in the nib containing the sample inspector.
+	NSArray *sampleInspectorSectionTitles = @[@"Sample information", @"Run information", @"Sizing"];
 	
 	/// We set the default values of application settings.
 	NSDictionary *defaults = @{ShowOffScale: @YES,
@@ -102,7 +108,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   DefaultStartSize: @0,
 							   TraceRowsPerWindow: @2,
 							   TraceStackMode: @0,
-							   TraceTopFluoMode: @0,
+							   TraceTopFluoMode: @2,
 							   PaintCrosstalkPeaks : @YES,
 							   IgnoreCrosstalkPeaks : @NO,
 							   IgnoreOtherChannels : @YES,
@@ -129,7 +135,8 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 							   MissingAlleleName:@"",
 							   AnnotateAdditionalPeaks:@YES,
 							   DefaultSizingOrder: @2,
-							   @"NSOutlineView Items sampleInspector":@[@"Sample information", @"Sizing"],
+							   SampleInspectorSections:sampleInspectorSectionTitles,
+							   @"NSOutlineView Items sampleInspector": sampleInspectorSectionTitles,
 							   @"log": @NO,
 							   CaseSensitiveSampleSearch: @NO
 							   
@@ -155,7 +162,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	if(!MOC) {
 		/// The following alert should in principle no be shown, as the measures we take in case of database error either
 		/// lead to the user quitting the app or removing the database.
-		NSAlert *alert = [NSAlert alertWithError:[NSError errorWithDescription:@"Failed to load the database." suggestion:@"Please see FAQ in the guide."]];
+		NSAlert *alert = [NSAlert alertWithError:[NSError errorWithDescription:@"Failed to load the database." suggestion:@"Please see FAQ in the user guide."]];
 		[alert addButtonWithTitle:@"Quit"];
 		[alert addButtonWithTitle:@"Open User Guide"];
 		NSModalResponse response = [alert runModal];
@@ -165,6 +172,8 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		exit(EXIT_FAILURE);
 	}
 	
+	
+	
 	/// We check the version of the persistent store to improve the detection of crosstalk in traces if necessary.
 	/// Earlier versions of the app did not detect crosstalk in a way that allows showing it in trace views.
 	NSURL *url = [MOC.persistentStoreCoordinator URLForPersistentStore: MOC.persistentStoreCoordinator.persistentStores.firstObject];
@@ -173,7 +182,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		if(data) {
 			NSArray *identifiers = data[NSStoreModelVersionIdentifiersKey];
 			if(identifiers && ![identifiers containsObject:@"1.2"]) {
-				NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:Chromatogram.entity.name];
+				NSFetchRequest *request = Chromatogram.fetchRequest;
 				NSManagedObjectContext *MOC = self.persistentContainer.newBackgroundContext;
 				[MOC performBlockAndWait:^{
 					NSArray *samples = [MOC executeFetchRequest:request error:nil];
@@ -225,10 +234,10 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		
 	if(deletedSampleFolders.count >0 || trashFolder.samples.count > 0) {
 		NSAlert *alert = NSAlert.new;
-		alert.messageText = @"Some deleted items were detected.";
+		alert.messageText = @"The app did not quit normally and deleted items were detected.";
 		alert.informativeText = @"Do you wish to restore them?";
-		[alert addButtonWithTitle:@"Restore Items"];
-		[alert addButtonWithTitle:@"Discard Items"];
+		[alert addButtonWithTitle:@"Restore Deleted Items"];
+		[alert addButtonWithTitle:@"Discard Deleted Items"];
 		
 		[alert beginSheetModalForWindow: mainWindow completionHandler:^(NSModalResponse returnCode) {
 			if (returnCode == NSAlertFirstButtonReturn) {
@@ -269,6 +278,10 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 			return !subfolder.isSmartFolder;
 		}]];
 		restored.samples = trashFolder.samples;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[folderListController selectFolder:restored];
+			[folderListController expandFolder:restored];
+		});
 	}
 	[self saveAction:self];
 }
@@ -552,7 +565,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	NSError *error = nil;
 	if (context.hasChanges && ![context save:&error]) {
 		NSString *log = [MainWindowController.sharedController populateErrorLogWithError:error];
-		NSError *postedError = [NSError errorWithDescription:@"Sorry. The database could not be saved because of an inconsistency in the data." suggestion:@"The last action(s) will be undone to resolve the issue."];
+		NSError *postedError = [error errorWithNewDescription:@"Sorry. The database could not be saved because of an inconsistency in the data." suggestion:@"The last action(s) will be undone to resolve the issue."];
 		
 		[NSApp presentError:postedError];
 		[self.class recoverFromErrorInContext:context showLog:log.length > 0];
@@ -589,12 +602,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
-	/// we record the selected sample/panel folders so that can be restored at next launch.
-	/// Even if we cancel termination, this isn't costly. However, they won't be restored if the app crashed and did not call this method.
-	[FolderListController.sharedController recordSelectedFolder];
-	[PanelListController.sharedController recordSelectedFolder];
-	[SampleTableController.sharedController recordSelectedItems];
-	[GenotypeTableController.sharedController recordSelectedItems];
+
 	[MainWindowController.sharedController recordSourceController];
 	[DetailedViewController.sharedController recordReferenceRange];
 	
@@ -637,29 +645,37 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 		return NSTerminateNow;
 	}
 	
-	/// we delete items that are in the trash before quitting
+	[context performBlockAndWait:^{
+		/// As we do some cleaning that may touch the context heavily, it's better to remove the undo manager, which is no longer needed.
+		context.undoManager = nil;
+	}];
+	
+	/// we do some cleaning before quitting
 	FolderListController *folderListController = FolderListController.sharedController;
 	SampleFolder *trashFolder = folderListController.trashFolder;
 	
-	/// If there are some orphan (invisible) folders (which happens if one undoes the import of a folder in a buggy version of the app), we put them to the trash for removal.
-	NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:@"Folder"];
-	NSArray<Folder *> *folders = [self.managedObjectContext executeFetchRequest:request error:nil];
+	/// If there are some orphan (invisible) folders (which happens if one undoes the import of a folder in some buggy version of the app), we put them to the trash for removal.
+	NSArray<Folder *> *folders = [self.managedObjectContext executeFetchRequest:Folder.fetchRequest error:nil];
 	NSArray<NSString *> *baseFolderNames = [@[trashFolder, folderListController.rootFolder, PanelListController.sharedController.rootFolder, folderListController.smartFolderContainer] valueForKeyPath:@"@unionOfObjects.name"];
-		
-		for(Folder *folder in folders) {
-			if(!folder.parent && ![baseFolderNames containsObject:folder.name]) {
-				NSLog(@"ghost %@: %@", folder.entity.name, folder.name);
-				if([folder isKindOfClass:SampleFolder.class] || [folder isKindOfClass:SmartFolder.class]) {
-					[trashFolder addSubfoldersObject:folder];
-				} else {
-					/// If a panel or panel folder has no parent (which should not happen), we do not remove it.
+	
+	for(Folder *folder in folders) {
+		if(!folder.parent && ![baseFolderNames containsObject:folder.name]) {
+			NSLog(@"Orphan %@: %@", folder.entity.name, folder.name);
+			if([folder isKindOfClass:SampleFolder.class] || [folder isKindOfClass:SmartFolder.class]) {
+				[trashFolder addSubfoldersObject:folder];
+			} else {
+				if([folder respondsToSelector:@selector(allPanels)] && [((id)folder) allPanels].count > 0) {
+					/// If a panel or panel folder that has panels has no parent (which should not happen), we do not remove it.
 					/// Doing so may delete genotypes. We just place it at the root.
 					folder.parent = PanelListController.sharedController.rootFolder;
 					folder.name = [folder.name stringByAppendingString:@"-restored"];
+				} else {
+					[folder.managedObjectContext deleteObject:folder];
 				}
-				[folder autoName];
 			}
+			[folder autoName];
 		}
+	}
 	
 	/// We remove preference entries related to folders that were deleted
 	/// For that obtain folders that are NOT deleted.
@@ -669,10 +685,8 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 	
 	NSArray *folderIDs = [folders valueForKeyPath:@"@unionOfObjects.objectID.URIRepresentation.absoluteString"];
 	NSUserDefaults *userDefaults = NSUserDefaults.standardUserDefaults;
-	UserDefaultKey selectedSampleKey = SampleTableController.sharedController.userDefaultKeyForSelectedItemIDs;
-	UserDefaultKey selectedGenotypeKey = GenotypeTableController.sharedController.userDefaultKeyForSelectedItemIDs;
 
-	for(UserDefaultKey key in @[GenotypeFiltersKey, selectedSampleKey, selectedGenotypeKey]) {
+	for(UserDefaultKey key in @[GenotypeFiltersKey, SelectedSamplesKey, SelectedGenotypesKey]) {
 		NSMutableDictionary *dic = [userDefaults dictionaryForKey:key].mutableCopy;
 		if(dic) {
 			NSArray *keysToRemove = [dic.allKeys arrayByRemovingObjectsInArray:folderIDs];
@@ -689,7 +703,7 @@ CaseSensitiveSampleSearch = @"CaseSensitiveSampleSearch";
 			if(error) {
 				self->quitWithoutCleaning = YES;
 			}
-			/// when have to terminate the app after the trash is emptied, because we cancel the termination (below)
+			/// we have to terminate the app after the trash is emptied, because we cancel the termination (below)
 			[NSApp terminate:self];
 		}];
 		

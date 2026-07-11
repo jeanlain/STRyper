@@ -92,10 +92,10 @@ static NSColor *rulerLabelColor;
 
 
 - (void)setWidth:(CGFloat)width {
-	if(width < 0) {
-		width = 0;
-	} else if(width > 100) {
-		width = 100;
+	if(width < 0.0) {
+		width = 0.0;
+	} else if(width > 100.0) {
+		width = 100.0;
 	}
 	_width = width;
 	self.traceView.leftInset = self.hidden? 0: width;
@@ -122,13 +122,13 @@ static NSColor *rulerLabelColor;
 	NSRectFill(bounds);
 	TraceView *traceView = self.traceView;
 	CGFloat vScale = traceView.vScale;
-	if(vScale <=0) {
+	if(vScale <=0.0) {
 		return;
 	}
 	
 	CGFloat maxX = NSMaxX(bounds);
 	[rulerLabelColor set];
-	NSRectFill(NSMakeRect(maxX-1, 0, 1, NSMaxY(bounds)-3));
+	NSRectFill(NSMakeRect(maxX-1.0, 0.0, 1.0, NSMaxY(bounds)-3.0));
 
 	int labelIncrement = rulerLabelIncrementForVScale(vScale);
 	for (int fluo = 0; fluo <= traceView.topFluoLevel; fluo += labelIncrement ) {
@@ -136,15 +136,15 @@ static NSColor *rulerLabelColor;
 			NSArray *labelDescription = labels[@(fluo)];
 			NSAttributedString *label = labelDescription.firstObject;
 			float width = [labelDescription.lastObject floatValue];
-			[label drawAtPoint:NSMakePoint(maxX - width - 7, fluo * vScale -4)];
+			[label drawAtPoint:NSMakePoint(maxX - width - 7.0, fluo * vScale -4.0)];
 		}
 				
-		[NSBezierPath strokeLineFromPoint:NSMakePoint(maxX - 5, fluo * vScale)
+		[NSBezierPath strokeLineFromPoint:NSMakePoint(maxX - 5.0, fluo * vScale)
 								  toPoint:NSMakePoint(maxX, fluo * vScale)]; /// main tick-mark
 																			 ///
 		if(fluo + labelIncrement/2 < traceView.topFluoLevel) {
 			CGFloat y = (fluo + labelIncrement/2) *vScale;
-			[NSBezierPath strokeLineFromPoint:NSMakePoint(maxX - 3, y)
+			[NSBezierPath strokeLineFromPoint:NSMakePoint(maxX - 3.0, y)
 									  toPoint:NSMakePoint(maxX, y)]; /// secondary tick-mark
 		}
 	}
@@ -155,14 +155,14 @@ static NSColor *rulerLabelColor;
 int rulerLabelIncrementForVScale(CGFloat vScale) {
 	/// This was established via trial & error. There's certainly a more flexible way to do it
 	CGFloat scale = 1/vScale * 20;
-	if (scale < 10) return 10;
-	if (scale < 50) return 50;
-	if (scale < 75) return 100;
-	if (scale < 150) return 250;
-	if (scale < 300) return 500;
-	if (scale < 1000) return 1000;
-	if (scale < 2000) return 2000;
-	if (scale < 5000) return 5000;
+	if (scale < 10.0) return 10;
+	if (scale < 50.0) return 50;
+	if (scale < 75.0) return 100;
+	if (scale < 150.0) return 250;
+	if (scale < 300.0) return 500;
+	if (scale < 1000.0) return 1000;
+	if (scale < 2000.0) return 2000;
+	if (scale < 5000.0) return 5000;
 	
 	return 10000;
 }
@@ -178,7 +178,7 @@ int rulerLabelIncrementForVScale(CGFloat vScale) {
 	/// to signify that the user can adjust the vertical scale by dragging, we show the appropriate cursor
 	NSRect bounds = self.bounds;
 	CGFloat y = bounds.origin.y;
-	bounds.origin.y = 0;
+	bounds.origin.y = 0.0;
 	bounds.size.height += y;
 	NSRect rect = NSIntersectionRect(bounds, self.visibleRect);
 	[self addCursorRect:rect cursor:NSCursor.openHandCursor];
@@ -188,7 +188,7 @@ int rulerLabelIncrementForVScale(CGFloat vScale) {
 
 - (void)mouseDown:(NSEvent *)theEvent {
 	mouseLocation = [self convertPoint:theEvent.locationInWindow fromView:nil];
-	if(mouseLocation.y >= 0) {
+	if(mouseLocation.y >= 0.0) {
 		[NSCursor.closedHandCursor set];
 	}
 }
@@ -197,7 +197,7 @@ int rulerLabelIncrementForVScale(CGFloat vScale) {
 	/// We remember  the previous location of the mouse to determine the amount of change in the scale
 	CGFloat previousY = mouseLocation.y;
 	mouseLocation = [self convertPoint:event.locationInWindow fromView:nil];
-	if(mouseLocation.y < 0) {
+	if(mouseLocation.y < 0.0) {
 		return;
 	}
 	CGFloat newTopFluo = self.traceView.topFluoLevel * fabs(previousY)/fabs(mouseLocation.y);

@@ -38,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Objects that compose the rows of these tables inherit from ``CodingObject``.
 ///
 /// This class implements methods for the deletion and export of items representing table rows and to record/restore the selected items in/from the user defaults.
-/// It also performs validation of menu and toolbar items, and determines which items of the table are targets.
+/// It also performs validation of menu and toolbar items, and determines which items of the table are targets of user actions.
 ///
 /// Other methods can populate the tableview with columns and cell views, based on column descriptions provided as a dictionary (see ``columnDescription``).
 /// This dictionary is useful for tables that have too many columns to all be designed in a nib.
@@ -48,22 +48,26 @@ NS_ASSUME_NONNULL_BEGIN
 /// This class implements dragging rows of the table (see ``tableView:pasteboardWriterForRow:``.
 ///
 /// This class also provides  a menu for the table header view, to allow hiding/showing columns and sorting via a popover of class ``TableSortPopover``.
-@interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSPopoverDelegate, NSMenuItemValidation, NSToolbarItemValidation, NSViewToolTipOwner> {
+@interface TableViewController : NSViewController <NSTableViewDataSource, NSTableViewDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate, NSPopoverDelegate, NSMenuItemValidation, NSToolbarItemValidation, NSViewToolTipOwner, NSTextFieldDelegate, NSKeyedUnarchiverDelegate> {
 	
 	/// backs the ``tableView`` readonly property.
 	///
 	/// It is used so subclasses can modify it.
 	__weak IBOutlet NSTableView *_tableView;
 	
-	/// backs the ``tableContent`` readonly property.
-	///
-	/// It is used so subclasses can modify it.
-	IBOutlet NSArrayController *_tableContent;
+	/// The controller whose content is bound to the table view (which can be an outline view)
+	NSArrayController *_arrayController;
+	NSTreeController *_treeController;
 	
-	/// backs the ``tableContent`` property.
+	/// backs the ``contentArray`` property.
 	///
 	/// It is used so subclasses can modify it.
 	NSArray *_contentArray;
+	
+	/// backs the ``contentSet`` property.
+	///
+	/// It is used so subclasses can modify it.
+	NSSet *_contentSet;
 	
 	/// Used to avoid successive reloads of the table.
 	BOOL _needLoadContent;
@@ -89,39 +93,54 @@ NS_ASSUME_NONNULL_BEGIN
 /// The content that the ``tableView`` should load.
 ///
 /// This property is intended to be used for its setter, which buffers successive changes
-/// to avoid reloading the table redundantly in the same cycle, and calls `_loadContent` just once.
+/// to avoid reloading the table redundantly in the same cycle, and calls  `_loadContentIfNeeded` just once.
 ///
-/// - Important: The getter is not guaranteed to return the elements show in the ``tableView``.
-/// One may instead rely on ``tableContent``'s `arrangedObjects`.
+/// - Important: The getter is not guaranteed to return the elements shown by the ``tableView``.
+/// One may instead rely on ``arrangedObjects`.
 @property (nonatomic, copy) NSArray* contentArray;
 
-/// Biding name to bind the `contentArray` property.
-extern NSBindingName const ContentArrayBinding;
-
-/// Internal method that loads the ``contentArray`` to show its items in the table.
+/// The content set that the ``tableView`` should load.
 ///
-/// This method should not be called directly, but can be overridden.
-/// It is called some time after ``contentArray`` has been set.
-/// The default implementation set  ``contentArray`` as `content` of the
-/// ``tableContent`` `NSArrayController`.
+/// This property is intended to be used for its setter, which buffers successive changes
+/// to avoid reloading the table redundantly in the same cycle, and calls `_loadContent` just once.
+@property (nonatomic, copy) NSSet* contentSet;
+
+/// Binding name to bind the `contentArray` property.
+extern NSBindingName const ContentArrayBinding, ContentSetBinding, SelectedObjectsBinding, ContentBinding, ArrangedObjectsBinding;
+
+/// Reloads the ``tableView`` with the content of the ``contentArray``, if this content has changed.
 ///
-/// - Note: The default implementation assumes that the `content` property of ``tableContent`` is not bound,
-/// and that its `arrangedObjets` is bound to the ``tableView``'s content.
--(void)_loadContent;
+/// The method does nothing if the ``contentArray`` has not been set since the last reload.
+-(void)_loadContentIfNeeded;
 
-///The controller objet providing content to the ``tableView``.
-@property (readonly, nullable, nonatomic) NSArrayController *tableContent;
+/// The objects that are currently shown by the ``tableView``.
+@property (nullable, readonly, nonatomic) NSArray *arrangedObjects;
 
-/// A method that can be overridden to configure the ``tableContent`` array controller.
+/// The array of objects that the receivers manages.
+///
+/// These objects may not be shown by the ``tableView`` depending on the filter predicate,
+/// and the order may differ from the table.
+/// To obtain the object as they are listed, use ``arrangedObjects``.
+@property (nullable, readonly, nonatomic) NSArray *content;
+
+/// The objects that are currently selected in the ``tableView``.
+@property (nullable, readonly, nonatomic) NSArray *selectedObjects;
+
+/// The managed object context of objects shown by the ``tableView``
+///
+/// The default is the application's `viewContext`.
+@property (readonly, nonatomic) NSManagedObjectContext *managedObjectContext;
+
+/// A method that can be overridden to configure the  object controller providing content to the ``tableView``.
 ///
 /// This method is called at the beginning of `-viewDidLoad`.
 ///
-/// The default implementation sets  ``entityName`` as the name of the entity controller by the ``tableContent`` controller,
+/// The default implementation sets  ``entityName`` as the name of the entity shown by the ``tableView``,
 /// binds the controller managed object context to the ``AppDelegate/managedObjectContext``,
-/// and establishes usual bindings between the ``tableView`` and the ``tableContent``: content, selection index paths and sort descriptors.
+/// and establishes usual bindings between the `tableView` and the object controller, selection indexes and sort descriptors.
 - (void)configureTableContent;
 	
-/// The name of the entity that the ``tableContent`` array controller controls.
+/// The name of the entity that the table view show.
 ///
 /// The default implementation returns the ``CodingObject`` entity name.
 @property (readonly, nonatomic) NSString *entityName;
@@ -138,6 +157,7 @@ typedef NSString *const ColumnDescriptorKey;
 ///
 /// The value must be an `NSString`.
 extern ColumnDescriptorKey KeyPathToBind,
+
 /// Whether the cell text field is editable.
 ///
 /// The value for this key must be an NSNumber (bool).
@@ -168,10 +188,13 @@ IsColumnSortingCaseInsensitive,
 HeaderToolTip;
 
 
-/// The tableview that contains the prototypes for table cell view (by default, the receiver's ``tableView``).
+/// The tableview that contains the prototype for of the table cell view at a column and row.
 ///
-/// This method avoids defining the same cell prototype redundantly in nibs containing several table views using this prototype.
-@property (nonatomic, weak) NSTableView *viewForCellPrototypes;
+/// The default implementation returns the tableView hosting the `column`.
+/// - Parameters:
+///   - column: The column that hosts the cell.
+///   - row: The row that hosts the cell.
+- (NSTableView *)viewForCellPrototypeForColumn:(NSTableColumn*) column row:(NSInteger) row;
 
 
 /// The column identifiers for the column to generate, in the default column order from left to right.
@@ -219,7 +242,7 @@ HeaderToolTip;
 @property (readonly, nonatomic) BOOL canSortByMultipleColumns;
 
 
-/// Whether items should be deleted from their managed object context with the ``deleteItems:`` method on the ``tableContent``.
+/// Whether items should be deleted from their managed object context with the ``deleteItems:`` method.
 ///
 /// The default implementation returns `YES`.
 @property (readonly, nonatomic) BOOL shouldDeleteObjectsOnRemove;
@@ -228,7 +251,7 @@ HeaderToolTip;
 /// The user-facing name for the type of item populating the table (used in dialogs).
 ///
 /// The default implementation returns "Item";
-- (NSString*) nameForItem:(id)item;
+- (NSString*) nameForItem:(nullable id)item;
 
 
 /// Selects the content of the text field showing the name of the selected/clicked item in the ``tableView``.
@@ -257,7 +280,18 @@ HeaderToolTip;
 - (NSInteger) itemNameColumn;
 
 
-#pragma mark - deleting items
+#pragma mark - action on items
+
+/// Returns the item shown in a row of the ``tableView`` or `nil` if no such item was found.
+/// - Parameter row: A row index.
+- (nullable id)itemAtRow:(NSInteger)row;
+
+
+/// Returns the ``tableView`` row corresponding to an item.
+///
+/// The value if -1 if no corresponding row was found.
+/// - Parameter item: An item.
+- (NSInteger)rowForItem:(nullable id)item;
 
 
 /// A generic method that removes target items from the ``tableView`` (and deletes them), sent from menus and buttons.
@@ -268,20 +302,19 @@ HeaderToolTip;
 /// The items that are valid targets of an action by a sender (e.g. a menu item), among those listed in the ``tableView``.
 ///
 /// If `sender` is an item from the ``tableView``'s `menu`, the target item is the one at the row
-/// that was right-clicked if it is not a selected row (or `nil` if the click occurred outside a row). Otherwise, the target items are those that are selected.
+/// that was right-clicked if it is not a selected row (or `nil` if the click occurred outside a row).
 ///	Otherwise, the selected objects are returned.
 ///
 ///	Subclass can override this method to perform additional checks of validity, based on the `sender`'s `action` or other properties.
-///	The default implementation never returns `nil`.
 /// - Parameter sender: The object that sent the message, typically an `NSMenuItem`.
 /// - Important: The `sender` must respond to `action` and return a `selector`.
-/// - Important: returning `nil` invalidates the `sender` in this class' implementations of `validateMenuItem:` and `validateToolbarItem:`, which call this method.
+/// - Important: returning `nil` or an empty array invalidates the `sender` in this class' implementations of `validateMenuItem:` and `validateToolbarItem:`, which call this method.
 - (nullable NSArray *) validTargetsOfSender:(id)sender;
 
 
 /// Removes items from the ``tableView``.
 ///
-/// The default implementation remove the items from the ``tableContent``.
+/// The default implementation remove the items from the array controller that provides content to the ``tableView``.
 /// - Parameter items: The items to remove form the tableview.
 - (void)deleteItems:(NSArray *)items;
 
@@ -303,6 +336,13 @@ HeaderToolTip;
 /// If `nil` is returned, no alert is shown and the deletion proceeds.
 /// - Parameter items: The items that shall be deleted.
 - (nullable NSString *) cautionAlertInformativeStringForItems:(NSArray *)items;
+
+
+/// The message text to be shown on an alert warning the user about the deletion of items.
+///
+/// The default implementation returns the value returned by ``deleteActionTitleForItems:``, with a question mark appended at the end.
+/// - Parameter items: The items that shall be deleted.
+- (NSString *) cautionAlertTitleStringForItems:(NSArray *)items;
 
 
 /// The informative text to be shown on an alert telling that items cannot be deleted.
@@ -344,8 +384,8 @@ HeaderToolTip;
 /// A suitable image for a toolbar button used to export items shown in the ``tableView``.
 ///
 /// The method is used during `validateToolbarItems` and updates the image of the item.
-/// The default image is a rounded square with a up arrow coming out of it. Subclasses can provide
-/// an image that represents the type of items.
+/// The default image is a rounded square with a up arrow coming out of it.
+/// Subclasses can provide an image that represents the type of items.
 /// - Parameter items: The items that should be exported.
 - (NSImage *) exportButtonImageForItems:(NSArray *)items;
 
@@ -368,18 +408,24 @@ HeaderToolTip;
 /// - Parameter sender: The popup that sent the message.
 - (IBAction)popupClicked:(NSPopUpButton *)sender;
 
+
+-(void)showFocusLayer;
+
+-(void)hideFocusLayer;
+
+
 /// Reveals an item by scrolling the ``tableView``  if necessary and flashes its row with a white frame.
-/// - Parameter item: The item to reveal.
+/// - Parameter item: The item to reveal. If `nil`, the current white frame is removed.
 ///
-/// The method does nothing if the item is not found in the ``tableContent``'s `arrangedObjects`,
+/// The method does nothing if the item is not found in the  ``arrangedObjects``,
 /// neither does it change the selection.
-- (void)flashItem:(id)item;
+- (void)flashItem:(nullable id)item;
 
 
-/// The action sent to the receiver by the ``tableView`` when it is when clicked.
-///
-/// Subclasses override this method to set the ``MainWindowController/sourceController``.
-- (IBAction)tableViewIsClicked:(NSTableView *)sender;
+/// Select rows corresponding to objects, scrolls the ``tableView`` to show the selection if necessary
+/// and returns whether the selection was changed.
+/// - Parameter objects: The objects to select
+- (BOOL) selectObjects:(NSArray *)objects;
 
 
 /// Shows a popover that allows the user to sort the ``tableView`` by several columns.
@@ -397,8 +443,8 @@ HeaderToolTip;
 
 #pragma mark - copy/paste
 
-/// Copies the items that are selected in the ``tableView`` to the general pasteboard.
-/// - Parameter sender: The object that sent this message. 
+/// Copies the ``selectedObjects`` to the general pasteboard.
+/// - Parameter sender: The object that sent this message.
 -(IBAction)copy:(id)sender;
 
 
@@ -416,17 +462,15 @@ HeaderToolTip;
 /// Implements the delegate method `tableView:pasteboardWriterForRow:`
 ///
 /// The default implementation returns the item at the row if it conforms to `NSPasteboardWriting`.
-/// If not, the method creates an `NSPasteboardItem` with the item's objectID absolute string set for
-/// the type returned by ``draggingPasteBoardTypeForRow:`` if this method does not return `nil`.
 ///
 /// Otherwise the method returns `nil` (no dragging).
 - (nullable id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row;
 
-/// The type of pasteboard to use when a row of the table is dragged.
+/// Whether items can be copied.
 ///
-/// This method is called during ``tableView:pasteboardWriterForRow:``.
-/// - Parameter row: The row that is dragged.
--(nullable NSPasteboardType) draggingPasteBoardTypeForRow:(NSInteger) row;
+///	The default implementation returns whether all items implement the `NSPasteBoardWriting` protocol.
+/// The returned value conditions the enabling of `copy:` menu items.
+- (BOOL) canCopyItems:(NSArray *)items;
 
 /// Returns a string representing the values that a given object may show at the visible columns of the ``tableView``.
 ///
@@ -437,48 +481,14 @@ HeaderToolTip;
 														
 /// A string corresponding to the value that a column of the ``tableView`` would show for an object.
 ///
-/// For performance reasons, the method does not read from a table cell,
-/// which means that the object doesn't even have to be in the ``tableContent``.
+/// For performance reasons, the method does not read from a table cell but from the underlying model.
 ///
-/// - Important: This method relies on the ``columnDescription`` dictionary and the object must be of the class managed by the ``tableContent``.
+/// - Important: This method relies on the ``columnDescription`` dictionary and the object must be of the class managed by the ``tableView``.
 /// - Parameters:
 ///   - column: The column for which the string should be returned.
 ///   - object: The object for which the string should be returned.
 - (NSString *)stringCorrespondingToColumn:(NSTableColumn *)column forObject:(id) object;
 				
-
-#pragma mark - recoding and restoring selection
-
-/// Records the selected items (selected rows) in the user defaults so that selection can be preserved between app launches.
-///
-/// The items are recorded as an array of strings (the URI representation of their object IDs).
-/// This array is stored at key `key` of an `NSDictionary` which is encoded
-/// in the user defaults at the key returned by ``userDefaultKeyForSelectedItemIDs``.
-/// - Parameters:
-///   - key: The key of the dictionary at which the selected items are recorded (see discussion).
-///   - maxRecorded: The maximum number of selected items to record. Use 0 if all items must be recorded.
--(void)recordSelectedItemsAtKey:(NSString *)key maxRecorded:(NSUInteger)maxRecorded;
-
-/// The key to store the identifiers of selected object in the user defaults.
-///
-/// The returned value is used for ``recordSelectedItemsAtKey:maxRecorded:`` and ``restoreSelectedItemsAtKey:``.
-/// It must not be identical to a key used in the user default from another purpose.
-- (UserDefaultKey) userDefaultKeyForSelectedItemIDs;
-
-/// Restore the selected items (selects rows) retrieved from the user defaults.
-/// - Parameters:
-///   - key: The key of the dictionary where identifiers for the selected object were stored (see ``recordSelectedItemsAtKey:maxRecorded:``).
--(void)restoreSelectedItemsAtKey:(NSString *)key;
-
-/// Records the selected Items in the user defaults.
-///
-/// Subclass are expected to override this method and call ``recordSelectedItemsAtKey:maxRecorded:``.
--(void)recordSelectedItems;
-
-/// Restores the selected items store in the user defaults and scrolls the ``tableView`` to show the first selected row.
-///
-/// Subclass are expected to override this method and call ``restoreSelectedItemsAtKey:``.
--(void)restoreSelectedItems;
 
 
 #pragma mark - filtering items
@@ -489,6 +499,7 @@ HeaderToolTip;
 /// A button that is used to filter the table content.
 @property (weak, nonatomic) IBOutlet NSButton *filterButton;
 
+
 /// The default action of the ``filterButton.
 ///
 /// The default implementation presents a `NSPopover`showing an `NSPredicateEditor`
@@ -497,10 +508,11 @@ HeaderToolTip;
 /// - Parameter sender: The ``filterButton``.
 - (void)filterButtonAction:(NSButton *)sender;
 
+
 /// The image to show on the ``filterButton``.
 ///
 /// The default image is similar to that used in Apple Mail (as of macOS 14) and depends
-/// on the presence of a filter predicate on the ``tableContent``.
+/// on the presence of a filter predicate.
 @property (nonatomic) NSImage *filterButtonImage;
 
 
@@ -509,28 +521,27 @@ HeaderToolTip;
 /// The default implementation returns `YES`.
 - (BOOL)filterUsingPopover;
 
-/// Configures the predicate editor used to filter content.
-/// 
-/// The method is called just before the popover used to present the filter predicate editor shows for the first time.
-/// The default implementation does nothing.
-/// Subclasses are expected to configure the `rowTemplates` and the `formattingDictionary`of the `predicateEditor`.
+/// Configures a predicate editor used to filter content.
+///
+/// The method is called before the predicate editor shown in the ``filterPopover`` appears for the firs time.
+/// The default implementation does nothing. Subclasses are expected to configure
+/// the `rowTemplates` and the `formattingDictionary` of the `predicateEditor`.
 /// - Parameter predicateEditor: The predicate editor to configure.
 - (void)configurePredicateEditor:(NSPredicateEditor *)predicateEditor;
 
+
 /// The predicate to show in the predicate editor by default.
 ///
-/// This method is called when there is no filter predicate applied to ``tableContent`` and the predicate editor will be shown to the user.
+/// This method is called when there is no filter predicate applied and the predicate editor will be shown to the user.
 @property (nonatomic, readonly) NSPredicate *defaultFilterPredicate;
 
-/// Applies a filter predicate to ``tableContent``.
+/// Applies a filter predicate to the ``tableView``.
 ///
-/// This method is called when the user applies the predicate configure in the popover, using a validation button.
-/// If the predicate is the same as already applied the method calls `rearrangeObject` on ``tableContent``.
+/// This method is called when the user applies the filter predicate defined in the ``filterPopover``.
 /// Subclasses can override this method and perform additional actions.
 /// - Parameter filterPredicate: The filter predicate to apply.
 - (void)applyFilterPredicate:(nullable NSPredicate *)filterPredicate;
 
-- (BOOL) IsPredicateEditorRowTemplateNumeric:(NSPredicateEditorRowTemplate *)template;
 
 @end
 

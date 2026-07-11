@@ -80,19 +80,19 @@
 		
 		/// initializing the horizontal dashed line layer ands its text layer
 		dashedLineLayer = CAShapeLayer.new;
-		dashedLineLayer.anchorPoint = CGPointMake(1, 0.5);
+		dashedLineLayer.anchorPoint = CGPointMake(1.0, 0.5);
 		dashedLineLayer.strokeColor = NSColor.grayColor.CGColor;
 		dashedLineLayer.lineWidth = 1.0;
 		dashedLineLayer.lineDashPattern = @[@(1.0), @(2.0)];
 		dashedLineLayer.delegate = self;
-		dashedLineLayer.bounds = CGRectMake(0, 0, self.bounds.size.width, 1);
+		dashedLineLayer.bounds = CGRectMake(0.0, 0.0, self.bounds.size.width, 1.0);
 		
 		sizeLayer = CATextLayer.new;
 		sizeLayer.font = (__bridge CFTypeRef _Nullable)([NSFont labelFontOfSize:10.0]);
 		sizeLayer.fontSize = 10.0;
 		sizeLayer.contentsScale = 3.0;
-		sizeLayer.bounds = CGRectMake(0, 0, 45, 12);
-		sizeLayer.anchorPoint = CGPointMake(1, 0);
+		sizeLayer.bounds = CGRectMake(0.0, 0.0, 45.0, 12.0);
+		sizeLayer.anchorPoint = CGPointMake(1.0, 0.0);
 		sizeLayer.delegate = self;
 		[dashedLineLayer addSublayer:sizeLayer];
 		[self.layer addSublayer:dashedLineLayer];
@@ -116,7 +116,8 @@
 
 
 - (id<CAAction>)actionForLayer:(CALayer *)layer forKey:(NSString *)event {
-	if(layer == sizeLayer || layer == dashedLineLayer) {
+	if(layer == sizeLayer || layer == dashedLineLayer || [event isEqualToString:@"contents"]) {
+		/// `contents` would correspond to the backing layer, which we don't animate (returning nil implies some animation on certain macOS versions).
 		return NSNull.null;
 	}
 	return nil;
@@ -142,31 +143,25 @@
 	if(!dashedLineLayer) {
 		return;
 	}
-	dashedLineLayer.bounds = CGRectMake(0, 0, self.bounds.size.width, 1);
+	dashedLineLayer.bounds = CGRectMake(0.0, 0.0, self.bounds.size.width, 1.0);
 	CGMutablePathRef path = CGPathCreateMutable();
-	CGPathMoveToPoint(path, NULL, 0, 0.5);
+	CGPathMoveToPoint(path, NULL, 0.0, 0.5);
 	CGPathAddLineToPoint(path, NULL, NSMaxX(self.bounds), 0.5);
 	dashedLineLayer.path = path;
 	CGPathRelease(path);
-	sizeLayer.position = CGPointMake(NSMaxX(dashedLineLayer.bounds)-2, 2);
+	sizeLayer.position = CGPointMake(NSMaxX(dashedLineLayer.bounds)-2.0, 2.0);
 
 }
 
 
 -(void)updateLimits {
 	lowestSubviewPosition = INFINITY;
-	maxXSubviewPosition = 0;
+	maxXSubviewPosition = 0.0;
 	CGFloat superviewHeight = NSMaxY(self.superview.bounds);
 	for(NSView *view in self.superview.subviews) {
 		if([view isKindOfClass:NSPopUpButton.class]) {
-			CGFloat y = superviewHeight - NSMaxY(view.frame);
-			if(y < lowestSubviewPosition) {
-				lowestSubviewPosition = y;
-			}
-			CGFloat x = NSMaxX(view.frame);
-			if(x > maxXSubviewPosition) {
-				maxXSubviewPosition = x;
-			}
+			lowestSubviewPosition = MIN(lowestSubviewPosition, superviewHeight - NSMaxY(view.frame));
+			maxXSubviewPosition = MAX(maxXSubviewPosition, NSMaxX(view.frame));
 		}
 	}
 	NSPoint position = [self convertPoint:self.window.mouseLocationOutsideOfEventStream fromView:nil];
@@ -241,7 +236,7 @@
 		/// we scale the plot such that the line corresponding to a linear regression between scan and size is the diagonal of the view (ascending from left to right)
 		/// The first scan is the one corresponding to size 0 according to this regression
 		float minSize = INFINITY;
-		float maxSize = 0;
+		float maxSize = 0.0f;
 		int nFragments = 0; /// number of fragments assigned to sizes
 		for(LadderFragment *fragment in self.trace.fragments) {
 			if(fragment.scan > 0) { /// fragments with scan 0 are not assigned
@@ -263,7 +258,9 @@
 			lastScan = sample.nScans;
 		}
 		/// we update the coordinates used to draw the dash line layer in the next cycle as some subviews are not yet updated to new sample data
-		[self performSelector:@selector(updateLimits) withObject:nil afterDelay:0.0];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[self updateLimits];
+		});
 	}
 }
 
@@ -285,7 +282,7 @@
 	NSRect bounds = self.bounds;
 	if(string) {
 		NSSize stringSize = string.size;
-		NSPoint point = NSMakePoint(NSMidX(bounds)-stringSize.width/2, 0);
+		NSPoint point = NSMakePoint(NSMidX(bounds)-stringSize.width/2, 0.0);
 		point.y = MIN(lowestSubviewPosition-15, NSMidY(bounds)) - stringSize.height/2;
 		[string drawAtPoint:point];
 		return;
@@ -321,7 +318,7 @@
 	if(sample.polynomialOrder > 0) {
 		/// as we draw the curve in a different color, we draw a legend indicating which curve is which
 		[NSColor.secondaryLabelColor setStroke];
-		[NSBezierPath strokeLineFromPoint:NSMakePoint(0, 0) toPoint:NSMakePoint(width, height)];
+		[NSBezierPath strokeLineFromPoint:NSZeroPoint toPoint:NSMakePoint(width, height)];
 	}
 	/// We now draw the curve corresponding to the current fitting method
 	const int maxPointsInCurve = 40;
@@ -352,8 +349,8 @@
 	for(LadderFragment *fragment in self.trace.fragments) {
 		if(fragment.scan <= 0) continue;
 		NSPoint point = NSMakePoint((fragment.scan - firstScan) *hScale , fragment.size *vScale);
-		NSRect horizontalLine = NSMakeRect(point.x - 5, point.y - 0.5, 10, 1);
-		NSRect verticalLine = NSMakeRect(point.x - 0.5, point.y - 5, 1, 10);
+		NSRect horizontalLine = NSMakeRect(point.x - 5.0, point.y - 0.5, 10.0, 1.0);
+		NSRect verticalLine = NSMakeRect(point.x - 0.5, point.y - 5.0, 1.0, 10.0);
 		NSRectFill(horizontalLine);
 		NSRectFill(verticalLine);
 	}

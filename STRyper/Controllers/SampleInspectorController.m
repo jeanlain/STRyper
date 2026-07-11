@@ -25,47 +25,33 @@
 #import "Chromatogram.h"
 #import "FittingView.h"
 #import "InfoTableRowView.h"
+#import "SortCriteriaEditor.h"
 
-static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 @interface SampleInspectorController () {
 	
 	__weak IBOutlet InfoOutlineView *outlineView;  /// The outline view that constitute the sample inspector (designed in a nib).
-												 /// The singleton object is is the datasource and delegate of the outline view.
+												   /// The singleton object is the datasource and delegate of the outline view.
 	
-	NSArrayController *sampleController;		/// This controller facilitates binding with the samples of which we show information.
 	CGFloat fittingViewHeight;					/// The height of the row showing the fitting view, which adapts to the table height.
+	NSArray *sampleKeyPaths; 					/// The Chromatogram attribute names that we bind to value of NSTextfields that the inspector tab shows
 }
 
 /// The different peak thresholds the user can define for a ladder trace. We use this property to bind to the an NSPopupButton menu contents.
 @property (nonatomic) NSArray<NSNumber *> *peakThreshold;
 
 @property (nonatomic) NSDictionary<NSString *, NSString *> *actionForKeyPath;
+@property (nonatomic) NSArray<NSString *>* outlineViewSections;
 															
 @end
 
 
 @implementation SampleInspectorController
 
-@synthesize samples = _samples;
-
 /// Implementation details:
 /// The outline view (of which we are the delegate and datasource) has rows that are entirely designed in the nib file loaded in -init.
 /// So to understand the implementation, one should inspect the nib file.
 
-+(void)initialize {
-	if (self == SampleInspectorController.class) {
-		/// the main section titles
-		outlineViewSections = @[
-			@"Sample information",
-			@"Run information",
-			@"Sizing",
-		];
-	}
-
-	/// the Chromatogram attribute names that we bind to value of NSTextfields that the inspector tab shows
-	sampleKeyPaths = [Chromatogram.entity.attributeKeys arrayByAddingObjectsFromArray:@[@"dye1", @"dye2",@"dye3", @"dye4", @"dye5"]];
-}
 
 
 + (instancetype)sharedController {
@@ -87,21 +73,24 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 - (instancetype)init {
 	self = [super init];
 	if(self) {
+		sampleKeyPaths = [Chromatogram.entity.attributeKeys arrayByAddingObjectsFromArray:@[@"dye1", @"dye2",@"dye3", @"dye4", @"dye5"]];
 		_peakThreshold = @[@10, @50, @100, @200, @500];
-		sampleController = NSArrayController.new;
 		fittingViewHeight = 500;
+		/// the main section titles
+		[self bind:@"outlineViewSections" toObject:NSUserDefaults.standardUserDefaults withKeyPath:SampleInspectorSections options:nil];
 	}
 	return self;
 }
 
 
 - (void)viewDidLoad {
-    [super viewDidLoad];
+	[super viewDidLoad];
 	outlineView.backgroundColor = [NSColor colorNamed:ACColorNameViewBackgroundColor];
 	outlineView.drawGridForMainSectionsOnly = YES;
 	outlineView.autosaveExpandedItems = YES;
 	outlineView.autosaveTableColumns = YES;
 	outlineView.autosaveName = @"sampleInspector";
+	[outlineView registerForDraggedTypes:@[StryperInspectorSectionDragType]];
 }
 
 
@@ -121,28 +110,13 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 }
 
 
-- (void)setSamples:(nullable NSArray<Chromatogram *> *)samples {
-	sampleController.content = samples.copy;
-	/// We use the -selection property of the sampleController for binding keys of chromatogram objects to UI items in the outline view.
-	/// This offers more binding options than the -content key.
-	/// Hence we select all the items of the controller. Maybe there is a better solution.
-	[sampleController setSelectedObjects:samples];
-}
-
-
-- (NSArray<Chromatogram *> *)samples {
-	return sampleController.arrangedObjects;
-}
-
-
 #pragma mark - Delegate and datasource methods for the tableview
-
 
 - (NSInteger)outlineView:(NSOutlineView *)outlineView numberOfChildrenOfItem:(id)item {
 	NSInteger count = 0;
 	if(item == nil) {
 		/// the number of main (expandable) sections
-		count = outlineViewSections.count;
+		count = self.outlineViewSections.count;
 	} else if([item isKindOfClass:NSString.class]) { /// each section is represented by a string. It has one child (the section's content)
 		count = 1;
 	}
@@ -152,6 +126,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 
 
 -(id)outlineView:(NSOutlineView *)outlineView child:(NSInteger)index ofItem:(id)item {
+	NSArray *outlineViewSections = self.outlineViewSections;
 	if(item == nil) {
 		if(index >= 0 && index < outlineViewSections.count) {
 			/// the item representing a main section is simply its title as an NSString
@@ -203,12 +178,13 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 												/// the row views have the section titles as identifiers set in IB
 												/// they are placed within the outline view in the xib file
 		
+		NSArrayController *sampleController = SampleTableController.sharedController.samples;
 		NSTableRowView *rowView = [outlineView makeViewWithIdentifier:[item firstObject] owner:self];
 		for(NSView *subView in rowView.subviews) {
 			if([subView isKindOfClass:NSTextField.class]) {
 				NSTextField *textField = (NSTextField *)subView;
 				if(textField.isEditable) {
-					textField.delegate = (id)self;
+					textField.delegate = self;
 				}
 				/// a row view contains text fields whose identifiers are attribute names of the Chromatogram entity, to simplify bindings
 				if([sampleKeyPaths containsObject:textField.identifier]) {
@@ -221,7 +197,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 						[textField bind:NSHiddenBinding toObject:sampleController
 							withKeyPath:keyPath options:@{NSValueTransformerNameBindingOption: NSIsNilTransformerName}];
 						[textField bind:@"hidden2" toObject:sampleController		/// we also hide them when no sample is selected (the above binding is insufficient)
-							withKeyPath:@"content.@count" options:@{NSValueTransformerNameBindingOption: NSNegateBooleanTransformerName}];
+							withKeyPath:@"selectedObjects.@count" options:@{NSValueTransformerNameBindingOption: NSNegateBooleanTransformerName}];
 					} else {
 						[textField bind:NSValueBinding toObject:sampleController
 							withKeyPath:keyPath options:@{NSValidatesImmediatelyBindingOption: @YES}];
@@ -234,7 +210,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 				NSString *boundKeyPath = [@"selection." stringByAppendingString:subView.identifier];
 				if([popup.identifier isEqualToString:ChromatogramAppliedSizeStandardKey]) {
 					/// a section has a popup button indicating the selected samples' size standard among the available size standards
-					NSString *keyPath = @"tableContent.arrangedObjects";
+					NSString *keyPath = @"arrangedObjects";
 					/// the content (menu) of the popup button represents the size standards
 					[popup bind:NSContentBinding toObject:SizeStandardTableController.sharedController withKeyPath:keyPath options:nil];
 					/// the values shown by menu items are the size standard names
@@ -256,7 +232,7 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 				}
 			} else if([subView isKindOfClass:FittingView.class]) {
 				/// we show the fit of the sizing with a special view (see FittingView class)
-				[subView bind:@"samples" toObject:sampleController withKeyPath:@"content" options:nil];
+				[subView bind:@"samples" toObject:sampleController withKeyPath:@"selectedObjects" options:nil];
 			} else if([subView isKindOfClass:NSPathControl.class]) { /// the UI showing the path of the source file
 				NSPathControl *control = (NSPathControl *)subView;
 				control.action = @selector(pathControlIsClicked:);
@@ -287,21 +263,155 @@ static NSArray *outlineViewSections, *sampleKeyPaths; /// see +initialize
 }
 
 
+static NSPasteboardType StryperInspectorSectionDragType = @"org.jpeccoud.stryper.inspectorSectionDragType";
+
+- (id<NSPasteboardWriting>)outlineView:(NSOutlineView *)outlineView pasteboardWriterForItem:(id)item {
+	/// The mains sections (parent rows) of the outline view can be rearranged by dragging.
+	NSString *sectionTitle = item; ///
+	if([item isKindOfClass:NSArray.class]) {
+		/// This correspond to a child row being dragged. The item is an array containing the section title
+		/// We currently don't allow dragging child row (drag methods are however ready for that, if needed)
+		//		sectionTitle = [item firstObject];
+	}
+	if([sectionTitle isKindOfClass:NSString.class]) {
+		NSPasteboardItem *pasteBoardItem = NSPasteboardItem.new;
+		[pasteBoardItem setString:sectionTitle.copy forType:StryperInspectorSectionDragType];
+		return pasteBoardItem;
+	}
+	return nil;
+}
+
+
+- (void)outlineView:(NSOutlineView *)outlineView draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint forItems:(NSArray *)draggedItems {
+	
+	if(NSCursor.currentCursor != NSCursor.closedHandCursor) {
+		[NSCursor.closedHandCursor push];
+	}
+	
+	NSMutableIndexSet *rowIndexes = NSMutableIndexSet.new;
+	/// If a main section is dragged, we also dragged its child row, hence the image is taller than the row.
+	BOOL topAligned = NO; /// This will ensure correct position of the dragging image
+	for (id item in draggedItems) {
+		if(![outlineView parentForItem:item]) {
+			/// Which means a main section is dragged
+			/// This check does not work if some parents + children are dragged at the same time, but this is not allowed
+			/// since we don't allow selecting rows in this outline view.
+			topAligned = YES;
+		}
+		NSInteger row = [outlineView rowForItem:item];
+		if (row >= 0) {
+			[rowIndexes addIndex:row];
+		}
+	}
+	
+	[SortCriteriaEditor setRowImagesForDraggingSession:session fromTableView:outlineView atRowIndexes:rowIndexes forPoint:screenPoint alignWithTop:topAligned];
+	
+}
+
+
+
+- (NSDragOperation)outlineView:(NSOutlineView *)outlineView validateDrop:(id<NSDraggingInfo>)info proposedItem:(id)item proposedChildIndex:(NSInteger)index {
+	NSString *draggedRowId = [info.draggingPasteboard.pasteboardItems.firstObject stringForType:StryperInspectorSectionDragType];
+	NSArray *outlineViewSections = self.outlineViewSections;
+	NSInteger sourceIndex = [outlineViewSections indexOfObject:draggedRowId];
+	
+	if(sourceIndex != NSNotFound) {
+		if(item == nil) { /// The destination is the root
+			if(index >= sourceIndex +2 || index < sourceIndex || index < 0) {
+				/// Dragging only makes sens if the destination index is not at least 2+ the source (dropping an item just below itself would not rearrange anything)
+				/// Neither would dropping an item just above itself.
+				if(!(sourceIndex >= outlineViewSections.count && index < 0)) {
+					/// index of –1 means after the last row, which would not rearrange anything if it is the last row that is dragged
+					return NSDragOperationMove;
+				}
+			}
+		} else {
+			/// We allow dropping a main section after the child of another section, which will actually drop it after this other section
+			/// This permit wider drop targets.
+			NSInteger destinationIndex = [outlineViewSections indexOfObject:item];
+			if(destinationIndex != sourceIndex && destinationIndex != sourceIndex-1 && index == 1) {
+				return NSDragOperationMove;
+			}
+		}
+	}
+	return NSDragOperationNone;
+}
+
+
+- (BOOL)outlineView:(NSOutlineView *)outlineView acceptDrop:(id<NSDraggingInfo>)info item:(id)item childIndex:(NSInteger)index {
+	NSString *draggedRowId = [info.draggingPasteboard.pasteboardItems.firstObject stringForType:StryperInspectorSectionDragType];
+	NSArray *outlineViewSections = self.outlineViewSections;
+	NSInteger sourceIndex = [outlineViewSections indexOfObject:draggedRowId];
+	
+	if(sourceIndex != NSNotFound) {
+		NSInteger nSections = outlineViewSections.count;
+		if(item == nil) { /// The destination is the root
+			if(index > sourceIndex) {
+				/// When a section is moved down, we need to deduce 1 from the destination index (which represents the section that will be moved)
+				index--;
+			}
+			if(index == -1 || index >= nSections) {
+				/// Here, the dropped section will be the last.
+				index = nSections-1;
+			}
+		}
+		
+		if(item != nil) {
+			/// The destination is not the root, but another section.
+			/// In this case, we still drop at the root (we have to) below this other section.
+			index = [outlineViewSections indexOfObject:item];
+			if(index < sourceIndex) {
+				index++;
+			}
+		}
+		
+		if(index >= 0 & index < nSections) {
+			/// We update the outline view and the model.
+			[self moveSectionFromRow:sourceIndex toRow:index];
+			[self updateFittingViewHeight];
+			return YES;
+		}
+	}
+	return NO;
+}
+
+
+-(void)moveSectionFromRow:(NSInteger)sourceRow toRow:(NSInteger)destinationRow {
+	NSInteger nRow = outlineView.numberOfRows;
+	NSInteger nSections = self.outlineViewSections.count;
+	if(sourceRow >= 0 & sourceRow < nRow & sourceRow < nSections & destinationRow >= 0 & destinationRow < nRow & destinationRow < nSections) {
+		[outlineView moveItemAtIndex:sourceRow inParent:nil toIndex:destinationRow inParent:nil];
+		NSMutableArray *rearrangedOutlineViewSections = self.outlineViewSections.mutableCopy;
+		id draggedRowID = [rearrangedOutlineViewSections objectAtIndex:sourceRow];
+		[rearrangedOutlineViewSections removeObjectAtIndex:sourceRow];
+		[rearrangedOutlineViewSections insertObject:draggedRowID atIndex:destinationRow];
+		[NSUserDefaults.standardUserDefaults setObject:rearrangedOutlineViewSections.copy forKey:SampleInspectorSections];
+		CDUndoManager *undoManager = (CDUndoManager *)self.undoManager;
+		[undoManager forceActionName:@"Move Inspector Section"];
+		[undoManager registerUndoWithTarget:self handler:^(id  _Nonnull target) {
+			[self moveSectionFromRow:destinationRow toRow:sourceRow];
+		}];
+	}
+}
+
+
 -(void)updateFittingViewHeightAfterDelay {
-	[self performSelector:@selector(updateFittingViewHeight) withObject:nil afterDelay:0];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[self updateFittingViewHeight];
+	});
 }
 
 
 -(void) updateFittingViewHeight {
 	CGFloat newHeight = outlineView.bounds.size.width;
 	NSInteger row = [outlineView rowForItem:@[@"Sizing"]];
-	if(row > 0) {
+	if(row >= 0) {
 		NSRect rect = [outlineView rectOfRow:row];
 		NSView *clipView = outlineView.superview;
 		rect = [clipView convertRect:rect fromView:outlineView];
-		CGFloat margin = clipView.bounds.size.height - NSMinY(rect) - 3;
+		CGFloat margin = clipView.bounds.size.height - NSMinY(rect) - 3.0;
 		if(margin < newHeight) {
-			newHeight = MAX(150, margin);
+			newHeight = MAX(150.0, margin);
 		}
 		
 		if(fabs(newHeight - fittingViewHeight) >= 1) {

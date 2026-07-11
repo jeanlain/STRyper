@@ -53,7 +53,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The coefficients of this polynomial are used to derive a size in base pairs for any a scan number and for other any trace of the sample.
 ///
 /// - Important: If the ``sizingQuality`` attribute of the chromatogram returns 0 or `nil`, the sizing parameters are arbitrary and must not be relied on for genotyping.
-@interface Chromatogram : CodingObject <NSPasteboardWriting>
+@interface Chromatogram : CodingObject
 
 /// Returns a complete chromatogram object based on the content of a file and places it in a folder.
 ///
@@ -64,7 +64,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// If it fails, the method returns `nil` and sets the `error` that has occurred.
 /// - Parameters:
 ///   - path: The path of the ABIF file from which the chromatogram will be generated.
-///   - folder: The folder that will contain the chromatogram. This is require to determine the managed object context in which to materialize the chromatogram.
+///   - folder: The folder that will contain the chromatogram. This is required to determine the managed object context in which to materialize the chromatogram.
 ///   - error: On output, any error that prevented the decoding of the file as a chromatogram.
 + (nullable instancetype)chromatogramWithABIFFile:(NSString *)path addToFolder:(SampleFolder *)folder error:(NSError **)error;
 
@@ -153,7 +153,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter channel: The channel of the trace to retrieve.
 - (nullable Trace*)traceForChannel:(ChannelNumber)channel;
 
-#define MAX_TRACE_LENGTH  1200			/// the maximum length of a trace the app can display
+#define MAX_TRACE_LENGTH  1500			/// the maximum length of a trace the app can display
 																
 /// The number of fluorescence data points (scans) recorded for the sample.
 ///
@@ -303,7 +303,7 @@ extern const float DefaultReadLength;
 /// If no sizing if available, the value is `DefaultReadLength` divided by ``nScans``.
 @property (nonatomic, readonly) float sizingSlope;
 
-/// Computes the relationship between sizes in base pairs and scan numbers fo the sample, using its molecular ladder.
+/// Computes the relationship between sizes in base pairs and scan numbers of the sample, using its molecular ladder.
 ///
 /// This methods sets the  ``coefs``, ``reverseCoefs``, ``intercept``, and ``sizingSlope`` attributes of the receiver, using the ``FluoTrace/fragments`` of the ``ladderTrace``.
 ///
@@ -374,17 +374,23 @@ extern const float DefaultReadLength;
 ///
 /// The reverse relationship is ``Panel/samples``.
 ///
-/// Setting this property does not change the receiver's ``genotypes`` to reflect the ``Panel/markers`` of the `panel`.
-/// To do so, use the ``applyPanelWithAlleleName:`` method.
-@property (nonatomic, nullable) Panel *panel;
+/// Because the sample's panel is tied to its ``genotypes``,
+/// a panel is set using the ``applyPanel:withAlleleName:`` method.
+@property (nonatomic, nullable, readonly) Panel *panel;
 
 /// The genotypes at the markers of the panel that is applied to the sample.
 ///
 /// The reverse relationship is ``Genotype/sample``.
-@property (nonatomic, nullable) NSSet<Genotype *> *genotypes;
+///
+/// Because the genotypes are tied to the  sample's ``panel``,
+/// genotypes are set using the ``applyPanel:withAlleleName:`` method.
+@property (nonatomic, nullable, readonly) NSSet<Genotype *> *genotypes;
 
 
-/// Returns the sample genotype at a given marker.
+/// Returns the receiver's genotype at a given marker.
+///
+/// `nil` is returned if the `marker` is not part of the receiver's ``panel``.
+/// - Parameter marker: A marker.
 -(nullable Genotype *)genotypeForMarker:(Mmarker *)marker;
 
 /// Returns the genotypes whose markers have a given ``Mmarker/channel`` among the sample's ``genotypes``.
@@ -408,21 +414,18 @@ extern const float DefaultReadLength;
 /// which may have been added to the pasteboard during a `copy:` operation.
 + (nullable NSDictionary<NSString*, NSData*> *)markerOffsetDictionaryFromGeneralPasteBoard;
 
-/// Makes the chromatogram (re)generate its  set of ``genotypes`` given its ``panel``.
+/// Sets the the chromatogram's ``panel`` and make it generate corresponding ``genotypes``.
 ///
-/// If the sample has no panel, its genotypes will be deleted.
+/// If the sample already has a panel, its genotypes will be deleted.
 /// - Note: Alleles are not called by this method, hence their ``LadderFragment/scan`` number remains 0.
+/// - Parameter panel: The panel to apply.
 /// - Parameter alleleName: The ``LadderFragment/name`` to give to the ``Genotype/alleles`` of each generated genotype.
--(void)applyPanelWithAlleleName:(NSString *)alleleName;
+-(void)applyPanel:(nullable Panel *) panel withAlleleName:(nullable NSString *)alleleName;
 																
 
-/// Internal method to replace the chromatogram's panel with an equivalent panel.
-/// - Parameter panel: A panel.
-///
-/// This method is used after importing an archive, to discard imported panels that have equivalents in the database
-/// Use with caution as this method does not check for equivalence between `panel` and the receiver's ``panel``.
--(void)_wirePanel:(Panel *)panel;
 
+/// The file types that correspond to chromatograms.
+@property (nonatomic, class, readonly) NSSet<NSString *> *UTTypes;
 
 @end
 

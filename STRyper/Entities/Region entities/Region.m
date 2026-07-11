@@ -41,9 +41,14 @@ regionEditStateKey = @"editState";
 @synthesize editState = _editState;
 
 
+- (BaseRange)range {
+	float start = self.start;
+	return MakeBaseRange(start, self.end - start);
+}
+
 
 - (BOOL) overlapsWith:(Region *)region {
-	return [self overlapsWithBaseRange:MakeBaseRange(region.start, region.end - region.start)];
+	return [self overlapsWithBaseRange:region.range];
 }
 
 
@@ -57,11 +62,11 @@ regionEditStateKey = @"editState";
 -(BaseRange)allowedRangeForEdge:(RegionEdge)edge {
 	/// min and max allowed positions for the edge, the margin we have for collision with another edge
 	/// NOTE: this method assumes that no region overlaps another (including the receiver)
-	float min = 0, max = 0, margin = self.class.minimumWidth/2, leftLimit = 0, rightLimit = 0;
+	float min = 0.0f, max = 0.0f, margin = self.class.minimumWidth/2, leftLimit = 0.0f, rightLimit = 0.0f;
 	NSArray *siblings;
 	float refEdgePos = edge == leftEdge? self.end : self.start;
 	if(self.class == Mmarker.class) {
-		min = 0;
+		min = 0.0f;
 		max = MAX_TRACE_LENGTH;
 		Mmarker *marker = (Mmarker *)self;
 		siblings = [[marker.panel markersForChannel:marker.channel] sortedArrayUsingKey:@"start" ascending:YES];
@@ -134,7 +139,7 @@ regionEditStateKey = @"editState";
 
 
 + (float)minimumWidth {
-	return 0;
+	return 0.0f;
 }
 
 

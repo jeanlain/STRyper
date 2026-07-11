@@ -108,7 +108,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The most distant ancestor of the folder.
 ///
 /// If the receiver has no ``parent``, this method returns the receiver.
-@property (nonatomic, readonly) Folder *topAncestor;
+@property (nonatomic, readonly) __kindof Folder *topAncestor;
 
 
 /**** convenience methods to tell whether a folder is a panel, or a smart folder. We use it as several objects can have folders of different types, and this avoids testing for the folder class. ****/
@@ -128,6 +128,14 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This is not a core data attribute.
 @property (nonatomic, nullable) NSPredicate *filterPredicate;
+
+/// The pasteboard type that contains the folder's objectID's absolute string, used to identified dragged folders.
+extern NSPasteboardType _Nonnull const FolderDragType,
+
+/// Corresponds to `CodingObjectArchivePasteboardType`, used to identified copied folders.
+FolderArchivePasteboardType;
+
+
 
 @end
 

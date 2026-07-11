@@ -28,15 +28,13 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This class manages a tableview showing samples  (``Chromatogram`` entities).
 ///
-/// In the context of STRyper, these samples (content of the object's ``TableViewController/tableContent`` controller) are those contained in the ``SourceListController/selectedFolder``.
+/// In the context of STRyper, these samples are those contained in the ``SourceListController/selectedFolder``.
 ///
 /// This class implements internal methods that allow the user to apply a ``SizeStandard`` or a ``Panel`` to target samples.
-@interface SampleTableController : TableViewController
+@interface SampleTableController : TableViewController <NSOpenSavePanelDelegate>
 																			
 
-/// Returns the receiver's ``TableViewController/tableContent``.
-///
-/// This merely allows using a name that is more explicit, since the ``TableViewController/tableView`` shows samples.
+/// Returns the array controller that the receiver uses to populate the receiver's ``TableViewController/tableView``.
 @property (nonatomic, readonly) NSArrayController *samples;
 
 
@@ -62,11 +60,17 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter sender: The object that sent the message. It is ignored by the method.
 -(IBAction)paste:(id)sender;
 
+-(void)copySamplesFromPasteboard:(NSPasteboard *)pboard toFolder:(SampleFolder *)folder;
+
 /// The paste board type for Chromatogram objects.
 ///
 /// We do not copy chromatograms to the pasteboard, only their the absolute string of their object id.
 extern NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType;
 
+/// Convenience method that calls ``TableViewController/selectObjects:`` then
+/// sets the receiver as the ``MainWindowController/sourceController`` to show selected objects
+/// on the viewer.
+- (BOOL)selectAndShowObjects:(NSArray *)objects;
 
 @end
 

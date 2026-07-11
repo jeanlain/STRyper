@@ -82,4 +82,18 @@ NSString *const STRyperErrorDomain = @"jpeccoud.STRyper";
 	return [self errorWithDomain:STRyperErrorDomain code:NSFileReadUnsupportedSchemeError userInfo:userInfo];
 }
 
+
+-(instancetype)errorWithNewDescription:(NSString *)description suggestion:(NSString *)suggestion {
+	NSMutableDictionary *dic = self.userInfo.mutableCopy;
+	if(description) {
+		dic[NSLocalizedDescriptionKey] = NSLocalizedString(description, nil);
+	}
+	if(suggestion) {
+		dic[NSLocalizedRecoverySuggestionErrorKey] =  NSLocalizedString(suggestion, nil);
+	}
+	dic[NSUnderlyingErrorKey] = self;
+	
+	return [NSError errorWithDomain:self.domain code:self.code userInfo:dic.copy];
+}
+
 @end

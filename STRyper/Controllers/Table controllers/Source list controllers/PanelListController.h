@@ -52,6 +52,11 @@ NS_ASSUME_NONNULL_BEGIN
 ///   - fontSize: The size of font for the menu.
 -(nullable NSMenu *) menuForPanelsWithTarget:(id) target fontSize:(CGFloat)fontSize;
 
+/// Implements the paste action.
+///
+/// This method can be used to paste copied panels, folders or markers.
+-(IBAction)paste:(id)sender;
+
 @end
 
 NS_ASSUME_NONNULL_END

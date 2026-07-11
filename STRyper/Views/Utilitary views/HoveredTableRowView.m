@@ -42,7 +42,7 @@
 		[self removeTrackingArea:trackingArea];
 	}
 	if(self.hoveredButton) {
-		trackingArea = [[NSTrackingArea alloc] initWithRect:NSInsetRect(self.visibleRect, 10, 0)		/// the tracking rectangle is slightly narrower than the visible rect,  to correspond to the tracking rectangle used to show the outline button
+		trackingArea = [[NSTrackingArea alloc] initWithRect:NSInsetRect(self.visibleRect, 10.0, 0.0)		/// the tracking rectangle is slightly narrower than the visible rect,  to correspond to the tracking rectangle used to show the outline button
 													options: NSTrackingMouseEnteredAndExited | NSTrackingActiveAlways owner:self userInfo:nil];
 		[self addTrackingArea:trackingArea];
 		NSPoint mouseLocation = self.window.mouseLocationOutsideOfEventStream;
@@ -111,19 +111,19 @@
 	BOOL outlineButtonShown = outlineButton && !outlineButton.isHidden;
 	CGFloat width = self.hoveredButton.intrinsicContentSize.width;
 
-	if(outlineButtonShown && NSMinX(outlineButton.frame)-5 < width) {
+	if(outlineButtonShown && NSMinX(outlineButton.frame)-5.0 < width) {
 		self.hoveredButton.hidden = YES;
 		NSLog(@"HoveredRowView cannot show the hoveredButton");
 		return;
 	}
 	
 	
-	CGFloat xOrigin = outlineButtonShown? NSMinX(outlineButton.frame) -width -5 : NSMaxX(self.bounds) - width - 10;
-	[self.hoveredButton setFrame: NSMakeRect(xOrigin, 0, width, self.frame.size.height)];
+	CGFloat xOrigin = outlineButtonShown? NSMinX(outlineButton.frame) -width -5.0 : NSMaxX(self.bounds) - width - 10.0;
+	[self.hoveredButton setFrame: NSMakeRect(xOrigin, 0.0, width, self.frame.size.height)];
 	
 	if(cellView) {
 		NSRect frame = cellView.frame;
-		NSRect intersect = NSIntersectionRect(frame,  NSInsetRect(self.hoveredButton.frame, -5, 0));
+		NSRect intersect = NSIntersectionRect(frame,  NSInsetRect(self.hoveredButton.frame, -5.0, 0.0));
 		if(intersect.size.width > 0) {
 			frame.size.width -= intersect.size.width;
 			cellView.frame = frame;

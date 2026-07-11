@@ -47,29 +47,28 @@ static NewMarkerPopover *newMarkerPopover;	/// The popover that permits to defin
 	ChannelNumber channel;
 	NSColor *disabledColor, *hoveredColor, *defaultColor;
 	
-	/// Images used for the action button. We use CGImageRef that we update given the application appearance.
+	/// Images used for the chevron/checkbox. We use CGImageRef that we update given the application appearance.
 	CGImageRef actionRoundImageRef, actionRoundHoveredImageRef, actionCheckImageRef, actionCheckHoveredImageRef;
 	
-	CALayer *actionButtonLayer;	/// the layer symbolizing the button that can be clicked to popup the menu (or end editing)
-								/// It is more convenient than using an NSButton because we make it a sublayer of our layer
-	__weak NSTrackingArea *actionButtonArea; /// A tracking area to determine if the action button is hovered
-	NSToolTipTag toolTipTag;		/// a tag for a tooltip indicating the action button role
-	BOOL actionButtonIsHovered;		/// Whether the action button is hovered
-	
+	CALayer *chevronCheckBoxLayer;	/// the layer for the chevron/checkbox showing next to the marker name.
+									/// It is more convenient than using an NSButton because we make it a sublayer of our layer
+	__weak NSTrackingArea *nameArea; /// A tracking area to determine if the marker label name is hovered (to change the chevron's appearance).
+	BOOL labelNameIsHovered;		/// Whether the label name is hovered
+	BOOL needsUpdateStringLayerWidth;
 }
 
 
 # pragma mark - attributes and appearance
 
-static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *actionCheckHoveredImage;
+static NSImage *chevronImage, *chevronHoveredImage, *actionCheckImage, *actionCheckHoveredImage;
 
 + (void)initialize {
-	if (self == [MarkerLabel class]) {
-		if(!actionRoundImage) {
+	if (self == MarkerLabel.class) {
+		if(!chevronImage) {
 			actionCheckHoveredImage = [NSImage imageNamed:ACImageNameActionCheckHovered];
-			actionRoundHoveredImage = [NSImage imageNamed:ACImageNameActionRoundHovered];
+			chevronHoveredImage = [NSImage imageNamed:ACImageNameActionRoundHovered];
 			actionCheckImage = [NSImage imageNamed:ACImageNameActionCheck];
-			actionRoundImage = [NSImage imageNamed:ACImageNameActionRound];
+			chevronImage = [NSImage imageNamed:ACImageNameActionRound];
 		}
 	}
 }
@@ -80,24 +79,25 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 }
 
 
+static CGFloat const buttonWidth = 15.0;
 - (instancetype)init
 {
 	self = [super init];
 	if (self) {
 		channel = -1;
 		layer.borderColor = NSColor.grayColor.CGColor;
-		layer.bounds = CGRectMake(0, -3, 50, 20);
+		layer.bounds = CGRectMake(0.0, -3.0, 50.0, 20.0);
 		/// we use -3 because we place the layer bottom edge 3 points below the view, so as to hide the bottom edge of the border when it is highlighted.
 		
 		stringLayer.fontSize = 10.0;
-		stringLayer.anchorPoint = CGPointMake(0,0);
+		stringLayer.anchorPoint = CGPointMake(0.5, 0.0);
 		
-		actionButtonLayer = CALayer.new;
-		actionButtonLayer.hidden = YES;
-		actionButtonLayer.delegate = self;
-		actionButtonLayer.anchorPoint = CGPointMake(0.5, 0);
-		actionButtonLayer.bounds = CGRectMake(0, 0, 15, 15);
-		[bandLayer addSublayer:actionButtonLayer];
+		chevronCheckBoxLayer = CALayer.new;
+		chevronCheckBoxLayer.hidden = YES;
+		chevronCheckBoxLayer.delegate = self;
+		chevronCheckBoxLayer.anchorPoint = CGPointMake(1, 0.0);
+		chevronCheckBoxLayer.bounds = CGRectMake(0.0, 0.0, buttonWidth, buttonWidth);
+		[stringLayer addSublayer:chevronCheckBoxLayer];
 		
 		disabledColor = [NSColor colorWithCalibratedWhite:0.8 alpha:1.0];
 	}
@@ -128,7 +128,6 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 - (void)updateAppearance {
-	bandLayer.backgroundColor = NULL;
 	BOOL highlighted = self.highlighted;
 	BOOL hovered = self.hovered;
 	BOOL enabled = self.enabled;
@@ -138,15 +137,16 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		bandLayer.backgroundColor = enabled ? defaultColor.CGColor : disabledColor.CGColor;
 	}
 	
-	if(actionButtonLayer) {
+	if(chevronCheckBoxLayer) {
 		EditState editState = self.editState;
-		BOOL wasHidden = actionButtonLayer.hidden;
+		BOOL wasHidden = chevronCheckBoxLayer.hidden;
 		BOOL hidden = (editState == editStateNil && !hovered && !highlighted) || !enabled || !self.region;
-		actionButtonLayer.hidden = hidden;
+		chevronCheckBoxLayer.hidden = hidden;
 		[self setActionButtonContent];
 		
 		if(wasHidden != hidden) {
 			/// we reposition the label internal layers as the button layer's change in visibility changes the name's position
+			needsUpdateStringLayerWidth = YES;
 			[self layoutInternalLayers];
 			[self updateButtonArea];
 		}
@@ -159,23 +159,24 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	bandLayer.zPosition = hovered? 1:0; /// Makes sure the marker names is not masked by the name of another marker nearby.
 }
 
-- (void)updateForTheme {
+- (void)updateColors {
 	stringLayer.foregroundColor = NSColor.textColor.CGColor;
 	stringLayer.backgroundColor = self.view.backgroundColor.CGColor;
 	defaultColor = self.view.colorsForChannels[channel];
 	/// We use a horizontal segment to represent the marker range. The color is based on the channel, but a bit brighter
 	/// The color is brighter when the label is hovered
 	hoveredColor = [defaultColor blendedColorWithFraction:0.4 ofColor:NSColor.whiteColor];
+	layer.borderColor = hoveredColor.CGColor;
 	if(_hovered || _highlighted) {
 		bandLayer.backgroundColor = hoveredColor.CGColor;
 	} else {
 		bandLayer.backgroundColor = _enabled ? defaultColor.CGColor : disabledColor.CGColor;
 	}
-	/// We update the images of the action button (template images that are brighter in dark mode)
+	/// We update the images of the chevron button (template images that are brighter in dark mode)
 	CGImageRelease(actionRoundImageRef);
-	actionRoundImageRef = CGImageRetain([actionRoundImage CGImageForProposedRect:nil context:nil hints:nil]);
+	actionRoundImageRef = CGImageRetain([chevronImage CGImageForProposedRect:nil context:nil hints:nil]);
 	CGImageRelease(actionRoundHoveredImageRef);
-	actionRoundHoveredImageRef = CGImageRetain([actionRoundHoveredImage CGImageForProposedRect:nil context:nil hints:nil]);
+	actionRoundHoveredImageRef = CGImageRetain([chevronHoveredImage CGImageForProposedRect:nil context:nil hints:nil]);
 	CGImageRelease(actionCheckImageRef);
 	actionCheckImageRef = CGImageRetain([actionCheckImage CGImageForProposedRect:nil context:nil hints:nil]);
 	CGImageRelease(actionCheckHoveredImageRef);
@@ -186,16 +187,16 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 -(void)setActionButtonContent {
-	if(actionButtonLayer) {
+	if(chevronCheckBoxLayer) {
 		CGImageRef buttonImage;
 		BOOL inEdit = self.editState != editStateNil;
-		if(actionButtonIsHovered) {
+		if(labelNameIsHovered) {
 			buttonImage = inEdit? actionCheckHoveredImageRef : actionRoundHoveredImageRef;
 		} else {
 			buttonImage = inEdit? actionCheckImageRef : actionRoundImageRef;
 		}
 		if(buttonImage) {
-			actionButtonLayer.contents = (__bridge id _Nullable)buttonImage;
+			chevronCheckBoxLayer.contents = (__bridge id _Nullable)buttonImage;
 		}
 	}
 }
@@ -203,8 +204,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 # pragma mark - user events
 
 - (void)mouseEntered:(NSEvent *)theEvent {
-	if(theEvent.trackingArea == actionButtonArea) {
-		actionButtonIsHovered = YES;
+	if(theEvent.trackingArea == nameArea) {
+		labelNameIsHovered = YES;
 		self.needsUpdateAppearance = YES;
 	} else {
 		[super mouseEntered:theEvent];
@@ -213,8 +214,8 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 - (void)mouseExited:(NSEvent *)theEvent {
-	if(theEvent.trackingArea == actionButtonArea) {
-		actionButtonIsHovered = NO;
+	if(theEvent.trackingArea == nameArea) {
+		labelNameIsHovered = NO;
 		self.needsUpdateAppearance = YES;
 	} else {
 		[super mouseExited:theEvent];
@@ -225,19 +226,20 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 - (void)mouseUpInView {
 	[super mouseUpInView];
 	if(self.highlighted) {
-		/// we detect if the user has clicked the action button
-		if(actionButtonIsHovered) {
+		/// we detect if the user has clicked the label name
+		if(labelNameIsHovered) {
 			TraceView *view = self.view;
 			NSPoint mouseUpPoint = [layer convertPoint:view.mouseUpPoint fromLayer:view.layer];
-			if(NSPointInRect(mouseUpPoint, actionButtonLayer.frame)) {
-				Mmarker *marker = (Mmarker*)self.region;
-				if(self.editState != editStateNil) {		/// if true, the action button looks like a checkbox
-					marker.editState = editStateNil;		/// in which case, clicking it exits the edit state of the marker (and all its labels)
+			if(NSPointInRect(mouseUpPoint, stringLayer.frame)) {
+				if(self.editState != editStateNil) {		/// if true, the chevron is replaced with a checkbox
+					self.editState = editStateNil;			/// in which case, clicking it exits the edit state
 				} else {
 					if(self.attachedPopover) {
 						[self.attachedPopover close];
 					}
-					[self.menu popUpMenuPositioningItem:nil atLocation:view.mouseUpPoint inView:view];
+					CGPoint buttonOrigin = nameArea.rect.origin;
+					buttonOrigin.y -= chevronCheckBoxLayer.bounds.size.height * 0.5 - 1.0;
+					[self.menu popUpMenuPositioningItem:nil atLocation:buttonOrigin inView:view];
 				}
 			}
 		}
@@ -256,7 +258,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 - (void)reposition {
 	TraceView *view = self.view;
 	float hScale = view.hScale;
-	if(!view || hScale <= 0) {
+	if(!view || hScale <= 0.0f) {
 		return;
 	}
 	
@@ -264,32 +266,25 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	float startSize = self.startSize;
 	float endSize = self.endSize;
 	CGFloat startX = [self.view xForSize:startSize];     /// to get our frame, we convert our position in base pairs to points (x coordinates)
-	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(superLayerBounds));
+	regionRect = NSMakeRect(startX, 0.0, (endSize - startSize) * hScale, NSMaxY(superLayerBounds));
 	self.frame = regionRect;
 	
-	NSRect intersection = NSIntersectionRect(regionRect, NSInsetRect(superLayerBounds, -2, 0));
+	NSRect intersection = NSIntersectionRect(regionRect, NSInsetRect(superLayerBounds, -2.0, 0.0));
 
 	/// to avoid drawing a layer that is very large (at very high hScale), we won't draw what is not visible
-	if(intersection.size.width > 2) {
-		regionRect = intersection;
-	} else {
-		/// if the region is not visible, we just place the layers outside the view.
-		if(CGRectIntersectsRect(bandLayer.frame, superLayerBounds)) {
-			/// We need to do it only if the layer is still shown.
-			layer.position = CGPointMake(0, 200);
-			bandLayer.position = layer.position;
-		}
-		return;
-	}
-	/// the rectangle symbolizing the marker starts a big below the view to hide the bottom edge
-	layer.frame = CGRectMake(regionRect.origin.x, -3, regionRect.size.width, regionRect.size.height + 3);
-	bandLayer.frame = CGRectMake(regionRect.origin.x, 0, regionRect.size.width, 3); /// The band layer is a 3-point-thick bar.
+	regionRect = intersection;
 	
-	[self layoutInternalLayers];
+	/// the rectangle symbolizing the marker starts a bit below the view to hide the bottom edge
+	layer.frame = CGRectMake(regionRect.origin.x, -3.0, regionRect.size.width, regionRect.size.height + 3.0);
+	bandLayer.frame = CGRectMake(regionRect.origin.x, 0.0, regionRect.size.width, 3.0); /// The band layer is a 3-point-thick bar.
+		
+	if(intersection.size.width > 0) {
+		[self layoutInternalLayers];
+	}
 	
 	/// if we show a popover, we move it in sync with the label (the markerView doesn't scroll).
 	if(self.attachedPopover) {
-		self.attachedPopover.positioningRect = self.frame;
+		self.attachedPopover.positioningRect = regionRect;
 	}
 }
 
@@ -297,22 +292,15 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 -(void)layoutInternalLayers {
 	NSRect visibleMarkerRect = NSIntersectionRect(regionRect, bandLayer.superlayer.bounds);
 	CGFloat visibleWidth = visibleMarkerRect.size.width;
-	CGPoint position = CGPointMake(visibleWidth/2, 3);
-	if(visibleWidth > 0) {
-		position.x = visibleWidth/2 - stringLayer.bounds.size.width/2;
-		if(!actionButtonLayer.hidden) {
-			CGFloat buttonWidth = actionButtonLayer.bounds.size.width;
-			position.x = MAX(buttonWidth/2+1, position.x - 0.5); /// makes sure the button is visible even if the label is very narrow
-			if(visibleWidth < buttonWidth) {
-				position.x = visibleWidth/2;
-			}
+	if(needsUpdateStringLayerWidth) {
+		CGSize preferredSize = stringLayer.preferredFrameSize;
+		if(visibleWidth > 0.0 && !chevronCheckBoxLayer.hidden) {
+			preferredSize.width += buttonWidth;
 		}
+		stringLayer.bounds = CGRectMake(0.0, 0.0, preferredSize.width, preferredSize.height);
 	}
-
-	/// we position the button even if hidden. Otherwise, it may arrive from a distance when we get hovered
-	actionButtonLayer.position = position;
-	
-	stringLayer.position = actionButtonLayer.hidden? CGPointMake(position.x, 4) : CGPointMake(NSMaxX(actionButtonLayer.frame) + 1, 4);
+	chevronCheckBoxLayer.position = CGPointMake(stringLayer.bounds.size.width, -1.0);
+	stringLayer.position = CGPointMake(visibleWidth/2, 4.0);
 }
 
 
@@ -324,21 +312,18 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 -(void) updateButtonArea {
 	TraceView *view = self.view;
-	if (actionButtonArea) {
-		[view removeTrackingArea:actionButtonArea];
-		[view removeToolTip:toolTipTag];
-		actionButtonArea = nil;
+	if (nameArea) {
+		[view removeTrackingArea:nameArea];
+		nameArea = nil;
 	}
-	if(!actionButtonLayer.hidden) {
-		NSRect buttonFrame = [actionButtonLayer convertRect:actionButtonLayer.bounds toLayer:view.layer];
-		actionButtonArea = [self addTrackingAreaForRect:buttonFrame];
-		BOOL hovered = actionButtonIsHovered;
-		actionButtonIsHovered = (NSPointInRect(view.mouseLocation, buttonFrame));
-		if(actionButtonIsHovered != hovered) {
+	if(!chevronCheckBoxLayer.hidden) {
+		CGRect buttonFrame = [stringLayer convertRect:stringLayer.bounds toLayer:view.layer];
+		nameArea = [self addTrackingAreaForRect:buttonFrame];
+		BOOL hovered = labelNameIsHovered;
+		labelNameIsHovered = (NSPointInRect(view.mouseLocation, buttonFrame));
+		if(labelNameIsHovered != hovered) {
 			[self setActionButtonContent];
 		}
-		
-		toolTipTag = [view addToolTipRect:buttonFrame owner:self userData:nil];
 	}
 }
 
@@ -350,18 +335,6 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 # pragma mark - menu and actions
-
-
-- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
-	if(tag == toolTipTag) {
-		if(self.editState == editStateNil) {
-			return @"Show options";
-		} else {
-			return @"End editing";
-		}
-	}
-	return @"";
-}
 
 
 - (NSMenu *)menu {
@@ -403,12 +376,24 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 	if(menuItem.action == @selector(copyOffset:) || menuItem.action == @selector(removeOffset:)) {
 		/// We only copy or reset an offset that is not equal to `MarkerOffsetNone`.
 		Chromatogram *sample = traceView.trace.chromatogram;
-		for(Genotype *genotype in sample.genotypes) {
-			if(genotype.marker == self.region) {
-				MarkerOffset offset = genotype.offset;
-				if(offset.intercept != 0.0 && offset.intercept != 1.0) {
-					menuItem.hidden = NO;
-					return YES;
+		if(sample) {
+			for(Genotype *genotype in sample.genotypes) {
+				if(genotype.marker == self.region) {
+					MarkerOffset offset = genotype.offset;
+					if(offset.intercept != 0.0 && offset.intercept != 1.0) {
+						menuItem.hidden = NO;
+						return YES;
+					}
+				}
+			}
+		} else if(traceView.loadedGenotypes.count > 0 && traceView.marker == self.region) {
+			if(menuItem.action == @selector(removeOffset:)) {
+				for(Genotype *genotype in traceView.loadedGenotypes) {
+					MarkerOffset offset = genotype.offset;
+					if(offset.intercept != 0.0f || offset.slope != 1.0f) {
+						menuItem.hidden = NO;
+						return YES;
+					}
 				}
 			}
 		}
@@ -443,7 +428,7 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 		valid = marker.bins.count > 0;		/// if there is no bin set, we disable the menu that allows to move it
 	} else if(tag == editStateOffset || menuItem.action == @selector(removeOffset:)) {
 		Mmarker *marker = self.region;
-		valid = marker.bins.count > 0 && self.view.trace;		/// if there is no bin set, we disable the menu that allows to move it
+		valid = marker.bins.count > 0 && (traceView.trace || traceView.loadedGenotypes.count > 0);		/// if there is no bin set, we disable the menu that allows to move it
 	}
 	menuItem.hidden = !valid;
 	return valid;
@@ -487,43 +472,14 @@ static NSImage *actionRoundImage, *actionRoundHoveredImage, *actionCheckImage, *
 
 
 -(void)setEditStateFromMenuItem:(NSMenuItem *)sender {
-	NSInteger tag = sender.tag;
-	Mmarker *marker = self.region;
-	if(tag <= editStateBins) {
-		/// We transfer the edit state to our marker, hence to all labels representing it (via KVO)
-		marker.editState = tag;
-	} else {
-		/// Otherwise, the state relates to an offset that is specific to target samples (and not to the marker in general)
-		/// all labels representing the marker should end their edit state (otherwise, the user may get confused about the various states of enabled labels)
-		/// This is a safety measure, as the menu items allowing to enter an edit states are disabled if the marker is already in an edit state
-		marker.editState = editStateNil;
-		
-		self.editState = tag;
-		/// the state is transferred to the label showing the marker on the trace view, as it is this label that defines the UI allowing offset editing
-		for (RegionLabel *label in traceView.markerLabels) {
-			if(label.region == marker) {
-				label.editState = tag;
-				break;
-			}
+	self.editState = sender.tag;
+	if(self.editState != editStateNil && self.editState != editStateBins) {
+		BaseRange range = self.range;
+		BaseRange viewRange = self.view.visibleRange;
+		float overlap = OverlapOfRanges(range, viewRange);
+		if(overlap < range.len/2 && overlap < viewRange.len/2) {
+			[self.view zoomToMarkerLabel:self];
 		}
-	}
-	if(tag != editStateNil) {
-		/// only one marker per view at a time can be in an edit state
-		for(Mmarker *aMarker in [marker.panel markersForChannel:marker.channel]) {
-			if(aMarker != marker) {
-				aMarker.editState = editStateNil;
-			}
-		}
-	}
-}
-
-
-- (void)setEditState:(EditState)editState {
-	if(editState != self.editState) {
-		super.editState = editState;
-		/// the edit state is only reflected in the icon shown by the action button.
-		self.needsUpdateAppearance = YES;
-		[self.view labelDidChangeEditState:self];
 	}
 }
 
@@ -629,8 +585,8 @@ enum addBinPopoverTag : NSInteger {
 	}
 	
 	Mmarker *marker = self.region;
-	float markerStart =  ceilf(marker.start) +1;
-	float markerEnd = floorf(marker.end -1);
+	float markerStart =  ceilf(marker.start) +1.0f;
+	float markerEnd = floorf(marker.end -1.0f);
 	
 	if(_binSetStart < markerStart || _binSetStart > markerEnd) {
 		self.binSetStart = markerStart;
@@ -701,8 +657,8 @@ enum addBinPopoverTag : NSInteger {
 	float halfBinWidth = self.binWidth/2;
 	
 	float startValue = start.floatValue;
-	float min = self.region.start + halfBinWidth + 0.1;
-	float max = self.region.end - halfBinWidth - 0.1;
+	float min = self.region.start + halfBinWidth + 0.1f;
+	float max = self.region.end - halfBinWidth - 0.1f;
 	
 	if(startValue < min) {
 		startValue = min;
@@ -727,8 +683,8 @@ enum addBinPopoverTag : NSInteger {
 	float halfBinWidth = self.binWidth/2;
 	
 	float endValue = end.floatValue;
-	float max = self.region.end - halfBinWidth - 0.1;
-	float min = self.region.start + halfBinWidth + 0.1;
+	float max = self.region.end - halfBinWidth - 0.1f;
+	float min = self.region.start + halfBinWidth + 0.1f;
 	
 	if(endValue < min) {
 		endValue = min;
@@ -746,13 +702,13 @@ enum addBinPopoverTag : NSInteger {
 -(BOOL)validateBinWidth:(id *)ioValue error:(NSError **)error {
 	NSNumber *width = *ioValue;
 	float widthValue = width.floatValue;
-	if(widthValue < 0.1) {
-		widthValue = 0.1;
-	} else if(widthValue > 2) {
-		widthValue = 2;
+	if(widthValue < 0.1f) {
+		widthValue = 0.1f;
+	} else if(widthValue > 2.0f) {
+		widthValue = 2.0f;
 	}
-	if(widthValue > _binSpacing + 0.9) {
-		widthValue = _binSpacing + 0.9;
+	if(widthValue > _binSpacing + 0.9f) {
+		widthValue = _binSpacing + 0.9f;
 	}
 	*ioValue = @(widthValue);
 	return YES;
@@ -761,8 +717,8 @@ enum addBinPopoverTag : NSInteger {
 
 - (void)setBinSpacing:(NSInteger)binSpacing {
 	_binSpacing = binSpacing;
-	if(_binWidth > binSpacing + 0.9) {
-		self.binWidth = binSpacing + 0.9;
+	if(_binWidth > binSpacing + 0.9f) {
+		self.binWidth = binSpacing + 0.9f;
 	}
 }
 
@@ -777,8 +733,8 @@ enum addBinPopoverTag : NSInteger {
 
 	NSString *correction;
 	
-	float markerStart = marker.start + 0.1;
-	float markerEnd = marker.end - 0.1;
+	float markerStart = marker.start + 0.1f;
+	float markerEnd = marker.end - 0.1f;
 	NSMutableSet *bins = NSMutableSet.new;
 	NSMutableSet *binsToRemove = NSMutableSet.new;
 	BOOL removeAllBins = removeAllBinsButton.state == NSControlStateValueOn;
@@ -788,8 +744,8 @@ enum addBinPopoverTag : NSInteger {
 	float binSetEnd = self.binSetEnd;
 	NSInteger binSpacing = self.binSpacing + 1;
 	float binWidth = self.binWidth;
-	if(binSpacing < 1) {
-		binSpacing = 1;
+	if(binSpacing < 1.0f) {
+		binSpacing = 1.0f;
 	}
 	for(float i = binSetStart; i <= binSetEnd; i+= binSpacing) {
 		float binStart = i - binWidth/2;
@@ -797,7 +753,7 @@ enum addBinPopoverTag : NSInteger {
 		if(binStart >= markerStart && binEnd < markerEnd) {
 			if(!removeAllBins) {
 				for(Bin *bin in marker.bins) {
-					if(bin.start < binEnd+0.1 && bin.end > binStart-0.1) {
+					if(bin.start < binEnd+0.1f && bin.end > binStart-0.1f) {
 						[binsToRemove addObject:bin];
 					}
 				}
@@ -831,9 +787,9 @@ enum addBinPopoverTag : NSInteger {
 		}
 		
 		/// we allow the user to move the new bin set (which also forces to show bins regardless of the showBins property of the view)
-		marker.editState = editStateBinSet;
-		
-	} 
+		self.editState = editStateBinSet;
+		[self.view zoomToMarkerLabel:self];
+	}
 	
 	if(correction) {
 		NSError *error = [NSError errorWithDescription:correction suggestion:@""];
@@ -847,10 +803,10 @@ enum addBinPopoverTag : NSInteger {
 - (void)doubleClickAction:(id)sender {
 	/// when double-clicked, we show the popover that allows the user to edit our name, start and end positions
 	NSPoint mouseUpPoint = [layer convertPoint:self.view.mouseUpPoint fromLayer:self.view.layer];
-	if(!NSPointInRect(mouseUpPoint, actionButtonLayer.frame)) {
-		/// we don't show the popover if the double click happened on the action button
+	if(!NSPointInRect(mouseUpPoint, stringLayer.frame)) {
+		/// we don't show the popover if the double click happened on the name
 		[self spawnRegionPopover:sender];
-	}
+	} 
 }
 
 

@@ -48,7 +48,7 @@
                                                 <rect key="frame" x="11" y="0.0" width="177" height="24"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
-                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="eeL-8V-gaW">
+                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="eeL-8V-gaW">
                                                         <rect key="frame" x="0.0" y="5" width="177" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Folders" id="XJm-P9-hNS">
                                                             <font key="font" metaFont="smallSystem"/>
@@ -70,7 +70,7 @@
                                                 <rect key="frame" x="11" y="24" width="177" height="24"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                 <subviews>
-                                                    <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="WN6-gp-lpY">
+                                                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="WN6-gp-lpY">
                                                         <rect key="frame" x="0.0" y="5" width="177" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Smart Folders" id="I2O-SX-A8i">
                                                             <font key="font" metaFont="smallSystem"/>
@@ -99,7 +99,7 @@
                                                         </constraints>
                                                         <imageCell key="cell" controlSize="small" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" image="Smart folder" id="dIQ-qz-ngn"/>
                                                     </imageView>
-                                                    <textField focusRingType="none" horizontalHuggingPriority="249" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="mHu-ul-Uvi">
+                                                    <textField horizontalHuggingPriority="249" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="mHu-ul-Uvi">
                                                         <rect key="frame" x="31" y="7" width="148" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" editable="YES" alignment="left" title="Unnamed folder" id="7g2-XR-GIq">
                                                             <font key="font" metaFont="smallSystem"/>
@@ -137,7 +137,7 @@
                                                         <rect key="frame" x="0.0" y="5" width="15" height="15"/>
                                                         <imageCell key="cell" controlSize="small" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyUpOrDown" image="trash" id="H2d-jX-els"/>
                                                     </imageView>
-                                                    <textField focusRingType="none" horizontalHuggingPriority="249" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="non-JV-5xr">
+                                                    <textField horizontalHuggingPriority="249" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" tag="1" translatesAutoresizingMaskIntoConstraints="NO" id="non-JV-5xr">
                                                         <rect key="frame" x="16" y="5" width="163" height="14"/>
                                                         <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingTail" alignment="left" title="Trash" id="s3E-Sf-sqi">
                                                             <font key="font" metaFont="smallSystem"/>
@@ -208,6 +208,13 @@
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="LYw-QX-Ja9"/>
+                <menuItem title="Import Samples..." image="import" id="cL5-KL-RNR">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <connections>
+                        <action selector="importSamples:" target="-2" id="nEa-Tf-E9c"/>
+                    </connections>
+                </menuItem>
+                <menuItem isSeparatorItem="YES" id="lgo-7Z-9ey"/>
                 <menuItem title="Export to Archive..." image="export" tag="1" id="oT5-9f-V7z">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
@@ -226,6 +233,7 @@
         <image name="edited" width="15" height="15"/>
         <image name="export" width="15" height="17"/>
         <image name="folderBadge" width="14" height="12"/>
+        <image name="import" width="15" height="16"/>
         <image name="loupeBadge" width="15" height="15"/>
         <image name="trash" width="15" height="15"/>
     </resources>

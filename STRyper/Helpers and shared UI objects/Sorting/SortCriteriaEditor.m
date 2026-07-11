@@ -278,7 +278,7 @@ static NSString *const Title = @"title";
 - (void)menuNeedsUpdate:(NSMenu *)menu {
 	/// we're the delegate of the popup buttons' menus allowing to choose the attributes by which to sort.
 	/// we disable the items corresponding to titles already used for sorting in other rows.
-	/// We don't use `validateMenuItem:` because it isn't called even after we set set the target and action of items.
+	/// The popup buttons use bindings (set in the nib). Their menu items have no action, so `validateMenuItem` cannot be used.
 	NSArray *usedTitles = [sortDictionaries valueForKeyPath:[@"@unionOfObjects." stringByAppendingString:Title]];
 	for (NSMenuItem *item in menu.itemArray) {
 		item.enabled = item.state == NSControlStateValueOn || ![usedTitles containsObject:item.title];
@@ -295,7 +295,7 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 		/// We only show this on the left column, because it is the only one that cannot be clicked (no button)
 		/// This is only relevant if there are several rows
 		NSRect rect = sortCriteriaTable.bounds;
-		rect.size.width = sortCriteriaTable.tableColumns.firstObject.width +10;
+		rect.size.width = sortCriteriaTable.tableColumns.firstObject.width +10.0;
 		[self addCursorRect:rect cursor:NSCursor.openHandCursor];
 	}
 }
@@ -320,7 +320,7 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 		[NSCursor.closedHandCursor push];
 	}
 	
-	[self.class setRowImagesForDraggingSession:session fromTableView:tableView atRowIndexes:rowIndexes forPoint:screenPoint];
+	[self.class setRowImagesForDraggingSession:session fromTableView:tableView atRowIndexes:rowIndexes forPoint:screenPoint alignWithTop:NO];
 	
 	/// We hide the dragged rows to convey the notion that they will be moved.
 	/// We do this "manually" because the dragging style gap appears buggy.
@@ -335,28 +335,29 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 
 
 - (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session endedAtPoint:(NSPoint)screenPoint operation:(NSDragOperation)operation {
-[tableView enumerateAvailableRowViewsUsingBlock:^(__kindof NSTableRowView * _Nonnull rowView, NSInteger row) {
-	if(rowView.hidden) {
-		rowView.hidden = NO;
-	}
-}];
+	[tableView enumerateAvailableRowViewsUsingBlock:^(__kindof NSTableRowView * _Nonnull rowView, NSInteger row) {
+		if(rowView.hidden) {
+			rowView.hidden = NO;
+		}
+	}];
 }
 
 
-+ (void)setRowImagesForDraggingSession:(NSDraggingSession *)session fromTableView:(NSTableView *)tableView atRowIndexes:(NSIndexSet *)rowIndexes forPoint:(NSPoint) screenPoint {
++ (void)setRowImagesForDraggingSession:(NSDraggingSession *)session fromTableView:(NSTableView *)tableView atRowIndexes:(NSIndexSet *)rowIndexes forPoint:(NSPoint) screenPoint alignWithTop:(BOOL)alignWithTop {
 	
-	/// We prepare row images representing items being dragged
-	NSMutableArray *imageComponents = [NSMutableArray arrayWithCapacity:rowIndexes.count];
 	NSPoint viewPoint = [tableView.window convertPointFromScreen:screenPoint];
+	NSClipView *clipView = tableView.enclosingScrollView.contentView;
+	NSInteger firstVisibleColumn = [tableView columnAtPoint:NSMakePoint(clipView.bounds.origin.x, 0.0)];
 	viewPoint = [tableView convertPoint:viewPoint fromView:nil];
+	CGFloat adjustedX = viewPoint.x - NSMinX([tableView rectOfColumn:firstVisibleColumn]);
 	NSPointPointer ptr = &screenPoint;
-
-	[rowIndexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL * _Nonnull stop) {
-		NSImage *rowImage = [tableView dragImageForRowsWithIndexes:[NSIndexSet indexSetWithIndex:idx] tableColumns:tableView.tableColumns event:NSEvent.new offset:ptr];
-			if(rowImage) {
-				[imageComponents addObject:rowImage];
-			}
+	
+	NSMutableArray<NSNumber *> *rows = [NSMutableArray arrayWithCapacity:rowIndexes.count];
+	[rowIndexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
+		[rows addObject:@(idx)];
 	}];
+	
+	NSRect visibleRect = tableView.visibleRect;
 	
 	/// we set the image components of the dragging items
 	[session enumerateDraggingItemsWithOptions:NSDraggingItemEnumerationConcurrent
@@ -364,14 +365,33 @@ static NSString *const CriteriaDragType = @"org.jpeccoud.stryper.criteriaDragTyp
 									   classes:@[NSPasteboardItem.class]
 								 searchOptions:NSDictionary.new
 									usingBlock:^(NSDraggingItem *draggingItem, NSInteger idx, BOOL *stop) {
-		if(idx < imageComponents.count) {
-			NSImage *rowImage = imageComponents[idx];
-			NSSize imageSize = rowImage.size;
-			CGFloat offset = tableView.draggingDestinationFeedbackStyle == NSTableViewDraggingDestinationFeedbackStyleGap? imageSize.height : 0;
-			[draggingItem setDraggingFrame:NSMakeRect(-viewPoint.x, draggingItem.draggingFrame.origin.y - offset, imageSize.width, imageSize.height)
-								  contents:rowImage];
-		} else {
-			*stop = YES;
+		if(idx < rows.count) {
+			NSInteger row = rows[idx].intValue;
+			NSRect rect = [tableView rectOfRow:row];
+			if(NSIntersectsRect(rect, visibleRect)) {
+			/*	NSTableRowView *rowView = [tableView rowViewAtRow:row makeIfNecessary:YES];
+				[rowView layoutSubtreeIfNeeded];
+				NSBitmapImageRep *rep =
+					[rowView bitmapImageRepForCachingDisplayInRect:rowView.bounds];
+
+				[rowView cacheDisplayInRect:rowView.bounds
+						  toBitmapImageRep:rep];
+
+				NSImage *rowImage = [[NSImage alloc] initWithSize:rowView.bounds.size];
+				[rowImage addRepresentation:rep];*/
+				
+				NSImage * rowImage = [tableView dragImageForRowsWithIndexes:[NSIndexSet indexSetWithIndex:row] tableColumns:tableView.tableColumns event:NSEvent.new offset:ptr];
+				NSSize imageSize = rowImage.size;
+				
+				CGFloat offset = tableView.draggingDestinationFeedbackStyle == NSTableViewDraggingDestinationFeedbackStyleGap? imageSize.height : 0.0;
+				if(alignWithTop && offset == 0.0) {
+					offset = imageSize.height - draggingItem.draggingFrame.size.height;
+				}
+				[draggingItem setDraggingFrame:NSMakeRect(-adjustedX, draggingItem.draggingFrame.origin.y - offset, imageSize.width, imageSize.height)
+									  contents:rowImage];
+			} else {
+				[draggingItem setDraggingFrame:draggingItem.draggingFrame contents:nil];
+			}
 		}
 	}];
 }

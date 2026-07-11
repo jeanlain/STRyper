@@ -27,17 +27,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// This singleton class manages the sample inspector: an outline view that shows information on selected samples (``Chromatogram``).
 ///
 /// This view works like the file info panel of the Finder, in that information is divided in several sections that can be expanded.
+/// These sections can be rearranged by drag and drop.
 ///
 /// The rows composing the outline view are designed in a nib, hence the view is not intended to be customised in code.
-@interface SampleInspectorController : NSViewController <NSOutlineViewDelegate, NSOutlineViewDataSource, NSMenuDelegate> 
+@interface SampleInspectorController : NSViewController <NSOutlineViewDelegate, NSOutlineViewDataSource, NSMenuDelegate, NSTextFieldDelegate> 
 
 /// Returns the singleton object loaded from a nib.
 +(instancetype)sharedController;
 
-/// The samples on which the inspector should show information.
-///
-/// Setting this property automatically shows sample information.
-@property (nonatomic, copy, nullable) NSArray<Chromatogram *> *samples;
 
 @end
 

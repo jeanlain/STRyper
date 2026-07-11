@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "action filled 15.pdf",
+      "filename" : "action chevron.pdf",
       "idiom" : "mac"
     },
     {
@@ -11,7 +11,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "action filled 15 dark.pdf",
+      "filename" : "action chevron dark.pdf",
       "idiom" : "mac"
     }
   ],

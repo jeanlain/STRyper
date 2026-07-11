@@ -90,7 +90,7 @@
 		return [helper samplesFoundWithPredicate:newPredicate];
 	}
 	
-	NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:Chromatogram.entity.name];
+	NSFetchRequest *request = Chromatogram.fetchRequest;
 	request.predicate = newPredicate;
 	NSError *error;
 	NSArray *samples = [self.managedObjectContext executeFetchRequest:request error:&error];

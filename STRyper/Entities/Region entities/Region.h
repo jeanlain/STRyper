@@ -67,6 +67,9 @@ typedef NS_ENUM(NSUInteger, RegionEdge) {
 /// This value should not be lower than the region's ``start`` or be negative.
 @property (nonatomic) float end;
 
+/// The base range corresponding to the region's ``start`` and ``end``.
+@property (nonatomic,readonly) BaseRange range;
+
 /// Makes the region set a suitable value for its``name``.
 ///
 /// The default implementation do nothing.

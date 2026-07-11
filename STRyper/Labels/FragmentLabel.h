@@ -20,20 +20,23 @@
 
 
 #import "ViewLabel.h"
+#import "Genotype.h"
 
 @class LadderFragment, PeakLabel;
 
 
-/// A  draggable label that indicates the size or name of a DNA fragment (ladder fragment or allele) on a trace view.
+/// A  label that indicates the location, size and/or name of a DNA fragment (ladder fragment or allele) on a trace view.
 ///
 /// A fragment label represents a ``LadderFragment`` entity, which can be an ``Allele``.
 ///
-/// Its is normal form, a label shows a rectangular text box that indicates the ``LadderFragment/size``
-/// of the fragment or its ``LadderFragment/name`` if the fragment is an ``Allele``.
+/// Its is "regular" form, a label shows a rectangular text box that indicates the ``LadderFragment/size``
+/// of the fragment or its ``LadderFragment/name`` if the fragment is an ``Allele``. This type of label can be dragged.
+///
 /// A fragment label may be inited in a "compact" form. In this form, the label only shows a small circle at the tip of a peak.
-/// A compact label does not show any text and cannot be dragged.
 /// This form is intended to represent alleles when the ``ViewLabel/view`` has  several ``TraceView/loadedGenotypes``.
-@interface FragmentLabel : ViewLabel <NSControlTextEditingDelegate, NSTextFieldDelegate>
+/// A compact label does not show any text and cannot be dragged. It appears horizontally at the ``LadderFragment/size``
+/// of its ``fragment``, which accounts for the ``Allele/genotype``'s ``Genotype/offset``.
+@interface FragmentLabel : ViewLabel <NSTextFieldDelegate>
 
 /// Returns a label that is initialized given a fragment.
 /// 
@@ -103,13 +106,22 @@
 /// See the ``STRyper`` user guide for more information.
 - (void)drag;
 
+
+/// Immediately moves the label horizontally by an offset, maintaining its current vertical position.
+///
+/// This methods makes the label appears at the position it should have
+/// if the ``Genotype/offset`` of the allele's ``Allele/genotype`` corresponded to `offset`.
+/// - Note: The `offset` is not recorded, hence not used in ``ViewLabel/reposition`` calls.
+/// - Parameter offset: A marker offset.
+-(void)moveByOffset:(MarkerOffset)offset;
+
 /// Implements the ``ViewLabel/doubleClickAction:``method.
 ///
 /// If the label represents an  ``Allele``,  the method spawns a text field over the label, allowing the user to change the allele ``LadderFragment/name``.
 ///
 /// If the label represents an  ladder fragment,  the method removes the fragment from sizing.
 ///
-/// - Note: If the label is compact, this method should not be called.
+/// - Note: If the label is compact, this method has no effect.
 ///  A compact allele does not react to ``ViewLabel/mouseDraggedInView``.
 /// - Parameter sender: The object that send the message. It is ignored by the method.
 - (void)doubleClickAction:(id)sender;

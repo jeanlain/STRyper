@@ -53,6 +53,9 @@
 	BOOL needsUpdateString;
 	
 	BOOL needsUpdateTrackingAreas;
+	
+	/// Monitors when the alt key is pressed, for dragging.
+	id eventMonitor;
 
 }
 
@@ -68,7 +71,8 @@ static void * const regionEditStateChangedContext = (void*)&regionEditStateChang
 static void * const regionNameChangedContext = (void*)&regionNameChangedContext;
 static void * const popoverDelegateChangedContext = (void*)&popoverDelegateChangedContext;
 static NSManagedObjectContext *temporaryContext;
-
+float const minOffsetSlope = 1/1.1f;
+float const maxOffsetSlope = 1/0.9f;
 
 + (nullable __kindof RegionLabel*)regionLabelWithRegion:(Region *)region view:(__kindof LabelView *)view {
 	RegionLabel *label;
@@ -263,15 +267,16 @@ static NSManagedObjectContext *temporaryContext;
 	if(name) {
 		stringLayer.string = name;
 		CGSize size = stringLayer.preferredFrameSize;
-		stringLayer.bounds = CGRectMake(0, 0, size.width, size.height);
+		stringLayer.bounds = CGRectMake(0.0, 0.0, size.width, size.height);
 	}
 }
 
 
 - (void)updateAppearance {
 	/// A region label has different tracking areas depending on its state (highlighted in particular).
+	[super updateAppearance];
 	if(needsUpdateTrackingAreas) {
-		layer.borderWidth = _highlighted? 1.0 : 0.0;
+		layer.borderWidth = _highlighted? (bandLayer && self.isMarkerLabel? 1.5 : 1.0)  : 0.0;
 		[self updateTrackingArea];
 		needsUpdateTrackingAreas = NO;
 	}
@@ -329,6 +334,15 @@ static NSManagedObjectContext *temporaryContext;
 	}
 }
 
+- (void)setEditState:(EditState)editState {
+	EditState previousState = self.editState;
+	if(editState != previousState) {
+		_editState = editState;
+		self.needsUpdateAppearance = YES;
+		[self.view labelDidChangeEditState:self previousState:previousState];
+	}
+}
+
 
 - (void)setStart:(float)pos {
 	if(_start != pos) {
@@ -358,10 +372,20 @@ static NSManagedObjectContext *temporaryContext;
 }
 
 
+- (BaseRange)range {
+	float startSize = self.startSize;
+	return MakeBaseRange(startSize, self.endSize - startSize);
+}
+
 - (void)setClicked:(BOOL)clicked {
 	/// We determine where the user has clicked wrt our edges
 	if(clicked == self.clicked) {
 		return;
+	}
+	
+	if(!clicked && eventMonitor) {
+		[NSEvent removeMonitor:eventMonitor];
+		eventMonitor = nil;
 	}
 	
 	TraceView *view = self.view;
@@ -369,8 +393,8 @@ static NSManagedObjectContext *temporaryContext;
 	/// we determine if the user has clicked an edge
 	/// Computing edge rects is redundant if the label was already highlighted, but required if it was not
 	NSRect frame = self.frame;
-	leftEdgeRect =  NSMakeRect(frame.origin.x, 0, 5, frame.size.height);
-	rightEdgeRect =  NSMakeRect(NSMaxX(frame)-5, 0, 5, frame.size.height);
+	leftEdgeRect =  NSMakeRect(frame.origin.x, 0.0, 5.0, frame.size.height);
+	rightEdgeRect =  NSMakeRect(NSMaxX(frame)-5.0, 0.0, 5.0, frame.size.height);
 	self.clickedEdge = noEdge;	/// the default value
 	if(clicked && self.highlighted) {
 		if(NSPointInRect(clickedPoint, leftEdgeRect)) {
@@ -383,43 +407,38 @@ static NSManagedObjectContext *temporaryContext;
 			}
 		}
 	}
-	if(self.hoveredEdge & !clicked) {
-		NSPoint mouseLocation = view.mouseLocation;
-		/// If the mouse exits an edge tracking area while still clicked (i.e., dragged), no mouseExit even is sent,
-		/// so hoveredEdge would not have been set to NO as it should.
-		self.hoveredEdge = NSPointInRect(mouseLocation, leftEdgeRect)  || NSPointInRect(mouseLocation, rightEdgeRect);
-	}
 	
 	super.clicked = clicked;
 	[view updateCursor];
 }
 
-static id eventMonitor;			   /// to monitor when the alt key is pressed, for dragging.
 
 - (void)setClickedEdge:(RegionEdge)edge {
 	_clickedEdge = edge;
 	if(edge != noEdge) {
 		/// when a user clicks an edge we compute its allowed limits, which are used in -drag
 		[self setLimitsForEdge:edge];
-		if(self.isBinLabel && edge != betweenEdges && !eventMonitor) {
+		if(self.isBinLabel && edge != betweenEdges) {
 			allowedWidth = self.region.allowedWidth;
 			/// We determine whether the alt key is pressed now.
 			altDrag = (NSApp.currentEvent.modifierFlags & NSEventModifierFlagOption) != 0;
 		
 			/// We also monitor when the option key is pressed, which may occur during drag.
-			eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskFlagsChanged
-																 handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
-				
-				if(self.clickedEdge == leftEdge || self.clickedEdge == rightEdge) {
+			if(!eventMonitor) {
+				eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskFlagsChanged
+																	 handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
 					
-					BOOL altDrag = (event.modifierFlags & NSEventModifierFlagOption) != 0;
-					if(altDrag != self->altDrag) {
-						self->altDrag = altDrag;
-						[self drag]; /// Updates the edge positions of the label in response to the key press, even when the mouse does not move.
+					if(self.clickedEdge == leftEdge || self.clickedEdge == rightEdge) {
+						
+						BOOL altDrag = (event.modifierFlags & NSEventModifierFlagOption) != 0;
+						if(altDrag != self->altDrag) {
+							self->altDrag = altDrag;
+							[self drag]; /// Updates the edge positions of the label in response to the key press, even when the mouse does not move.
+						}
 					}
-				}
-				return event;
-			}];
+					return event;
+				}];
+			}
 		}
 	}
 }
@@ -454,15 +473,15 @@ static id eventMonitor;			   /// to monitor when the alt key is pressed, for dra
 	TraceView *view = self.view;
 	if(view) {
 		BOOL highlighted = self.highlighted;
-		NSRect frame = NSInsetRect(regionRect, -2, 0);
+		NSRect frame = NSInsetRect(regionRect, -2.0, 0.0);
 		/// when highlighted, the frame gets a bit wider
 		/// to avoid deselecting the label when the user clicks an edge for resizing.
 		self.frame = highlighted? frame: regionRect;
 		[super updateTrackingArea];
 		
 		if(highlighted) {
-			leftEdgeRect =  NSMakeRect(frame.origin.x, 0, 5, frame.size.height);
-			rightEdgeRect =  NSMakeRect(NSMaxX(frame)-5, 0, 5, frame.size.height);
+			leftEdgeRect =  NSMakeRect(frame.origin.x, 0.0, 5.0, frame.size.height);
+			rightEdgeRect =  NSMakeRect(NSMaxX(frame)-5.0, 0.0, 5.0, frame.size.height);
 			leftEdgeArea = [self addTrackingAreaForRect:leftEdgeRect];
 			rightEdgeArea = [self addTrackingAreaForRect:rightEdgeRect];
 			NSPoint mouseLocation = view.mouseLocation;
@@ -513,7 +532,7 @@ static id eventMonitor;			   /// to monitor when the alt key is pressed, for dra
 - (void)setHoveredEdge:(BOOL)hovered {
 	if(self.hoveredEdge != hovered) {
 		_hoveredEdge = hovered;
-		[self.view labelEdgeDidChangeHoveredState:self];
+		[self.view labelDidChangeHoveredState:self];
 	}
 }
 
@@ -625,9 +644,6 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 - (void)popoverWillClose:(NSNotification *)notification {
 	if(notification.object == _attachedPopover) {
 		self.attachedPopover = nil;
-		if(self.view.window.firstResponder != self.view) {
-			self.highlighted = NO;
-		}
 	}
 }
 
@@ -662,16 +678,16 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 	if(clickedEdge == leftEdge) {
 		self.dragged = YES;
 		self.start = pos;
-		self.end = altDrag? regionMiddle*2 - pos : region.end;
+		self.end = altDrag? regionMiddle*2.0 - pos : region.end;
 	} else if(clickedEdge == rightEdge) {
 		self.dragged = YES;
 		self.end = pos;
-		self.start = altDrag? regionMiddle*2 - pos : region.start;
+		self.start = altDrag? regionMiddle*2.0 - pos : region.start;
 	} else if(clickedEdge == betweenEdges && self.isBinLabel) {
 		if(!self.dragged) {
 			/// We do not start the drag if the user has not dragged the mouse for at least 5 points.
 			/// This avoids moving the bin after a simple click
-			if(fabs(mouseLocation.x - view.clickedPoint.x) < 2) {
+			if(fabs(mouseLocation.x - view.clickedPoint.x) < 2.0) {
 				return;
 			}
 			self.dragged = YES;
@@ -704,7 +720,11 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 	/// The default  implementation updates the boundary of a region after a drag
 	if(dragged != self.dragged) {
 		_dragged = dragged;
-		if(!dragged) {
+		if(dragged) {
+			/// The tracking areas are not updated during the drag, because we reposition de label directly without telling the view to redisplay
+			/// So we remove the label tracking areas, which would otherwise interfere with cursor updates during the drag.
+			[self removeTrackingArea];
+		} else {
 			/// After a drag, we may have been resized (or moved, for a binLabel). We therefore transfer these changes to our region
 			if(self.start != self.region.start || self.end != self.region.end) {
 				[self updateRegion];
@@ -715,7 +735,6 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 			/// I suppose the tracking areas are not "ready" to react yet (an appkit bug?)
 			/// To reduce the risk of this happening, we send this message:
 			[self performSelector:@selector(_updateHoveredState) withObject:nil afterDelay:0.05];
-			eventMonitor = nil;
 			altDrag = NO;
 		}
 	}
@@ -788,21 +807,28 @@ NSPopover *regionPopover;	/// the popover that the user can user to edit the reg
 		self.start = region.start;
 		self.end = region.end;
 		NSString *description = [NSString stringWithFormat:@"The %@ could not be modified because of a database error.", region.entity.name];
-		databaseError = [NSError errorWithDescription:description suggestion:@"You may try to restart the application."];
+		databaseError = [databaseError errorWithNewDescription:description suggestion:@"You may try to restart the application."];
 		[[NSAlert alertWithError:databaseError] runModal];
 	}
 }
 
 
+- (MarkerOffset)binOffset {
+    return _offset;
+}
+
 
 -(BOOL)_updateOffset:(MarkerOffset)offset {
-	if(offset.slope > 1.1) {
-		offset.slope = 1.1;
-	} else if(offset.slope < 0.9) {
-		offset.slope = 0.9;
+
+	if(offset.slope > maxOffsetSlope) {
+		offset.slope = maxOffsetSlope;
+	} else if(offset.slope < minOffsetSlope) {
+		offset.slope = minOffsetSlope;
 	}
+	
+	
 	float margin = (self.end - self.start)*0.5;
-	if(fabs(self.start - self.start * offset.slope - offset.intercept) > margin + 0.001 || fabs(self.end - self.end * offset.slope - offset.intercept) > margin + 0.001) {
+	if(fabs(self.start - self.start * offset.slope - offset.intercept) > margin + 0.001f || fabs(self.end - self.end * offset.slope - offset.intercept) > margin + 0.001f) {
 		return NO;
 	}
 

@@ -122,7 +122,26 @@
 
 
 - (NSArrayController *)samples {
-	return self.tableContent;
+	return _arrayController;
+}
+
+
+- (void)setContentSet:(NSSet *)contentSet {
+	_contentSet = contentSet.copy;
+	if(!_needLoadContent) {
+		_needLoadContent = YES;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[self _loadContentIfNeeded];
+		});
+	}
+}
+
+
+- (void)_loadContentIfNeeded {
+	if(_needLoadContent) {
+		_arrayController.content = self.contentSet;
+		_needLoadContent = NO;
+	}
 }
 
 
@@ -175,13 +194,12 @@
 		/// Otherwise the sample table content may not be ready when the selected folder changes.
 		[self bind:@"selectedFolder" toObject:sharedController withKeyPath:@"selectedFolder" options:nil];
 		
-		[self.samples bind:NSFilterPredicateBinding toObject:sharedController withKeyPath:@"selectedFolder.filterPredicate" options:nil];
-		[self.samples bind:NSContentSetBinding toObject:FolderListController.sharedController withKeyPath:@"selectedFolder.samples" options:nil];
+		[self.samples bind:NSFilterPredicateBinding toObject:self withKeyPath:@"selectedFolder.filterPredicate" options:nil];
+		[self bind:ContentSetBinding toObject:sharedController withKeyPath:@"selectedFolder.samples" options:nil];
 	}
 	
-	
 	/// We allow dropping files from the Finder to the sample table and panels from the panel outline view
-	[self.tableView registerForDraggedTypes: @[NSPasteboardTypeFileURL, FolderDragType, SizeStandardDragType, ChromatogramObjectIDPasteboardType]];
+	[self.tableView registerForDraggedTypes: @[NSPasteboardTypeFileURL, PanelDragType, SizeStandardDragType, ChromatogramObjectIDPasteboardType]];
 	self.tableView.verticalMotionCanBeginDrag = NO;
 	///To convey the notion that a dragged sample changes folder, we use this style:
 	//self.tableView.draggingDestinationFeedbackStyle = NSTableViewDraggingDestinationFeedbackStyleGap;
@@ -263,7 +281,8 @@
 		
 		if(self.lastDraggingSequence != info.draggingSequenceNumber) {
 			self.lastDraggingSequence = info.draggingSequenceNumber;
-			self.draggedABIFFilePaths = [FileImporter ABIFilesFromPboard:pboard];
+			NSArray *fileURLs = [pboard readObjectsForClasses:@[[NSURL class]] options:nil];
+			self.draggedABIFFilePaths = [FileImporter pathFromURLs:fileURLs conformingToUTTypes:Chromatogram.UTTypes allowChildren:YES];
 		}
 		
 		[tableView setDropRow:-1 dropOperation:NSTableViewDropOn];
@@ -272,18 +291,10 @@
 		}
 	}
 	
-	if ([pboard.types containsObject:FolderDragType] || [pboard.types containsObject:SizeStandardDragType]) {
+	if ([pboard.types containsObject:PanelDragType] || [pboard.types containsObject:SizeStandardDragType]) {
 		/// the user drags a panel (folder) or a size standard onto samples. We apply the panel to selected samples
 		if(dropOperation == NSTableViewDropAbove) {
 			return NSDragOperationNone;
-		}
-		
-		if([pboard.types containsObject:FolderDragType]) {
-			Panel *panel = [self.samples.managedObjectContext objectForURIString:[pboard stringForType:FolderDragType]
-																   expectedClass:Panel.class];
-			if(!panel) {
-				return NSDragOperationNone;				/// only panels can be dropped
-			}
 		}
 		
 		if([self.samples.arrangedObjects count] > 0) {
@@ -306,7 +317,7 @@
 	[NSApp setWindowsNeedUpdate:YES];
 	
 	NSPasteboard *pboard = info.draggingPasteboard;
-	if ([pboard.types containsObject:NSPasteboardTypeFileURL] ) {
+	if ([pboard.types containsObject:NSPasteboardTypeFileURL]) {
 		if(self.draggedABIFFilePaths.count > 0) {
 			SampleFolder *destination = FolderListController.sharedController.selectedFolder;
 			if(destination) {
@@ -316,7 +327,7 @@
 		return YES;
 	}
 	
-	if ([pboard.types containsObject:FolderDragType] ) {
+	if ([pboard.types containsObject:PanelDragType] ) {
 		if([self.samples.arrangedObjects count] == 0) {
 			return NO;
 		}
@@ -347,38 +358,26 @@
 }
 
 
-/// when the user clicks one of the selected rows and the table is not active, this should not deselect other rows.
-/// We implement this behavior as we expect user to frequently switch between sample table and genotype table
-- (BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(NSInteger)row {
-	if(MainWindowController.sharedController.sourceController == self) {
-		return YES;
-	}
-	NSIndexSet *selectedRows = tableView.selectedRowIndexes;
-	NSIndexSet *selectedItems = self.samples.selectionIndexes;
-	return ![selectedItems containsIndexes:selectedRows] || ![selectedItems containsIndex:row];
-}
-
 
 #pragma mark - managing the table's contextual menu
 
 
 - (NSArray *)validTargetsOfSender:(id)sender {
 	NSArray *targetSamples = [super validTargetsOfSender:sender];
-	if([sender action] == @selector(showGenotypes:)) {
-		NSArray *shownGenotypes = GenotypeTableController.sharedController.genotypes.arrangedObjects;
+	if([sender action] == @selector(selectGenotypes:)) {
+		NSArray *shownGenotypes = GenotypeTableController.sharedController.arrangedObjects;
 		NSArray *sampleGenotypes = [targetSamples valueForKeyPath:@"@unionOfSets.genotypes"];
 		if(![sampleGenotypes sharesObjectsWithArray:shownGenotypes]) {
 			return nil;
 		}
-	} else if([sender action] == @selector(callGenotypes:)) {
+	} else if([sender action] == @selector(callGenotypes:) && targetSamples.count > 0) {
 		targetSamples = [targetSamples filteredArrayUsingBlock:^BOOL(Chromatogram*  _Nonnull sample, NSUInteger idx) {
 			return  sample.sizingQuality.floatValue > 0 && sample.genotypes.count > 0;
 		}];
 	} else if([sender action] == @selector(showInFinder:) && targetSamples.count > 1) {
 		return nil;
 	}
-	
-	return targetSamples.count > 0? targetSamples : nil;
+	return targetSamples;
 }
 
 
@@ -467,7 +466,7 @@
 			currentStandard = sizeStandards.firstObject;
 		}
 		[menu removeAllItems];
-		for(SizeStandard *standard in SizeStandardTableController.sharedController.tableContent.arrangedObjects) {
+		for(SizeStandard *standard in SizeStandardTableController.sharedController.arrangedObjects) {
 			NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:standard.name action:@selector(applySizeStandard:) keyEquivalent:@""];
 			item.target = self;
 			item.representedObject = standard;
@@ -567,13 +566,19 @@
 
 #pragma mark - user actions on samples
 
+- (BOOL)selectAndShowObjects:(NSArray *)objects {
+	BOOL success = [super selectObjects:objects];
+	MainWindowController.sharedController.sourceController = self;
+	return success;
+}
+
 /// Applies a size standard (inferred from the sender) to target samples.
 - (IBAction)applySizeStandard:(id)sender {
 	SizeStandard *standard;
 	if([sender class] == NSMenuItem.class) {
 		standard = [sender representedObject];
 	} else {
-		standard = SizeStandardTableController.sharedController.tableContent.selectedObjects.firstObject;
+		standard = SizeStandardTableController.sharedController.selectedObjects.firstObject;
 	}
 	if(!standard) {
 		return;
@@ -609,7 +614,7 @@
 	} else {
 		panel = (Panel *)panelListController.selectedFolder;
 	}
-	if(!panel.isPanel) {
+	if(![panel isKindOfClass:Panel.class] || !panel.isPanel) {
 		return;
 	}
 	[panelListController applyPanel:panel toSamples: [self validTargetsOfSender:sender]];
@@ -633,20 +638,11 @@
 
 
 /// Selects the genotypes associated with target samples
-- (IBAction)showGenotypes:(id)sender {
+- (IBAction)selectGenotypes:(id)sender {
 	NSArray *genotypes = [[self validTargetsOfSender:sender] valueForKeyPath:@"@unionOfSets.genotypes"];
 	
-	MainWindowController.sharedController.sourceController = GenotypeTableController.sharedController;		/// we activate the genotype table
-	
-	[GenotypeTableController.sharedController.genotypes setSelectedObjects:genotypes];
-	NSTableView *genotypeTable = GenotypeTableController.sharedController.tableView;
-	if(genotypeTable) {
-		NSInteger row = genotypeTable.selectedRow;
-		if(row >= 0) {
-			[genotypeTable scrollRowToVisible:row];
-		}
-	}
-	
+	GenotypeTableController *genotypeTableController = GenotypeTableController.sharedController;
+	[genotypeTableController selectAndShowObjects:genotypes];
 }
 
 
@@ -658,22 +654,21 @@
 		return;
 	}
 	Folder *folder = folders.firstObject;
-	[FolderListController.sharedController selectFolder:folder];
-	[self.samples setSelectedObjects:targetSamples];
-	NSInteger row = self.tableView.selectedRow;
-	if(row >= 0) {
-		[self.tableView scrollRowToVisible:row];
+	if([FolderListController.sharedController selectFolder:folder]) {
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[self selectAndShowObjects:targetSamples];
+		});
+		
 	}
 }
 
 
 /// puts target samples into the trash folder (which is emptied when the application quits)
 - (void)deleteItems:(NSArray *)items {
-	/// We remove them from the table first, as adding the from to the trash can trigger an update of the
-	/// table for each sample, even though we don't do it one by one.
-	[self.samples removeObjects:items];
+
 	NSSet *samples = [NSSet setWithArray:items];
 	[FolderListController.sharedController.trashFolder addSamples:samples];
+	[AppDelegate.sharedInstance saveAction:self];
 }
 
 
@@ -722,9 +717,12 @@
 		return;
 	}
 	
-	SampleFolder *selectedFolder = folderListController.selectedFolder;
+	SampleFolder *selectedFolder = [folderListController _targetFolderOfSender: sender];
+	if(!selectedFolder) {
+		selectedFolder = folderListController.selectedFolder;
+	}
 	
-	if(!selectedFolder) {		/// we only import in the selected folder
+	if(!selectedFolder) {
 		NSAlert *alert = NSAlert.new;
 		alert.messageText = @"There is no selected folder to import samples into.";
 		alert.informativeText = @"Please select a folder from the sidebar.";
@@ -746,32 +744,52 @@
 		return;
 	}
 	
-	if(!folderListController.canImportSamples) {
-		return;
-	}
-	
 	
 	NSOpenPanel* panel = NSOpenPanel.openPanel;
 	panel.prompt = @"Import";
 	panel.canChooseDirectories = YES;
 	panel.allowsMultipleSelection = YES;
+	panel.delegate = self;
 	panel.message = [NSString stringWithFormat: @"Select chromatogram files to import into folder '%@'.", selectedFolder.name];
-	panel.allowedFileTypes = @[@"com.appliedbiosystems.abif.fsa", @"com.appliedbiosystems.abif.hid"];
+	panel.allowedFileTypes = Chromatogram.UTTypes.allObjects;
 	[panel beginSheetModalForWindow:window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
-			[self addSamplesFromFiles:[panel.URLs valueForKeyPath:@"@unionOfObjects.path"] toFolder:selectedFolder];
+			NSArray *filePaths = [FileImporter pathFromURLs:panel.URLs conformingToUTTypes:Chromatogram.UTTypes allowChildren:YES];
+			[self addSamplesFromFiles:filePaths toFolder:selectedFolder];
 		}
 	}];
 }
+
+
+- (BOOL)panel:(id)sender shouldEnableURL:(NSURL *)url {
+	/// We allow selecting files and folder containing valid files or subfolders
+	return YES; //[FileImporter isValidURL:url forPanel:sender browsing:YES]; // disabled as it may be disturbing to the user.
+}
+
+
+
+- (BOOL)panel:(id)sender validateURL:(NSURL *)url error:(NSError *__autoreleasing  _Nullable *)outError {
+	NSOpenPanel* panel = (NSOpenPanel *)sender;
+	for(NSURL *url in panel.URLs) {
+		if([FileImporter isValidURL:url forPanel:sender browsing:NO]) {
+			return YES;
+		}
+	}
+
+	if(outError != NULL) {
+		*outError = [NSError errorWithDescription:@"The selection does not contain chromatogram files." suggestion:@""];
+	}
+	return NO;
+}
+
+
 
 
 -(void) addSamplesFromFiles:(NSArray <NSString *>*)filePaths toFolder:(SampleFolder *)folder {
 	NSManagedObjectContext *MOC = folder.managedObjectContext;
 	CDUndoManager *undoManager = (CDUndoManager *)MOC.undoManager;
 	[MOC processPendingChanges];
-	if(undoManager.isUndoRegistrationEnabled) {
-		[undoManager disableUndoRegistration];
-	}
+	[undoManager disableUndoRegistration];
 	NSMutableSet *importedSamples = NSMutableSet.new;
 	BOOL applySizeStandard = [NSUserDefaults.standardUserDefaults boolForKey:AutoDetectSizeStandard];
 	
@@ -797,7 +815,13 @@
 						[importedSamples unionSet:samplesInBatch];
 						for(Chromatogram *sample in samplesInBatch) {
 							if(applySizeStandard) {
-								[SizeStandardTableController.sharedController detectAndApplySizeStandardOnSample:sample];
+								SizeStandard *sizeStandard = [SizeStandardTableController.sharedController sizeStandardForName:sample.standardName];
+								if(sizeStandard && sizeStandard.managedObjectContext != MOC) {
+									sizeStandard = [MOC existingObjectWithID:sizeStandard.objectID error:nil];
+								}
+								if(sizeStandard) {
+									[sizeStandard sizeSample:sample];
+								}
 							}
 							if(!sample.sizeStandard) {
 								/// if we don't apply a size standard, we make the sample compute default sizing coefficients
@@ -826,9 +850,7 @@
 			[MainWindowController.sharedController showAlertForError:error];
 		}
 		
-		if(!undoManager.isUndoRegistrationEnabled) {
-			[undoManager enableUndoRegistration];
-		}
+		[undoManager enableUndoRegistration];
 		if(sampleCount > 0) {
 			NSString *actionName = importedSamples.count > 1? @"Import Samples" : @"Import Sample";
 			if([undoManager respondsToSelector:@selector(forceActionName:)]) {
@@ -838,6 +860,14 @@
 			}
 			[undoManager registerUndoWithTarget:self selector:@selector(deleteItems:) object:importedSamples.allObjects];
 			
+			[NSApp setWindowsNeedUpdate:YES]; /// Because the undo/redo buttons don't update immediately.
+			
+			/// We show imported samples on the viewer.
+			[FolderListController.sharedController selectFolder:folder];
+			dispatch_async(dispatch_get_main_queue(), ^{
+				[self selectAndShowObjects:importedSamples.allObjects];
+			});
+
 			if(folder == self.selectedFolder && folder.filterPredicate) {
 				NSSet *filteredSamples = [importedSamples filteredSetUsingPredicate:folder.filterPredicate];
 				NSInteger filtered = sampleCount - filteredSamples.count;
@@ -866,7 +896,7 @@
 	
 	/// We write a combined string containing the object IDs of selected elements.
 	/// Using a single pasteboard item is much faster than using one per copied element, when we paste.
-	[self.tableContent.managedObjectContext obtainPermanentIDsForObjects:items error:nil];
+	[self.samples.managedObjectContext obtainPermanentIDsForObjects:items error:nil];
 	NSArray *URIStrings = [items valueForKeyPath:@"@unionOfObjects.objectID.URIRepresentation.absoluteString"];
 	NSString *concat = [URIStrings componentsJoinedByString:@"\n"];
 	[pasteboard setString:concat forType:ChromatogramCombinedPasteboardType];
@@ -888,7 +918,11 @@
 		/// There may be no valid selected folder to paste sample into, in which case we do nothing.
 		return;
 	}
-	NSPasteboard *pboard = NSPasteboard.generalPasteboard;
+	[self copySamplesFromPasteboard:NSPasteboard.generalPasteboard toFolder:sharedController.selectedFolder];
+}
+
+
+- (void)copySamplesFromPasteboard:(NSPasteboard *)pboard toFolder:(SampleFolder *)folder {
 	NSArray *items;
 	if([pboard.types containsObject:ChromatogramCombinedPasteboardType]) {
 		NSString *string = [pboard stringForType:ChromatogramCombinedPasteboardType];
@@ -899,26 +933,39 @@
 		return;
 	}
 	
-	SampleFolder *selectedFolder = sharedController.selectedFolder;
-	[self pasteSamplesFromItems:items completionHandler:^(NSError *error, SampleFolder *folder) {
+	/// Undoing the copy (hence creation) of chromatograms may cause crashes on some macOS versions.
+	/// This may have been fixed, but to avoid any risk, we disable undo. The undo action will move pasted samples to the trash.
+	CDUndoManager *undoManager = (CDUndoManager *)self.undoManager;
+	[undoManager disableUndoRegistration];
+	NSInteger __block copiedCount = 0;
+	[self pasteSamplesFromItems:items completionHandler:^(NSError *error, SampleFolder *scratchFolder) {
 		/// to transfer pasted samples to the table, we need to materialize the folder in our context.
 		/// It won't appear in the folder list, as this scratch folder has no parent.
 		
-		folder = [self.samples.managedObjectContext existingObjectWithID:folder.objectID error:nil];
-		NSSet *copiedSamples = folder.samples;
-		
-		if(copiedSamples.count > 0) {
-			if(sharedController.selectedFolder != selectedFolder) {
-				[sharedController selectFolder:selectedFolder];
-			}
-			NSString *action = copiedSamples.count > 1? @"Paste Samples" : @"Paste Sample";
-			[self.undoManager setActionName:action];
-			[self.samples addObjects:copiedSamples.allObjects];	/// which automatically selects the copied samples
-			[self.tableView scrollRowToVisible:self.tableView.selectedRow];
-			
+		scratchFolder = [self.samples.managedObjectContext existingObjectWithID:scratchFolder.objectID error:nil];
+		NSSet *copiedSamples = scratchFolder.samples.copy;
+		copiedCount = copiedSamples.count;
+		if(copiedCount > 0) {
+			[folder addSamples:copiedSamples];
+			[scratchFolder.managedObjectContext deleteObject:scratchFolder];
 			[AppDelegate.sharedInstance saveAction:nil];
+
+			[undoManager enableUndoRegistration];
+			NSString *action = copiedCount > 1? @"Paste Samples" : @"Paste Sample";
+			if([pboard.name isEqualToString:NSPasteboardNameDrag]) {
+				action = copiedCount > 1? @"Copy Samples" : @"Copy Sample";
+			}
+			[undoManager forceActionName:action];
+			[undoManager registerUndoWithTarget:self selector:@selector(deleteItems:) object:copiedSamples.allObjects];
+			
+			[FolderListController.sharedController selectFolder:folder];
+			dispatch_async(dispatch_get_main_queue(), ^{
+				[self selectObjects:copiedSamples.allObjects];
+			});
+			
+		} else {
+			[undoManager enableUndoRegistration];
 		}
-		[folder.managedObjectContext deleteObject:folder];
 		
 		if(error && error.code != NSUserCancelledError) {
 			/// we did not manage the error first, as the operation above may block the UI (hence the dismissal of any error alert) if many samples are imported
@@ -1041,7 +1088,7 @@
 			[folder.managedObjectContext save:&error];
 			
 			if(error) {
-				error = [NSError errorWithDescription:@"The sample(s) could not be pasted because an error occurred saving the database."
+				error = [error errorWithNewDescription:@"The sample(s) could not be pasted because an error occurred saving the database."
 										   suggestion:@"Some sample(s) may contain invalid data."];
 				/// hopefully, this kind of error will not happen if the checks made were rigorous enough.
 			}
@@ -1123,46 +1170,30 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 		[titles addObject:@"Folder Name"];
 	}
 	
+	NSDictionary<NSString *, NSString*> *titlesForKeyPaths = @{@"panel.name": @"Panel Name",
+															   ChromatogramPlateKey: @"Plate Name",
+															   ChromatogramRunNameKey: @"Run Name"};
+	
 	NSArray *columnDescriptions = [columnDescription objectsForKeys:sampleColumnIDs notFoundMarker:@""];		/// Dictionaries describing the sample-related columns
 	for(NSDictionary *colDescription in columnDescriptions) {
 		NSString *keyPath = colDescription[KeyPathToBind];
 		if(keyPath) {
-			[keyPaths addObject:keyPath];
-			if([keyPath isEqualToString:@"panel.name"]) {
-				/// For the panel key, the title used is different from that of the column, to make clear that we can search by panel name and not by panel content.
-				[titles addObject:@"Panel Name"];
-			} else {
-				NSString *title = colDescription[ColumnTitle];
-				if(title) {
-					[titles addObject:title];
-				}
+			NSString *title = titlesForKeyPaths[keyPath];
+			if(!title) {
+				title = colDescription[ColumnTitle];
+			}
+			if(title) {
+				[keyPaths addObject:keyPath];
+				[titles addObject:title];
 			}
 		}
 	}
 	
-	NSArray<NSPredicateEditorRowTemplate *> *rowTemplates = [NSPredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Chromatogram.entity];
-	
-	/// for float attributes, we modify the template so that it only shows the < and > operators (equality is not very relevant for floats)
-	NSMutableArray *finalTemplates = rowTemplates.mutableCopy;
-	for(NSPredicateEditorRowTemplate *template in rowTemplates) {
-		if([self IsPredicateEditorRowTemplateNumeric:template]){
-			NSArray *operators = template.operators;
-			if(template.rightExpressionAttributeType == NSFloatAttributeType) {
-				/// for floating point, equality operators make no sense
-				operators = @[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)];
-			}
-			NSPredicateEditorRowTemplate *replacementTemplate = [[AggregatePredicateEditorRowTemplate alloc]
-																 initWithLeftExpressions:template.leftExpressions
-																 rightExpressionAttributeType:template.rightExpressionAttributeType
-																 modifier:template.modifier
-																 operators:operators
-																 options: 0];
-			finalTemplates[[rowTemplates indexOfObjectIdenticalTo:template]] = replacementTemplate;
-		}
-	}
-	
+	NSArray<NSPredicateEditorRowTemplate *> *rowTemplates = [AggregatePredicateEditorRowTemplate templatesWithAttributeKeyPaths:keyPaths inEntityDescription:Chromatogram.entity];
+		
 	/// We add a template to find samples by marker name, because it uses a different modifier.
 	/// A template for this keypath could be generated with `templatesWithAttributeKeyPaths`, but it would use the direct comparison modifier.
+	NSMutableArray *finalTemplates = rowTemplates.mutableCopy;
 	NSString *markerNameKeyPath = @"panel.markers.name";
 	[keyPaths addObject:markerNameKeyPath];
 	[titles addObject:@"Marker Name"];
@@ -1205,21 +1236,32 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 
 
 - (void)applyFilterPredicate:(NSPredicate *)filterPredicate {
-	FolderListController.sharedController.selectedFolder.filterPredicate = filterPredicate;
+	CDUndoManager *undoManager = (CDUndoManager*)self.undoManager;
+	NSString *actionName = filterPredicate == nil ? @"Remove Filter on Samples" : @"Apply Filter on Samples";
+	[undoManager forceActionName:actionName];
+
+	[self setFilterPredicate:filterPredicate forFolder:self.selectedFolder];
 }
 
+
+-(void)setFilterPredicate:(NSPredicate *)filterPredicate forFolder:(Folder *)folder {
+	NSPredicate *previousPredicate = folder.filterPredicate;
+	if(previousPredicate == filterPredicate && folder == self.selectedFolder) {
+		[self.samples rearrangeObjects];
+	}
+	folder.filterPredicate = filterPredicate;
+	[self.undoManager registerUndoWithTarget:self handler:^(id  _Nonnull target) {
+		[self setFilterPredicate:previousPredicate forFolder:folder];
+	}];
+}
 
 #pragma mark - recording and restoring sample selection
 
 
-- (NSString *)userDefaultKeyForSelectedItemIDs {
-	return @"SelectedSamples";
-}
-
 
 - (void)setSelectedFolder:(__kindof Folder *)selectedFolder {
 	_selectedFolder = selectedFolder;
-	[self restoreSelectedItems];
+
 	NSButton *filterButton = self.filterButton;
 	if(selectedFolder.isSmartFolder) {
 		filterButton.toolTip = @"Edit smart folder";
@@ -1230,29 +1272,6 @@ NSPasteboardType _Nonnull const ChromatogramCombinedPasteboardType = @"org.jpecc
 	}
 }
 
-
-
--(void)recordSelectedItems {
-	Folder *selectedFolder = self.selectedFolder;
-	if(selectedFolder) {
-		NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
-		if(folderID) {
-			[self recordSelectedItemsAtKey:folderID maxRecorded:100];
-		}
-	}
-}
-
-
-
--(void)restoreSelectedItems {
-	Folder *selectedFolder = self.selectedFolder;
-	if(selectedFolder) {
-		NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
-		if(folderID) {
-			[self restoreSelectedItemsAtKey:folderID];
-		}
-	}
-}
 
 
 @end

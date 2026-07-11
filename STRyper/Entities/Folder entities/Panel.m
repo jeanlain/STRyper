@@ -36,7 +36,6 @@
 
 @end
 
-
 static void * const markersChangedContext = (void*)&markersChangedContext;
 static void * const samplesChangedContext = (void*)&samplesChangedContext;
 
@@ -75,7 +74,7 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 }
 
 
-- (NSString *)exportString {
+- (NSString *)stringRepresentation {
 	NSMutableArray *exportStrings = NSMutableArray.new;
 	[exportStrings addObject:[NSString stringWithFormat:@"panel\t%@", self.name]];
 	NSArray *sortedMarkers = [self.markers.allObjects sortedArrayUsingKey:@"name" ascending:YES];
@@ -409,7 +408,9 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 
 - (void)encodeWithCoder:(NSCoder *)coder {
 	[super encodeWithCoder:coder];
-	if(self.parent.parent) {
+	if(coder.requiresSecureCoding && self.parent.parent) {
+		/// The coder does not require secure coding if it encodes a panel during copy, but it does when exporting a folder.
+		/// We only encode parents when a folder is exported.
 		/// we do not encode the root folder (which has no parent and is invisible to the user)
 		[coder encodeObject:self.parent forKey:@"parent"];
 	}
@@ -429,6 +430,23 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 
 
 
+- (id)awakeAfterUsingCoder:(NSCoder *)coder {
+	if(!coder.requiresSecureCoding) {
+		return self;
+	}
+	/// An equivalent in the database should be used instead of the detected panel, to avoid duplicates.
+	NSArray<Panel *> *panels = [self.managedObjectContext executeFetchRequest:self.class.fetchRequest error:nil];
+	for(Panel *panel in panels) {
+		if(panel != self && [self isEquivalentTo:panel]) {
+			self.parent = nil; /// This can be used later to determine that the panel should be deleted.
+			return panel;
+		}
+	}
+	return self;
+}
+
+
+
 - (BOOL)isEquivalentTo:(__kindof NSManagedObject *)obj {
 	if(obj.class != self.class) {
 		return NO;
@@ -438,22 +456,61 @@ static void * const samplesChangedContext = (void*)&samplesChangedContext;
 	if(![panel.name isEqualToString:self.name]) {
 		return NO;		/// we must have equivalent names and markers
 	}
-	if(panel.markers.count != self.markers.count) {
+	
+	NSInteger markerCount = self.markers.count;
+	NSInteger otherMarkerCount = panel.markers.count;
+	
+	if(markerCount != otherMarkerCount) {
 		return NO;
 	}
-	if(panel.markers.count == 0 && self.markers.count == 0) {
+	if(markerCount == 0 && otherMarkerCount == 0) {
+		return YES;
+	}
+	NSInteger nEquivalent = 0;
+	for(Mmarker *marker in self.markers) {
+		for(Mmarker *marker2 in panel.markers) {
+			if(marker.start == marker2.start && marker.channel == marker2.channel && [marker isEquivalentTo:marker2]) { /// The first two conditions are covered by the third, but are cheaper to test
+				/// As the markers are equivalent, we can set the replacement marker.
+				marker._replacementMarker = marker2;
+				nEquivalent++;
+				break;
+			}
+		}
+	}
+	
+	if(nEquivalent == markerCount) {
 		return YES;
 	}
 	
-	NSArray *markers = [self.markers sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES]]] ;
-	NSArray *existingMarkers = [panel.markers sortedArrayUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES]]] ;
-	
-	for (int i = 0; i < markers.count; i++) {
-		if(![markers[i] isEquivalentTo:existingMarkers[i]]) {
-			return NO;
+	if(nEquivalent > 0) {
+		for(Mmarker *marker in self.markers) {
+			marker._replacementMarker = nil;
 		}
 	}
-	return YES;
+	
+	return NO;
 }
+
+NSPasteboardType _Nonnull const PanelDragType = @"org.jpeccoud.stryper.panelDragType";
+
+
+- (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
+	/// the string representation of the marker is copied as tabular text, though we don't use it within the app.
+	return @[FolderArchivePasteboardType, PanelDragType, FolderDragType, NSPasteboardTypeString];
+}
+
+
+- (NSPasteboardWritingOptions)writingOptionsForType:(NSPasteboardType)type pasteboard:(NSPasteboard *)pasteboard {
+	return 0;
+}
+
+
+- (id)pasteboardPropertyListForType:(NSPasteboardType)type {
+	if ([type isEqualToString:PanelDragType]) {
+		 return [super pasteboardPropertyListForType:FolderDragType];
+	}
+	return [super pasteboardPropertyListForType:type];
+}
+
 
 @end

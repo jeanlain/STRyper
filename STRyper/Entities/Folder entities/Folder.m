@@ -108,11 +108,8 @@
 }
 
 
-- (Folder *)topAncestor {
-	Folder *parent = self.parent;
-	if(!parent) {
-		return self;
-	}
+- (__kindof Folder *)topAncestor {
+	Folder *parent = self;
 	while(parent.parent) {
 		parent = parent.parent;
 	}
@@ -121,13 +118,13 @@
 
 
 -(NSArray<Folder *> *)ancestors {
-	NSArray *ancestors = NSArray.new;
+	NSMutableArray *ancestors = NSMutableArray.new;
 	Folder *parent = self.parent;
 	while(parent) {
-		ancestors = [ancestors arrayByAddingObject:parent];
+		 [ancestors addObject:parent];
 		parent = parent.parent;
 	}
-	return ancestors;
+	return ancestors.copy;
 }
 
 
@@ -206,7 +203,7 @@
 		return YES;
 	}
 	NSString *name = *value;
-	
+	name = [name stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet];
 	if(name.length == 0) {
 		NSString *previousName = self.name;
 		if(previousName.length > 0) {
@@ -271,13 +268,19 @@
 		}
 		return NO;
 	}
-	NSArray *folders;
+	
+	/// We check that the folder does not have the same name as a sibling.
+	NSArray *siblings;
+
 	if(parent) {
-		folders = parent.subfolders.array;
+		if([parent.name isEqualToString:@"Trash"] && !parent.parent) {
+			return YES; /// If the folder is in the trash, we don't check that.
+		}
+		siblings = parent.subfolders.array;
 	} else {
-		folders = [self baseFolders];
+		siblings = [self baseFolders];
 	}
-	for (Folder *folder in folders) {
+	for (Folder *folder in siblings) {
 		if(folder != self && [self.name isEqualToString:folder.name] && folder.class == self.class) {
 			if (error != NULL) {
 				NSString *description = [NSString stringWithFormat:@"A %@ with the same name is already present at this location", self.folderType];
@@ -288,6 +291,27 @@
 		}
 	}
 	return YES;
+}
+
+NSPasteboardType _Nonnull const FolderDragType = @"org.jpeccoud.stryper.folderDragType",
+FolderArchivePasteboardType = @"org.jpeccoud.stryper.panelArchivePasteboardType";
+
+
+- (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
+	return @[FolderDragType]; /// We don't register for `FolderArchivePasteboardType` by default, as not all folder classes can be copied
+}
+
+
+- (id)pasteboardPropertyListForType:(NSPasteboardType)type {
+	if([type isEqualToString:FolderDragType]) {
+		return [super pasteboardPropertyListForType:CodingObjectIDPasteboardType];
+	}
+	
+	if([type isEqualToString:FolderArchivePasteboardType]) {
+		return [super pasteboardPropertyListForType:CodingObjectArchivePasteboardType];
+	}
+	
+	return [super pasteboardPropertyListForType:type];
 }
 
 

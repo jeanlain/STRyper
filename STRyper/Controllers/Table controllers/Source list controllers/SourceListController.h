@@ -42,7 +42,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// NOTE: while this class implements methods to observe folders for changes in their ``Folder/subfolders`` and to update the source list accordingly,
 /// other objects should avoid changing parents/subfolders of folders that are shown by the source list.
-@interface SourceListController : TableViewController <NSOutlineViewDataSource, NSOutlineViewDelegate>  {
+@interface SourceListController : TableViewController {
 
 	/// back the readonly  ``selectedFolder`` variable so that it is settable by subclasses.
 	__kindof Folder *_selectedFolder;
@@ -51,10 +51,6 @@ NS_ASSUME_NONNULL_BEGIN
 	__weak NSOutlineView *outlineView;
 }
 
-/// The managed object context of the folders that the class manages, which is the same as ``AppDelegate/managedObjectContext`` of  the application delegate.
-///
-/// This property is merely defined for convenience, as this class does not use a tree controller bound to a managed object context to manage a source list.
-@property (nonatomic, readonly) NSManagedObjectContext *managedObjectContext;
 
 /// The selected folder of the source list that the receiver manages.
 @property (nonatomic, readonly, nullable) __kindof Folder *selectedFolder;
@@ -81,6 +77,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter folder: The folder to select.
 - (BOOL)selectFolder:(Folder *)folder;
 
+/// Expands a folder in the source list.
+///
+/// The `folder` is expanded only if its parents are not collapsed.
+- (void)expandFolder:(Folder *)folder;
+
 /// Records the currently selected folder in the user defaults for possible restoration when the app next launches.
 - (void)recordSelectedFolder;
 
@@ -106,17 +107,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// The folder that is the target of an action (sent from the table's contextual menu)
 - (nullable __kindof Folder *)_targetFolderOfSender:(id)sender;
 
-
-/// Removes a folder from the view (doesn't change the model).
-///
-/// This must be called before the folder is actually deleted or put in the trash in the model.
-- (void)_removeFolderFromTable:(Folder *)folder;
-
-/// Similar add a folder to the table, after it has been added to the model.
-- (void)_addFolderToTable:(Folder *)folder;
-
-/// The pasteboard type used to allow folder drag & drop.
-extern NSPasteboardType _Nonnull const FolderDragType;
 
 
 @end

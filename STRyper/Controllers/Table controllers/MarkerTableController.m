@@ -22,7 +22,7 @@
 
 #import "MarkerTableController.h"
 #import "MainWindowController.h"
-#import "Mmarker.h"
+#import "Bin.h"
 #import "IndexImageView.h"
 #import "SampleTableController.h"
 #import "PanelListController.h"
@@ -47,11 +47,11 @@
 
 
 - (NSString *)entityName {
-	return Mmarker.entity.name;
+	return Region.entity.name;
 }
 
 - (NSString *)nameForItem:(id)item {
-	return @"Marker";
+	return [[item entity]name];
 }
 
 /// To represent the channel of a marker by an image in the cell of the table
@@ -72,6 +72,7 @@ static NSArray *channelColorImages;
 
 
 - (void)viewDidLoad {
+	regionOutlineView = (NSOutlineView *)self.tableView;
 	[super viewDidLoad];
 	NSMenu *menu = NSMenu.new;
 	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@""];
@@ -84,8 +85,35 @@ static NSArray *channelColorImages;
 	[menu addItem:item];
 	self.tableView.menu = menu;
 	menu.delegate = self;
+	
+	/// We make sure the marker column is the first
+	int i = 0;
+	for(NSTableColumn *column in regionOutlineView.tableColumns) {
+		if([column.identifier isEqualToString:@"markerNameColumn"]) {
+			if(i != 0) {
+				[regionOutlineView moveColumn:i toColumn:0];
+			}
+			break;
+		}
+		i++;
+	}
+	
 }
 
+
+- (BOOL)shouldMakeTableHeaderMenu {
+	return YES;
+}
+
+
+- (BOOL)canHideColumn:(NSTableColumn *)column {
+	return ![column.identifier isEqualToString: @"markerNameColumn"];
+}
+
+
+- (BOOL)canSortByMultipleColumns {
+	return NO;
+}
 
 # pragma mark - composing the marker table
 
@@ -98,7 +126,7 @@ static NSArray *channelColorImages;
 			@"markerStartColumn":		@{KeyPathToBind: @"start",ColumnTitle: @"Start", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Start of the marker's range"},
 			@"markerEndColumn":		@{KeyPathToBind: @"end",ColumnTitle: @"End", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"End of the marker's range"},
 			/// For the column below, the cell view prototype is in a different table and we don't use the cell view ID
-			@"markerMotiveColumn":		@{KeyPathToBind: @"motiveLength",ColumnTitle: @"Motive", CellViewID: @"", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Length of the marker's repeat motive"},
+			@"markerMotiveColumn":		@{KeyPathToBind: @"motiveLength",ColumnTitle: @"Motive", CellViewID: @"popupCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Length of the marker's repeat motive"},
 			@"markerPloidyColumn":		@{KeyPathToBind: @"ploidy",ColumnTitle: @"Ploidy", CellViewID: @"numberFieldCellView", IsTextFieldEditable: @NO, IsColumnVisibleByDefault: @YES, IsColumnSortingCaseInsensitive: @NO, HeaderToolTip:@"Ploidy of the marker:\n1 for haploid, 2 for diploid"}
 		};
 	}
@@ -107,7 +135,7 @@ static NSArray *channelColorImages;
 
 
 - (NSArray<NSString *> *)orderedColumnIDs {
-	return @[@"markerNameColumn", @"markerChannelColumn", @"markerStartColumn", @"markerEndColumn", @"markerMotiveColumn", @"markerPloidyColumn"];
+	return @[@"markerNameColumn", @"markerStartColumn", @"markerEndColumn", @"markerChannelColumn", @"markerMotiveColumn", @"markerPloidyColumn"];
 }
 
 
@@ -141,21 +169,59 @@ static NSArray *channelColorImages;
 }
 
 
-
-- (NSTableView *)viewForCellPrototypes {
+- (NSTableView *)viewForCellPrototypeForColumn:(NSTableColumn *)column row:(NSInteger)row {
+	NSString *ID = column.identifier;
+	if([ID isEqualToString:@"markerMotiveColumn"]) {
+		return column.tableView;
+	} 
+	
 	return SampleTableController.sharedController.tableView;
 }
 
 
-- (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
+- (NSView *)outlineView:(NSOutlineView *)outlineView viewForTableColumn:(NSTableColumn *)tableColumn item:(id)item {
 	NSString *ID = tableColumn.identifier;
+	
+	NSDictionary *cellDescription = self.columnDescription[ID];
+	if(!cellDescription) {
+		return nil;
+	}
+	
+	if([item respondsToSelector:@selector(representedObject)]) {
+		item = [item representedObject];
+	}
 
-	if([ID isEqualToString:@"markerMotiveColumn"]) {
-		NSTableCellView *view = [self.tableView makeViewWithIdentifier:ID owner:self];
+	if (![item respondsToSelector:NSSelectorFromString(cellDescription[KeyPathToBind])]) {
+		/// This corresponds to bins, which don't have all the attributes of markers.
+		NSView *view = [outlineView makeViewWithIdentifier:@"emptyCell" owner:self];
+		/// Returning `nil` causes views from adjacent columns to be added where there should be no view, after column reordering. So we return a blank view.
+		if(!view) {
+			view = [[NSView alloc] initWithFrame:NSZeroRect];
+			view.identifier = @"emptyCell";
+		}
+		return view;
+	}
+
+
+	if([item isKindOfClass:Bin.class] && [ID isEqualToString:@"markerNameColumn"]) {
+		NSTableCellView *view = (NSTableCellView *)[outlineView makeViewWithIdentifier:@"binNameColumn" owner:self];
+		if(view) {
+			return view;
+		}
+		view = [outlineView makeViewWithIdentifier:@"imageCellView" owner:self];
+		NSTextField *textField = view.textField;
+		if(textField) {
+			[textField bind:NSValueBinding toObject:view withKeyPath:@"objectValue.name" options:@{NSValidatesImmediatelyBindingOption:@YES}];
+			textField.selectable = YES;
+			textField.editable = YES;
+			textField.delegate = self;
+		}
+		view.identifier = @"binNameColumn";
 		return view;
 	}
 	
-	NSTableCellView *view = (NSTableCellView *)[super tableView:tableView viewForTableColumn:tableColumn row:row];
+	
+	NSTableCellView *view = (NSTableCellView *)[super tableView:outlineView viewForTableColumn:tableColumn row:0];
 
 	if([ID isEqualToString:@"markerChannelColumn"]) {
 		IndexImageView *imageView = (IndexImageView *)view.imageView;
@@ -168,7 +234,51 @@ static NSArray *channelColorImages;
 }
 
 
+- (BOOL)outlineView:(NSOutlineView *)outlineView shouldReorderColumn:(NSInteger)columnIndex toColumn:(NSInteger)newColumnIndex {
+	NSTableColumn *columnToMove = outlineView.tableColumns[columnIndex];
+	
+	if([columnToMove.identifier isEqualToString:@"markerNameColumn"] && newColumnIndex > 0) {
+		return NO;
+	}
+	
+	if(![columnToMove.identifier isEqualToString:@"markerNameColumn"] && newColumnIndex == 0) {
+		return NO;
+	}
+	
+	return YES;
+}
+
+
 # pragma mark - dragging and copying markers
+
+- (id<NSPasteboardWriting>)outlineView:(NSOutlineView *)outlineView pasteboardWriterForItem:(id)item {
+	if([item respondsToSelector:@selector(representedObject)]) {
+		item = [item representedObject];
+	}
+	if([item isKindOfClass:Mmarker.class] & [item conformsToProtocol:@protocol(NSPasteboardWriting)]) {
+		return item;
+	}
+	return nil;
+}
+
+
+- (NSArray *)validTargetsOfSender:(id)sender {
+	if([sender respondsToSelector:@selector(action)] && [sender action] == @selector(paste:)) {
+		if([NSPasteboard.generalPasteboard.types containsObject:MarkerPasteboardType]) {
+			/// A paste menu or item may only paste the copied marker, but only if the source list accepts it.
+			return [PanelListController.sharedController validTargetsOfSender:sender];
+		} else {
+			return nil;
+		}
+	}
+	return [super validTargetsOfSender:sender];
+}
+
+
+- (void)paste:(id)sender {
+	[PanelListController.sharedController paste:sender];
+}
+
 
 - (void)copyItems:(NSArray *)items ToPasteBoard:(NSPasteboard *)pasteboard {
 	[super copyItems:items ToPasteBoard:pasteboard];
@@ -176,11 +286,27 @@ static NSArray *channelColorImages;
 }
 
 
+- (NSString *)cautionAlertTitleStringForItems:(NSArray *)items {
+	NSArray *genotypes = [items valueForKeyPath:@"@unionOfSets.genotypes"];
+	if(genotypes.count > 0) {
+		return items.count > 1? @"Are you sure you want to delete the markers?" : @"Are you sure you want to delete the marker?";
+	}
+	
+	return [super cautionAlertTitleStringForItems:items];
+}
+
+
+
 
 - (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
 	NSArray *genotypes = [items valueForKeyPath:@"@unionOfSets.genotypes"];
 	if(genotypes.count > 0) {
-		return  @"All genotypes at the marker will be deleted as well. \nThis action can be undone.";
+		NSArray *samples = [genotypes valueForKeyPath:@"@distinctUnionOfObjects.sample"];
+		NSInteger count = samples.count;
+		NSString *alert = count > 1?
+		[NSString stringWithFormat: @"%ld samples will lose their genotype at the marker", count] :
+		@"One sample will lose its genotype at the marker";
+		return [alert stringByAppendingString:items.count > 1? @"s!" : @"!"];
 	}
 	
 	return [super cautionAlertInformativeStringForItems:items];
@@ -253,14 +379,14 @@ static NSArray *channelColorImages;
 	if(panel.objectID.isTemporaryID) {
 		[panel.managedObjectContext obtainPermanentIDsForObjects:@[panel] error:&error];
 		if(error) {
-			error = [NSError errorWithDescription:@"The marker could not be created because of an inconsistency in the database." suggestion:@""];
+			error = [error errorWithNewDescription:@"The marker could not be created because of an error in the database." suggestion:@""];
 		}
 	}
 	
 	if(!error) {
 		panel = [MOC existingObjectWithID:panel.objectID error:&error];
 		if(error) {
-			error = [NSError errorWithDescription:@"The marker could not be created because an error occurred in the database." suggestion:@"You may restart the application and try again."];
+			error = [error errorWithNewDescription:@"The marker could not be created because an error occurred in the database." suggestion:@"You may restart the application and try again."];
 		}
 	}
 
@@ -288,11 +414,11 @@ static NSArray *channelColorImages;
 	[newMarker createGenotypesWithAlleleName: [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName]];
 	
 	[self.undoManager setActionName:@"Add Marker"];
-	BOOL saved = [MOC save:nil];
+	BOOL saved = [MOC save:&error];
 	if(saved) {
 		[AppDelegate.sharedInstance saveAction:self];
 	} else {
-		error = [NSError errorWithDescription:@"The marker could not be created because an inconsistency in the database." suggestion:@"You may quit the application and try again."];
+		error = [error errorWithNewDescription:@"The marker could not be created because an error in the database." suggestion:@"You may quit the application and try again."];
 		[NSApp presentError:error];
 	}
 	

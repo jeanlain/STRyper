@@ -92,9 +92,9 @@
 	}
 	
 	NSRect bounds = clipView.bounds;
-	float xOrigin = bounds.origin.x;
-	if(xOrigin < 0) {
-		xOrigin = 0;
+	CGFloat xOrigin = bounds.origin.x;
+	if(xOrigin < 0.0) {
+		xOrigin = 0.0;
 	}
 	
 	NSRect frame = NSMakeRect(xOrigin, 0, bounds.size.width, self.frame.size.height);
@@ -122,8 +122,9 @@
 */
 
 - (void)dealloc {
-	if(registered) {
+	@try {
 		[NSNotificationCenter.defaultCenter removeObserver:self];
+	} @catch (NSException *exception) {
 	}
 }
 

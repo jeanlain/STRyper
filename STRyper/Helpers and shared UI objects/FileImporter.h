@@ -19,7 +19,9 @@
 
 
 @import  Cocoa;
-@class MainWindowController, FolderListController, SampleFolder;
+@class PanelFolder;
+@class SizeStandard;
+@class SampleFolder;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -47,17 +49,25 @@ NS_ASSUME_NONNULL_BEGIN
 @property (readonly) BOOL importOnGoing;
 
 
-/// Convenience method that returns paths of ABIF files from a paste board.
-///
-/// This method find the `NSURL` objects from the paste board that conforms to `com.appliedbiosystems.abif.fsa` or `com.appliedbiosystems.abif.hid`.
-///
-/// This method can be used to determine which copied or dragged files from the Finder are of the right type.
+/// Convenience method that returns paths of files conforming to types from an array of URLs that may point to directories.
 ///
 /// - Parameters:
-/// 	- pboard: The pasteboard in which to look for ABIF file paths.
-/// - Returns:  The file paths for abif files found.
-+(NSArray<NSString *> *) ABIFilesFromPboard:(NSPasteboard*)pboard;
-	
+///   - URLs: Array of file and/or directory URLs.
+///   - UTTypes: The types that the files at the `URLs` must conform to.
+///   - allowChildren: Whether to return paths from immediate children of directories, if they conform to the `UTTypes`.
++ (NSArray<NSString *>*)pathFromURLs:(NSArray<NSURL *>*) URLs conformingToUTTypes:(NSSet<NSString *> *) UTTypes allowChildren:(BOOL)allowChildren;
+
+
+/// Convenience method that returns whether an URL points to an item that can be imported or browsed by an open panel that can select directories.
+///
+///	This method returns `NO` if the URL is a directory that contains files not conforming to the types the panel can import, and which does not contain subdirectories.
+/// - Parameters:
+///   - URL: An URL.
+///   - panel: The panel used to return the `URL`. Validation is based on its `allowedFileTypes`, which is assumed to contained UTTypes.
+///   - browse: Whether the method should return `YES` if the `URL` refers to a directory containing subdirectories, even if the directory does not contain valid files.
+///   This can be used to allow browsing such directory with the `panel`.
++ (BOOL)isValidURL:(NSURL *)URL forPanel:(NSOpenPanel*) panel browsing:(BOOL) browse;
+
 
 /// Imports ``Chromatogram`` objects from abif files.
 /// 
@@ -88,13 +98,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// The archive file must conform to `org.jpeccoud.stryper.folderarchive`.
 ///  
 /// The imported folder and its content, as well as imported panel and size standards that have no equivalent in the database
-/// are materialized in a ``AppDelegate/newChildContext``, which is saved at the end of the import.
-///  
-/// The imported items are accessible in `callbackBlock` with any error that has occurred (in this case `importedItems` is `nil`).
-///  
-/// The `importedItems` dictionary contains the imported folder at the `importedFolderKey`,
-/// a ``PanelFolder`` containing imported panels and panel folders at the `importedRootPanelsKey`
-/// and a set of imported size standards at the `importedSizeStandardsKey`. These sets can be empty.
+/// are materialized in a ``AppDelegate/childContext``, which is not saved at the end of the import.
+///
+/// The imported folder and accompanying items, or any error that has occurred, are accessible in `callbackBlock`.
 /// - Parameters:
 ///   - url: The url of the file to import.
 ///   - importProgress: An optional progress that the method updates to indicate the number of files processed.

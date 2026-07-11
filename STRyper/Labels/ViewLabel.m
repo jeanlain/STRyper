@@ -24,7 +24,9 @@
 
 
 
-@implementation ViewLabel
+@implementation ViewLabel {
+	id eventMonitor;
+}
 
 
 #pragma mark - initialization and base attributes setting
@@ -71,10 +73,6 @@
 				self.highlighted = YES;
 			}
 			self.clicked = YES;
-		} else {
-			self.hovered = NO;
-			self.highlighted = NO;
-			self.clicked = NO; ///may not be needed as this is also set to no on mouseUp.
 		}
 	}
 }
@@ -106,7 +104,6 @@
 			self.highlighted = YES;
 		}
 		self.clicked = NO;
-		self.dragged = NO;
 	}
 }
 
@@ -139,11 +136,11 @@
 	}
 	/// The tracking area must be contained in the visible rectangle of the view.
 	/// We use a 1-point distance to avoid interference with other views.
-	NSRect areaFrame = NSIntersectionRect(rect, NSInsetRect(view.visibleRect, 1, 1));
-	if(areaFrame.size.width > 0) {
+	NSRect areaFrame = NSIntersectionRect(rect, NSInsetRect(view.visibleRect, 1.0, 1.0));
+	if(areaFrame.size.width > 0.0) {
 		NSTrackingArea *area = [[NSTrackingArea alloc] initWithRect:areaFrame 
 															options:(NSTrackingMouseEnteredAndExited | NSTrackingActiveInKeyWindow) owner:self userInfo:nil];
-		/// we're not using the NSTrackingActiveCursorUpdate option to set the cursor as it doesn't appear helpful 
+		/// we're not using the NSTrackingActiveCursorUpdate option to set the cursor as it doesn't appear helpful
 		/// (especially in comparison to NSTrackingMouseEnteredAndExited)
 		/// because it doesn't tell if the event corresponds to the mouse entering or exiting the area
 		[view addTrackingArea:area];
@@ -187,6 +184,33 @@
 			[view removeTrackingArea:trackingArea];
 		}
 	}
+	[self removeTooltip];
+}
+
+
+- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
+	if(tag == toolTipTag) {
+		return self.stringForToolTip;
+	}
+	return @"";
+}
+
+
+- (NSString *)stringForToolTip {
+	return @"";
+}
+
+
+- (void)addToolTip {
+	toolTipTag = [self.view addToolTipRect:self.frame owner:self userData:nil];
+}
+
+
+- (void)removeTooltip {
+	if(toolTipTag != 0) {
+		[self.view removeToolTip:toolTipTag];
+		toolTipTag = 0;
+	}
 }
 
 
@@ -216,6 +240,9 @@
 	if(_clicked != clicked) {
 		_clicked = clicked;
 		self.allowsAnimations = !clicked;
+		if(!clicked && self.dragged) {
+			self.dragged = NO;
+		}
 	}
 }
 
@@ -228,9 +255,7 @@
 - (void)setHidden:(BOOL)hidden {
 	if(_hidden != hidden) {
 		_hidden = hidden;
-		if(layer) {
-			layer.hidden = hidden;
-		}
+		self.needsUpdateAppearance = YES;
 		if(hidden) {
 			self.enabled = NO;
 		}
@@ -265,6 +290,12 @@
 		if(highlighted) {
 			self.hidden = NO;
 			self.enabled = YES;			/// NOT SURE IF APPROPRIATE   TO REMOVE ?
+			if(self.deHighlightAutomatically) {
+				[self monitorMouseDown];
+			}
+		} else if(eventMonitor) {
+			[NSEvent removeMonitor:eventMonitor];
+			eventMonitor = nil;
 		}
 		self.needsUpdateAppearance = YES;
 		[self.view labelDidChangeHighlightedState:self];
@@ -272,11 +303,47 @@
 }
 
 
+-(void)monitorMouseDown {
+	/// We monitor mouse down events to de-highlight if the click occurred outside the label frame.
+	/// The host view would not send a mouseDownInView message if the click occurs elsewhere.
+	if(!eventMonitor) {
+		__weak typeof(self) weakSelf = self;
+		eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
+			if(event.window == weakSelf.view.window) {
+				NSPoint location = [weakSelf.view convertPoint:event.locationInWindow fromView:nil];
+				if(!NSPointInRect(location, weakSelf.frame)) {
+					weakSelf.highlighted = NO;
+					weakSelf.hovered = NO;
+				}
+			}
+			return event;
+		}];
+	}
+}
+
+
+- (BOOL)deHighlightAutomatically {
+	return YES;
+}
+
+
+- (void)clickedOccurredAtLocation:(NSPoint) location {
+	if(!NSPointInRect(location, self.frame)) {
+		self.highlighted = NO;
+		self.hovered = NO;
+	}
+}
+
 - (void)setHovered:(BOOL)hovered {
     if (_hovered != hovered) {
 		_hovered = hovered;
 		self.needsUpdateAppearance = YES;
 		[self.view labelDidChangeHoveredState:self];
+		if(hovered) {
+			if(toolTipTag == 0 && self.stringForToolTip) {
+				[self addToolTip];
+			}
+		}
     }
 }
 
@@ -308,11 +375,13 @@
 
 
 - (void)updateAppearance {
-	
+	if(layer && layer.hidden != _hidden) {
+		layer.hidden = _hidden;
+	}
 }
 
 
-- (void)updateForTheme {
+- (void)updateColors {
 	
 }
 
@@ -333,6 +402,10 @@
 }
 
 - (void)dealloc {
+	if(eventMonitor) {
+		[NSEvent removeMonitor:eventMonitor];
+		eventMonitor = nil;
+	}
 	[self removeFromView];
 }
 

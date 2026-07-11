@@ -230,7 +230,7 @@
 
 - (BOOL)popoverShouldClose:(NSPopover *)popover {
 	if(modalState) {
-		return NO;
+	//	return NO;
 	}
 	if([theDelegate respondsToSelector:@selector(popoverShouldClose:)] && theDelegate != self)  {
 		return [theDelegate popoverShouldClose:popover];

@@ -22,6 +22,7 @@
 #import "PanelListController.h"
 #import "Panel.h"
 #import "Mmarker.h"
+#import "Genotype.h"
 #import "MainWindowController.h"
 #import "PanelFolder.h"
 #import "SampleTableController.h"
@@ -33,18 +34,6 @@
 	__weak IBOutlet NSPopUpButton *applyPanelButton;
 	NSMutableArray *draggedMarkers;
 	
-}
-
-
-+ (instancetype)sharedController {
-	static PanelListController *controller = nil;
-	static dispatch_once_t once;
-	
-	dispatch_once(&once, ^{
-		controller = self.new;
-	});
-	
-	return controller;
 }
 
 
@@ -66,9 +55,9 @@
 	SampleTableController *sharedController = SampleTableController.sharedController;
 	for(NSMenuItem *item in applyPanelButton.menu.itemArray) {
 		if(item.tag == 1) {
-			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"samples.arrangedObjects.@count" options:nil];
+			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"arrangedObjects.@count" options:nil];
 		} else if(item.tag == 2) {
-			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"samples.selectedObjects.@count" options:nil];
+			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"selectedObjects.@count" options:nil];
 		}
 	}
 	
@@ -104,34 +93,39 @@
 		if(destination == self.selectedFolder) {
 			return NO;
 		}
-		return [self addMarkersFromPasteBoard:pboard ToPanel:(Panel *)destination];
+		return [self addMarkersFromPasteBoard:pboard ToPanel:(Panel *)destination].count > 0;
 	}
 
 	return [super outlineView:outlineView acceptDrop:info item:item childIndex:index];
 }
 
 
-# pragma mark - copy / pasting markers
+# pragma mark - copy / pasting panels and markers
 
 
 -(IBAction)paste:(id)sender {
-	Panel *selectedPanel = self.selectedFolder;
+	Folder *targetFolder = [self _targetFolderOfSender:sender];
 	NSPasteboard *pboard = NSPasteboard.generalPasteboard;
-	if(selectedPanel.isPanel && [pboard.types containsObject:MarkerPasteboardType]) {
-		[self addMarkersFromPasteBoard:pboard ToPanel:selectedPanel];
+	if(targetFolder.isPanel) {
+		if([pboard.types containsObject:MarkerPasteboardType]) {
+			[self addMarkersFromPasteBoard:pboard ToPanel:(Panel *)targetFolder];
+		}
+	} else if([pboard.types containsObject:FolderArchivePasteboardType]) {
+		[self paste:sender];
 	}
 }
 
 
 
-/// Adds marker retrieved from a paste board to a panel and returns whether at least one marker could be added.
+
+/// Adds marker retrieved from a paste board to a panel and returns the copied markers.
 ///
 /// - Parameters:
 ///   - pboard: A pasteboard.
 ///   - destination: A panel.
--(BOOL) addMarkersFromPasteBoard:(NSPasteboard *)pboard ToPanel:(Panel *)destination {
+-(NSArray<Mmarker *>*) addMarkersFromPasteBoard:(NSPasteboard *)pboard ToPanel:(Panel *)destination {
 	if(destination == nil || !destination.isPanel) {
-		return NO;
+		return nil;
 	}
 	NSError *error;
 	if(destination.objectID.isTemporaryID) {
@@ -143,11 +137,11 @@
 	[MOC reset];
 
 	Panel *panel = [MOC existingObjectWithID:destination.objectID error:&error];
-	NSUInteger nCopiedMarkers = 0;
-	NSMutableArray *validationErrors = NSMutableArray.new;
-	
+	NSMutableArray<NSError *> *validationErrors = NSMutableArray.new;
+	NSMutableArray<Mmarker *> *copiedMarkers = NSMutableArray.new;
+
 	if(error) {
-		error = [NSError errorWithDescription:@"The marker(s) could not be added to the panel." suggestion:@"An error occurred in the database."];
+		error = [error errorWithNewDescription:@"The marker(s) could not be added to the panel because of an error in the database." suggestion:@"You may quit the application and try again."];
 	} else {
 		for(NSPasteboardItem *item in pboard.pasteboardItems) {
 			NSData *archivedMarker = [item dataForType:MarkerPasteboardType];
@@ -156,9 +150,9 @@
 				if(!error) {
 					NSError *validationError;
 					[marker validateValue:&panel forKey:@"panel" error:&validationError];
-					if(!validationError) {
+					if(!validationError && marker) {
 						[marker managedObjectOriginal_setPanel:panel];
-						nCopiedMarkers++;
+						[copiedMarkers addObject:marker];
 					} else {
 						[MOC deleteObject:marker];
 						[validationErrors addObject:validationError];
@@ -168,9 +162,9 @@
 		}
 	}
 	
-	if(nCopiedMarkers > 0) {
-		NSString *action = [pboard.name isEqualToString: NSPasteboardNameDrag]? @"Transfer Marker" : @"Paste Marker";
-		if(nCopiedMarkers > 1) {
+	if(copiedMarkers.count > 0) {
+		NSString *action = [pboard.name isEqualToString: NSPasteboardNameDrag]? @"Copy Marker" : @"Paste Marker";
+		if(copiedMarkers.count > 1) {
 			action = [action stringByAppendingString:@"s"];
 		}
 		[self.undoManager setActionName:action];
@@ -182,6 +176,8 @@
 	if(errorCounts > 0) {
 		if(errorCounts == 1) {
 			error = validationErrors.firstObject;
+			NSString *description = [@"One marker was not copied.\n" stringByAppendingString:error.localizedDescription];
+			error = [error errorWithNewDescription:description suggestion:nil];
 		} else {
 			NSString *description = [NSString stringWithFormat:@"%ld markers could not be added to the panel.", errorCounts];
 			error = [NSError errorWithDomain:STRyperErrorDomain
@@ -196,7 +192,7 @@
 		[MainWindowController.sharedController showAlertForError:error];
 	}
 	
-	return nCopiedMarkers > 0;
+	return copiedMarkers.copy;
 }
 
 
@@ -214,9 +210,18 @@
 		return nil;
 	}
 	if([sender action] == @selector(paste:)) {
-		/// We can only paste markers into a panel.
+		/// We can only paste markers into a panel or panels into a folder
 		NSPasteboard *pboard = NSPasteboard.generalPasteboard;
-		if(!self.selectedFolder.isPanel || ![pboard.types containsObject:MarkerPasteboardType]) {
+		if([pboard.types containsObject:MarkerPasteboardType]) {
+			if(!targetFolder.isPanel) {
+				return nil;
+			}
+		} else if([pboard.types containsObject:FolderArchivePasteboardType]) {
+			if(!targetFolder) {
+				return self.rootFolder; 
+			}
+			return targetFolder.isPanel? targetFolder.parent : targetFolder;
+		} else {
 			return nil;
 		}
 	}
@@ -226,9 +231,6 @@
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
 	PanelFolder *targetFolder = [self _targetFolderOfSender:menuItem];
-	if(menuItem.action == @selector(paste:)) {
-		return targetFolder != nil;
-	}
 	
 	if(targetFolder && menuItem.action == @selector(addFolder:)) {
 		menuItem.hidden = NO;
@@ -248,9 +250,9 @@
 	PanelFolder *targetFolder = items.firstObject;
 	NSSet *panels = targetFolder.allPanels;
 	if(panels.count == 1) {
-		return @"Export Selected Panel to File…";
+		return @"Export Panel to File…";
 	} else if(panels.count > 1) {
-		return @"Export Selected Panels to File…";
+		return @"Export Panels to File…";
 	}
 	return nil;
 }
@@ -266,19 +268,22 @@
 }
 
 
+- (NSString *)cautionAlertTitleStringForItems:(NSArray *)items {
+	PanelFolder *folder = items.firstObject;
+	NSSet *panels = folder.allPanels;
+	if(panels.count > 0) {
+		return folder.isPanel? @"Are you sure you want to delete the panel?" : @"Are you sure you want to delete the folder?";
+	}
+	return [super cautionAlertTitleStringForItems:items];
+}
+
+
 - (nullable NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
-	Folder *folder = items.firstObject;
+	PanelFolder *folder = items.firstObject;
 	if(folder.subfolders.count == 0 && !folder.isPanel) {
 		return nil;
 	}
-	NSSet *panels;
-	if(folder.isPanel) {
-		panels = [NSSet setWithObject:folder];
-	} else {
-		panels = [folder.allSubfolders filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Folder *folder, NSDictionary<NSString *,id> * _Nullable bindings) {
-			return folder.isPanel;
-		}]];
-	}
+	NSSet *panels = folder.allPanels;
 	NSMutableString *base = NSMutableString.new;
 	NSInteger panelCount = panels.count;
 	if(panelCount > 0) {
@@ -304,9 +309,9 @@
 				[base appendFormat:@" and %ld genotype%@", nGenotypes, nGenotypes == 1? @"" : @"s"];
 			}
 		}
-		[base appendString:@" will be deleted.\n"];
+		[base appendString:@" will be deleted!\n"];
 	}
-	return [base stringByAppendingString:@"This action can be undone."];
+	return base;
 	
 }
 
@@ -324,21 +329,20 @@
 
 - (void)exportPanel:(PanelFolder *)folder {
 	NSSavePanel* savePanel = NSSavePanel.savePanel;
-	savePanel.prompt = folder.allPanels.count > 1? @"Export Panels" : @"Export Panel";
+	BOOL severalPanels = folder.allPanels.count > 1;
+	savePanel.prompt =  severalPanels? @"Export Panels" : @"Export Panel";
 
-	savePanel.message = folder.isPanel? @"Export panel to a tab-delimited text file" : @"Export panel(s) to a tab-delimited text file";
+	savePanel.message = severalPanels? @"Export the panels to a tab-delimited text file" : @"Export the panel to a tab-delimited text file";
 	savePanel.nameFieldStringValue = folder.name;
 	savePanel.allowedFileTypes = @[@"public.plain-text"];
 	[savePanel beginSheetModalForWindow:outlineView.window completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
 			NSURL* theFile = savePanel.URL;
-			NSString *exportString = folder.exportString;
+			NSString *exportString = folder.stringRepresentation;
 			NSError *error = nil;
 			[exportString writeToURL:theFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
 			if(error) {
-				[[NSAlert alertWithError:error] beginSheetModalForWindow:self.view.window
-													   completionHandler:^(NSModalResponse returnCode) {
-				}];
+                [NSApp presentError:error];
 			}
 		}
 	}];
@@ -364,7 +368,7 @@
 	openPanel.allowsMultipleSelection = NO;
 	openPanel.message = @"Import marker panels from a text file";
 	openPanel.allowedFileTypes = @[@"public.plain-text"];
-	[openPanel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
+	[openPanel beginSheetModalForWindow:NSApp.mainWindow completionHandler:^(NSInteger result){
 		if (result == NSModalResponseOK) {
 			NSURL* url = openPanel.URLs.firstObject;
 			[self importPanelsFromURL:url ToFolder:folder];
@@ -375,7 +379,6 @@
 
 - (void)importPanelsFromURL:(NSURL *) url ToFolder:(PanelFolder *)folder {
 	NSError *error;
-	NSWindow *window = self.view.window;
 	
 	AppDelegate *delegate = AppDelegate.sharedInstance;
 	/// we import the panels in a temporary context on the main queue.
@@ -385,11 +388,9 @@
 	}
 	folder = [temporaryContext existingObjectWithID:folder.objectID error:&error];
 	if(error) {
-		error = [NSError errorWithDescription:@"The panel(s) could not be imported because an error occurred in the database."
+		error = [error errorWithNewDescription:@"The panel(s) could not be imported because an error occurred in the database."
 								   suggestion:@"You may quit the application and try again."];
-		NSAlert *alert = [NSAlert alertWithError:error];
-		[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
-		}];
+		[MainWindowController.sharedController showAlertForError:error];
 		return;
 	}
 	
@@ -406,34 +407,23 @@
 		[self.undoManager setActionName:@"Import Panels"];
 		[temporaryContext save:&error];
 		if(error) {
-			error = [NSError errorWithDescription:@"The panel(s) could not be imported because an error occurred saving the database."
+			error = [error errorWithNewDescription:@"The panel(s) could not be imported because an error occurred saving the database."
 									   suggestion:@"You may quit the application and try again."];
-			NSAlert *alert = [NSAlert alertWithError:error];
-			[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
-			}];
+			[MainWindowController.sharedController showAlertForError:error];
 			return;
 		}
 				
 		[AppDelegate.sharedInstance saveAction:self];
 		
-		/// We make sure that the tab showing the folder list is displayed if a folder is added, and we select the folder.
-		[MainWindowController.sharedController activateTabNumber:2];
+		/// We make sure that the tab showing the panel list is displayed if a folder is added, and we select the folder.
+		[MainWindowController.sharedController selectTabViewItemAtIndex:markerTab];
 		[temporaryContext obtainPermanentIDsForObjects:@[decodedFolder] error:nil];
 		decodedFolder = [self.rootFolder.managedObjectContext existingObjectWithID:decodedFolder.objectID error:&error];
 		if(decodedFolder) {
 			[self selectFolder:decodedFolder];
 		}
-		
 	}
 }
-
-
-- (void)_addFolderToTable:(Folder *)folder {
-	/// We make sure that the tab showing or view is displayed if a folder is added.
-	[MainWindowController.sharedController activateTabNumber:2];
-	[super _addFolderToTable:folder];
-}
-
 
 
 - (IBAction)importBinSet:(id)sender {
@@ -445,7 +435,7 @@
 		openPanel.allowsMultipleSelection = NO;
 		openPanel.message = @"Import bin sets from a text file";
 		openPanel.allowedFileTypes = @[@"public.plain-text"];
-		[openPanel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
+		[openPanel beginSheetModalForWindow:NSApp.mainWindow completionHandler:^(NSInteger result){
 			if (result == NSModalResponseOK) {
 				NSURL* url = openPanel.URLs.firstObject;
 				[self addBinSetFromURL:url toPanel:panel];
@@ -457,7 +447,7 @@
 
 - (void) addBinSetFromURL:(NSURL *)url toPanel:(Panel *)panel {
 	NSError *error;
-	NSWindow *window = self.view.window;
+	NSWindow *window = NSApp.mainWindow;
 	
 	AppDelegate *delegate = AppDelegate.sharedInstance;
 	/// we import the bin set in a temporary context on the main queue.
@@ -469,7 +459,7 @@
 	
 	panel = [temporaryContext existingObjectWithID:panel.objectID error:&error];
 	if(error) {
-		error = [NSError errorWithDescription:@"The bin set could not be imported because an error in the database."
+		error = [error errorWithNewDescription:@"The bin set could not be imported because an error in the database."
 								   suggestion:@"You may quit the application and try again."];
 		NSAlert *alert = [NSAlert alertWithError:error];
 		[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
@@ -488,7 +478,7 @@
 		[self.undoManager setActionName:@"Import Bin Set"];
 		[temporaryContext save:&error];
 		if(error) {
-			error = [NSError errorWithDescription:@"The bin set could not be imported because an error saving the database."
+			error = [error errorWithNewDescription:@"The bin set could not be imported because an error saving the database."
 									   suggestion:@"You may quit the application and try again."];
 			NSAlert *alert = [NSAlert alertWithError:error];
 			[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
@@ -504,7 +494,7 @@
 			NSAlert *alert = NSAlert.new;
 			alert.icon = [NSImage imageNamed:ACImageNameCheckGreen];
 			alert.messageText = [NSString stringWithFormat:@"Bins were imported for marker%@ '%@'.", s, [markerNames componentsJoinedByString:@"', '"]];
-			[alert beginSheetModalForWindow:self.view.window completionHandler:^(NSModalResponse returnCode) {
+			[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse returnCode) {
 				
 			}];
 			
@@ -517,9 +507,9 @@
 
 -(IBAction)applyPanel:(NSMenuItem *)sender {
 	Panel *selectedPanel = self.selectedFolder;
-	NSArrayController *samples = SampleTableController.sharedController.samples;
-	if(selectedPanel.isPanel && samples) {
-		NSArray *targetSamples = sender.tag == 1? samples.arrangedObjects : samples.selectedObjects;
+	SampleTableController *sampleTableController = SampleTableController.sharedController;
+	if(selectedPanel.isPanel) {
+		NSArray *targetSamples = sender.tag == 1? sampleTableController.arrangedObjects : sampleTableController.selectedObjects;
 		if(targetSamples.count > 0) {
 			[self applyPanel:selectedPanel toSamples:targetSamples];
 		}
@@ -529,11 +519,34 @@
 
 /// Applies panel to each sample of sampleArray.
 - (void)applyPanel:(Panel*) panel toSamples:(NSArray <Chromatogram *>*)sampleArray {
+	NSError *error;
 	if(sampleArray.count == 0) {
+		error = [NSError errorWithDescription:@"There is no selected sample to apply the panel." suggestion:@""];
+		[NSApp presentError:error];
 		return;
 	}
+	/// We throw a warning if the samples already have called genotypes, as they will be deleted upon apply the panel.
+	NSArray<Genotype *> *genotypes = [sampleArray valueForKeyPath:@"@unionOfSets.genotypes"];
+	genotypes = [genotypes filteredArrayUsingBlock:^BOOL(Genotype   * _Nonnull genotype, NSUInteger idx) {
+		return genotype.status != genotypeStatusNotCalled && genotype.status != genotypeStatusNoSizing;
+	}];
+	if(genotypes.count > 0) {
+		NSArray<Chromatogram *> *samples = [genotypes valueForKeyPath:@"@distinctUnionOfObjects.sample"];
+		NSAlert *alert = NSAlert.new;
+		NSString *string = samples.count == 1 ? [NSString stringWithFormat:@"Sample '%@' already has", samples.firstObject.sampleName] :
+		[NSString stringWithFormat:@"%ld samples already have", samples.count];
+		alert.messageText = [string stringByAppendingString:@" called genotypes."];
+		alert.informativeText = @"These genotypes will be deleted if you apply the panel.";
+		alert.alertStyle = NSAlertStyleCritical;
+		[alert addButtonWithTitle:@"Apply Panel"];
+		[alert addButtonWithTitle:@"Cancel"];
+		NSModalResponse response = [alert runModal];
+		if(response != NSAlertFirstButtonReturn) {
+			return;
+		}
+	}
 	
-	/// We don't do this in a child context as it takes longer.
+	/// We don't apply the panel in a child context as it takes longer.
 	NSMutableArray *errors = NSMutableArray.new;
 	NSArray *redMarkers = [panel markersForChannel:redChannelNumber];
 	if(redMarkers.count >0) {
@@ -549,10 +562,8 @@
 	
 	[self.undoManager setActionName:@"Apply Marker Panel"];
 	NSString *alleleName = [NSUserDefaults.standardUserDefaults stringForKey:MissingAlleleName];
-	/// we set the panel's samples in one operation
-	[panel addSamples:[NSSet setWithArray:sampleArray]];
 	for(Chromatogram *sample in sampleArray) {
-		[sample applyPanelWithAlleleName:alleleName];
+		[sample applyPanel:panel withAlleleName:alleleName];
 	}
 	
 	if(errors.count > 0) {

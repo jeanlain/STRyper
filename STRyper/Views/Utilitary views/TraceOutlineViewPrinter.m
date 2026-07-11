@@ -69,22 +69,22 @@
 	rowRects = calloc(rowCount, sizeof(NSRect));
 	pageRects = NSMutableArray.new; /// Since the number or page is not pre-computed, it's easier to use a mutable array than a C array.
 	
-	CGFloat currentRowBottom = 0; /// Rows are created from top to bottom. This is the
+	CGFloat currentRowBottom = 0.0; /// Rows are created from top to bottom. This is the
 								  /// Y position of the last row in the view (the view's top is at Y = 0).
-	CGFloat currentPageTop = 0;	  /// The Y position of the top edge of the current page in the view.
+	CGFloat currentPageTop = 0.0;	  /// The Y position of the top edge of the current page in the view.
 	
 	CGFloat tableWidth = traceOutlineView.visibleRect.size.width;
-	CGFloat previousHeight = 0;
+	CGFloat previousHeight = 0.0;
 	for (int i = 0; i < rowCount; i++) {
 		NSRect rowRect = [traceOutlineView rectOfRow:i];
 		CGFloat rowHeight = rowRect.size.height*scalingFactor;
-		rowRect = NSMakeRect(0, currentRowBottom, tableWidth*scalingFactor, rowHeight);
+		rowRect = NSMakeRect(0.0, currentRowBottom, tableWidth*scalingFactor, rowHeight);
 		rowRects[i] = rowRect;
 		currentRowBottom = NSMaxY(rowRect);
 		
 		CGFloat mergedHeight = rowHeight; /// We combine the row with a previous one if it is a thin one
-		if(i > 0 && rowHeight/scalingFactor >= 39) {
-			if(previousHeight/scalingFactor <= 21) {
+		if(i > 0 && rowHeight/scalingFactor >= 39.0) {
+			if(previousHeight/scalingFactor <= 21.0) {
 				mergedHeight += previousHeight;
 			}
 		}
@@ -95,13 +95,13 @@
 			/// We move the row to the next page if its height does not exceed the page height (to avoid tiling rows across pages)
 			/// The height of the current printed page will be reduced in this case.
 			CGFloat pageHeight = mergedHeight > printHeight? printHeight : currentRowBottom - currentPageTop - mergedHeight;
-			NSRect pageRect = NSMakeRect(0, currentPageTop, pageWidth, pageHeight);
+			NSRect pageRect = NSMakeRect(0.0, currentPageTop, pageWidth, pageHeight);
 			[pageRects addObject:[NSValue valueWithRect:pageRect]];
 			currentPageTop = NSMaxY(pageRect);
 		}
 	}
 	/// We define the rectangle for the last page
-	NSRect pageRect = NSMakeRect(0, currentPageTop, pageWidth, currentRowBottom - currentPageTop);
+	NSRect pageRect = NSMakeRect(0.0, currentPageTop, pageWidth, currentRowBottom - currentPageTop);
 	[pageRects addObject:[NSValue valueWithRect:pageRect]];
 	
 	range->location = 1;

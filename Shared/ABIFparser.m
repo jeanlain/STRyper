@@ -312,7 +312,7 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 	/// We search for the entry in a range that excludes the header and allows the entry to fit in the file
 	NSRange searchRange = NSMakeRange(headerSize, fileData.length - headerSize);
 	
-	/// We search for bytes that constitute the itemName and itemNumber of the entry (8 bytes total), as these two are unique for a given item
+	/// We search for bytes that constitute the itemName and itemNumber of the entry (8 bytes total), as these two are unique for a given item.
 	NSData *itemNameAndNumber = [NSData dataWithBytes:&entry length:8];
 	while (foundObject == nil) {
 		NSRange range = [fileData rangeOfData:itemNameAndNumber options:0 range:searchRange];
@@ -339,12 +339,12 @@ DirEntry nativeEndianEntry(DirEntry entry) {
 
 /// Converts the n first elements of a big endian 16-bit int array to native and returns the result.
 ///
-/// IMPORTANT: the result array is allocated on the heap and must be freed.
+/// - Important: the returned array is allocated on the heap and must be freed.
 /// - Parameters:
 ///   - source: The array to convert.
 ///   - n: The number of element to read from the `source`.
 int16_t * bigEndianToNative16 (int16_t *source, long n){
-	int16_t *converted = malloc(n*sizeof(int16_t));
+	int16_t *converted = malloc(n*sizeof(*converted));
 	for (long i = 0; i < n; i++) {
 		converted[i] = EndianS16_BtoN(source[i]);
 	}
@@ -354,12 +354,12 @@ int16_t * bigEndianToNative16 (int16_t *source, long n){
 
 /// Converts the n first elements of a big endian 32-bit int array to native and returns the result.
 ///
-/// IMPORTANT: the result array is allocated on the heap and must be freed.
+/// - Important: the returned array is allocated on the heap and must be freed.
 /// - Parameters:
 ///   - source: The array to convert.
 ///   - n: The number of element to read from the `source`.
 int32_t * bigEndianToNative32 (int32_t *source, long n){
-	int32_t *converted = malloc(n*sizeof(int32_t));
+	int32_t *converted = malloc(n*sizeof(*converted));
 	for (long i = 0; i < n; i++) {
 		converted[i] = EndianS32_BtoN(source[i]);
 	}

@@ -29,10 +29,10 @@ NS_ASSUME_NONNULL_BEGIN
 @interface GenotypeTableController : TableViewController 
 
 
-/// Returns the receiver's ``TableViewController/tableContent``.
-///
-/// This allows using a name that is more explicit, since the table shows genotypes.
-@property (nonatomic, readonly) NSArrayController *genotypes;
+/// Convenience method that calls ``TableViewController/selectObjects:`` then
+/// sets the receiver as the ``MainWindowController/sourceController`` to show selected objects
+/// on the viewer.
+- (BOOL)selectAndShowObjects:(NSArray *)objects;
 
 /// A  key to the user default that allows access to the genotype filters applied to folders
 extern UserDefaultKey GenotypeFiltersKey;

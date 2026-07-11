@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The singleton object is the responder of event messages not consumed before they reach the main window.
 /// It also determines which ``TableViewController`` object provides content to the detailed outline view (``DetailedViewController``),
-/// and when to update the content to display in this view.
+/// and records/restores selected items of certain tables when the selected folder changes.
 @interface MainWindowController : NSWindowController <NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, NSToolbarItemValidation, NSTabViewDelegate>
 
 /// Returns the singleton object loaded from a nib.
@@ -47,10 +47,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) NSSplitViewController *verticalSplitViewController;
 
 
-/// The controller of the tableview whose selected rows serve as source for the detailed view.
+/// The controller of the tableview whose selected rows serve as source for the viewer.
 ///
-/// Changing his property changes the content sent to the detailed view.
-/// The content is taken from the selected objects of the ``TableViewController/tableContent`` property of the sourceController.
+/// Changing his property changes the content sent to the viewer.
+/// The content is taken from the selected objects of the ``TableViewController/selectedObjects`` property of the sourceController.
 ///
 /// Only the ``SampleTableController``, the ``GenotypeTableController`` and the ``MarkerTableController`` are valid sources.
 @property (weak, nonatomic) TableViewController *sourceController;
@@ -85,8 +85,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter error: The error to show in the alert.
 -(void)showAlertForError:(NSError *)error;
 
-/// Activates the tab at index `number` from the tabview of the bottom tab
-- (void)activateTabNumber:(NSInteger)number;
 
 /// Actions sent by controls to the first responder and that only have one possible receiver.
 /// As a window controller, this object may receives them and relay them to their target.
@@ -101,11 +99,26 @@ NS_ASSUME_NONNULL_BEGIN
 /// Toggles the bottom pane of the vertical split view.
 - (IBAction)toggleBottomPane:(id)sender;
 
-/// Activates a particular tab from the tabview of the bottom tab.
-///
-///	The method calls ``activateTabNumber:``.
-/// The tab number to activate is obtained from the sender `tag`.
-- (IBAction)activateTab:(id)sender;
+
+typedef NS_ENUM(NSUInteger, tabViewItemIndex) {		/// the index of the tab view item in the bottom tab view
+	// The tab showing the sample inspector
+	sampleInspectorTab = 0,
+	genotypeTab = 1,
+	markerTab = 2,
+	sizeStandardTab = 3
+} ;
+
+/// The index of the selected item of the tab view constituting the bottom pane mid section.
+@property (nonatomic) NSInteger selectedTabViewItemIndex;
+
+
+/// Sets the ``selectedTabViewItemIndex`` and uncollapse the pane containing the tab view if necessary;
+/// - Parameter number: The index of the tab view item to activate.
+- (void)selectTabViewItemAtIndex:(NSInteger)number;
+
+/// Calls  ``selectedTabViewItemIndex`` with the sender `tag`.
+/// - Parameter sender: The object that sent the message. The `sender` must return an integer to the `tag` message.
+- (IBAction)selectTabViewItemAtIndexSpecifiedBy:(id)sender;
 
 /// Calls ``SampleTableController/importSamples:``.
 - (IBAction)importSamples:(id)sender;
@@ -126,7 +139,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (IBAction)exportSelection:(id)sender;
 
 /// Restored the selected items and source controller saved in the user defaults
--(void) restoreSelection;
+-(void) restoreSourceController;
 
 @end
 

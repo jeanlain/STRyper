@@ -53,7 +53,7 @@
 	if(!gaugeLayer) {
 		self.wantsLayer = YES;
 		gaugeLayer = CALayer.new;
-		gaugeLayer.anchorPoint = CGPointMake(0, 0);
+		gaugeLayer.anchorPoint = CGPointZero;
 		gaugeLayer.frame = self.layer.bounds;
 		gaugeLayer.cornerRadius = 2.0;
 		gaugeLayer.delegate = self;
@@ -84,22 +84,22 @@
 
 -(void)setGaugeSize {
 	float fraction = self.value/self.maxValue;
-	if(fraction < 0) {
-		fraction = 0;
-	} else if(fraction > 1) {
-		fraction = 1;
+	if(fraction < 0.0f) {
+		fraction = 0.0f;
+	} else if(fraction > 1.0f) {
+		fraction = 1.0f;
 	}
-	gaugeLayer.bounds = CGRectMake(0, 0, NSMaxX(gaugeLayer.superlayer.bounds) * fraction, self.gaugeThickness);
+	gaugeLayer.bounds = CGRectMake(0.0, 0.0, NSMaxX(gaugeLayer.superlayer.bounds) * fraction, self.gaugeThickness);
 }
 
 
 /// Updates the gauge color.
 -(void)updateColor {
 	float fraction = self.value/self.maxValue;
-	if(fraction < 0) {
-		fraction = 0;
-	} else if(fraction > 1) {
-		fraction = 1;
+	if(fraction < 0.0f) {
+		fraction = 0.0f;
+	} else if(fraction > 1.0f) {
+		fraction = 1.0f;
 	}
 	gaugeLayer.backgroundColor = [self.minValueColor blendedColorWithFraction:fraction ofColor:self.maxValueColor].CGColor;
 }
@@ -118,7 +118,7 @@
 
 
 - (void)setMaxValue:(float)maxValue {
-	if(maxValue >= 0) {
+	if(maxValue >= 0.0f) {
 		_maxValue = maxValue;
 		self.value = self.value;	/// This updates the gauge.
 	}
@@ -130,8 +130,8 @@
 	if(gaugeValue > self.maxValue) {
 		gaugeValue = self.maxValue;
 	}
-	if(gaugeValue < 0) {
-		gaugeValue = 0;
+	if(gaugeValue < 0.0f) {
+		gaugeValue = 0.0f;
 	}
 	_value = gaugeValue;
 	[self updateColor];

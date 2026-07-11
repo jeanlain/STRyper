@@ -22,6 +22,9 @@
 #import "SizeStandard.h"
 #import "Chromatogram.h"
 #import "SampleFolder.h"
+#import "Panel.h"
+#import "PanelFolder.h"
+
 
 @interface FileImporter () {
 	///The total number of sample that have been imported, which is used to monitor the progress of unarchiving.
@@ -53,25 +56,100 @@
 }
 
 
-# pragma mark - sample import
 
-
-+ (NSArray <NSString *> *)ABIFilesFromPboard:(NSPasteboard*)pboard {
++ (NSArray<NSString *>*)pathFromURLs:(NSArray<NSURL *>*) URLs conformingToUTTypes:(NSSet<NSString *> *) UTTypes allowChildren:(BOOL)allowChildren {
+	NSMutableArray<NSString *> *filePaths = NSMutableArray.new;
+	NSWorkspace *workspace = NSWorkspace.sharedWorkspace;
 	
-	NSArray *fileURLs = [pboard readObjectsForClasses:@[[NSURL class]] options:nil];
-	NSMutableArray *filePaths = NSMutableArray.new;
-	NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
-	for (NSURL *url in fileURLs) {
-		NSString *type;
-		if ([url getResourceValue:&type forKey:NSURLTypeIdentifierKey error:nil]) {
-			if ([workspace type:type conformsToType:@"com.appliedbiosystems.abif.fsa"] || [workspace type:type conformsToType:@"com.appliedbiosystems.abif.hid"]) {
-				[filePaths addObject:url.path];
+	for(NSURL *url in URLs) {
+		NSNumber *isDirectory = nil;
+		if([url getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil]) {
+			
+			if(isDirectory.boolValue) {
+				if(allowChildren) {
+					/// We inspect only immediate children (no recursion)
+					NSArray<NSURL *> *children = [NSFileManager.defaultManager contentsOfDirectoryAtURL:url
+																			 includingPropertiesForKeys:@[NSURLIsRegularFileKey]
+																								options:NSDirectoryEnumerationSkipsHiddenFiles
+																								  error:nil];
+					NSArray<NSString *> *paths = [self pathFromURLs:children conformingToUTTypes:UTTypes allowChildren:NO];
+					
+					[filePaths addObjectsFromArray:paths];
+				}
+			} else {
+				NSString *type;
+				if([url getResourceValue:&type forKey:NSURLTypeIdentifierKey error:nil]) {
+					for(NSString *UTType in UTTypes) {
+						if([workspace type:type conformsToType:UTType]) {
+							[filePaths addObject:url.path];
+							break;
+						}
+					}
+				}
 			}
 		}
 	}
-	return filePaths;
 	
+	return filePaths.copy;
 }
+
+
++ (BOOL)isValidURL:(NSURL *)URL forPanel:(NSOpenPanel*) panel browsing:(BOOL) browse {
+	
+	NSNumber *isDirectory = nil;
+	if (![URL getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil]) {
+		return NO;
+	}
+	
+	if (!isDirectory.boolValue) {
+		/// If not a directory, the validity of the file is also checked by the panel via its `allowedFiledTypes`
+		/// so we don't invalidate here.
+		return YES;
+	}
+	
+	NSWorkspace *workspace = NSWorkspace.sharedWorkspace;
+	
+	/// For a directory, we  inspect only immediate children (no recursion)
+	NSArray<NSURL *> *children = [NSFileManager.defaultManager contentsOfDirectoryAtURL:URL
+															 includingPropertiesForKeys:@[NSURLIsRegularFileKey]
+																				options:NSDirectoryEnumerationSkipsHiddenFiles
+																				  error:nil];
+	NSArray *UTTypes = panel.allowedFileTypes;
+	
+	for (NSURL *childURL in children) {
+		if(browse) {
+			/// To allow browsing, we validate if the directory contain subdirectories.
+			if ([childURL getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil]) {
+				if (isDirectory.boolValue) {
+					return YES;
+				}
+			}
+		}
+		
+		NSNumber *isRegularFile = nil;
+		[childURL getResourceValue:&isRegularFile forKey:NSURLIsRegularFileKey error:nil];
+		
+		if(isRegularFile.boolValue) {
+			if(UTTypes.count == 0) {
+				return YES;
+			}
+			
+			NSString *type;
+			if ([childURL getResourceValue:&type forKey:NSURLTypeIdentifierKey error:nil]) {
+				for(NSString *UTType in UTTypes) {
+					if ([workspace type:type conformsToType:UTType]) {
+						return YES;;
+					}
+				}
+			}
+		}
+	}
+	
+	return NO;
+}
+
+
+# pragma mark - sample import
 
 
 - (void)importSamplesFromFiles:(NSArray<NSString *> *)filePaths
@@ -157,8 +235,8 @@
 		if(importProgress.isCancelled) {
 			error = [NSError cancelOperationErrorWithDescription:@"The import was cancelled." suggestion:@""];
 		} else if(error) {
-				error = [NSError errorWithDescription:@"The sample(s) could not be imported because an error occurred saving the database." suggestion:@"Some sample(s) may contain invalid data."];
-				/// hopefully, this kind of error will not happen if the checks made during import are rigorous enough. 
+				error = [error errorWithNewDescription:@"The sample(s) could not be imported because an error occurred saving the database." suggestion:@"Some sample(s) may contain invalid data."];
+				/// hopefully, this kind of error will not happen if the checks made during import are rigorous enough.
 		}
 		
 		if(!error && fileErrors.count > 0) {
@@ -195,13 +273,14 @@
 		return;
 	}
 	
-	NSManagedObjectContext *MOC = [AppDelegate.sharedInstance newChildContext];
+	NSManagedObjectContext *MOC = AppDelegate.sharedInstance.childContext;
 	self.childContext = MOC;
 	self.importProgress = importProgress;
 	[importProgress becomeCurrentWithPendingUnitCount:-1];
 	NSOperationQueue *callingQueue = NSOperationQueue.currentQueue;
 
 	[MOC performBlock:^{
+		[MOC reset];
 		SampleFolder *importedFolder;
 		NSError *error;
 		@autoreleasepool {
@@ -214,7 +293,7 @@
 					importedFolder = [unarchiver decodeTopLevelObjectOfClass:SampleFolder.class forKey:@"top Folder" error:&error];
 					[unarchiver finishDecoding];
 				} else{
-					error = [NSError fileReadErrorWithDescription:@"The import failed."
+					error = [NSError fileReadErrorWithDescription:@"File could not be imported."
 													   suggestion:@"The provided file does not correspond to a folder archive or is corrupt."
 														 filePath:url.path
 														   reason:@"The unarchiver did not validate the data."];
@@ -225,19 +304,24 @@
 			if(!error && importedFolder) {
 				[MOC obtainPermanentIDsForObjects:@[importedFolder] error:&error];
 				
-				if(!error) {
-					importProgress.localizedDescription = @"Saving imported data…";
-					importProgress.cancellable = NO;
-					[MOC save:&error];
-				}
 				if(error) {		/// an error occurring at this stage means that the folder contains invalid data
 								/// we replace the validation error (that would be obscure to the user) within a more generic one
-					error = [NSError errorWithDescription:@"The folder could not be imported because it contains invalid data." suggestion:@""];
+					error = [error errorWithNewDescription:@"The folder could not be imported because it contains invalid data." suggestion:@""];
 					importedFolder = nil;
 				}
 			}
 		} else {
-			error = [NSError cancelOperationErrorWithDescription:@"The import was cancelled." suggestion:@""];;
+			error = [NSError cancelOperationErrorWithDescription:@"The import has been cancelled." suggestion:@""];;
+		}
+		
+		/// Some markers encoded in the file may not be imported if they have equivalent in the database. We clear them.
+		NSArray<Panel *> *panels = [MOC executeFetchRequest:Panel.fetchRequest error:nil];
+		for(Panel *panel in panels) {
+			if(!panel.parent && panel.samples.count == 0) {
+				/// As a panel is decoded via its samples, a panel without samples must be have been replaced during decoding.
+				/// And all panels in the database must have parent folders.
+				[MOC deleteObject:panel];
+			}
 		}
 		
 		[callingQueue addOperationWithBlock:^{
@@ -256,8 +340,6 @@
 			self.importProgress.completedUnitCount = totalSamplesProcessed;
 			self.importProgress.localizedDescription = [NSString stringWithFormat:@"%ld samples decoded", totalSamplesProcessed];
 		}
-	 } else if([object isKindOfClass:SizeStandard.class]) {
-		 [object autoName]; /// To avoid duplicate names
 	 }
 	
 	return object;

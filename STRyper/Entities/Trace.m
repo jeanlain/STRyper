@@ -35,8 +35,6 @@ CodingObjectKey TraceIsLadderKey = @"isLadder",
 TracePeaksKey = @"peaks",
 TraceFragmentsKey = @"fragments";
 
-NSString * _Nonnull const previousTraceClassName = @"Trace";
-
 const BaseRange ZeroBaseRange = {.start = 0, .len = 0};
 
 @interface Trace () {
@@ -62,6 +60,7 @@ const BaseRange ZeroBaseRange = {.start = 0, .len = 0};
 -(void)managedObjectOriginal_setChromatogram:(Chromatogram *)sample;
 -(void)managedObjectOriginal_setPeaks:(NSData *)peaks;
 -(void)managedObjectOriginal_setPeakThreshold:(int16_t)peakThreshold;
+-(void)managedObjectOriginal_setMaxFluo:(int16_t)maxFluo;
 
 @end
 
@@ -97,6 +96,11 @@ BaseRange MakeBaseRange(float start, float len) {
 }
 
 
+float OverlapOfRanges(BaseRange range1, BaseRange range2) {
+	float minEnd = MIN(range1.start + range1.len, range2.start + range2.len);
+	float maxStart = MAX(range1.start, range2.start);
+	return MAX(0.0f, minEnd - maxStart);
+}
 
 static BOOL appleSilicon;			/// whether the Mac running the application has an Apple SoC.
 									/// We use it for drawing optimisations.
@@ -155,22 +159,25 @@ int32_t peakEndScan(const Peak *peakPTR) {
 	[self findPeaks];
 	[self findCrossTalk];
 	/// as we may have found new peaks, we look for new ladder fragments
-	[SizeStandard sizeSample:self.chromatogram];
+	[self.chromatogram.sizeStandard sizeSample:self.chromatogram];
 }
 
 
 - (void)findPeaks {
 	NSData *rawData = self.rawData;
+	if(!rawData) {
+		return;
+	}
 	int nScans = (int)rawData.length / sizeof(int16_t);
 	int16_t peakThreshold = self.peakThreshold;
-	float ratio = 0.7;  							/// ratio of minimum fluo next to peak / peak height.
+	float ratio = 0.7f;  							/// ratio of minimum fluo next to peak / peak height.
 	int maxFluoLevel = 0;   						/// the max fluo level of a trace
 	const int16_t *raw = rawData.bytes;
 	
 	int16_t *adjusted = calloc(nScans, sizeof(int16_t));	/// this will store the adjusted fluo data, after baseline level removal
 	
 	Peak *peaks = malloc(nScans*sizeof(*peaks));
-	bool *isMin = calloc(nScans, sizeof(bool));		/// Whether a scan represents a local minimum in fuorescence
+	bool *isMin = calloc(nScans, sizeof(*isMin));		/// Whether a scan represents a local minimum in fuorescence
 
 	int nPeaks = 0;
 	/// we have several rounds of peak detection and baseline fluo removal.
@@ -178,7 +185,7 @@ int32_t peakEndScan(const Peak *peakPTR) {
 	for(int round = 1; round <= 3; round++) {
 		if(round == 1)	{
 			nPeaks = peakDetect(raw, nScans, peaks, isMin, &maxFluoLevel, peakThreshold, ratio);
-			[self setPrimitiveValue:@(maxFluoLevel) forKey:@"maxFluo"];
+			[self managedObjectOriginal_setMaxFluo:maxFluoLevel];
 		}
 		else {
 			ratio = 0.5;
@@ -288,7 +295,7 @@ int32_t peakEndScan(const Peak *peakPTR) {
 		if(nPeaks == 0) {
 			return fluoData;
 		}
-		int16_t *adjusted = malloc(nScans * sizeof(int16_t));
+		int16_t *adjusted = malloc(nScans * sizeof(*adjusted));
 		const Peak *peaks = peakData.bytes;
 		
 		subtractBaseline(raw, peaks, nPeaks, nScans, adjusted, maintainPeakHeights);
@@ -449,7 +456,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 		int16_t fluo = inputData[i];
 		/// the fluo level to subtract is the baseline multiplied by a ratio that is 0 when the fluo correspond to maxFluo and 1 when it is as low as the baseline
 		/// but if the maxFluo if ≤ 0, we ignore it and subtract the baseline.
-		float ratio = maxFluo > 0? (maxFluo - (float)fluo)/(maxFluo - baseLine) : 1;
+		float ratio = maxFluo > 0.0f? (maxFluo - (float)fluo)/(maxFluo - baseLine) : 1.0f;
 		int16_t toSubtract = baseLine * ratio;
 		
 		if(toSubtract < 0) {
@@ -601,7 +608,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 				int firstScan = MIN(peak.startScan, overlappingPeakStart);
 				int lastScan = MAX(endScan, overlappingPeakEnd);
 				
-				float ratio = 0, offset = 0, offset2 = 0, combinedAreas = 0, addedAreas = 0; /// Indices that indicate how much peaks are aligned
+				float ratio = 0.0f, offset = 0.0f, offset2 = 0.0f, combinedAreas = 0.0f, addedAreas = 0.0f; /// Indices that indicate how much peaks are aligned
 				
 				/// We try to reduce the influence of baseline level by subtracting the height at the first scan fo each peak.
 				int16_t startFluo = fluo[peak.startScan];
@@ -616,7 +623,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 					combinedAreas = 1;
 				} else {
 					for (int k = firstScan; k <= lastScan; k++) {
-						float currentPeakHeight = MAX(fluo[k] - startFluo, 0);
+						float currentPeakHeight = MAX(fluo[k] - startFluo, 0.0f);
 						float currentOverlappingPeakHeight = MAX((otherTraceFluo[k] - startFluoOvPeak) * heightRatio, 0);
 						combinedAreas += MAX(currentPeakHeight, currentOverlappingPeakHeight);
 						addedAreas += currentPeakHeight + currentOverlappingPeakHeight;
@@ -693,12 +700,12 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 - (Peak)missingPeakForScan:(int)scan useRawData:(BOOL)useRawData {
 	Peak nullPeak = MakePeak(0, 0, 0, 0);
 	NSData *fluoData = useRawData? self.primitiveRawData : self.adjustedData;
-	const int16_t *fluo = fluoData.bytes;
 	long nScans = fluoData.length/sizeof(int16_t);
-	if(scan >= nScans) {
+	if(scan >= nScans || !fluoData) {
 		return nullPeak;
 	}
 	
+	const int16_t *fluo = fluoData.bytes;
 	/// To look for a peak, we must know where the scan is with respect to other peaks.
 	NSData *peakData = self.peaks;
 	const Peak* peaks = peakData.bytes;
@@ -769,7 +776,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 		}
 	}
 	
-	float ratio = 0.5;		/// the minimum ration min fluo / max fluo
+	float ratio = 0.5f;		/// the minimum ration min fluo / max fluo
 	if(rightMin >= max * ratio || leftMin >= max*ratio) {
 		return nullPeak;
 	}
@@ -794,7 +801,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	
 	int inserted = 0;
 	/// We insert the newPeak at the correct position as the peaks must be sorted by ascending scan number
-	for (int i = 0; i <= nPeaks; i++) {
+	for (int i = 0; i < nPeaks; i++) {
 		const Peak *peakI = &peaks[i];
 		if(inserted == 0 && (i == nPeaks || peakI->startScan + peakI->scansToTip > tipScan)) {
 			/// We insert the peak once we detect the current peak would be at a lower scan or if we have reached the end
@@ -846,16 +853,13 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 		
 	Chromatogram *sample = self.chromatogram;
 	NSData *fluoData = useRawData? self.primitiveRawData : [self adjustedDataMaintainingPeakHeights:maintainPeakHeights];
-	const int16_t *fluo = fluoData.bytes;
+	NSData *sizeData = sample.sizes;
 	long nRecordedScans = fluoData.length/sizeof(int16_t);
 
-	NSData *sizeData = sample.sizes;
-	long nScanWithSizes = sizeData.length/sizeof(float);
-	if(nScanWithSizes < nRecordedScans) {
-		/// this would indicate an error.
+	if(nRecordedScans <= 0 || sizeData.length/sizeof(float) < nRecordedScans) {
 		return;
 	}
-
+	const int16_t *fluo = fluoData.bytes;
 	const float	*sizes = sizeData.bytes;
 		
 	/// we never draw scans that are after the maxScan, as they have lower sizes than the maxScan.
@@ -863,7 +867,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	int	maxScan = MIN(sample.maxScan, (int)nRecordedScans -1);
 		
 	/// the first scan for which me may draw the fluorescence is the before the startSize
-	int	startScan = MIN(maxScan, MAX(sample.minScan, [sample scanForSize:startSize]-1));
+	int	startScan = MIN(maxScan, MAX(0,MAX(sample.minScan, [sample scanForSize:startSize]-1)));
 		
 	size_t maxPointsInCurve = 40;
 	CGPoint *pointArray = NULL;
@@ -877,7 +881,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 			free(pointsForPath);
 		}
 		maxPointsInCurve = (maxScan-startScan +2)*2;
-		pointsForPath = malloc(maxPointsInCurve*sizeof(CGPoint));
+		pointsForPath = malloc(maxPointsInCurve*sizeof(*pointsForPath));
 		pointArray = pointsForPath;
 	} else {
 		CGPoint temp[40];
@@ -890,7 +894,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	CGFloat lastX = (sizes[startScan] - leftOffset)*hScale;
 	CGFloat y = fluo[startScan]*vScale;
 	if (y < minY) {
-		y = minY -1;
+		y = minY -1.0;
 	}
 	const int16_t lowerFluo = minY / vScale; 	/// to quickly evaluate if some scans should be drawn
 		
@@ -953,19 +957,20 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	
 	Chromatogram *sample = self.chromatogram;
 	NSData *fluoData = useRawData? self.primitiveRawData : [self adjustedDataMaintainingPeakHeights:maintainPeakHeights];
-	const int16_t *fluo = fluoData.bytes;
-	long nRecordedScans = fluoData.length/sizeof(int16_t);
+	int nRecordedScans = (int)fluoData.length/sizeof(int16_t);
 
 	NSData *sizeData = sample.sizes;
+	if(sizeData.length/sizeof(float) < nRecordedScans || nRecordedScans <= 0) {
+		return;
+	}
+	
 	const float	*sizes = sizeData.bytes;
-		
+	const int16_t *fluo = fluoData.bytes;
+
 	/// we never draw scans that are after the maxScan, as they have lower sizes than the maxScan.
 	/// The curve would go back to the left and overlap itself
-	int	maxScan = sample.maxScan;
-	if(maxScan >= nRecordedScans) {
-		maxScan = (int)nRecordedScans -1;
-	}
-		
+	int	maxScan = MIN(sample.maxScan, nRecordedScans-1);
+	
 	/// the first scan for which me may draw the fluorescence is the before the startSize
 	int	startScan = [sample scanForSize:startSize]-1;
 	if(startScan < sample.minScan) {
@@ -974,7 +979,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	}
 	
 	NSInteger colorCount = offScaleColors.count;
-	const CGFloat lowerY = 1;
+	const CGFloat lowerY = 1.0;
 	NSColor *currentOffscaleColor;
 	
 	NSData *peakData = self.peaks;
@@ -993,8 +998,8 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 				int offScaleChannel = -(peakPTR->crossTalk + 1);
 				if(offScaleChannel >= 0 && offScaleChannel <= colorCount) {
 					CGFloat x = (peakStartSize- leftOffset)*hScale;
-					CGFloat y = -1;
-					CGPoint *pointArray = malloc((endScan - peakStartScan + 3) * sizeof(CGPoint));
+					CGFloat y = -1.0;
+					CGPoint *pointArray = malloc((endScan - peakStartScan + 3) * sizeof(*pointArray));
 					pointArray[0] = CGPointMake(x, y);
 					int nPointsInPath = 1;
 					
@@ -1002,7 +1007,7 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 						x = (sizes[scan] - leftOffset) * hScale;
 						y = fluo[scan] * vScale;
 						if(y < lowerY) {
-							y = lowerY -1;
+							y = lowerY -1.0;
 						}
 						pointArray[nPointsInPath++] = CGPointMake(x, y);
 					}
@@ -1050,10 +1055,12 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	return YES;
 }
 
+
 - (void)encodeWithCoder:(NSCoder *)coder {
 	[super encodeWithCoder:coder];
 	[coder encodeObject:self.fragments forKey:@"fragments"];
 }
+
 
 - (instancetype)initWithCoder:(NSCoder *)coder {
 	self = [super initWithCoder:coder];
@@ -1062,6 +1069,17 @@ void subtractBaselineInRange(const int16_t *inputData, int16_t *outputData, int 
 	}
 	return self;
 }
+
+
++ (NSString *)previousClassName {
+	return @"Trace";
+}
+
+
++ (NSArray<NSString *> *)classFallbacksForKeyedArchiver {
+	return @[self.previousClassName];
+}
+
 
 - (id)copy {
 	Trace *copy = super.copy;

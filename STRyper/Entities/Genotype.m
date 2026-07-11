@@ -30,21 +30,19 @@
 
 static void * const offsetChangedContext = (void*)&offsetChangedContext;
 
-/// Predicates used to fetch alleles that are assigned or additional.
-static NSPredicate *assignedAllelePredicate;
-static NSPredicate *additionalFragmentPredicate;
-
 @interface Genotype ()
 
-@property (nullable, nonatomic) NSSet<Allele *> *assignedAlleles;
-@property (nullable, nonatomic) NSSet<Allele *> *additionalFragments;
+@property (nullable, nonatomic) NSArray<Allele *> *assignedAlleles;
+@property (nullable, nonatomic) NSArray<Allele *> *additionalFragments;
 
 /// Properties that help displaying the genotype in the UI
 @property (nullable, nonatomic) Allele *allele1;
 @property (nullable, nonatomic) Allele *allele2;
 @property (nullable, nonatomic) NSString *additionalFragmentString;
+@property (nullable, nonatomic, readonly) NSString *alleleStringColor;
 
 @end
+
 
 
 @implementation Genotype {
@@ -60,25 +58,11 @@ additionalFragments = _additionalFragments,
 leftAdenylationRatio = _leftAdenylationRatio, rightAdenylationRatio = _rightAdenylationRatio, scanOfPossibleAllele = _scanOfPossibleAllele;
 	
 
-+ (void)initialize {
-	if(self == Genotype.class) {
-		
-		assignedAllelePredicate = [NSPredicate predicateWithBlock:^BOOL(Allele * allele, NSDictionary<NSString *,id> * _Nullable bindings) {
-			return allele.additional == NO;
-		}];
-		
-		additionalFragmentPredicate = [NSPredicate predicateWithBlock:^BOOL(Allele * allele, NSDictionary<NSString *,id> * _Nullable bindings) {
-			return allele.additional;
-		}];
-	}
-}
-
-
 - (nullable instancetype)initWithMarker:(Mmarker *)marker sample:(Chromatogram *)sample {
 	if(sample.managedObjectContext == nil || sample.managedObjectContext != marker.managedObjectContext) {
 		return nil;
 	}
-	if(![sample.panel.markers containsObject:marker]) {
+	if([sample.panel.markers.allObjects indexOfObjectIdenticalTo:marker] == NSNotFound) {
 		return nil;
 	}
 	for(Genotype *genotype in sample.genotypes) {
@@ -153,7 +137,7 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 
 - (void)setProposedStatus:(GenotypeStatus)status {
     GenotypeStatus currentStatus = self.status;
-    if(status != currentStatus || YES) {
+    if(status != currentStatus) {
         switch (currentStatus) {
             case genotypeStatusNotCalled:
                 if(status == genotypeStatusMarkerChanged || status == genotypeStatusSizingChanged) {
@@ -234,16 +218,20 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 	/// we access the fluo levels of the trace
 	NSData *rawData = trace.rawData;
 	NSData *adjustedData = [trace adjustedDataMaintainingPeakHeights:NO];
+	if(!rawData || !adjustedData) { /// This should never happen.
+		return;
+	}
+	
 	const int16_t *fluo = rawData.bytes;
 	const int16_t *adjustedFluo = adjustedData.bytes;
 	long nScans = rawData.length/sizeof(int16_t);
 	
 	/// we select peaks in the range. We will first store their height and their indices as we will examine them by decreasing height
-	int *peakIndices = malloc(totPeaks * sizeof(int));	/// The position of peak structs in the peaks attribute of the trace
-	float *heights = malloc(totPeaks * sizeof(float));	/// The heights of peaks
+	int *peakIndices = malloc(totPeaks * sizeof(*peakIndices));	/// The position of peak structs in the peaks attribute of the trace
+	float *heights = malloc(totPeaks * sizeof(*heights));	/// The heights of peaks
 
 	int nPeaks = 0;										/// the number of peaks in the range
-	vDSP_Length *markerPeakIndices = malloc(totPeaks * sizeof(vDSP_Length));	/// will be 0..nPeaks
+	vDSP_Length *markerPeakIndices = malloc(totPeaks * sizeof(*markerPeakIndices));	/// will be 0..nPeaks
 	const Peak *peaks = peakData.bytes;
 	for(int i = 0; i < totPeaks; i++) {
 		Peak peak = peaks[i];
@@ -277,11 +265,19 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 	/// from now on, the genotype is considered called
 	self.status = genotypeStatusAutomatic;
 	
+	NSData *sizeData = sample.sizes;
+	if(peakEndScan(&peaks[totPeaks-1]) >= sizeData.length/sizeof(float)) {
+		free(peakIndices); peakIndices = NULL;
+		free(heights); heights = NULL;
+		free(markerPeakIndices); markerPeakIndices = NULL;
+		return; /// This would mean size data are inconsistent, hence some bug. We don't manage it, we just avoid a crash.
+	}
+	
 	/// to contain the peaks to inspect
-	MarkerPeak *markerPeaks = malloc(nPeaks * sizeof(MarkerPeak));
+	MarkerPeak *markerPeaks = malloc(nPeaks * sizeof(*markerPeaks));
 	
 	MarkerOffset offset = self.offset;
-	NSData *sizeData = sample.sizes;
+	
 	const float *sizes = sizeData.bytes;
 	for(int i = 0; i < nPeaks; i++) {
 		int index = peakIndices[i];
@@ -295,8 +291,8 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 	free(heights); heights = NULL;
 	free(peakIndices); peakIndices = NULL;
 	
-	float rightMaxDropOut = 0.3;		/// The minimum ratio of height to consider an allele that is longer than a reference one
-	float leftMaxDropOut = 0.7;			/// The minimum ratio of height to consider an allele that is shorter than a reference one
+	float rightMaxDropOut = 0.3f;		/// The minimum ratio of height to consider an allele that is longer than a reference one
+	float leftMaxDropOut = 0.7f;			/// The minimum ratio of height to consider an allele that is shorter than a reference one
 		
 	int motiveLength = marker.motiveLength;
 	
@@ -335,9 +331,9 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 		if(parentPeak < 0) {
 			/// The peak has no parent (hence it could represent an allele)
 			float diffSize = peakPTR->size - lastRetainedPeakPTR->size;
-			if((diffSize < 0 && ratio < leftMaxDropOut) || (diffSize > 0 && ratio < rightMaxDropOut && ratio * diffSize < 4)) {
+			if((diffSize < 0.0f && ratio < leftMaxDropOut) || (diffSize > 0.0f && ratio < rightMaxDropOut && ratio * diffSize < 4)) {
 				/// The peak is too short.
-				if(annotateSuppPeaks && (ratio > 0.2 || (peakPTR->nChildPeaks >= 1 && ratio > 0.12))) {
+				if(annotateSuppPeaks && (ratio > 0.2f || (peakPTR->nChildPeaks >= 1 && ratio > 0.12f))) {
 					/// We consider it as an additional peak if it is not too short or has several child peaks
 					/// This is to avoid considering insignificant peaks
 					additionalPeakPTRs[nAdditional++] = peakPTR;
@@ -349,21 +345,21 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 				retainedPeakPTRs[nRetained++] = peakPTR;
 			} else if(annotateSuppPeaks) {
 				/// If there are more peaks than possible alleles of the locus, we may consider this peak as additional
-				if(ratio > 0.2 || (peakPTR->nChildPeaks > 0 && ratio > 0.12)) {
+				if(ratio > 0.2f || (peakPTR->nChildPeaks > 0.0f && ratio > 0.12f)) {
 					additionalPeakPTRs[nAdditional++] = peakPTR;
 					continue;
 				}
 			}
 		} else {
 			float stutterRatio = peakPTR->stutterRatio;
-			if(stutterRatio > 0.5 && ratio > 0.5) {
+			if(stutterRatio > 0.5f && ratio > 0.5f) {
 				/// We determine if the peak results from adenylation
 				MarkerPeak *parentPeakPTR = &markerPeaks[parentPeak];
 				float diffSize = parentPeakPTR->size - peakPTR->size;
 				if(fabs(diffSize) < 1.5) {
 					if(stutterRatio > _leftAdenylationRatio && stutterRatio > _rightAdenylationRatio) {
 						_scanOfPossibleAllele = peakPTR->scan;
-						if(diffSize > 0) {
+						if(diffSize > 0.0f) {
 							_leftAdenylationRatio = stutterRatio;
 						} else {
 							_rightAdenylationRatio = stutterRatio;
@@ -371,7 +367,7 @@ MarkerPeak MarkerPeakFromPeak(Peak peak, const int16_t *fluo, const int16_t *adj
 					}
 				}
 				
-				if(annotateSuppPeaks && peakPTR->stutterRatio > 2 && ratio > 0.2) {
+				if(annotateSuppPeaks && peakPTR->stutterRatio > 2.0f && ratio > 0.2f) {
 					/// For child peaks, we consider additional those that are abnormally high
 					additionalPeakPTRs[nAdditional++] = peakPTR;
 				}
@@ -499,12 +495,12 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 		float peakHeight = inspectedPeak->height;
 		
 		float diffSize = fabs(stutterPeakSize - peakSize);
-		if(diffSize > motiveLength + 0.5) {
+		if(diffSize > motiveLength + 0.5f) {
 			/// The peak is outside the cluster of possible child peaks.
 			return;
 		}
 
-		if(diffSize >= motiveLength - 0.5 && diffSize <= motiveLength + 0.5 && ratio < maxRatio) {
+		if(diffSize >= motiveLength - 0.5f && diffSize <= motiveLength + 0.5f && ratio < maxRatio) {
 			/// The peak is at the right distance of one considered to result from stuttering (of the reference peak)
 			leftStutterIndex += decreasing;
 			
@@ -512,17 +508,17 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 			/// The stutter ratio helps to determine to which cluster the peak belongs.
 			/// If the ratio is high, the peak may belong to another peak cluster (clusters can overlap)
 			
-			if(refPeak->crossTalk == 0 && leftStutterIndex == 1 && stutterRatio >= 0.7 && peakHeight > 200) {
+			if(refPeak->crossTalk == 0.0f && leftStutterIndex == 1.0f && stutterRatio >= 0.7f && peakHeight > 200) {
 				/// If the inspected peak is high and is the first stutter at the left, we expect another stutter with a high ratio at the left.
 				/// Otherwise the inspected peak should be an allele. We don't check that if the reference peak is saturated (its height is unreliable).
-				float nextStutterRatio = 0;
+				float nextStutterRatio = 0.0f;
 				for (int j = i-1; j >= 0; j--) {
 					MarkerPeak *nextStutterPeak = &markerPeaks[j];
 					float diffSize = fabs(nextStutterPeak->size - peakSize);
-					if(diffSize >= motiveLength - 0.5 && diffSize <= motiveLength + 0.5) {
+					if(diffSize >= motiveLength - 0.5f && diffSize <= motiveLength + 0.5f) {
 						nextStutterRatio = nextStutterPeak->height / peakHeight;
 						break;
-					} else if(diffSize > motiveLength + 0.5) {
+					} else if(diffSize > motiveLength + 0.5f) {
 						break;
 					}
 				}
@@ -548,14 +544,14 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 		} else {
 			/// Due to adenylation, peaks may be offset by 1bp compared to the series of stutter
 			float diffSize2 = fabs(adenylPeakSize - peakSize);
-			if(diffSize2 < 1.5 || (diffSize2 >= motiveLength - 0.5 && diffSize2 <= motiveLength + 0.5 && ratio < maxRatio)) {
+			if(diffSize2 < 1.5f || (diffSize2 >= motiveLength - 0.5f && diffSize2 <= motiveLength + 0.5f && ratio < maxRatio)) {
 				/// The first condition should be met for a peak purely deriving from adenylation, which should be 1bp away from the reference peak
 				/// In that case, the heigh ratio may still be high (depending on PCR condition, the reference or the neighbor can be adenyled)
 				float stutterRatio = peakHeight / adenylPeakHeight;
 				if(inspectedPeak->parentPeak >= 0 && inspectedPeak->stutterRatio < stutterRatio) {
 					return;
 				}
-				if((ratio > 0.7 && stutterRatio > 2) || (!decreasing && stutterRatio > 1)) {
+				if((ratio > 0.7f && stutterRatio > 2.0f) || (!decreasing && stutterRatio > 1.0f)) {
 					return;
 				}
 				inspectedPeak->parentPeak = peakIndex;
@@ -607,36 +603,45 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 }
 
 
-- (NSSet *)assignedAlleles {
+- (NSArray *)assignedAlleles {
 	if(!_assignedAlleles) {
-		NSSet *alleles = self.alleles;
-		if(alleles.count  > 0) {
-			_assignedAlleles = [alleles filteredSetUsingPredicate:assignedAllelePredicate];
+		NSMutableArray *result = NSMutableArray.new;
+		for (Allele *allele in self.alleles) {
+			if (!allele.additional) {
+				[result addObject:allele];
+			}
 		}
+		_assignedAlleles = result.copy;
 	}
 	return _assignedAlleles;
 }
 
 
-- (void)setAssignedAlleles:(NSSet *)assignedAlleles {
+- (void)setAssignedAlleles:(NSArray *)assignedAlleles {
 	_assignedAlleles = assignedAlleles;
 	self.allele1 = nil;
 	self.allele2 = nil;
 }
 
 
-- (NSSet *)additionalFragments {
+- (NSArray *)additionalFragments {
 	if(!_additionalFragments) {
 		NSSet *alleles = self.alleles;
-		if(alleles.count  > 0) {
-			_additionalFragments = [alleles filteredSetUsingPredicate:additionalFragmentPredicate];
+		NSMutableArray *result = NSMutableArray.new;
+		for (Allele *allele in alleles) {
+			if (allele.additional) {
+				[result addObject:allele];
+			}
 		}
+		
+		_additionalFragments = result.copy;
+
 	}
 	return _additionalFragments;
 }
 
 
-- (void)setAdditionalFragments:(NSSet *)additionalFragments {
+- (void)setAdditionalFragments:(NSArray *)additionalFragments {
 	_additionalFragments = additionalFragments;
 	self.additionalFragmentString = nil;
 }
@@ -644,18 +649,13 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 
 - (Allele *)allele1 {
 	if(!_allele1) {
-		NSSet<Allele *> *assignedAlleles = self.assignedAlleles;
+		NSArray<Allele *> *assignedAlleles = self.assignedAlleles;
 		if(assignedAlleles.count > 1) {
-			float minSize = INFINITY;
-			for(Allele *allele in assignedAlleles) {
-				float size = allele.size;
-				if(size < minSize) {
-					_allele1 = allele;
-					minSize = size;
-				}
-			}
+			Allele *firstAllele = assignedAlleles.firstObject;
+			Allele *lastAllele = assignedAlleles.lastObject;
+			_allele1 = firstAllele.size < lastAllele.size? firstAllele : lastAllele;
 		} else {
-			_allele1 = assignedAlleles.anyObject;
+			_allele1 = assignedAlleles.firstObject;
 		}
 	}
 	return _allele1;
@@ -664,16 +664,11 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 
 - (Allele *)allele2 {
 	if(!_allele2) {
-		NSSet<Allele *> *assignedAlleles = self.assignedAlleles;
+		NSArray<Allele *> *assignedAlleles = self.assignedAlleles;
 		if(assignedAlleles.count > 1) {
-			float maxSize = -INFINITY;
-			for(Allele *allele in assignedAlleles) {
-				float size = allele.size;
-				if(size > maxSize) {
-					_allele2 = allele;
-					maxSize = size;
-				}
-			}
+			Allele *firstAllele = assignedAlleles.firstObject;
+			Allele *lastAllele = assignedAlleles.lastObject;
+			_allele2 = firstAllele.size < lastAllele.size? lastAllele : firstAllele;
 		}
 	}
 	return _allele2;
@@ -682,7 +677,7 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 
 - (NSString *)additionalFragmentString {
 	if(!_additionalFragmentString) {
-		NSArray<Allele *> *additionalFragments = self.additionalFragments.allObjects;
+		NSArray<Allele *> *additionalFragments = self.additionalFragments;
 		if(additionalFragments.count > 1) {
 			additionalFragments = [additionalFragments sortedArrayUsingComparator:^NSComparisonResult(Allele * obj1, Allele * obj2) {
 				if(obj1.size < obj2.size) {
@@ -696,6 +691,20 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 		_additionalFragmentString = [names componentsJoinedByString:@" "];
 	}
 	return _additionalFragmentString;
+}
+
+
+- (NSColor *)alleleStringColor {
+	MarkerOffset offset = self.offset;
+	if(offset.intercept != 0.0f || offset.slope != 1.0f) {
+		return NSColor.redColor;
+	}
+	return NSColor.textColor;
+}
+
+
++ (NSSet<NSString *> *)keyPathsForValuesAffectingAlleleStringColor {
+	return [NSSet setWithObjects:@"offsetData", nil];
 }
 
 
@@ -755,7 +764,11 @@ void characterizeNeighbors (MarkerPeak *markerPeaks, int nPeaks, int peakIndex, 
 - (BOOL)validateAlleles:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {
 	/// we cannot validate a sample if its panel doesn't include our marker
 	NSSet *alleles = *value;
-	if([alleles filteredSetUsingPredicate:assignedAllelePredicate].count != self.marker.ploidy) {
+	NSSet *trueAlleles = [alleles filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Allele*  _Nullable allele, NSDictionary<NSString *,id> * _Nullable bindings) {
+		return allele.additional == NO;
+	}]];
+	
+	if(trueAlleles.count != self.marker.ploidy) {
 		if (error != NULL) {
 			NSString *reason = [NSString stringWithFormat:@"The number of alleles of sample '%@' doesn't match the ploidy if marker '%@'.", self.sample.sampleName, self.marker.name];
 			*error = [NSError managedObjectValidationErrorWithDescription:reason suggestion:@"" object:self reason:reason];
@@ -809,7 +822,7 @@ MarkerOffset MakeMarkerOffset(float intercept, float slope) {
 }
 
 
-const MarkerOffset MarkerOffsetNone = {0.0, 1.0};
+const MarkerOffset MarkerOffsetNone = {0.0f, 1.0f};
 
 
 
@@ -866,7 +879,7 @@ const MarkerOffset MarkerOffsetNone = {0.0, 1.0};
 		MarkerOffset offset = self.offset;
 		float intercept = offset.intercept;
 		float slope = offset.slope;
-		if(intercept == 0.0 && slope == 1.0) {
+		if(intercept == 0.0f && slope == 1.0f) {
 			return nil;
 		}
 		return [NSString stringWithFormat:@"%.1f, %.3f", -intercept/slope, 1/slope];
@@ -892,7 +905,7 @@ const MarkerOffset MarkerOffsetNone = {0.0, 1.0};
 		return [self.sample dictionaryForOffsetsAtMarkers:@[self.marker]];
 	}
 	
-	return nil;
+	return [super pasteboardPropertyListForType:type];
 }
 
 
@@ -915,7 +928,11 @@ const MarkerOffset MarkerOffsetNone = {0.0, 1.0};
 	if(self) {
 		NSSet *alleles = [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, Allele.class, nil]  forKey:@"alleles"];
 		[self managedObjectOriginal_setAlleles:alleles];
-		[self managedObjectOriginal_setMarker:[coder decodeObjectOfClass:Mmarker.class forKey:@"marker"]];
+		Mmarker *marker = [coder decodeObjectOfClass:Mmarker.class forKey:@"marker"];
+		if(marker._replacementMarker) {
+			marker = marker._replacementMarker;
+		}
+		[self managedObjectOriginal_setMarker:marker];
 	}
 	return self;
 }

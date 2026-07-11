@@ -26,12 +26,16 @@ NS_ASSUME_NONNULL_BEGIN
 /// This view works in conjunction to ``InfoTableRowView`` to mimic the info panel of the macOS Finder, which only
 /// draws horizontal separator between sections, not between a parent row and a child row or between children rows.
 ///
-/// This behaviour is enabled by `` drawGridForMainSectionsOnly`` returning `YES` and the outline view
+/// This behaviour is enabled by ``drawGridForMainSectionsOnly`` returning `YES` and the outline view
 /// being set to draw the horizontal grid via its `gridStyleMask` property.
 ///
 /// - Important: if ``drawGridForMainSectionsOnly`` is `YES`,
-/// each row view must inherit from ``STableRowView``.
+/// each row view must inherit from ``InfoTableRowView``.
 /// Otherwise,  grid lines will be drawn after each row, according to the `gridStyleMask` property.
+///
+/// This outline view also improves visual feedback when dragging main sections by overriding `dragImageForRowsWithIndexes:tableColumns:event:offset`
+/// to generate drag images that represent a main section being drag, as well as its subsection (if expanded), considering all subviews.
+/// - Important: The outline view must not have more than one level of hierarchy (parents and children).
 @interface InfoOutlineView : NSOutlineView
 
 /// Whether the outline views draws the grid only between main section (top-level parents).

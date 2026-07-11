@@ -29,7 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// And entity that specifies the sizes of DNA fragment composing the molecular ladder of a sample (``Chromatogram`` object).
 ///
 /// A size standard contains a set of ``sizes`` defined in base pairs.
-/// Its ``sizeSample:`` class method can be used to find ladder fragments in a chromatogram that has a ``Chromatogram/sizeStandard``
+/// Its ``sizeSample:`` method can be used to find ladder fragments in a chromatogram that has a ``Chromatogram/sizeStandard``
 /// applied to it, and to compute sizing parameters based on these fragments.
 @interface SizeStandard : CodingObject
 
@@ -59,14 +59,14 @@ extern CodingObjectKey SizeStandardNameKey;
 /// The reverse relationship is ``Chromatogram/sizeStandard``.
 @property (nonatomic, nullable) NSSet<Chromatogram *> *samples;
 
-/// Finds ladder fragments in a  chromatogram, based in the size standard applied to it, and computes sizing properties.
+/// Sets the receiver as a sample's ``Chromatogram/sizeStandard``, finds ladder fragments in the sample and computes sizing properties.
 ///
-/// This method finds peaks that correspond to the ``SizeStandard/sizes`` of the ``Chromatogram/sizeStandard``,
-/// sets the trace's `fragments` accordingly and calls ``Chromatogram/computeFitting``.
+/// This method finds peaks that correspond to the ``SizeStandard/sizes`` of the receiver,
+/// sets the trace's ``FluoTrace/fragments`` accordingly and calls ``Chromatogram/computeFitting`` on the `sample`.
 ///
-/// This method does nothing if there is no ``Chromatogram/ladderTrace`` or if `sample` has no size standard.
+/// This method does nothing if there is no ``Chromatogram/ladderTrace`` in the `sample`.
 /// - Parameter sample: A chromatogram.
-+ (void) sizeSample:(Chromatogram *)sample;
+- (void) sizeSample:(Chromatogram *)sample;
 
 /// Computes the regression between between two variables, using ordinary least squares.
 ///
@@ -77,6 +77,11 @@ extern CodingObjectKey SizeStandardNameKey;
 ///   - slope: On output, will contain the slope parameter of the regression.
 ///   - intercept: On output, will contain the intercept parameter of the regression.
 void regression (float *x, float *y, NSInteger nPoints, float *slope, float *intercept);
+
+
+extern NSPasteboardType _Nonnull const SizeStandardDragType,
+
+SizeStandardArchivePasteboardType;
 
 
 @end

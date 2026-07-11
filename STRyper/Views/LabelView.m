@@ -25,6 +25,7 @@
 
 @implementation LabelView {
 	NSArray<NSColor*>* originalColorsForChanels;
+	id eventMonitor;
 }
 
 
@@ -33,11 +34,6 @@
 	if (self) {
 		labelsToReposition = NSMutableSet.new;
 		self.wantsLayer = YES;
-		trackingArea = [[NSTrackingArea alloc] initWithRect:self.visibleRect
-													options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
-															  NSTrackingActiveInActiveApp | NSTrackingInVisibleRect)
-													  owner:self userInfo:nil];
-		[self addTrackingArea:trackingArea];
 	}
 	return self;
 }
@@ -48,11 +44,6 @@
 	if (self) {
 		labelsToReposition = NSMutableSet.new;
 		self.wantsLayer = YES;
-		trackingArea = [[NSTrackingArea alloc] initWithRect:self.visibleRect
-													options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
-															  NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect)
-													  owner:self userInfo:nil];
-		[self addTrackingArea:trackingArea];
 	}
 	return self;
 }
@@ -73,6 +64,7 @@
 
 - (void)mouseEntered:(NSEvent *)event {
 	mouseIn = YES;
+	self.mouseLocation = [self convertPoint:event.locationInWindow fromView:nil];
 	[self updateCursor];
 }
 
@@ -92,6 +84,16 @@
 		/// for very little benefit. It's not as if there were dozens of clicks per second.
 		[label mouseDownInView];
 	}
+	
+	/// We prevent keydown events when the mouse is down, as they may have unwanted effects.
+	if(!eventMonitor) {
+		eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown
+															 handler:^NSEvent * _Nullable(NSEvent * _Nonnull event) {
+			return nil;
+			
+		}];
+	}
+	return;
 }
 
 
@@ -104,6 +106,10 @@
 
 
 - (void)mouseUp:(NSEvent *)event {
+	if(eventMonitor) {
+		[NSEvent removeMonitor:eventMonitor];
+		eventMonitor = nil;
+	}
 	draggedLabel = nil;
 	self.mouseUpPoint = [self convertPoint:event.locationInWindow fromView:nil];
 //	[self updateTrackingAreas];
@@ -135,8 +141,8 @@
 
 - (void)setClickedPoint:(NSPoint)point {			/// this is set on mouseDown: (and possibly on other occasions) by subclasses
 	_clickedPoint = point;
-	_mouseUpPoint = NSMakePoint(-10, -10);			/// this will signify that this point is no longer valid (the mouse is not up).
-	_rightClickedPoint = NSMakePoint(-10, -10);
+	_mouseUpPoint = NSMakePoint(-10.0, -10.0);			/// this will signify that this point is no longer valid (the mouse is not up).
+	_rightClickedPoint = NSMakePoint(-10.0, -10.0);
 
 }
 
@@ -153,8 +159,8 @@
 
 - (void)setMouseUpPoint:(NSPoint)point {
 	_mouseUpPoint = point;
-	_clickedPoint = NSMakePoint(-10, -10);
-	_rightClickedPoint = NSMakePoint(-10, -10);
+	_clickedPoint = NSMakePoint(-10.0, -10.0);
+	_rightClickedPoint = NSMakePoint(-10.0, -10.0);
 	for (ViewLabel *label in self.viewLabels) {
 		[label mouseUpInView];
 	}
@@ -178,7 +184,7 @@
 	mouseIn = NO;
 	/// We set a location that is outside the view bounds to make clear to labels that the mouse is no longer in the view
 	/// Otherwise, some labels may get hovered when they update their tracking area.
-	self.mouseLocation = NSMakePoint(-100, -100);
+	self.mouseLocation = NSMakePoint(-100.0, -100.0);
 }
 
 - (void)keyDown:(NSEvent *)event {
@@ -218,6 +224,11 @@
 	if(labelsToReposition.count > 0) {
 		[labelsToReposition removeAllObjects];
 	}
+	
+	if(needsUpdateHighlightedRegions) {
+		[self _updateHighlightedRegions];
+	}
+	
 	self.allowsAnimations = YES;
 }
 
@@ -245,7 +256,7 @@
 				
 		/// We render the view's layer but only after hiding all CATextLayer descendants, to avoid producing rasterized text.
 		/// These will be rendered differently.
-		NSMutableSet<CALayer *> *textLayers = NSMutableSet.new;
+		NSMutableArray<CALayer *> *textLayers = NSMutableArray.new;
 		for(CALayer *layer in mainLayer.allSublayers) {
 			if([layer isKindOfClass:CATextLayer.class] && layer.isVisibleOnScreen) {
 				layer.hidden = YES;
@@ -272,12 +283,7 @@
 # pragma mark - validation and undo
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	if(draggedLabel) {
-		/// We forbid any action sent by a menu (via keyboard shortcut) while a label is being dragged
-		/// In particular, we disable undo/redo. Overriding `keyDown:` and `keyUp:` wasn't sufficient.
-		return NO;
-	}
-	
+
 	if(menuItem.action == @selector(deleteSelection:)) {
 		NSString *title = self.activeLabel.deleteActionTitle;
 		if(title) {
@@ -298,11 +304,6 @@
 		return NO;
 	}
 	
-	if(menuItem.action == @selector(undo:) || menuItem.action == @selector(redo:)) {
-		/// The window itself is apparently the object that validates the undo/redo menu items.
-		return [self.window validateMenuItem:menuItem];
-	}
-	
 	return YES;
 }
 
@@ -318,21 +319,6 @@
 		return NO;
 	}
 	return YES;
-}
-
-
--(void)undo:(id)sender {
-	/// To disable undo/redo menu while a label is dragged, we need to implement this method.
-	if(!draggedLabel && ![self.nextResponder tryToPerform:@selector(undo:) with:sender]) {
-		/// The condition above should in principle not be met, but in case it is, we undo "manually".
-		[self.undoManager undo];
-	}
-}
-
--(void)redo:(id)sender {
-	if(!draggedLabel && ![self.nextResponder tryToPerform:@selector(redo:) with:sender]) {
-		[self.undoManager redo];
-	}
 }
 
 
@@ -417,6 +403,19 @@
 }
 
 
+- (void)updateTrackingAreas {
+	[super updateTrackingAreas];
+	if(trackingArea) {
+		[self removeTrackingArea:trackingArea];
+	}
+	trackingArea = [[NSTrackingArea alloc] initWithRect:self.visibleRect
+												options: (NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved |
+														  NSTrackingActiveInActiveApp)
+												  owner:self userInfo:nil];
+	[self addTrackingArea:trackingArea];
+}
+
+
 - (void)updateTrackingAreasOf:(NSArray *)labels{
 	/// We set our current mouse location as our labels use it to determine if they are still hovered within their -updateTrackingArea method.
 	if(labels.count > 0) {
@@ -456,8 +455,8 @@
 }
 
 
-- (void)setNeedsUpdateLabelAppearance:(BOOL)update {
-	_needsUpdateLabelAppearance = update;
+- (void)setNeedsUpdateLabelColors:(BOOL)update {
+	_needsUpdateLabelColors = update;
 	if(update) {
 		self.needsDisplay = YES;
 	}
@@ -478,8 +477,25 @@
 }
 
 
-- (void)labelDidChangeEditState:(RegionLabel *)label {
-	
+- (void)labelDidChangeEditState:(RegionLabel *)label previousState:(EditState)previousState {
+	EditState editState = label.editState;
+	Mmarker *marker = label.region;
+	if(marker.editState != editState) {
+		if(editState != editStateOffset) {
+			/// for the binset and bins edit states, we transfert the state to the marker,
+			/// which is observed by labels in other view. Hence all labels of the marker get the edit state
+			/// We don't do that for offset edit state because this state does not pertain to modifications of a marker, but to genotypes/samples shown by the view.
+			marker.editState = editState;
+		}
+		if(editState != editStateNil) {
+			/// But only one marker per channel should be edited at a time.
+			for(Mmarker *otherMarker in [marker.panel markersForChannel:marker.channel]) {
+				if(otherMarker != marker && otherMarker.editState != editStateNil) {
+					otherMarker.editState = editStateNil;
+				}
+			}
+		}
+	}
 }
 
 
@@ -495,10 +511,6 @@
 	}
 }
 
-
-- (void)labelEdgeDidChangeHoveredState:(ViewLabel *)label {
-	[self updateCursor];
-}
 
 
 /********************** temporary test of label selection by left-right arrows
@@ -572,6 +584,20 @@
 	[self deleteSelection:sender];
 }
 
+
+- (void)setRegionsToHighlight:(NSArray<Region *> *)regionsToHighlight {
+	_regionsToHighlight = regionsToHighlight.copy;
+	needsUpdateHighlightedRegions = YES;
+	self.needsDisplay = YES;
+}
+
+
+- (void)_updateHighlightedRegions {
+	for(RegionLabel *regionLabel in self.markerLabels) {
+		regionLabel.needsUpdateAppearance = YES;
+	}
+}
+
 # pragma mark - channels
 
 
@@ -610,15 +636,32 @@ static NSArray *_defaultColorsForChannels;
 
 
 - (void)setColorsForChannels:(NSArray<NSColor *> *)colorsForChannels {
-	NSArray *colors = NSArray.new;
+	NSMutableArray *colors = NSMutableArray.new;
 	for(id item in colorsForChannels) {
 		if([item isKindOfClass:NSColor.class]) {
-			colors = [colors arrayByAddingObject:[item copy]];
+			[colors addObject:item];
 		}
 	}
-	originalColorsForChanels = colors;
+	originalColorsForChanels = colors.copy;
 }
 
+
+
+- (BOOL)resignFirstResponder {
+	if(eventMonitor) {
+		[NSEvent removeMonitor:eventMonitor];
+		eventMonitor = nil;
+	}
+	return YES;
+}
+
+
+- (void)dealloc {
+	if(eventMonitor) {
+		[NSEvent removeMonitor:eventMonitor];
+		eventMonitor = nil;
+	}
+}
 
 
 @end
