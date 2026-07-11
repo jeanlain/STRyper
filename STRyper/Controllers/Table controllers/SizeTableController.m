@@ -70,6 +70,10 @@
 	menu.delegate = self;
 }
 
+- (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
+	return nil; 
+}
+
 
 - (NSString *)actionNameForEditingCellInColumn:(NSTableColumn *)column row:(NSInteger)row {
 	return @"Change Fragment Size";
@@ -86,26 +90,27 @@
 
 
 -(IBAction)newSize:(id)sender {
-	SizeStandard *selectedStandard = SizeStandardTableController.sharedController.tableContent.selectedObjects.firstObject;
-	if(!selectedStandard.editable || !self.tableContent.canInsert) {
+	SizeStandard *selectedStandard = SizeStandardTableController.sharedController.selectedObjects.firstObject;
+	NSArrayController *sizeStandards = _arrayController;
+	if(!selectedStandard.editable || !sizeStandards.canInsert) {
 		return;
 	}
 	
-	SizeStandardSize *selectedFragment = self.tableContent.selectedObjects.firstObject;
+	SizeStandardSize *selectedFragment = self.selectedObjects.firstObject;
 	short newSize = selectedFragment.size + 1;
 	if(newSize < 10) {
 		newSize = 10;
 	}
 	
 	[self.undoManager setActionName:@"New Size"];
-	SizeStandardSize *newFragment = [[SizeStandardSize alloc] initWithContext:self.tableContent.managedObjectContext];
+	SizeStandardSize *newFragment = [[SizeStandardSize alloc] initWithContext:_arrayController.managedObjectContext];
 	newFragment.size = newSize;
 	
-	NSInteger selectedIndex = self.tableContent.selectionIndexes.lastIndex;
+	NSInteger selectedIndex = sizeStandards.selectionIndexes.lastIndex;
 	if(selectedIndex == NSNotFound) {
 		selectedIndex = -1;
 	}
-	[self.tableContent insertObject:newFragment atArrangedObjectIndex:selectedIndex+1];
+	[sizeStandards insertObject:newFragment atArrangedObjectIndex:selectedIndex+1];
 	[newFragment autoSize];		/// to avoid duplicated or illegal sizes
 	[self selectItemName:newFragment];
 	
@@ -113,7 +118,7 @@
 
 
 - (NSString *)deleteActionTitleForItems:(NSArray *)items {
-	SizeStandard *selectedStandard = SizeStandardTableController.sharedController.tableContent.selectedObjects.firstObject;
+	SizeStandard *selectedStandard = SizeStandardTableController.sharedController.selectedObjects.firstObject;
 	if(!selectedStandard.editable) {
 		return nil;
 	}

@@ -51,7 +51,12 @@
 	return self;
 }
 
-
+- (id)valueForUndefinedKey:(NSString *)key {
+	if([@[@"channel", @"channelName", @"ploidy", @"motiveLength", @"genotypes", @"panel", @"bins"] containsObject:key]) {
+		return nil;
+	}
+	return [super valueForUndefinedKey:key];
+}
 
 - (NSArray *)siblings {
 	if(self.marker) {
@@ -156,7 +161,7 @@
 
 
 + (float)minimumWidth {
-	return 0.1;
+	return 0.1f;
 }
 
 

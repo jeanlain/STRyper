@@ -61,8 +61,6 @@ ChromatogramNScansKey = @"nScans",
 ChromatogramOffscaleScansKey = @"offScaleScans",
 ChromatogramOffscaleRegionsKey = @"offscaleRegions";
 
-NSPasteboardType _Nonnull const ChromatogramObjectIDPasteboardType = @"org.jpeccoud.stryper.chromatogramPasteboardType",
-MarkerOffsetPasteboardType = @"org.jpeccoud.stryper.MarkerOffsetPasteboardType";
 
 const float DefaultReadLength = 550.0;
 
@@ -132,6 +130,13 @@ const float DefaultReadLength = 550.0;
 
 # pragma mark - chromatogram creation
 
++ (NSSet<NSString *> *)UTTypes {
+	static NSSet *_ABIFTypes;
+	if(!_ABIFTypes) {
+		_ABIFTypes = [NSSet setWithObjects:@"com.appliedbiosystems.abif.fsa", @"com.appliedbiosystems.abif.hid", nil];
+	}
+	return _ABIFTypes;
+}
 
 
 
@@ -301,7 +306,7 @@ const float DefaultReadLength = 550.0;
 			return sample;
 		}
 		
-		/// We remove spaces that may be present the begining or end of dye names
+		/// We remove spaces that may be present the beginning or end of dye names
 		dyeName =  [dyeName stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet];
 		[traceData addObject: @[fluo, @(channel-1), dyeName]];
 		
@@ -409,13 +414,14 @@ const float DefaultReadLength = 550.0;
 # pragma mark - sizing
 
 - (void)setAppliedSizeStandard:(SizeStandard *)sizeStandard {
-	[self managedObjectOriginal_setSizeStandard:sizeStandard];
 	if(sizeStandard) {
-		if(self.polynomialOrder == NoFittingMethod) {
-			[self managedObjectOriginal_setPolynomialOrder: [NSUserDefaults.standardUserDefaults integerForKey:DefaultSizingOrder]];
-		}
-		[SizeStandard sizeSample:self];
+		[sizeStandard sizeSample:self];
 	}
+}
+
+
++ (NSSet<NSString *> *)keyPathsForValuesAffectingAppliedSizeStandard{
+	return [NSSet setWithObjects:@"sizeStandard", nil];
 }
 
 
@@ -444,20 +450,23 @@ const float DefaultReadLength = 550.0;
 	for(LadderFragment *fragment in trace.fragments) {
 		float fragmentSize = fragment.size;
 		int scan = fragment.scan;
-		if(scan > lastPeakScan) {
-			lastPeakScan = scan;
-		}
-		if(fragmentSize + 50.0 > readLength) {
-			readLength = fragmentSize + 50.0;
-		}
+		lastPeakScan = MAX(scan, lastPeakScan);
+		readLength = MAX(readLength, fragmentSize + 50.0f);
 		if(scan > 0) {
+		//	NSLog(@"%d\t%d", (int)scan, (int)fragmentSize);
 			sizes[nPoints] = fragmentSize;
 			scans[nPoints] = scan;
 			nPoints++;
 		}
 	}
 	
-	int k = self.polynomialOrder +1;
+	PolynomialOrder k = self.polynomialOrder;
+	if(k <= NoFittingMethod || k > ThirdOrderPolynomial) {
+		k = [NSUserDefaults.standardUserDefaults integerForKey:DefaultSizingOrder];
+		[self managedObjectOriginal_setPolynomialOrder:k];
+	}
+	
+	k++;
 		
 	if (nPoints < 4 || nPoints < nFragments/2 || k < 1 || k > 3) {
 		[self setLinearCoefsForReadLength:readLength];
@@ -474,14 +483,13 @@ const float DefaultReadLength = 550.0;
 	float coefs[k+1];			/// This will store the results of the fitting.
 	float reversedCoefs[k+1];
 	int info = 0;				/// This will tell whether coefficients are computed
-	polynomialCoefs(scans, sizes, k, nPoints, coefs, &info);
+	
+	polynomialCoefs(scans, sizes, k, nPoints, -1, coefs, &info);
 	
 	if(info == 0) {
 		self.coefs = [NSData dataWithBytes:coefs length:(k+1)*sizeof(float)];
-		polynomialCoefs(sizes, scans, k, nPoints, reversedCoefs, &info);
-	}
-	
-	if(info != 0) {		/// This indicates a failure in finding coefficients.
+		polynomialCoefs(sizes, scans, k, nPoints, -1, reversedCoefs, &info);
+	} else {		/// This indicates a failure in finding coefficients.
 		NSLog(@"Failed to compute coefficients for sample %@ using polynomial of order %d.", self.sampleName, k);
 		[self setLinearCoefsForReadLength:readLength];
 		return;
@@ -507,6 +515,33 @@ const float DefaultReadLength = 550.0;
 	
 	[self managedObjectOriginal_setReverseCoefs:[NSData dataWithBytes:reversedCoefs length:(k+1)*sizeof(float)]];
 	
+    /*
+     float residuals[nPoints]; /// VLA
+     float maxSlopeRatio = 1.0f;
+     for (int i = 0; i < nPoints; i++) {
+         residuals[i] = sizes[i] - yGivenPolynomial(scans[i], coefs, k+1);
+     }
+         
+     for (int i = 1; i < nPoints-1; i++) {
+         float slope = (sizes[i+1] - sizes[i-1]) / (scans[i+1] - scans[i-1]);
+         float leftSlope = (sizes[i] - sizes[i-1]) / (scans[i] - scans[i-1]);
+         float rightSlope = (sizes[i+1] - sizes[i]) / (scans[i+1] - scans[i]);
+         float leftRatio = leftSlope > slope? leftSlope/slope : slope/leftSlope;
+         float rightRatio = rightSlope > slope? rightSlope/slope : slope/rightSlope;
+         float residual = fabs(residuals[i]);
+     
+     //    NSLog(@"size: %d, ratio: %f, residual: %f", (int)sizes[i], MAX(leftRatio, rightRatio), residual);
+         float slopeRatio = 1 + (MAX(leftRatio, rightRatio)-1) * MIN(residual*residual, 1.0f);
+         maxSlopeRatio = MAX(maxSlopeRatio, slopeRatio);
+         
+     }
+     float score = 1 - pow((maxSlopeRatio-1)*4,3.0)/4.0 - 0.1f*(nFragments-nPoints);
+     score = MAX(0.0f, score);
+     
+     float distances[nPoints];
+     cooksDistances(scans, sizes, nPoints, coefs, k+1, distances);
+    */
+    
 	/// Our sizing quality criterion is based on the mean of differences of offsets between adjacent fragments relative to their distance in scans
 	/// For that, we sort sizes and scans
 	vDSP_vsort(sizes, nPoints, 1);
@@ -548,13 +583,12 @@ const float DefaultReadLength = 550.0;
 	}
 	
 	self.sizingQuality = @(score);
-	free(offsets);
 }
 
 
 -(void)setLinearCoefsForReadLength:(float)readLength {
 																	
-	float coefs[2] = {0.0, readLength / self.nScans};
+	float coefs[2] = {0.0f, readLength / self.nScans};
 	self.coefs = [NSData dataWithBytes: coefs length:2*sizeof(float)];
 	
 	float reverseCoefs[2] = {-coefs[0]/coefs[1], 1/coefs[1]};
@@ -579,7 +613,7 @@ void regression (float *x, float *y, NSInteger nPoints, float *slope, float *int
 		sumY += y[point];
 		sumXY += x[point] * y[point];
 	}
-	*slope= (nPoints*sumXY - sumX*sumY)/(nPoints*sumXX - pow(sumX, 2));
+	*slope= (nPoints*sumXY - sumX*sumY)/(nPoints*sumXX - sumX*sumX);
 	*intercept = (sumY - *slope * sumX)/nPoints;
 }
 
@@ -604,47 +638,92 @@ void regressionIgnoringPoint (float *x, float *y, NSInteger nPoints, int pointTo
 
 /// Fits a polynomial regression of the form y = ax^0 + bx^1 + … + cx^k between two series of values
 /// - Parameters:
-///   - x: Vector of values of the first variable (the "X axis").
-///   - y: Vector of values of the second variable (the "Y axis").
+///   - x: Vector of values of the predictor (the "X axis").
+///   - y: Vector of values of the response variable (the "Y axis").
 ///   - k: The order of the polynomial used for the regression. This must not be negative
-///   - nPoints: Number of values to consider for `x` and `y`.
+///   - nPoints: Number of values in `x` and `y`.
+///   - pointToIgnore: Index of a data point (x-y values) to ignore in the computation.
+///   This can be used to estimate Cook's distance. Use a number < 0 or >= nPoints to use all points.
 ///   - b: On output, the coefficients of the polynomial (i.e., results). There will be `k` + 1 coefficients.
-///   - info: On output, te `info` parameter of the `sposv` function, which tells whether the solution has been computed.
-void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info) {
+///   - info: On output, the `info` parameter of the `sposv` function, which tells whether the solution has been computed.
+void polynomialCoefs(float *x, float *y, int k, int nPoints, int pointToIgnore, float *b, int *info) {
 	
 	/// we create matrices A and b that specifies the system of equations, as explained in https://neutrium.net/mathematics/least-squares-fitting-of-a-polynomial/ (here A corresponds to the matrix they call "M")
 	int dim =  k+1;					/// the dimension of the A matrix used for fitting
-	float A[dim*dim];				/// the A matrix in the equation Ax = b that we will solve. x represents the coefficient to estimate. We use a 1-dimension array rather than a matrix [dim][dim] to avoid a warning in the sposv call bellow (VLA)
-	float *exponents = malloc(nPoints * sizeof(float));		/// array that we use to populate A.
-	float *x2power = malloc(nPoints * sizeof(float));			/// array that we use to populate A (scans raised to exponents)
-	float *xy = malloc(nPoints * sizeof(float));				/// array that we use to populate b (sizes * scans raised to exponents).
+	float A[dim*dim];				/// the A matrix in the equation Ax = b that we will solve. x represents the coefficient to estimate. We use a 1-dimension array rather than a matrix [dim][dim] for sposv (VLA)
+	float xp[nPoints]; 				/// Will contain results of x^n, without using a power function (VLA)
+	float one = 1.0f;				/// values of x^n when n = 0, hence 1.
+	vDSP_vfill(&one, xp, 1, nPoints);
+	if (pointToIgnore >= 0 && pointToIgnore < nPoints) {
+		xp[pointToIgnore] = 0.0f;	/// As we sum values of xp later, nullifying the point to ignore gives it a weight of 0.
+	}
+	
+	float xpy[nPoints];				/// array that we use to populate b (x^n * y).
 	float sum;						/// will hold temporary results from summations
 	
 	for (int n = 0; n <= 2*k; n++) {
-		float exponent = n;									/// we will raise x value to the power of n
-		vDSP_vfill(&exponent, exponents, 1, nPoints);		/// for this, we need to create of vector of n's (one n per scan)
-		vvpowf(x2power, exponents, x, &nPoints);			/// so we can use this accelerated function (I couldn't find one in Accelerate that uses a scalar for exponent)
 		if(n <= k) {
-			vDSP_vmul(x2power, 1, y, 1, xy, 1, nPoints);	/// we populate vector b.
-			vDSP_sve(xy, 1, &b[n], nPoints);
+			vDSP_vmul(xp, 1, y, 1, xpy, 1, nPoints);	/// computes x^n*y.
+			vDSP_sve(xpy, 1, &b[n], nPoints);			/// Puts its sum in vector b.
 		}
-		vDSP_sve(x2power, 1, &sum, nPoints);				/// we sum the scan2power vector, as A contains such sums
-		for (int i = 0; i <= n; i++) {
-			int j = n-i;
-			if(i > k || j > k) {
-				continue;
-			}
-			A[i*dim + j] = sum;
+		
+		vDSP_sve(xp, 1, &sum, nPoints);				/// we sum xp vector, as lower triangle of A contains such sums
+		vDSP_vmul(xp, 1, x, 1, xp, 1, nPoints);	    /// raises xp to power n+1
+		for (int j = MAX(0, n - k); j <= n/2; j++) {
+			/// We fill the lower triangle of the matrix, as sposv will use it
+			int i = n - j;
+			A[i + j*dim] = sum;
 		}
 	}
-	free(exponents); free(x2power); free(xy);
 	
 	/// we solve the system Ax = b using LAPACK's sposv, as the A matrix is always symmetric and positive definite
-	char uplo = 'U';		/// specifies the lower triangle of the matrix (this doesn't matter since we have filled the whole matrix)
+	char uplo = 'L';		/// specifies the lower triangle of the matrix
 	int nColB = 1;			/// number of columns of b
 	sposv_(&uplo, &dim, &nColB, A, &dim, b, &dim, info);		/// results are put in b
-	
 }
+
+
+/// Computes the Cook's distance for each point of a polynomial regression.
+/// - Parameters:
+///   - x: Values of first variable/predictor.
+///   - y: Values of the response variable.
+///   - coefs: The coefficients of the regression.
+///   - k: The number of parameters of the regression (= order of the polynomial + 1).
+///   - nPoints: Number of values of x.
+///   - distances: On output, the resulting Cook's distances. A negative value means that the distance could not be computed.
+void cooksDistances(float *x, float *y, int nPoints, float *coefs, int k, float *distances) {
+	
+	/// We compute the denominator used to compute Cook's distance, which is the same for all points.
+	float sumSquares = 0.0f;
+	float estimates[nPoints];
+	for (int i = 0; i < nPoints; i++) {
+		float estimate =yGivenPolynomial(x[i], coefs, k);
+		estimates[i] = estimate;
+		float diffY = y[i] - estimate;
+		sumSquares += diffY * diffY;
+	}
+	
+	float pMSE = k*sumSquares/(nPoints - k);
+	
+	float coefsWithoutI[k]; /// The coefficients of the fitted regression without a given data point.
+
+	for (int i = 0; i < nPoints; i++) {
+		sumSquares = 0.0f;
+		int info = 0;
+		polynomialCoefs(x, y, k-1, nPoints, i, coefsWithoutI, &info);
+		if(info != 0 || pMSE < 0) {
+			distances[i] = -1;
+			continue;
+		}
+		for (int j = 0; j < nPoints; j++) {
+			float yWithoutI = yGivenPolynomial(x[j], coefsWithoutI, k);
+			float diffEstimates = estimates[j] - yWithoutI;
+			sumSquares += diffEstimates * diffEstimates;
+		}
+		distances[i] = sumSquares/pMSE;
+	}
+}
+
 
 
 - (float)readLength {
@@ -691,36 +770,23 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	
 	NSData *coefData = self.coefs;
 	previousCoefs = coefData;
-	if(self.nScans == 0 || coefData.length == 0) {
+	int k = (int)coefData.length/sizeof(float);
+	int nScans = self.nScans;
+	if(nScans == 0 || k == 0) {
 		return;
 	}
-	int nScans = self.nScans;
-	float *scans = malloc(nScans * sizeof(float));		/// the scan indices: 0...nScans-1. We use float for compatibility with vDSP functions
-	float *computedSizes = calloc(nScans, sizeof(float));
-	float *exponents = malloc(nScans * sizeof(float));
-	float *scan2power = malloc(nScans * sizeof(float));
-	
-	float start = 0;
-	float B = 1;
+	float *scans = malloc(nScans * sizeof *scans);		/// the scan indices: 0...nScans-1.
+	float start = 0.0f;
+	float B = 1.0f;
 	vDSP_vramp(&start, &B, scans, 1, nScans);
-	const float *a = coefData.bytes;
-	NSInteger order = coefData.length / sizeof(float);
-	for (int n = 0; n < order; n++) {
-		float exponent = n;						/// we will raise scans to the power of n
-		vDSP_vfill(&exponent, exponents, 1, nScans);
-		
-		/// so we can use this accelerated function (I couldn't find one in Accelerate that uses a scalar for exponent)
-		vvpowf(scan2power, exponents, scans, &nScans);
-		vDSP_vsmul(scan2power, 1, &a[n], scan2power, 1, nScans);
-		vDSP_vadd(computedSizes, 1, scan2power, 1, computedSizes, 1, nScans);
-	}
+
+	float *computedSizes = malloc(nScans * sizeof *computedSizes);
+	const float *coefs = coefData.bytes;
+	
+	yValuesWithPolynomial(scans, computedSizes, nScans, coefs, k);
 	
 	free(scans);
-	free(exponents);
-	free(scan2power);
 	scans = NULL;
-	exponents = NULL;
-	scan2power = NULL;
 	
 	/// we compute minScan, maxScan and readLength based on the sizing
 	vDSP_Length maxScan = nScans-1, minScan = 0;
@@ -769,7 +835,7 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 	NSData *sizeData = self.sizes;
 	const float *sizes = sizeData.bytes;
 	int nScans = (int)sizeData.length/sizeof(float);
-	if(size <= sizes[0]) {
+	if(nScans == 0 || size <= sizes[0]) {
 		return 0;
 	}
 	if(size >= sizes[nScans-1]) {
@@ -815,13 +881,30 @@ void polynomialCoefs(float *x, float *y, int k, int nPoints, float *b, int *info
 /// - Parameters:
 ///   - x: The value for which we want to compute the y value.
 ///   - coefs: The coefficient of the polynomial (a, b, c... see description).
-///   - k: The order of the polynomial (the number of values in `coefs`, minus one).
+///   - k: The number of values in `coefs`.
 float yGivenPolynomial(float x, const float *coefs, int k) {
-	float y = 0;
-	for (int n = 0; n < k; n++) {
-		y += coefs[n] * pow(x, n);
-	}
+	/// We user Horner's method.
+	float y = coefs[k-1];
+	for (int i = k - 2; i >= 0; --i)
+		y = y * x + coefs[i];
 	return y;
+}
+
+
+/// Computes the values of `y` given the value of `x` assuming a relationship y = ax^0 + bx^1 + … + cx^k
+/// - Parameters:
+///   - x: Array of float.
+///   - y: On output, the fitted values (array of float).
+///   - nPoints: Numbers of values in x.
+///   - coefs: The coefficient of the polynomial (a, b, c... see description).
+///   - k: The number of values in `coefs`.
+void yValuesWithPolynomial(float *x, float *y, int nPoints, const float *coefs, int k){
+	vDSP_vfill(&coefs[k - 1], y, 1, nPoints);
+	
+	for (int j = k - 2; j >= 0; --j) {
+		vDSP_vmul(y, 1, x, 1, y, 1, nPoints);
+		vDSP_vsadd(y, 1, &coefs[j], y, 1, nPoints);
+	}
 }
 
 
@@ -907,13 +990,14 @@ float yGivenPolynomial(float x, const float *coefs, int k) {
 
 
 
--(void)applyPanelWithAlleleName:(NSString *)alleleName {
+-(void)applyPanel:(Panel *) panel withAlleleName:(NSString *)alleleName {
 	/// we remove genotypes the sample may have from a previous panel (genotypes delete themselves when they lose their sample)
+	[self managedObjectOriginal_setPanel:panel];
 	[self managedObjectOriginal_setGenotypes:nil];
-	if (self.panel) {
+	if (panel) {
 		for (Mmarker *marker in self.panel.markers) {
 			Genotype *newGenotype = [[Genotype alloc] initWithMarker:marker sample:self];
-			if(newGenotype) {
+			if(newGenotype && alleleName) {
 				for(Allele *allele in newGenotype.alleles) {
 					[allele managedObjectOriginal_setName:alleleName];
 				}
@@ -991,7 +1075,15 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 - (BOOL)validateSampleName:(id *) value error:(NSError **)error {
 	/// the sample must have a name
 	NSString *name = *value;
-	if(name.length < 0) {
+	name = [name stringByTrimmingCharactersInSet: NSCharacterSet.whitespaceCharacterSet];
+	NSString *previousName = self.sampleName;
+	if(name.length == 0 && previousName.length > 0) {
+		if(previousName.length > 0) {
+			if([self validateSampleName:&previousName error:nil]) {
+				*value = previousName;
+				return YES;
+			}
+		}
 		if (error != NULL) {
 			*error = [NSError managedObjectValidationErrorWithDescription:@"The sample must have a name."
 															   suggestion:@""
@@ -1024,19 +1116,6 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 }
 
 
-- (void)_wirePanel:(Panel *)panel {
-	for(Genotype *genotype in self.genotypes) {
-		for(Mmarker *marker in panel.markers) {
-			Mmarker *genotypeMarker = genotype.marker;
-			if(genotypeMarker.start == marker.start & genotypeMarker.channel == marker.channel) {
-				[genotype managedObjectOriginal_setMarker:marker];
-			}
-		}
-	}
-	[self managedObjectOriginal_setPanel:panel];
-}
-
-
 # pragma mark - archiving and copying
 
 +(BOOL)supportsSecureCoding {
@@ -1048,15 +1127,6 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 	NSProgress *currentProgress = NSProgress.currentProgress;
 	if(currentProgress.isCancelled) {
 		return;
-	}
-	
-	/// For backwards compatibility, we use the initial name for the `Trace` class to encode traces.
-	NSKeyedArchiver *encoder = (NSKeyedArchiver *)coder;
-	if([encoder respondsToSelector:@selector(setClassName:forClass:)]) {
-		Class traceClass = FluoTrace.class;
-		if([encoder classNameForClass:traceClass] != previousTraceClassName) {
-			[encoder setClassName:previousTraceClassName forClass:traceClass];
-		}
 	}
 	
 	[super encodeWithCoder:coder];
@@ -1080,8 +1150,8 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 		NSKeyedUnarchiver *decoder = (NSKeyedUnarchiver *)coder;
 		if([decoder respondsToSelector:@selector(setClass:forClassName:)]) {
 			Class traceClass = FluoTrace.class;
-			if([decoder classForClassName:previousTraceClassName] != traceClass) {
-				[decoder setClass:traceClass forClassName:previousTraceClassName];
+			if([decoder classForClassName:Trace.previousClassName] != traceClass) {
+				[decoder setClass:traceClass forClassName:Trace.previousClassName];
 			}
 		}
 		
@@ -1127,7 +1197,8 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 	return copy;
 }
 
-/// We don't implement the NSPasteboardReading protocol, because we wouldn't know which managed object context to use to init an instance from the paste board
+NSPasteboardType _Nonnull const ChromatogramObjectIDPasteboardType = @"org.jpeccoud.stryper.chromatogramPasteboardType",
+MarkerOffsetPasteboardType = @"org.jpeccoud.stryper.MarkerOffsetPasteboardType";
 
 - (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
 	return @[ChromatogramObjectIDPasteboardType, MarkerOffsetPasteboardType];
@@ -1146,27 +1217,14 @@ int scanForSize(float size, const float *reverseCoefs, int k) {
 - (id)pasteboardPropertyListForType:(NSPasteboardType)type {
 		
 	if([type isEqualToString:ChromatogramObjectIDPasteboardType]) {
-		if(self.isDeleted || !self.traces) {
-			/// in case the user tries to paste a sample that is deleted (which currently can only happen after undoing a sample import)
-			return nil;
-		}
-		
-		/// since we write our object id, we must ensure that it is not temporary.
-		if(self.objectID.isTemporaryID) {
-			if(![self.managedObjectContext obtainPermanentIDsForObjects:@[self] error:nil]) {
-				NSLog(@"Error obtaining permanent ID for sample '%@': copy not made.", self.description);
-				return nil;
-			}
-		}
-		
-		return self.objectID.URIRepresentation.absoluteString;
+		return [super pasteboardPropertyListForType:CodingObjectIDPasteboardType];
 	}
 	
 	if([type isEqualToString:MarkerOffsetPasteboardType]) {
 		return [self dictionaryForOffsetsAtMarkers:nil];
 	}
 	
-	return nil;
+	return [super pasteboardPropertyListForType:type];
 }
 
 

@@ -42,47 +42,156 @@ HeaderToolTip = @"headerToolTip";
 
 @interface TableViewController ()
 
+@property (nullable, nonatomic) IBOutlet NSArrayController *arrayController;
+@property (nullable, nonatomic) IBOutlet NSTreeController *treeController;
+@property (nullable, nonatomic) IBOutlet NSObjectController *objectController;
+
 @property (nonatomic) NSImage *filterButtonImageActive;
 @property (nonatomic) NSImage *filterButtonImageInactive;
 @property (nonatomic) NSString *URIStringPrefix;
 @property (nonatomic) CALayer *flashLayer;
+@property (nonatomic) CALayer *focusLayer;
+
 
 @end
 
 
 @implementation TableViewController
 
-#pragma mark - methods for populating the table and common delegate methods
+@synthesize arrayController = _arrayController, treeController = _treeController;
 
-NSBindingName const ContentArrayBinding = @"contentArray";
+#pragma mark - Setup
+
+static NSMapTable<Class, id> *controllers;
+
++ (void)initialize {
+	if (self == [TableViewController class]) {
+		controllers = NSMapTable.strongToStrongObjectsMapTable;
+	}
+}
 
 
 + (instancetype)sharedController {
-	static TableViewController *controller = nil;
-	static dispatch_once_t once;
-	
-	dispatch_once(&once, ^{
-		controller = self.new;
-	});
-	return controller;
+	@synchronized (controllers) {
+		id instance = [controllers objectForKey:self];
+		
+		if (!instance) {
+			instance = self.new;
+			[controllers setObject:instance forKey:self];
+		}
+		return instance;
+	}
 }
 
 
-- (NSArrayController *)tableContent {
-	if(!_tableContent) {		/// tableContent is an outlet, which may be nil if the nib is not loaded yet, so we access our view property to load it
-		if(self.view) {
-			return _tableContent;
++ (void)registerSharedController:(id)controller {
+	@synchronized (controllers) {
+		id existing = [controllers objectForKey:self];
+		if (!existing) {
+			[controllers setObject:controller forKey:self];
 		}
 	}
-	return _tableContent;
 }
 
 
-- (NSTableView *)viewForCellPrototypes {
-	if(!_viewForCellPrototypes) {
-		return self.tableView;
+- (instancetype)init {
+	self = [super init];
+	if (self) {
+		[self.class registerSharedController:self];
 	}
-	return _viewForCellPrototypes;
+	return self;
+}
+
+
+- (instancetype)initWithCoder:(NSCoder *)coder {
+	self = [super initWithCoder:coder];
+	if (self) {
+		[self.class registerSharedController:self];
+	}
+	return self;
+}
+
+
+#pragma mark - methods for populating the table and common delegate methods
+
+NSBindingName const ContentArrayBinding = @"contentArray",
+ContentSetBinding = @"contentSet",
+SelectedObjectsBinding = @"selectedObjects",
+ArrangedObjectsBinding = @"arrangedObjects",
+ContentBinding = @"content";
+
+
+static void *controllerChangedContext = &controllerChangedContext;
+
+- (void)setArrayController:(NSArrayController *)arrayController {
+	if(_arrayController != arrayController) {
+		[_arrayController removeObserver:self forKeyPath:ArrangedObjectsBinding];
+		_arrayController = arrayController;
+		self.objectController = arrayController;
+		if(_arrayController) {
+			[_arrayController addObserver:self forKeyPath:ArrangedObjectsBinding
+								  options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
+								  context:controllerChangedContext];
+		}
+	}
+}
+
+
+- (void)setTreeController:(NSTreeController *)treeController {
+	if(_treeController != treeController) {
+		_treeController = treeController;
+		self.objectController = treeController;
+	}
+}
+
+
+- (void)setObjectController:(NSObjectController *)objectController {
+	if(_objectController != objectController) {
+		[_objectController removeObserver:self forKeyPath:SelectedObjectsBinding];
+		[_objectController removeObserver:self forKeyPath:ContentBinding];
+
+		_objectController = objectController;
+		if(objectController) {
+			[_objectController addObserver:self forKeyPath:SelectedObjectsBinding
+								   options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
+								   context:controllerChangedContext];
+			[_objectController addObserver:self forKeyPath:ContentBinding
+								   options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
+								   context:controllerChangedContext];
+		}
+	}
+}
+
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+	if (context == controllerChangedContext) {
+		[self willChangeValueForKey:keyPath];
+		[self didChangeValueForKey:keyPath];
+	} else if (context == filterChangedContext) {
+		self.filterButton.image = self.filterButtonImage;
+	} else {
+		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+	}
+}
+
+
+- (NSArray *)selectedObjects {
+	return self.objectController.selectedObjects;
+}
+
+
+- (NSArray *)content {
+	return self.objectController.content;
+}
+
+
+- (NSArray *)arrangedObjects {
+	return self.arrayController.arrangedObjects;
+}
+
+
+- (NSTableView *)viewForCellPrototypeForColumn:(NSTableColumn *)column row:(NSInteger)row {
+	return column.tableView;
 }
 
 
@@ -98,6 +207,11 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 
 - (BOOL)shouldAutoSaveTable {
 	return YES;
+}
+
+
+- (nullable NSOutlineView *)outlineView {
+	return [self.tableView isKindOfClass:NSOutlineView.class] ? (NSOutlineView *)self.tableView : nil;
 }
 
 
@@ -136,15 +250,33 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 }
 
 
+- (NSManagedObjectContext *)managedObjectContext {
+	return AppDelegate.sharedInstance.managedObjectContext;
+}
+
+
+- (NSUndoManager *)undoManager {
+	NSUndoManager *undoManager = super.undoManager;
+	return undoManager? undoManager : self.managedObjectContext.undoManager;
+}
+
+
 - (void)configureTableContent {
-	if(self.tableContent) {			/// these are the default bindings common to most subclasses (the usual bindings to NSTableView)
-		[self.tableContent bind:NSManagedObjectContextBinding toObject:NSApp.delegate
+	NSObjectController *objectController = self.objectController;
+	NSTableView *tableView = self.tableView;
+	if(objectController && tableView) {			/// these are the default bindings common to most subclasses (the usual bindings to NSTableView)
+		[objectController bind:NSManagedObjectContextBinding toObject:NSApp.delegate
 					withKeyPath:NSStringFromSelector(@selector(managedObjectContext)) options:@{NSDeletesObjectsOnRemoveBindingsOption: @([self shouldDeleteObjectsOnRemove])}];
-		self.tableContent.entityName = self.entityName;
-		[self.tableView bind:NSContentBinding toObject:self.tableContent withKeyPath:NSStringFromSelector(@selector(arrangedObjects)) options:nil];
-		[self.tableView bind:NSSelectionIndexesBinding toObject:self.tableContent
-				 withKeyPath:NSStringFromSelector(@selector(selectionIndexes)) options:nil];
-		[self.tableView bind:NSSortDescriptorsBinding toObject:self.tableContent
+		objectController.entityName = self.entityName;
+		[tableView bind:NSContentBinding toObject:objectController withKeyPath:NSStringFromSelector(@selector(arrangedObjects)) options:nil];
+		if(objectController == self.arrayController) {
+			[tableView bind:NSSelectionIndexesBinding toObject:objectController
+					 withKeyPath:NSStringFromSelector(@selector(selectionIndexes)) options:nil];
+		} else {
+			[tableView bind:NSSelectionIndexPathsBinding toObject:objectController
+					 withKeyPath:NSStringFromSelector(@selector(selectionIndexPaths)) options:nil];
+		}
+		[tableView bind:NSSortDescriptorsBinding toObject:objectController
 				 withKeyPath:NSStringFromSelector(@selector(sortDescriptors)) options:nil];
 	}
 }
@@ -152,28 +284,37 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 
 - (void)setContentArray:(NSArray *)contentArray {
 	_contentArray = contentArray.copy;
-	NSArray *currentContent = self.tableContent.content;
-	if(currentContent.count > 0 && ![_contentArray containsAllObjectsOf:currentContent]) {
-		/// As we defer the reloading of the table, it is important to immediately clear if from objects that it should no longer show.
-		/// Such objects may not be adequate for bindings with cell views (e.g. they have been deleted). Bindings to deleted objects cause crashes in some macOS versions.
-		/// So we simply clear the table once, as the principle of this method is to avoid successive updates.
-		/// We could clear the table without checking the condition above, but this would cause an unnecessary flash.
-		self.tableContent.content = nil;
+	if(_arrayController) {
+		NSArray *currentContent = self.content;
+		if(currentContent.count > 0 && ![_contentArray containsAllObjectsOf:currentContent]) {
+			/// As we defer the reloading of the table, it is important to immediately clear if from objects that it should no longer show.
+			/// Such objects may not be adequate for bindings with cell views (e.g. they have been deleted). Bindings to deleted objects cause crashes in some macOS versions.
+			/// So we simply clear the table once, as the principle of this method is to avoid successive updates.
+			/// We could clear the table without checking the condition above, but this would cause an unnecessary flash.
+			self.arrayController.content = nil;
+		}
 	}
 	
 	if(!_needLoadContent) {
 		_needLoadContent = YES;
-		[self performSelector:@selector(_loadContent) withObject:nil afterDelay:0];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[self _loadContentIfNeeded];
+		});
 	}
 }
 
 
 
-- (void)_loadContent {
+- (void)setContentSet:(NSSet *)contentSet {
+	_contentSet = contentSet;
+}
+
+
+- (void)_loadContentIfNeeded {
 	if(_needLoadContent) {
-		NSArray *currentContent = self.tableContent.content;
+		NSArray *currentContent = self.arrayController.content;
 		if(![_contentArray containsSameObjectsAs:currentContent]) {
-			self.tableContent.content = _contentArray;
+			self.arrayController.content = _contentArray;
 		}
 		_needLoadContent = NO;
 	}
@@ -207,7 +348,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 		col.sortDescriptorPrototype = [self sortDescriptorPrototypeForTableColumn:col];
 		if(!alreadyInTable) {
 			[tableView addTableColumn:col];
-			col.width = col.headerCell.cellSize.width + 10;
+			col.width = col.headerCell.cellSize.width + 10.0;
 			col.minWidth = col.headerCell.cellSize.width ;
 		}
 		col.hidden = [colDescription.allKeys containsObject:IsColumnVisibleByDefault] && ![colDescription[IsColumnVisibleByDefault] boolValue];
@@ -246,7 +387,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 	}
 	
 	NSString *viewID = cellDescription[CellViewID];  /// in no such view exists, we return the right prototype table cell view that is in the sampleTable (in the xib)
-	view = [self.viewForCellPrototypes makeViewWithIdentifier:viewID owner:self];
+	view = [[self viewForCellPrototypeForColumn:tableColumn row:row] makeViewWithIdentifier:viewID owner:self];
 	
 	if(view.subviews.count == 0) {
 		return  view;					/// hopefully, this won't happen otherwise some views will be missing
@@ -264,7 +405,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 		textField.selectable = YES;
 		if([cellDescription[IsTextFieldEditable] boolValue]) {
 			textField.editable = YES;
-			textField.delegate = (id)self;
+			textField.delegate = self;
 		}
 	}
 	
@@ -279,6 +420,12 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 		}
 	}
 	
+	if([view.subviews.firstObject isKindOfClass:NSPopUpButton.class]) {
+		NSPopUpButton *popup = view.subviews.firstObject;
+		popup.action = @selector(popupClicked:);
+		popup.target = self;
+	}
+	
 	if([view isKindOfClass: GaugeTableCellView.class]) {
 		keyPath = [objectValueString stringByAppendingString: cellDescription[KeyPathToBind]];
 		[view bind:NSValueBinding toObject:view withKeyPath:keyPath options:nil];
@@ -291,33 +438,32 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 
 - (NSString *)tableView:(NSTableView *)tableView typeSelectStringForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
 	/// Overridden for performance. We take advantage of the fact that we know which value of an item a table cell shows even if the cell doesn't exist.
-	if(tableColumn.isHidden) {
+	id itemAtRow = [self itemAtRow:row];
+
+	if(itemAtRow == nil || tableColumn.isHidden) {
 		return nil;
 	}
-	
+		
 	NSDictionary *columnDescription = self.columnDescription;
 	
-	if(_tableContent && columnDescription) {
+	if(columnDescription) {
 		NSDictionary *dic = columnDescription[tableColumn.identifier];
 		NSString *keyPath = dic[KeyPathToBind];
-		if(![_tableContent.sortDescriptors.firstObject.key isEqualToString:keyPath]) {
+		if(![tableView.sortDescriptors.firstObject.key isEqualToString:keyPath]) {
 			/// We don't use a column for type selection if it's not the first one used for sorting.
 			return nil;
 		}
 		if(![dic[CellViewID] isEqualToString:@"imageCellView"]) {
 			/// This type of column does not show any text (or number), so we don't use it
-			if([_tableContent.arrangedObjects count] > row) {
-				id itemAtRow = _tableContent.arrangedObjects[row];
-				if(keyPath) {
-					id value = [itemAtRow valueForKeyPath:keyPath];
-					if(value) {
-						if([value isKindOfClass:NSString.class]) {
-							return value;
-						}
-						return [NSString stringWithFormat:@"%@", value];
-					} else {
-						return @"";
+			if(keyPath) {
+				id value = [itemAtRow valueForKeyPath:keyPath];
+				if(value) {
+					if([value isKindOfClass:NSString.class]) {
+						return value;
 					}
+					return [NSString stringWithFormat:@"%@", value];
+				} else {
+					return @"";
 				}
 			}
 		}
@@ -356,9 +502,13 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 			[menu addItem:item];
 		}
 		
+		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Size Columns to Fit Content" action:@selector(autoSizeColumns:) keyEquivalent:@""];
+		item.target = self;
+		[menu addItem:item];
+		
 		/// We add a menu item allowing to hide the clicked column.
 		NSString *title = @"Hide Column";
-		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:title action:@selector(hideColumn:) keyEquivalent:@""];
+		item = [[NSMenuItem alloc] initWithTitle:title action:@selector(hideColumn:) keyEquivalent:@""];
 		item.target = self;
 		[menu addItem:item];
 		[menu addItem:NSMenuItem.separatorItem];
@@ -374,6 +524,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 		
 		[menu addItem:NSMenuItem.separatorItem];
 		item = [[NSMenuItem alloc] initWithTitle:@"Show All" action:@selector(showAllColumns:) keyEquivalent:@""];
+		item.target = self;
 		[menu addItem:item];
 	} else if(menu == tableView.menu) {
 		/// if the menu is from our tableview's menu (set in IB), we hide its items if there is no clicked row
@@ -386,14 +537,15 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 
 - (void)hideColumn:(NSMenuItem *)sender {
 	NSTableColumn *column = sender.representedObject;
-	if(column && [self canHideColumn:column]) {
+	if([column isKindOfClass:NSTableColumn.class] && [self canHideColumn:column]) {
 		column.hidden = YES;
 	}
 }
 
+
 - (void)toggleColumnVisibility:(NSMenuItem *)sender {
 	NSTableColumn *column = sender.representedObject;
-	if(column) {
+	if([column isKindOfClass:NSTableColumn.class]) {
 		column.hidden = !column.hidden;
 	}
 }
@@ -406,29 +558,46 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 }
 
 
+-(void)autoSizeColumns:(id)sender {
+	NSArray *tableColumns = self.tableView.tableColumns;
+	for(NSTableColumn *column in tableColumns) {
+		if(!column.isHidden) {
+			NSInteger col = [tableColumns indexOfObject:column];
+			column.width = [self tableView:self.tableView sizeToFitWidthOfColumn:col];
+		}
+	}
+}
+
+
 - (CGFloat)tableView:(NSTableView *)tableView sizeToFitWidthOfColumn:(NSInteger)column {
 	NSTableColumn *theColumn = tableView.tableColumns[column];
-	NSSize textSize = theColumn.headerCell.cellSize; 		/// the column should be at least as large as the header text
-	CGFloat maxWidth = textSize.width +5;
+	CGFloat colWidth = theColumn.headerCell.cellSize.width; 		/// the column should be at least as large as the header text
+	CGFloat maxWidth = colWidth +5.0;
+	CGFloat colLeftEdge = NSMinX([tableView rectOfColumn:column]);
 	
 	for (int row = 0; row < tableView.numberOfRows; row++) {
 		/// We don't make views, as it would take too long.
 		NSTableCellView *cellView = [tableView viewAtColumn:column row:row makeIfNecessary:NO];
-		if(cellView.textField) {
-			textSize = cellView.textField.cell.cellSize; 		/// do not use view.fittingSize here. It isn't reliable.
-			textSize.width = textSize.width + NSMinX(cellView.textField.frame) +2;   	/// not sure why, but if we don't do that it clips the contents
+		NSTextField *textField = cellView.textField;
+		if(textField) {
+			NSPoint viewFrameOrigin = [tableView convertPoint:textField.frame.origin fromView:cellView];
+			colWidth = textField.cell.cellSize.width + viewFrameOrigin.x - colLeftEdge; 		/// do not use view.fittingSize here. It isn't reliable.
 		} else {
 			NSPopUpButton *button = [cellView viewWithTag:1];
 			if(button) {
-				textSize = button.cell.cellSize;
+				NSPoint viewFrameOrigin = [tableView convertPoint:button.frame.origin fromView:cellView];
+				colWidth = button.cell.cellSize.width + viewFrameOrigin.x - colLeftEdge;
 			}
 		}
 		 
-		if (textSize.width > maxWidth) {
-			maxWidth = textSize.width;
-		}
+		maxWidth = MAX(maxWidth, colWidth);
 	}
 	return maxWidth;
+}
+
+
+- (CGFloat)outlineView:(NSOutlineView *)outlineView sizeToFitWidthOfColumn:(NSInteger)column {
+	return [self tableView:outlineView sizeToFitWidthOfColumn:column];
 }
 
 #pragma mark - pasteboard support
@@ -475,6 +644,19 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 }
 
 
+- (BOOL)canCopyItems:(NSArray *)items {
+	if(items.count == 0) {
+		return NO;
+	}
+	for(id item in items) {
+		if(![item conformsToProtocol:@protocol(NSPasteboardWriting)]) {
+			return NO;
+		}
+	}
+	return YES;
+}
+
+
 - (IBAction)copy:sender {
 	/// we copy a string representing selected objects, we can be pasted to text editors or spreadsheets
 	NSArray *items = [self validTargetsOfSender:sender];
@@ -493,44 +675,25 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 			}
 		}
 		NSString *pasteboardString = [pasteboardStrings componentsJoinedByString:@"\n"];
-		
-		[pasteboard clearContents];
-		NSPasteboardItem *item = NSPasteboardItem.new;
-		[item setString:pasteboardString forType:NSPasteboardTypeString];
-		[pasteboard writeObjects:@[item]];
-		
+		if(pasteboardString.length > 0) {
+			[pasteboard clearContents];
+			NSPasteboardItem *item = [[NSPasteboardItem alloc] initWithPasteboardPropertyList:pasteboardString ofType:NSPasteboardTypeString];
+			[pasteboard writeObjects:@[item]];
+		}
 	}
 }
 
-
-- (NSPasteboardType)draggingPasteBoardTypeForRow:(NSInteger)row {
-	return nil;
-}
 
 
 - (id<NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
 	   
-	if(row > [self.tableContent.arrangedObjects count]) {
-		return nil;
-	}
-	CodingObject *draggedItem = [self.tableContent.arrangedObjects objectAtIndex:row];
+	CodingObject *draggedItem = [self itemAtRow:row];
 	
 	if([draggedItem conformsToProtocol:@protocol(NSPasteboardWriting)]) {
 		return (id)draggedItem;
 	}
 	
-	NSPasteboardType draggingPasteBoardType = [self draggingPasteBoardTypeForRow:row];
-	if(!draggingPasteBoardType) {
-		return nil;
-	}
-	
-	if(draggedItem.objectID.isTemporaryID) {
-		[draggedItem.managedObjectContext obtainPermanentIDsForObjects:@[draggedItem] error:nil];
-	}
-	NSPasteboardItem *pasteBoardItem = NSPasteboardItem.new;
-	[pasteBoardItem setString:draggedItem.objectID.URIRepresentation.absoluteString forType:draggingPasteBoardType];
-	return pasteBoardItem;
-	
+	return nil;
 }
 
 
@@ -538,10 +701,50 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 - (void)tableView:(NSTableView *)tableView draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint forRowIndexes:(NSIndexSet *)rowIndexes {
 	[SortCriteriaEditor setRowImagesForDraggingSession:session
 										 fromTableView:tableView
-										  atRowIndexes:rowIndexes forPoint:screenPoint];
+										  atRowIndexes:rowIndexes forPoint:screenPoint alignWithTop:NO];
 }
 
-# pragma mark - renaming, adding, removing and exporting items
+
+
+- (void)outlineView:(NSOutlineView *)outlineView draggingSession:(NSDraggingSession *)session willBeginAtPoint:(NSPoint)screenPoint forItems:(NSArray *)draggedItems {
+	NSMutableIndexSet *indexes = [NSMutableIndexSet indexSet];
+	for (id item in draggedItems) {
+		NSInteger row = [outlineView rowForItem:item];
+		if (row != -1) {
+			[indexes addIndex:row];
+		}
+	}
+	[self tableView:outlineView draggingSession:session willBeginAtPoint:screenPoint forRowIndexes:indexes.copy];
+}
+
+
+
+# pragma mark - selecting; renaming, adding, removing and exporting items
+
+- (BOOL)selectObjects:(NSArray *)objects {
+	BOOL result = [self.arrayController setSelectedObjects:objects];
+	NSRect rect = NSZeroRect; /// The rectangle spanned by the selected rows, as we scroll to show them.
+	for(id object in objects) {
+		NSInteger row = [self rowForItem:object];
+		if(row >= 0) {
+			rect = NSUnionRect(rect, [self.tableView rectOfRow:row]);
+		}
+	}
+	if(!NSEqualRects(rect, NSZeroRect)) {
+		NSTableView *tableView = self.tableView;
+		NSRect visibleRect = tableView.visibleRect;
+		if(rect.size.height > visibleRect.size.height && rect.origin.y < visibleRect.origin.y) {
+			/// if the rectangle spanned by the row is taller than the visible rectangle and start before (on the y axis),
+			/// we scroll the view up to the top of this rectangle, to ensure that the first selected row is visible.
+			/// For that, we create another rectangle that is thinner vertically.
+			rect = NSMakeRect(rect.origin.x, rect.origin.y, rect.size.width, 10.0);
+		}
+		
+		[self.tableView scrollRectToVisible:rect];
+	}
+	return result;
+}
+
 
 - (IBAction)rename:(id)sender {
 	NSTableView *tableView = self.tableView;
@@ -569,7 +772,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 
 
 - (void)selectItemName:(id)object {
-	NSInteger row = [self.tableContent.arrangedObjects indexOfObject: object];
+	NSInteger row = [self rowForItem:object];
 	if(row >=0) {
 		[self.tableView scrollRowToVisible:row];
 		[self.tableView editColumn:[self itemNameColumn] row:row withEvent:nil select:YES];
@@ -582,30 +785,84 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 }
 
 
+- (nullable id)itemAtRow:(NSInteger)row {
+	NSOutlineView *outlineView = self.outlineView;
+	if(outlineView) {
+		id item = [outlineView itemAtRow:row];
+		if([item isKindOfClass:NSTreeNode.class]) {
+			id obj = [item representedObject];
+			if(obj) {
+				return obj;
+			}
+		}
+		return item;
+	}
+	
+	NSArray *arrangedObjects = self.arrangedObjects;
+	if(arrangedObjects.count > row && row >= 0) {
+		return arrangedObjects[row];
+	}
+	
+	return nil;
+}
+
+
+- (NSInteger)rowForItem:(id)item {
+	if(!item) {
+		return -1;
+	}
+	
+	NSOutlineView *outlineView = self.outlineView;
+	if(outlineView) {
+		NSInteger row = [outlineView rowForItem:item];
+		if(row >= 0) {
+			return row;
+		}
+		if(![item isKindOfClass:NSTreeNode.class]) {
+			for (NSInteger row = 0; row < outlineView.numberOfRows; row++) {
+				id obj = [outlineView itemAtRow:row];
+				if([obj respondsToSelector:@selector(representedObject)] && [obj representedObject] == item) {
+					return row;
+				}
+			}
+		}
+		return -1;
+	}
+	
+	NSArray *arrangedObjects = self.arrangedObjects;
+	if(arrangedObjects) {
+		NSInteger idx = [arrangedObjects indexOfObjectIdenticalTo:item];
+		if(idx != NSNotFound) {
+			return idx;
+		}
+	}
+	return -1;
+}
+
+
+
+
 - (nullable NSArray *) validTargetsOfSender:(id)sender {
-	NSArrayController *tableContent = self.tableContent;
 	NSTableView *tableView = self.tableView;
-	if(!tableContent || !tableView) {
+	if(!tableView) {
 		return nil;
 	}
 	if([sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == tableView.menu) {
 		NSInteger clickedRow = tableView.clickedRow;
 		if(clickedRow >= 0) {
 			/// the target may be at the clicked row, which can differ from the selected row(s)
-			NSArray *arrangedObjects = tableContent.arrangedObjects;
-			NSArray *selectedObjects = tableContent.selectedObjects;
-			if(arrangedObjects.count >= clickedRow) {
-				id clickedItem = arrangedObjects[clickedRow];
-				if([selectedObjects indexOfObjectIdenticalTo:clickedItem] != NSNotFound) {
-					return selectedObjects;
-				}
-				return clickedItem == nil? nil : @[clickedItem];
+			NSArray *selectedObjects = self.selectedObjects;
+			id clickedItem = [self itemAtRow:clickedRow];
+			if([selectedObjects indexOfObjectIdenticalTo:clickedItem] != NSNotFound) {
+				return selectedObjects;
 			}
+			return clickedItem == nil? nil : @[clickedItem];
+			
 		} else {
 			return nil;
 		}
 	}
-	return tableContent.selectedObjects;
+	return self.selectedObjects;
 }
 
 
@@ -631,7 +888,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 	if(alert) {
 		[alert beginSheetModalForWindow: self.view.window completionHandler:^(NSModalResponse returnCode) {
 			if(returnCode == NSAlertFirstButtonReturn) {
-				/// [self removeSelectedObjects:objects];  // before we remove the objects, we remove them from the selection. This is because the detailed view shows selected samples, which are somehow not removed from the selection after being deleted (although they get removed from the selection at some point).
+				/// [self removeSelectedObjects:objects];  // before we remove the objects, we remove them from the selection. This is because the viewer shows selected samples, which are somehow not removed from the selection after being deleted (although they get removed from the selection at some point).
 				[self.undoManager setActionName:actionName];
 				[self deleteItems:items];
 			}
@@ -660,9 +917,9 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 
 - (void)deleteItems:(NSArray *)items {
 
-	if(self.tableContent) {
-		/// here, we assume that the tableContent controller has the "delete object on remove" active if its content is bound to a relationship
-		[self.tableContent removeObjects:items];
+	if(self.arrayController) {
+		/// here, we assume that the array controller has the "delete object on remove" active if its content is bound to a relationship
+		[self.arrayController removeObjects:items];
 	} else {
 		for(NSManagedObject *item in items) {
 			[item.managedObjectContext deleteObject:item];
@@ -679,10 +936,13 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 		return nil;
 	}
 	
-	NSString *actionName = [self deleteActionTitleForItems:items];
 	NSAlert *alert = NSAlert.new;
-	alert.messageText =  [actionName stringByAppendingString:@"?"];
-	[alert addButtonWithTitle:actionName];
+	alert.messageText =  [self cautionAlertTitleStringForItems:items];
+	NSString *buttonTitle = [self deleteActionTitleForItems:items];
+	if(buttonTitle.length == 0) {
+		buttonTitle = @"Delet item(s)";
+	}
+	[alert addButtonWithTitle:buttonTitle];
 	[alert addButtonWithTitle:@"Cancel"];
 	if(informativeText) {
 		alert.informativeText = informativeText;
@@ -712,6 +972,13 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 }
 
 
+- (NSString *)cautionAlertTitleStringForItems:(NSArray *)items {
+	NSString *action = [self deleteActionTitleForItems:items];
+	return action == nil? @"Delete Item(s)?" : [action stringByAppendingString:@"?"];
+}
+
+
+
 - (NSString *)cautionAlertInformativeStringForItems:(NSArray *)items {
 	return @"This action can be undone.";
 }
@@ -736,6 +1003,8 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 
 - (BOOL)respondsToSelector:(SEL)aSelector {
 	if(aSelector == @selector(exportSelection:)) {
+		/// Return NO allows the menu item validation to go up the responder chain.
+		/// The window controller can be use to export the selected folder if the table view cannot export.
 		return self.canExportItems;
 	}
 	return [super respondsToSelector:aSelector];
@@ -745,7 +1014,7 @@ NSBindingName const ContentArrayBinding = @"contentArray";
 - (NSString *)exportActionTitleForItems:(NSArray *)items {
 	NSString *title;
 	if(self.canExportItems && items.count > 0) {
-		title = [@"Export Selected " stringByAppendingString: [self nameForItem:items.firstObject]];
+		title = [@"Export " stringByAppendingString: [self nameForItem:items.firstObject]];
 		NSString *end = items.count > 1? @"s…" : @"…";
 		title = [title stringByAppendingString:end];
 	}
@@ -895,7 +1164,8 @@ static NSString *const KeypathKey = @"KeypathKey";
 - (void)applySort:(id)sender {
 	NSArray *sortDescriptors = tableSortPopover.sortCriteriaEditor.sortDescriptors;
 	if([sortDescriptors isEqualToArray:self.tableView.sortDescriptors]) {
-		[self.tableContent rearrangeObjects];
+		[self.arrayController rearrangeObjects];
+		[self.treeController rearrangeObjects];
 	} else {
 		self.tableView.sortDescriptors = sortDescriptors;
 	}
@@ -918,15 +1188,15 @@ static NSString *const KeypathKey = @"KeypathKey";
 
 
 - (void)flashItem:(id)item {
-	NSInteger row = [self.tableContent.arrangedObjects indexOfObjectIdenticalTo:item];
-	if(row != NSNotFound) {
+	NSInteger row = [self rowForItem:item];
+	if(row >= 0) {
 		NSTableView *tableView = self.tableView;
 		[tableView scrollRowToVisible:row];
 		CALayer *flashLayer = self.flashLayer;
 		if(flashLayer) {
 			flashLayer.hidden = NO;
 			NSRect frame = NSIntersectionRect([tableView rectOfRow:row], tableView.visibleRect);
-			flashLayer.frame = NSInsetRect(frame, 1, 1); /// This makes the frame more visible in light mode.
+			flashLayer.frame = NSInsetRect(frame, 1.0, 1.0); /// This makes the frame more visible in light mode.
 			CABasicAnimation* flashAnimation = [CABasicAnimation animationWithKeyPath:@"borderWidth"];
 			flashAnimation.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
 			flashAnimation.fromValue = @(4.0);
@@ -934,18 +1204,45 @@ static NSString *const KeypathKey = @"KeypathKey";
 			flashAnimation.duration = 0.5;
 			[flashLayer addAnimation:flashAnimation forKey:@"borderWidth"];
 		}
+	} else {
+		_flashLayer.hidden = YES;
+	}
+}
+
+
+-(void)showFocusLayer {
+	self.focusLayer.hidden = NO;
+	[self positionFocusLayer];
+}
+
+
+-(void)hideFocusLayer {
+	if(_focusLayer) {
+		self.focusLayer.hidden = YES;
+	}
+}
+
+
+-(void)positionFocusLayer {
+	if(_focusLayer && !_focusLayer.hidden) {
+		CALayer *focusLayer = self.focusLayer;
+		NSRect bounds = focusLayer.superlayer.bounds;
+
+		CGFloat width = 2.0;
+		focusLayer.frame = CGRectMake(NSMaxX(bounds) - width, NSMinY(bounds), width, NSHeight(bounds));
 	}
 }
 
 
 - (void)viewDidLayout {
-	if(_flashLayer && !_flashLayer.hidden&& self.view.inLiveResize) {
-		CGRect visibleRect = NSInsetRect(self.tableView.visibleRect, 1, 1);
+	if(_flashLayer && !_flashLayer.hidden && self.view.inLiveResize) {
+		CGRect visibleRect = NSInsetRect(self.tableView.visibleRect, 1.0, 1.0);
 		CGRect flashLayerRect = _flashLayer.frame;
 		flashLayerRect.origin.x = visibleRect.origin.x;
 		flashLayerRect.size.width = visibleRect.size.width;
 		_flashLayer.frame = flashLayerRect;
 	}
+	[self positionFocusLayer];
 }
 
 
@@ -955,24 +1252,45 @@ static NSString *const KeypathKey = @"KeypathKey";
 		_flashLayer = CALayer.new;
 		_flashLayer.borderColor = NSColor.whiteColor.CGColor;
 		_flashLayer.borderWidth = 2.0;
-		_flashLayer.zPosition = 1000;
+		_flashLayer.zPosition = 1000.0;
 		_flashLayer.actions = @{NSStringFromSelector(@selector(bounds)):NSNull.null,
-								NSStringFromSelector(@selector(position)):NSNull.null
-		};
+								NSStringFromSelector(@selector(position)):NSNull.null};
 		[self.tableView.layer addSublayer:_flashLayer];
 	}
 	return _flashLayer;
 }
 
 
+- (CALayer *)focusLayer {
+	if(!_focusLayer) {
+		_focusLayer = CALayer.new;
+		NSColor *color = [[NSColor.keyboardFocusIndicatorColor colorWithAlphaComponent:1.0] blendedColorWithFraction:0.5 ofColor:NSColor.controlBackgroundColor];
+		
+		_focusLayer.backgroundColor = color.CGColor;
+
+		_focusLayer.zPosition = 999.0;
+		_focusLayer.actions = @{NSStringFromSelector(@selector(bounds)):NSNull.null,
+								NSStringFromSelector(@selector(position)):NSNull.null,
+								@"hidden":NSNull.null};
+				
+		NSView *scrollView = self.tableView.enclosingScrollView;
+		if(!scrollView.layer) {
+			scrollView.wantsLayer = YES;
+		}
+		[scrollView.layer addSublayer:_focusLayer];
+
+	}
+	return _focusLayer;
+}
+
+
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
-	
 	if(menuItem.action == @selector(showSortCriteria:)) {
 		return [self canSortByMultipleColumns];
 	}
 	
 	if(menuItem.action == @selector(moveSelectionByStep:)) {
-		return self.tableContent.selectedObjects.count > 0;
+		return self.selectedObjects.count > 0 || self.selectedObjects.count > 0;
 	}
 	
 	if(menuItem.action == @selector(hideColumn:)) {
@@ -1011,9 +1329,14 @@ static NSString *const KeypathKey = @"KeypathKey";
 		return self.visibleColumns.count < self.tableView.tableColumns.count;
 	}
 	
+	if(menuItem.action == @selector(autoSizeColumns:)) {
+		return YES;
+	}
+	
 	NSArray *targets = [self validTargetsOfSender:menuItem];
-	if(!targets) {
-		menuItem.hidden = YES;
+	NSMenu *topMenu = menuItem.topMenu;
+	if(targets.count == 0) {
+		menuItem.hidden = topMenu != NSApp.menu || menuItem.action == @selector(remove:);
 		return NO;
 	}
 	
@@ -1023,7 +1346,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 		/// we give a contextual title to the menu that removes an item.
 		NSString *title = remove? [self deleteActionTitleForItems: targets] : [self exportActionTitleForItems:targets];
 		if(title) {
-			if(menuItem.topMenu == NSApp.menu) {
+			if(topMenu == NSApp.menu) {
 				menuItem.title = title;
 			}
 			menuItem.hidden = NO;
@@ -1038,7 +1361,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 		/// we give a contextual title to the menu that renames an item.
 		id item = targets.firstObject;
 		if([self canRenameItem:item]) {
-			if(menuItem.topMenu == NSApp.menu) {
+			if(topMenu == NSApp.menu) {
 				menuItem.title = [@"Rename " stringByAppendingString: [self nameForItem:[self validTargetsOfSender:menuItem].firstObject]];
 			}
 			menuItem.hidden = NO;
@@ -1049,8 +1372,9 @@ static NSString *const KeypathKey = @"KeypathKey";
 	}
 	
 	if(menuItem.action == @selector(copy:)) {
-		menuItem.hidden = NO;
-		return self.columnDescription != nil;
+		BOOL enable = self.columnDescription != nil || [self canCopyItems:targets];
+		menuItem.hidden = topMenu == NSApp.menu? NO : !enable; /// we hide a contextual "copy:" menu that is not relevant.
+		return enable;
 	}
 	
 	menuItem.hidden = NO;
@@ -1087,15 +1411,7 @@ static NSString *const KeypathKey = @"KeypathKey";
 
 
 - (void)tableViewSelectionDidChange:(NSNotification *)notification {
-	if(_flashLayer) {
-		self.flashLayer.hidden = YES;
-	}
-}
-
-
-- (void)tableViewIsClicked:(NSTableView *)sender {
-	/// when our tableview is clicked, we set ourselves as source for the content of the detailed outline view
-	MainWindowController.sharedController.sourceController = self;
+	[self flashItem:nil];
 }
 
 
@@ -1129,97 +1445,13 @@ static NSString *const KeypathKey = @"KeypathKey";
 
 
 - (void)dealloc {
+	[_objectController removeObserver:self forKeyPath:SelectedObjectsBinding];
+	[_objectController removeObserver:self forKeyPath:ContentBinding];
+	[_arrayController removeObserver:self forKeyPath:ArrangedObjectsBinding];
+
 	/// This removes ourselves as observer
 	self.filterButton = nil;
 }
-
-#pragma mark - recording and restoring selection
-
-- (void)recordSelectedItemsAtKey:(NSString *)subKey maxRecorded:(NSUInteger)maxRecorded {
-	NSArrayController *tableContent = self.tableContent;
-	NSArray *selectedObjects = tableContent.selectedObjects;
-	
-	UserDefaultKey key = self.userDefaultKeyForSelectedItemIDs;
-	NSMutableDictionary *dic = [NSUserDefaults.standardUserDefaults dictionaryForKey:key].mutableCopy;
-	if(!dic) {
-		dic = NSMutableDictionary.new;
-	}
-	[tableContent.managedObjectContext obtainPermanentIDsForObjects:selectedObjects error:nil];
-	NSArray *selectedItemIDs = [selectedObjects valueForKeyPath:@"@unionOfObjects.objectID.URIRepresentation.lastPathComponent"];
-	NSInteger count = selectedItemIDs.count;
-	if(count > 0) {
-		if(maxRecorded > 0 && count > maxRecorded) {
-			selectedItemIDs = [selectedItemIDs objectsAtIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, maxRecorded)]];
-		}
-		dic[subKey] = selectedItemIDs;
-	} else {
-		[dic removeObjectForKey:subKey];
-	}
-	[NSUserDefaults.standardUserDefaults setObject:dic forKey:key];
-}
-
-
-- (NSString *)userDefaultKeyForSelectedItemIDs {
-	return [@"selected_" stringByAppendingString: self.entityName];
-}
-
-
-- (void)restoreSelectedItemsAtKey:(NSString *)subKey {
-	UserDefaultKey key = self.userDefaultKeyForSelectedItemIDs;
-	NSDictionary *dic = [NSUserDefaults.standardUserDefaults dictionaryForKey:key];
-	if(dic) {
-		NSArray *itemIDs = dic[subKey];
-		if([itemIDs isKindOfClass:NSArray.class]) {
-			NSString *prefix = self.URIStringPrefix;
-			if(!prefix) {
-				return;
-			}
-			NSArrayController *tableContent = self.tableContent;
-			NSMutableArray *selectedItems = NSMutableArray.new;
-			for(NSString *itemID in itemIDs) {
-				NSString *longID = [prefix stringByAppendingString:itemID];
-				id object = [tableContent.managedObjectContext objectForURIString:longID expectedClass:nil];
-				if(object) {
-					[selectedItems addObject:object];
-				} else {
-					return;
-				}
-			}
-			if(selectedItems.count > 0 && [tableContent setSelectedObjects:selectedItems]) {
-				[self.tableView scrollRowToVisible:self.tableView.selectedRow];
-			}
-		}
-	}
-}
-
-
-- (void)recordSelectedItems {
-	
-}
-
-
-- (void)restoreSelectedItems {
-	
-}
-
-
-- (NSString *)URIStringPrefix {
-	if(!_URIStringPrefix) {
-		NSManagedObject *anObject = [self.tableContent.content firstObject];
-		if([anObject respondsToSelector:@selector(objectID)]) {
-			NSError *error;
-			NSManagedObjectID *objectID = anObject.objectID;
-			if(objectID.isTemporaryID) {
-				[anObject.managedObjectContext obtainPermanentIDsForObjects:@[anObject] error:&error];
-			}
-			if(!error) {
-				_URIStringPrefix = objectID.URIRepresentation.URLByDeletingLastPathComponent.absoluteString;
-			}
-		}
-	}
-	return _URIStringPrefix;
-}
-
 
 # pragma mark - filtering
 
@@ -1227,11 +1459,11 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 
 - (void)setFilterButton:(NSButton *)filterButton {
 	if(_filterButton) {
-		[self.tableContent removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
+		[self.arrayController removeObserver:self forKeyPath:NSStringFromSelector(@selector(filterPredicate))];
 	}
 	_filterButton = filterButton;
 	if(filterButton) {
-		[self.tableContent addObserver:self
+		[self.arrayController addObserver:self
 							forKeyPath:NSStringFromSelector(@selector(filterPredicate))
 							   options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
 							   context:filterChangedContext];
@@ -1243,18 +1475,10 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 	}
 }
 
-
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-	if (context == filterChangedContext) {
-		self.filterButton.image = self.filterButtonImage;
-	} else {
-		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-	}
-}
 	
 
 - (NSImage *)filterButtonImage {
-	return self.tableContent.filterPredicate == nil? self.filterButtonImageInactive : self.filterButtonImageActive;
+	return self.arrayController.filterPredicate == nil? self.filterButtonImageInactive : self.filterButtonImageActive;
 }
 
 
@@ -1316,7 +1540,7 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 		removeFilterButton.action = @selector(removeFilter:);
 		removeFilterButton.target = self;
 		[removeFilterButton bind:NSEnabledBinding
-					   toObject:self.tableContent 
+					   toObject:self.arrayController 
 					withKeyPath:NSStringFromSelector(@selector(filterPredicate))
 						options:@{NSValueTransformerNameBindingOption: NSIsNotNilTransformerName}];
 		
@@ -1336,7 +1560,7 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 	
 	
 	/// We set the predicate to show in the editor
-	NSPredicate *filterPredicate = self.tableContent.filterPredicate;
+	NSPredicate *filterPredicate = self.arrayController.filterPredicate;
 	if(!filterPredicate) {
 		filterPredicate = self.defaultFilterPredicate;
 	}
@@ -1394,10 +1618,10 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 
 
 -(void)applyFilterPredicate:(NSPredicate *)filterPredicate {
-	if([filterPredicate isEqualTo:self.tableContent.filterPredicate]) {
-		[self.tableContent rearrangeObjects];
+	if([filterPredicate isEqualTo:self.arrayController.filterPredicate]) {
+		[self.arrayController rearrangeObjects];
 	} else {
-		self.tableContent.filterPredicate = filterPredicate;
+		self.arrayController.filterPredicate = filterPredicate;
 	}
 }
 
@@ -1408,16 +1632,6 @@ static void * const filterChangedContext = (void*)&filterChangedContext;
 	[self applyFilterPredicate:nil];
 }
 
-
-- (BOOL) IsPredicateEditorRowTemplateNumeric:(NSPredicateEditorRowTemplate *)template {
-	NSAttributeType t = template.rightExpressionAttributeType;
-	return (t == NSInteger16AttributeType ||
-			t == NSInteger32AttributeType ||
-			t == NSInteger64AttributeType ||
-			t == NSDecimalAttributeType ||
-			t == NSDoubleAttributeType ||
-			t == NSFloatAttributeType);
-}
 
 
 @end

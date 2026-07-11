@@ -27,11 +27,15 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The singleton object is loaded from in the nib file owned by the ``PanelListController``.
 ///
-/// In the context of ``STRyper``,  the ``TableViewController/tableContent`` of by this object
-/// contains markers ( ``Mmarker`` objects)  of the selected ``Panel`` from the source list managed by the ``PanelListController``.
+/// In the context of ``STRyper``,  the ``TableViewController/tableView`` managed by this object
+/// shows markers ( ``Mmarker`` objects)  of the selected ``Panel`` from the source list managed by the ``PanelListController``, and their ``Mmarker/bins``.
 ///
 /// This class has internal methods that allows the user to create markers and to drag them between panels.
-@interface MarkerTableController : TableViewController
+@interface MarkerTableController : TableViewController {
+	
+	IBOutlet NSOutlineView *regionOutlineView;
+	
+}
 
 /// An array of images that represent the color of the possible channels that markers can take.
 ///

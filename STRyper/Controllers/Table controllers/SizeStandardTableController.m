@@ -29,22 +29,10 @@
 @class SizeTableController;
 
 
-NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStandardDragType";	/// used when copying a size standard to the pasteboard.
 
 @implementation SizeStandardTableController {
 	IBOutlet SizeTableController *sizeController;  	/// to retain this controller, which is a top-level object of the nib we own
 	__weak IBOutlet NSPopUpButton *applySizeStandardButton;
-}
-
-
-+ (instancetype)sharedController {
-	static SizeStandardTableController *controller = nil;
-	static dispatch_once_t once;
-	
-	dispatch_once(&once, ^{
-		controller = self.new;
-	});
-	return controller;
 }
 
 
@@ -63,10 +51,26 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 }
 
 
+- (NSDictionary *)columnDescription {
+	NSDictionary *columnDescription = @{
+		@"sizeStandardColumn":	@{KeyPathToBind: @"name",ColumnTitle: @"Size Standards", CellViewID:@"compositeCellView",
+						  IsTextFieldEditable: @YES, IsColumnVisibleByDefault: @YES,
+						  IsColumnSortingCaseInsensitive: @NO}
+	};
+	
+	return columnDescription;
+}
+
+
+- (NSArray<NSString *> *)orderedColumnIDs {
+	return @[@"sizeStandardColumn"];
+}
+
+
 -(void)viewDidLoad {
 	[super viewDidLoad];
 	NSMenu *menu = NSMenu.new;
-	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Duplicate" action:@selector(duplicateStandard:) keyEquivalent:@""];
+	NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@""];
 	item.image = [NSImage imageNamed:ACImageNameCopy];
 	item.target = self;
 	[menu addItem:item];
@@ -84,9 +88,9 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 	SampleTableController *sharedController = SampleTableController.sharedController;
 	for(NSMenuItem *item in applySizeStandardButton.menu.itemArray) {
 		if(item.tag == 1) {
-			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"samples.arrangedObjects.@count" options:nil];
+			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"arrangedObjects.@count" options:nil];
 		} else if(item.tag == 2) {
-			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"samples.selectedObjects.@count" options:nil];
+			[item bind:NSEnabledBinding toObject:sharedController withKeyPath:@"selectedObjects.@count" options:nil];
 		}
 	}
 }
@@ -102,8 +106,8 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 									   @"GeneScan-400HD":@[@50, @60, @90, @100, @120, @150, @160, @180, @190, @200, @220, @240, @260, @280, @290, @300, @320, @340, @360, @380, @400],
 									   @"GeneScan-350":@[@35, @50, @75, @100, @139, @150, @160, @200, @250, @300, @340, @350],
 									   @"GeneScan-600": @[@20, @40, @60, @80, @100, @114, @120, @140, @160, @180, @200, @214, @220, @240, @250, @260, @280, @300, @314, @320, @340, @360, @380, @400, @414, @420, @440, @460, @480, @500, @514, @520, @540, @560, @580, @600],
-									   @"GeneScan-1000" : @[@47, @51, @55, @82, @85, @93, @99, @126, @136, @262, @293, @317, @439, @557, @692, @695, @946],
-									   @"GeneScan-1200": @[@40, @60, @80, @100, @114, @120, @140, @160, @180, @200, @214, @220, @240, @250, @260, @280, @300, @314, @320, @340, @360, @380, @400, @414, @420, @440, @460, @480, @500, @514, @520, @540, @560, @580, @600, @614, @620, @640, @660, @680, @700, @714, @720, @740, @760, @780, @800, @820, @840, @850, @860, @880, @900, @920, @940, @960, @980, @1000, @1020, @1040, @1060, @1080, @1100, @1120, @1160, @1200],
+									 //  @"GeneScan-1000" : @[@47, @51, @55, @82, @85, @93, @99, @126, @136, @262, @293, @317, @439, @557, @692, @695, @946],
+									  // @"GeneScan-1200": @[@40, @60, @80, @100, @114, @120, @140, @160, @180, @200, @214, @220, @240, @250, @260, @280, @300, @314, @320, @340, @360, @380, @400, @414, @420, @440, @460, @480, @500, @514, @520, @540, @560, @580, @600, @614, @620, @640, @660, @680, @700, @714, @720, @740, @760, @780, @800, @820, @840, @850, @860, @880, @900, @920, @940, @960, @980, @1000, @1020, @1040, @1060, @1080, @1100, @1120, @1160, @1200],
 									   @"Promega-ILS-600" : @[@60, @80, @100, @120, @140, @160, @180, @200, @225, @250, @275, @300, @325, @350, @375, @400, @425, @450, @475, @500, @550, @600]
 	};
 	
@@ -126,9 +130,23 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 }
 
 
-/// We allow dragging a size standard onto samples
-- (NSPasteboardType)draggingPasteBoardTypeForRow:(NSInteger)row {
-	return SizeStandardDragType;
+- (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
+	NSView *cellView = [tableView makeViewWithIdentifier:@"configuredCellView" owner:self];
+	if(cellView) {
+		return cellView;
+	}
+	
+	cellView = [super tableView:tableView viewForTableColumn:tableColumn row:row];
+	if([cellView isKindOfClass:NSTableCellView.class]) {
+		NSTableCellView *tableCellView = (NSTableCellView *)cellView;
+		[tableCellView.imageView bind:NSHiddenBinding toObject:tableCellView withKeyPath:@"objectValue.editable" options:nil];
+		tableCellView.imageView.toolTip = @"This size standard cannot be modified";
+		[tableCellView.textField bind:NSEditableBinding toObject:tableCellView withKeyPath:@"objectValue.editable" options:nil];
+
+		cellView.identifier = @"configuredCellView";
+	}
+	
+	return cellView;
 }
 
 
@@ -156,6 +174,15 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 }
 
 
+- (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
+	if(menuItem.action == @selector(paste:)) {
+		NSPasteboard *pboard = NSPasteboard.generalPasteboard;
+		return [pboard.types containsObject:SizeStandardArchivePasteboardType];
+	}
+	return [super validateMenuItem:menuItem];
+}
+
+
 - (NSString *)cannotDeleteInformativeStringForItems:(NSArray *)items {
 	SizeStandard *standard = items.firstObject;		/// there can be only one item, as the table doesn't allow multiple selection
 	if(!standard || standard.editable) {
@@ -170,6 +197,12 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 }
 
 
+- (void)copyItems:(NSArray *)items ToPasteBoard:(NSPasteboard *)pasteboard {
+	[super copyItems:items ToPasteBoard:pasteboard];
+	[pasteboard writeObjects:items];
+}
+
+
 - (IBAction)duplicateStandard:(id)sender {
 	NSArray *selectedObjects = [self validTargetsOfSender:sender];
 	if (selectedObjects.count > 0) {
@@ -179,19 +212,54 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 		if(duplicateStandard) {
 			duplicateStandard.editable = YES;
 			[duplicateStandard autoName];
-			[self.tableContent addObject:duplicateStandard];
-			[self.tableContent rearrangeObjects];
+			[_arrayController addObject:duplicateStandard];
+			[_arrayController rearrangeObjects];
 			[self selectItemName:duplicateStandard];
 		}
 	}
 }
 
 
+
+- (IBAction)paste:(id)sender {
+	NSPasteboard *pboard = NSPasteboard.generalPasteboard;
+	NSError *error;
+	BOOL pasted = NO;
+	for(NSPasteboardItem *item in pboard.pasteboardItems) {
+		NSData *archiveSizeStandard = [item dataForType:SizeStandardArchivePasteboardType];
+		if(archiveSizeStandard) {
+			NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingFromData:archiveSizeStandard error:&error];
+			if(!error) {
+				unarchiver.requiresSecureCoding = NO;
+				unarchiver.delegate = (id)self;
+				SizeStandard *copiedStandard = [unarchiver decodeTopLevelObjectOfClass:SizeStandard.class forKey:NSKeyedArchiveRootObjectKey error:&error];
+				if(!error && copiedStandard) {
+					[copiedStandard autoName];
+					[_arrayController addObject:copiedStandard];
+					[_arrayController rearrangeObjects];
+					[self selectItemName:copiedStandard];
+					pasted = YES;
+				} else {
+					break;
+				}
+			}
+		}
+	}
+	if(pasted) {
+		[self.undoManager setActionName:@"Paste Size Standard"];
+	}
+	if(error) {
+		error = [error errorWithNewDescription:@"The size standard could not be pasted because of an unknown error." suggestion:@""];
+		[NSApp presentError:error];
+	}
+}
+
+
 - (IBAction)applySizeStandard:(NSMenuItem *)sender {
-	SizeStandard *selectedSizeStandard = self.tableContent.selectedObjects.firstObject;
-	NSArrayController *samples = SampleTableController.sharedController.samples;
-	if(selectedSizeStandard && samples) {
-		NSArray *targetSamples = sender.tag == 1? samples.arrangedObjects : samples.selectedObjects;
+	SizeStandard *selectedSizeStandard = self.selectedObjects.firstObject;
+	SampleTableController *sampleTableController = SampleTableController.sharedController;
+	if(selectedSizeStandard) {
+		NSArray *targetSamples = sender.tag == 1? sampleTableController.arrangedObjects : sampleTableController.selectedObjects;
 		[self applySizeStandard:selectedSizeStandard toSamples:targetSamples];
 	}
 }
@@ -203,17 +271,18 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 	if(!MOC) {
 		return;
 	}
-	/// We  show progress but don't use a background context because materializing all samples in this context woud take a long time.
+	/// We  show progress but don't use a background context because materializing all samples in this context would take a long time.
 	/// So we progress in batches on the view context between which we update the UI via a progress window.
-	NSInteger batchSize = 30;
 	NSInteger sampleCount = sampleArray.count;
+	NSInteger batchSize = MAX(round(sampleCount/100), 1);
+
 	NSProgress *progress = [NSProgress progressWithTotalUnitCount:sampleCount];
 	NSUndoManager *undoManager = MOC.undoManager;
 	[undoManager setActionName:@"Apply Size Standard"];
 	[undoManager beginUndoGrouping];
 	
 	ProgressWindow *progressWindow = ProgressWindow.new;
-	[progressWindow showProgressWindowForProgress:progress afterDelay:0.2 modal:YES parentWindow:self.view.window];
+	[progressWindow showProgressWindowForProgress:progress afterDelay:0.2 modal:YES parentWindow:NSApp.mainWindow];
 	__block NSInteger samplesProcessed = 0;
 	
 	__block void (^processNextBatch)(void); /// The block that processes a batch of samples.
@@ -227,11 +296,12 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 				return;
 			}
 			Chromatogram *sample = sampleArray[i];
-			sample.appliedSizeStandard = standard;
+			[standard sizeSample:sample];
 			samplesProcessed++;
 		}
 		/// We schedule the next batch after a short delay to let UI update.
 		progress.completedUnitCount = samplesProcessed;
+		progress.localizedDescription = [NSString stringWithFormat:@"%ld out of %ld samples processed", samplesProcessed, sampleCount];
 		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.001  * NSEC_PER_SEC)),
 					dispatch_get_main_queue(), ^{
 						if (processNextBatch) processNextBatch();
@@ -246,12 +316,11 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 
 
 
--(void) detectAndApplySizeStandardOnSample:(Chromatogram *)sample {
-	NSString *standardName = sample.standardName;
+- (nullable SizeStandard *)sizeStandardForName:(NSString *)standardName {
 	if(standardName.length < 3) {
-		return;
+		return nil;
 	}
-	NSArray<SizeStandard *> *sizeStandards = self.tableContent.content;
+	NSArray<SizeStandard *> *sizeStandards = self.content;
 	if(sizeStandards.count > 0) {
 		NSArray<NSString *> *standardNames = [sizeStandards valueForKeyPath:@"@unionOfObjects.name"];
 		NSInteger standardIndex = [standardNames indexOfObjectPassingTest:^BOOL(NSString * _Nonnull name, NSUInteger idx, BOOL * _Nonnull stop) {
@@ -281,18 +350,10 @@ NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.si
 		}
 		
 		if(standardIndex != NSNotFound && standardIndex < sizeStandards.count) {
-			SizeStandard *sizeStandard = sizeStandards[standardIndex];
-			NSManagedObjectContext *MOC = sample.managedObjectContext;
-			if(sizeStandard.managedObjectContext != MOC) {
-				sizeStandard = [MOC existingObjectWithID:sizeStandard.objectID error:nil];
-			}
-			if(sizeStandard) {
-				[MOC performBlockAndWait:^{
-					sample.appliedSizeStandard = sizeStandard;
-				}];
-			}
+			return sizeStandards[standardIndex];
 		}
 	}
+	return nil;
 }
 
 

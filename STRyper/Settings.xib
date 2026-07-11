@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="23727" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="22505" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES" customObjectInstantitationMethod="direct">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="23727"/>
+        <deployment identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22505"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -48,7 +49,7 @@
                     </button>
                     <textField focusRingType="none" horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="jEe-KA-BXs" userLabel="Default sizing method:">
                         <rect key="frame" x="18" y="244" width="123" height="14"/>
-                        <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default sizing method:" id="eiT-aF-Jqe">
+                        <textFieldCell key="cell" controlSize="small" lineBreakMode="clipping" title="Default fitting method:" id="eiT-aF-Jqe">
                             <font key="font" metaFont="smallSystem"/>
                             <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -281,8 +282,8 @@
                         </connections>
                     </button>
                     <button toolTip="Puts labels above peaks that may require attention" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="66q-69-92X" userLabel="Annotate supp peaks">
-                        <rect key="frame" x="19" y="160" width="139" height="16"/>
-                        <buttonCell key="cell" type="check" title="Label additional peaks" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="ysz-Xy-BPu">
+                        <rect key="frame" x="19" y="160" width="265" height="16"/>
+                        <buttonCell key="cell" type="check" title="Label additional peaks during genotype calling" bezelStyle="regularSquare" imagePosition="left" controlSize="small" state="on" inset="2" id="ysz-Xy-BPu">
                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                             <font key="font" metaFont="smallSystem"/>
                         </buttonCell>

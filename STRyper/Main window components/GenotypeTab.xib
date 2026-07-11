@@ -10,8 +10,8 @@
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="GenotypeTableController">
             <connections>
-                <outlet property="_tableContent" destination="t85-dl-98d" id="5YP-w6-yNc"/>
                 <outlet property="_tableView" destination="EP9-jv-hOU" id="a5B-gm-5Ie"/>
+                <outlet property="arrayController" destination="t85-dl-98d" id="l8u-LS-HxD"/>
                 <outlet property="exportPanelAccessoryView" destination="9wI-bz-hTD" id="Qj5-Ol-5Gn"/>
                 <outlet property="filterButton" destination="8AM-PB-m6K" id="egw-OP-kbU"/>
                 <outlet property="view" destination="zDR-oD-NhW" id="LUJ-88-jIE"/>
@@ -52,7 +52,6 @@
                                     </tableColumn>
                                 </tableColumns>
                                 <connections>
-                                    <action selector="tableViewIsClicked:" target="-1" id="ses-UO-n1i"/>
                                     <outlet property="menu" destination="iKd-rY-qln" id="ypN-kX-xex"/>
                                 </connections>
                             </tableView>

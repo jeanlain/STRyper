@@ -9,14 +9,14 @@
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="SampleTableController">
             <connections>
-                <outlet property="_tableContent" destination="0dN-zh-7AK" id="WeJ-d7-HJR"/>
                 <outlet property="_tableView" destination="KUu-Te-JeL" id="CdX-UV-Dup"/>
+                <outlet property="arrayController" destination="0dN-zh-7AK" id="ZBD-8v-ugF"/>
                 <outlet property="filterButton" destination="LcU-bU-LZY" id="25X-MD-bCX"/>
                 <outlet property="view" destination="Hkk-O4-Va6" id="CUb-aT-pye"/>
             </connections>
         </customObject>
         <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
-        <arrayController mode="entity" entityName="" fetchPredicateFormat="" automaticallyPreparesContent="YES" avoidsEmptySelection="NO" id="0dN-zh-7AK" userLabel="Samples"/>
+        <arrayController mode="entity" entityName="" fetchPredicateFormat="" avoidsEmptySelection="NO" id="0dN-zh-7AK" userLabel="Samples"/>
         <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <customView misplaced="YES" id="Hkk-O4-Va6" userLabel="Top Pane">
             <rect key="frame" x="0.0" y="0.0" width="584" height="354"/>
@@ -27,7 +27,7 @@
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                     <clipView key="contentView" id="tYv-Hh-kQD">
                         <rect key="frame" x="0.0" y="0.0" width="584" height="324"/>
-                        <autoresizingMask key="autoresizingMask"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <tableView identifier="sampleTable" focusRingType="none" verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="none" tableStyle="plain" alternatingRowBackgroundColors="YES" autosaveColumns="NO" rowHeight="16" rowSizeStyle="automatic" headerView="yhO-Rg-Mgn" viewBased="YES" floatsGroupRows="NO" id="KUu-Te-JeL" userLabel="sample table">
                                 <rect key="frame" x="0.0" y="0.0" width="584" height="296"/>
@@ -305,7 +305,6 @@
                                     </tableColumn>
                                 </tableColumns>
                                 <connections>
-                                    <action selector="tableViewIsClicked:" target="-1" id="a03-0V-zcy"/>
                                     <outlet property="menu" destination="eeK-P8-7Rg" id="27H-xY-dXQ"/>
                                 </connections>
                             </tableView>
@@ -415,7 +414,7 @@
                 <menuItem title="Select Genotype(s)" image="circle arrow down" tag="1" id="egq-Pn-ySE">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <connections>
-                        <action selector="showGenotypes:" target="-2" id="VVI-mp-5gl"/>
+                        <action selector="selectGenotypes:" target="-2" id="VVI-mp-5gl"/>
                     </connections>
                 </menuItem>
                 <menuItem isSeparatorItem="YES" id="CNB-Eb-LiT"/>

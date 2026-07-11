@@ -23,6 +23,7 @@
 @interface ProgressWindow ()
 
 @property (nonatomic) NSProgress *progress;
+@property (nonatomic) id eventMonitor;
 
 @end
 
@@ -35,9 +36,7 @@
 	
 	/// as the window may be asked to show only after a delay, we use these ivars to know how it should show
 	/// the window to which the window will be attached
-	__weak NSWindow *windowToAttach;
-	/// whether the window should be shown as a modal sheet
-	BOOL runModal;
+	
 	BOOL showProgress;
 }
 
@@ -59,13 +58,59 @@ static void *progressChangedContext = &progressChangedContext;
 
 
 - (void)showProgressWindowForProgress:(NSProgress *)progress afterDelay:(NSTimeInterval)delay modal:(BOOL)modal parentWindow:(NSWindow *)window {
+	if(showProgress) {
+		/// A progress is already monitored.
+		return;
+	}
+	
 	self.progress = progress;
-	windowToAttach = window;
-	runModal = modal;
+	
+	if(modal) {
+		/// Prevents UI interaction.
+		[self installBlockingEventMonitor];
+	}
+	
 	showProgress = YES;
-	[NSOperationQueue.mainQueue addOperationWithBlock:^{
-		[self performSelector:@selector(showProgressWindowIfNeeded) withObject:nil afterDelay:delay];
+	
+	__weak typeof(self) weakSelf = self;
+	dispatch_after(
+		dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)),
+		dispatch_get_main_queue(), ^{
+			[weakSelf showProgressWindowIfNeededForParentWindow:window modal:modal];
+		}
+	);
+}
+
+
+- (void)installBlockingEventMonitor {
+	__weak typeof(self) weakSelf = self;
+
+	self.eventMonitor =
+	[NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskAny
+										  handler:^NSEvent * _Nullable(NSEvent *event) {
+		if (weakSelf.progress.isFinished || weakSelf.progress.isCancelled) {
+			/// No blocking if the operation is finished
+			return event;
+		}
+		if (event.type == NSEventTypeKeyDown) {
+			NSString *chars = event.charactersIgnoringModifiers;
+			
+			if (chars.length &&	[chars characterAtIndex:0] == 0x1B) {
+				/// The escape key was pressed.
+				[weakSelf.progress cancel];
+				return nil;
+			}
+		}
+		return nil; /// Every other event is not processed.
 	}];
+}
+
+
+- (void)removeBlockingMonitor {
+	if (self.eventMonitor) {
+		[NSEvent removeMonitor:self.eventMonitor];
+		self.eventMonitor = nil;
+	}
 }
 
 
@@ -86,57 +131,46 @@ static void *progressChangedContext = &progressChangedContext;
 	_progress = progress;
 	if(progress) {
 		for(NSString *key in observedKeys) {
-			[progress addObserver:self forKeyPath:key options:NSKeyValueObservingOptionNew context:progressChangedContext];
+			[progress addObserver:self forKeyPath:key
+						  options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+						  context:progressChangedContext];
 		}
 	}
 }
 
 
--(void)showProgressWindowIfNeeded {
+-(void)showProgressWindowIfNeededForParentWindow:(NSWindow *)windowToAttach modal:(BOOL)runModal {
 	if(showProgress) {
 		NSProgress *progress = self.progress;
 		if(!progress || (progress.fractionCompleted < 0.5 && !progress.isPaused && !progress.isCancelled)) {
 			/// the first condition is set to avoid showing the progress window for a amount of time that is too short
 			/// (we assume that the delay is a few seconds or less)
-			[NSOperationQueue.mainQueue addOperationWithBlock:^{
-				[self showProgressWindow];
-			}];
-		}
-	}
-}
-
-
--(void)showProgressWindow {
-	if(!windowToAttach.isVisible) {
-		return;
-	}
-	
-	NSProgress *progress = self.progress;
-	if(progress.totalUnitCount <= 0) {
-		self.progressBar.indeterminate = YES;
-		[self.progressBar startAnimation:self];
-	} else {
-		self.progressBar.indeterminate = NO;
-	}
-	
-	self.stopButton.enabled = progress.isCancellable;
-	
-	if(!self.isVisible) {
-		if(runModal) {
-			if(@available(macOS 14, *)) {
-				[NSApp activate];
+			if(progress.totalUnitCount <= 0) {
+				self.progressBar.indeterminate = YES;
+				[self.progressBar startAnimation:self];
+			} else {
+				self.progressBar.indeterminate = NO;
 			}
-			[windowToAttach beginSheet:self completionHandler:^(NSModalResponse returnCode) {
-			}];
-		} else {
-			/// if the window should not be modal, we center it over the parent window.
-			[self makeKeyAndOrderFront:self];
-			NSSize size = self.frame.size;
-			NSRect frame = windowToAttach.frame;
-			NSPoint origin = NSMakePoint(NSMidX(frame), NSMidY(frame));
-			origin.x -= size.width/2;
-			origin.y -= size.height/2;
-			[self setFrameOrigin:origin];
+				
+			if(!self.isVisible) {
+				[self removeBlockingMonitor];
+				if(runModal && windowToAttach) {
+					if(@available(macOS 14, *)) {
+						[NSApp activate];
+					}
+					[windowToAttach beginSheet:self completionHandler:^(NSModalResponse returnCode) {
+					}];
+				} else {
+					/// if the window should not be modal, we center it over the parent window.
+					[self makeKeyAndOrderFront:self];
+					NSSize size = self.frame.size;
+					NSRect frame = windowToAttach.frame;
+					NSPoint origin = NSMakePoint(NSMidX(frame), NSMidY(frame));
+					origin.x -= size.width/2;
+					origin.y -= size.height/2;
+					[self setFrameOrigin:origin];
+				}
+			}
 		}
 	}
 }
@@ -176,6 +210,7 @@ static void *progressChangedContext = &progressChangedContext;
 - (IBAction)stopShowingProgressAndClose {
 	self.progress = nil;
 	showProgress = NO;
+	[self removeBlockingMonitor];
 	[self closeProgressWindow];
 }
 
@@ -193,7 +228,9 @@ static void *progressChangedContext = &progressChangedContext;
 	}];
 }
 
+
 - (void)dealloc {
+	[self removeBlockingMonitor];
 	self.progress = nil;   	/// this removes us as observers for the progress
 }
 

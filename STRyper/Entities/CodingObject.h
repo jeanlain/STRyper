@@ -26,14 +26,14 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// A `NSManagedObject` with copying and archiving capabilities.
+/// A `NSManagedObject` with copying and archiving capabilities, and basic pasteboard support.
 ///
 /// A `CodingObject` encodes and decodes its core data attributes  with ``encodeWithCoder:``  and ``initWithCoder:``, and implements the ``copy`` method.
 ///
 /// Subclasses must override ``encodeWithCoder:`` and ``initWithCoder:`` to encode/decode other elements than core data attributes (including core data relationships).
 ///
 /// This class also implements a method to test if an object has the same values for attributes as the receiver. This method can can be used in the context of unarchiving.
-@interface CodingObject : NSManagedObject <NSSecureCoding, NSCopying>
+@interface CodingObject : NSManagedObject <NSSecureCoding, NSCopying, NSPasteboardWriting>
 
 
 /// Encodes the receiver's core data attributes that are not transient.
@@ -85,6 +85,18 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Defines a key (e.g., name of the property of an object), used to avoid typos in code.
 typedef NSString *const CodingObjectKey;
+
+/// A human-readable string representing the object.
+///
+/// The string is placed in the pasteboard as a `NSPasteboardTypeString` type.
+/// The default value is `nil` as a `CodingObject` does not register for `NSPasteboardTypeString`.
+@property (readonly, nonatomic, nullable) NSString *stringRepresentation;
+
+/// A paste board type intended to hold the absolute string of the permanent objectID of the object.
+extern NSPasteboardType _Nonnull const CodingObjectIDPasteboardType;
+
+/// A paste board type intended to hold an NSData archive of the object obtained with `encodeWithCoder`.
+extern NSPasteboardType _Nonnull const CodingObjectArchivePasteboardType;
 
 @end
 

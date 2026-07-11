@@ -182,7 +182,7 @@ int32_t peakEndScan(const Peak *peakPTR);
 /// The molecular ladder is the trace whose ``channel`` is the fifth  channel, or the fourth channel if the sample has only four.
 @property (nonatomic) BOOL isLadder;
 
-/// The DNA fragments that were identified in the fluorescence data of the trace.
+/// The DNA fragments that are identified in the fluorescence data of the trace.
 ///
 /// If the trace returns `YES` to ``isLadder``  these fragment as assumed to be ``LadderFragment`` objects. Otherwise, they are assumed to be be ``Allele`` objects.
 ///
@@ -205,6 +205,13 @@ typedef struct BaseRange {
 
 /// Returns a BaseRange struct given its members.
 BaseRange MakeBaseRange(float start, float len);
+
+
+/// Returns the width of the overlap between two ranges.
+/// - Parameters:
+///   - range1: A range.
+///   - range2: A range.
+float OverlapOfRanges(BaseRange range1, BaseRange range2);
 
 extern const BaseRange ZeroBaseRange;
 
@@ -284,6 +291,9 @@ extern const BaseRange ZeroBaseRange;
 					 offScaleColors:(NSArray<NSColor *> *)dyeColors;
 
 
+/// Returns @"Trace", which was the name previously used for this class.
++(NSString *)previousClassName;
+
 @end
 
 
@@ -293,8 +303,6 @@ extern CodingObjectKey TraceIsLadderKey,
 TracePeaksKey,
 TraceFragmentsKey;
 
-/// The previous name used for the class, which we had to change because Apple started using it in a private framework in macOS sequoia.
-extern NSString * _Nonnull const previousTraceClassName;
 
 @compatibility_alias Trace FluoTrace;
 

@@ -56,7 +56,7 @@
                                                     </segments>
                                                 </segmentedCell>
                                                 <connections>
-                                                    <binding destination="uJ6-cj-JgE" name="selectedIndex" keyPath="values.BottomTab" id="WZY-ls-NyP"/>
+                                                    <binding destination="-2" name="selectedIndex" keyPath="self.selectedTabViewItemIndex" id="DaO-HM-7tU"/>
                                                 </connections>
                                             </segmentedControl>
                                             <tabView identifier="tabView" allowsTruncatedLabels="NO" type="noTabsNoBorder" id="E01-Qu-Mt9" userLabel="tabView">

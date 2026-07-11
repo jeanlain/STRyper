@@ -91,7 +91,7 @@ DefaultRangeBinding = @"defaultRange";
 /// some variables shared by all instances
 static NSSet *animatableKeys;		/// Keys that are animatable.
 
-static const float maxFluoLevel = 35000.0; /// The maximum top fluo level in RFU.
+static const float maxFluoLevel = 35000.0f; /// The maximum top fluo level in RFU.
 
 static const CGFloat maxHScale = 500.0; 	/// the maximum hScale (points per base pair), to avoid making the view too wide.
 
@@ -125,12 +125,13 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	/// A CATiledLayer can be very large, but doesn't appear suited to this task.
 	/// We instead position and draw contiguous layers during scrolling (similar to "responsive scrolling).
 	
+	NSArray<NSColor *> *colorsForClickedTraces; /// Colors we use for the clicked trace (increased contrast).
 	BOOL showsTraces; 			/// A shortcut to indicate whether the view shows traces.
 	CALayer *traceLayerParent; 		/// The parent layer of the trace layers, sorted from left to right along the X axis in its sublayers array
 	__weak CALayer *traceLayerFillingClipRect;		/// The trace layer that fits in the `clipRect`, if any.
 													/// We use this information to avoid repositioning this layer when not required
 	
-	NSMutableSet<CALayer *> *traceLayers; /// The currently unused layers that are not in the layer tree.
+	NSMutableArray<CALayer *> *traceLayers; /// The currently unused layers that are not in the layer tree.
 	
 	CGFloat drawnRangeStart;		/// The position of the leading edge of the leftmost trace layer (in view coordinates), which we store to avoid computations
 	CGFloat drawnRangeEnd;		/// The position of the trailing edge of the rightmost trace layer
@@ -143,6 +144,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	BOOL needsUpdateFragmentLabels;
 	BOOL needsUpdateMarkerLabels;
 	BOOL needsUpdatePeakLabels;
+	BOOL needsEnableDisablePeakLabels; /// To disable peak label within the range of the enabled marker label.
 	
 	BOOL needsLayoutTraceLayer;
 	uint64_t start; /// For benchmarking
@@ -150,7 +152,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 }
 
 
-@synthesize markerLabels = _markerLabels, backgroundLayer = _backgroundLayer, rulerView = _rulerView, markerView = _markerView, colorsForOffScaleRegions = _colorsForOffScaleRegions, fragmentLabelBackgroundColor = _fragmentLabelBackgroundColor, alleleLabelBackgroundColor = _alleleLabelBackgroundColor, labelStringColor = _labelStringColor, binLabelColor = _binLabelColor, hoveredBinLabelColor = _hoveredBinLabelColor, regionLabelEdgeColor = _regionLabelEdgeColor, binNameBackgroundColor = _binNameBackgroundColor, hoveredBinNameBackgroundColor = _hoveredBinNameBackgroundColor, traceViewMarkerLabelBackgroundColor = _traceViewMarkerLabelBackgroundColor, traceViewMarkerLabelAllowedRangeColor = _traceViewMarkerLabelAllowedRangeColor, isResizing = _isResizing;
+@synthesize markerLabels = _markerLabels, backgroundLayer = _backgroundLayer, rulerView = _rulerView, markerView = _markerView, colorsForOffScaleRegions = _colorsForOffScaleRegions, fragmentLabelBackgroundColor = _fragmentLabelBackgroundColor, alleleLabelBackgroundColor = _alleleLabelBackgroundColor, labelStringColor = _labelStringColor, binLabelColor = _binLabelColor, hoveredBinLabelColor = _hoveredBinLabelColor, regionLabelEdgeColor = _regionLabelEdgeColor, binNameBackgroundColor = _binNameBackgroundColor, hoveredBinNameBackgroundColor = _hoveredBinNameBackgroundColor, traceViewMarkerLabelBackgroundColor = _traceViewMarkerLabelBackgroundColor, traceViewMarkerLabelAllowedRangeColor = _traceViewMarkerLabelAllowedRangeColor, traceViewMarkerLabelInnerLayerColor = _traceViewMarkerLabelInnerLayerColor, isResizing = _isResizing;
 
 #pragma mark - initialization methods
 
@@ -185,12 +187,12 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 -(void)setAttributes {
 	
-	traceLayers = NSMutableSet.new;
+	traceLayers = NSMutableArray.new;
 	traceLayerParent = CALayer.new;
 	traceLayerParent.delegate = self;
 	traceLayerParent.zPosition = -0.4;  /// To ensure traces show behind fragment labels, which cannot have a positive zPosition.
-	traceLayerParent.anchorPoint = CGPointMake(0, 0);
-	traceLayerParent.position = CGPointMake(0, 0);
+	traceLayerParent.anchorPoint = CGPointZero;
+	traceLayerParent.position = CGPointZero;
 	[self.backgroundLayer addSublayer:traceLayerParent];
 	self.backgroundColor = [NSColor colorNamed:ACColorNameTraceViewBackgroundColor];
 	
@@ -199,11 +201,11 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	/// we update what the view shows "manually".
 	self.layerContentsRedrawPolicy = NSViewLayerContentsRedrawOnSetNeedsDisplay;
 	
-	[self setBoundsOrigin:NSMakePoint(0, -0.5)];
+	[self setBoundsOrigin:NSMakePoint(0.0, -0.5)];
 	
 	/// we initialize the layer showing the dashed line that show at the mouse location over the enabled marker label
 	dashedLineLayer = CAShapeLayer.new;
-	dashedLineLayer.anchorPoint = CGPointMake(1, 0); /// this will position the layer at the left of the mouse location, which place it more in line with the cursor
+	dashedLineLayer.anchorPoint = CGPointMake(1.0, 0.0); /// this will position the layer at the left of the mouse location, which place it more in line with the cursor
 	dashedLineLayer.fillColor = NSColor.clearColor.CGColor;
 	dashedLineLayer.strokeColor = NSColor.textColor.CGColor;
 	dashedLineLayer.lineWidth = 1.0;
@@ -223,7 +225,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	_showRawData = NO;
 	_showOffscaleRegions = YES;
 	_paintCrosstalkPeaks = YES;
-	_defaultRange = MakeBaseRange(0, 500);
+	_defaultRange = MakeBaseRange(0.0f, 500.0f);
 	_hScale = -1.0;  /// we avoid 0 as some methods divide numbers by this ivar
 	_channel = noChannelNumber;
 	
@@ -234,7 +236,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	[self addObserver:self forKeyPath:@"panel.markers" options:NSKeyValueObservingOptionNew context:panelMarkersChangedContext];
 	
 	needsUpdateAppearance = YES; /// Sets the correct colors according to the theme when the view is first shown.
-	self.needsUpdateLabelAppearance = YES;
+	self.needsUpdateLabelColors = YES;
 }
 
 
@@ -242,7 +244,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	if(!_backgroundLayer) {
 		_backgroundLayer = CALayer.new;
 		_backgroundLayer.delegate = self;
-		_backgroundLayer.anchorPoint = CGPointMake(0, 0);
+		_backgroundLayer.anchorPoint = CGPointZero;
 		[self.layer addSublayer:_backgroundLayer];
 	}
 	return _backgroundLayer;
@@ -271,7 +273,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			rulerView.reservedThicknessForAccessoryView = markerViewHeight;
 			rulerView.clientView = self;
 			NSPoint boundsOrigin = self.bounds.origin;
-			[_rulerView setBoundsOrigin:NSMakePoint(boundsOrigin.x, 0)];
+			[_rulerView setBoundsOrigin:NSMakePoint(boundsOrigin.x, 0.0)];
 			_rulerView = rulerView;
 		}
 	}
@@ -284,7 +286,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		_markerView = MarkerView.new;
 		self.rulerView.accessoryView = _markerView;
 		NSPoint boundsOrigin = self.bounds.origin;
-		[_markerView setBoundsOrigin:NSMakePoint(boundsOrigin.x, 0)];
+		[_markerView setBoundsOrigin:NSMakePoint(boundsOrigin.x, 0.0)];
 		[_markerView setFrameSize:NSMakeSize(_markerView.frame.size.width, markerViewHeight)];
 	}
 	return(_markerView);
@@ -362,6 +364,12 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		self.panel = refPanel;
 	}
 	
+	if(draggedLabel) {
+		/// The view may be recycled while the user was dragging a label on the previous content.
+		draggedLabel.clicked = NO;
+		draggedLabel = nil;
+	}
+	
 	self.vScaleView.hidden = !self.trace && self.loadedGenotypes.count == 0;
 	[self getRangeAndScale];
 	self.needsRepositionLabels = YES; /// Probably redundant.
@@ -400,7 +408,11 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 - (void)setChannel:(ChannelNumber)channel {
 	if(_channel != channel) {
 		_channel = channel;
-		[self updateAlleleLabelBackgroundColor] ;
+		/// A change in channel may require updating the marker labels
+		self.markerView.needsUpdateContent = YES;
+		needsUpdateMarkerLabels = YES;
+		self.needsRepositionLabels = YES;
+		[self updateAlleleLabelBackgroundColor]; /// These labels are colored according to the channel.
 	}
 }
 
@@ -458,7 +470,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			(visibleTraceCount > 1 && stackedChannels? multipleChannelNumber : referenceTrace.channel);
 		}
 		
-		float maxReadLength = -1; /// Used to pick self.trace in case the view shows several samples.
+		float maxReadLength = -1.0f; /// Used to pick self.trace in case the view shows several samples.
 		for (Trace *trace in traces) {
 			Chromatogram *sample = trace.chromatogram;
 			if (sample.readLength > maxReadLength && sample.sizingQuality) {
@@ -518,6 +530,10 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	_loadedGenotypes = nil;
 	_hScale = -1;
 	/// We don't set the panel to nil as we may reuse marker labels.
+	
+	if(self.regionsToHighlight) {
+		self.regionsToHighlight = nil;
+	}
 }
 
 #pragma mark - managing labels
@@ -547,6 +563,12 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			[label removeFromView];
 		}
 	}
+	
+	BOOL hide = !self.showDisabledBins && (self.trace || self.loadedGenotypes.count > 0);
+	for(RegionLabel *markerLabel in markerLabels) {
+		markerLabel.hidden = !markerLabel.enabled && hide;
+	}
+	
 	_markerLabels = markerLabels;
 	self.markerView.needsUpdateContent = YES;
 	self.rulerView.needsUpdateOffsets = YES;
@@ -555,7 +577,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 - (void)setBackgroundColor:(NSColor *)backgroundColor {
 	super.backgroundColor = backgroundColor;
-	self.needsUpdateLabelAppearance = YES;
+	self.needsUpdateLabelColors = YES;
 }
 
 
@@ -585,6 +607,14 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 	[super updateLayer]; /// Which repositions marker labels if needed
 
+	if(needsEnableDisablePeakLabels) {
+		NSRect markerFrame = _enabledMarkerLabel? NSInsetRect(_enabledMarkerLabel.frame, -3.0, 0.0) : NSZeroRect;
+		for(PeakLabel *label in self.peakLabels) {
+			label.enabled = !NSIntersectsRect(label.frame, markerFrame);
+		}
+		needsEnableDisablePeakLabels = NO;
+	}
+	
 	if(needsUpdateAppearance) {
 		[self updateColorsForChannels];
 		NSColor *backgroundColor = self.backgroundColor;
@@ -602,7 +632,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		needsUpdateAppearance = NO;
 	}
 	
-	if(self.needsUpdateLabelAppearance) {
+	if(self.needsUpdateLabelColors) {
 		[self updateAlleleLabelBackgroundColor];
 		[self updateFragmentLabelBackgroundColor];
 		[self updateLabelStringColor];
@@ -613,16 +643,17 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		[self updateHoveredBinNameBackgroundColor];
 		[self updateTraceViewMarkerLabelBackgroundColor];
 		[self updateTraceViewMarkerLabelAllowedRangeColor];
+		[self updateTraceViewMarkerLabelInnerLayerColor];
 		
 		for(RegionLabel *label in self.markerLabels) {
-			[label updateForTheme];
+			[label updateColors];
 		}
 		
 		for(FragmentLabel *label in self.fragmentLabels) {
-			[label updateForTheme];
+			[label updateColors];
 		}
 		
-		self.needsUpdateLabelAppearance = NO;
+		self.needsUpdateLabelColors = NO;
 	}
 }
 
@@ -631,18 +662,11 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	if(markerLabel == _enabledMarkerLabel) {
 		return;
 	}
-	if(_enabledMarkerLabel && _enabledMarkerLabel != markerLabel && !self.showDisabledBins && (self.trace || self.loadedGenotypes.count > 0)) {
-		/// we hide bins of the previous enabled marker label if required
-		for(RegionLabel *binLabel in _enabledMarkerLabel.binLabels) {
-			binLabel.hidden = YES;
-		}
-	}
+	needsEnableDisablePeakLabels = YES;
+	self.needsDisplay = YES;
+
 	_enabledMarkerLabel = markerLabel;
 	if(_enabledMarkerLabel) {
-		/// we disable peak and fragment labels as they may interfere
-		for(PeakLabel *label in self.peakLabels) {
-			label.enabled = NO;
-		}
 		for(FragmentLabel *label in self.fragmentLabels) {
 			/// We don't disable fragment labels that don't correspond to peaks in the marker.
 			Allele *allele = label.fragment;
@@ -658,12 +682,9 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		for(FragmentLabel *label in self.fragmentLabels) {	/// if the marker is no longer edited, we (re-)enable labels
 			label.enabled = YES;
 		}
-		for(PeakLabel *label in self.peakLabels) {
-			label.enabled = YES;
-		}
 	}
 	if(visibleTraces.count == 1 || (self.showOffscaleRegions && self.channel < 0)) {
-		/// We redraw as we don't show off-scale regions or crosstalk when a marker label is enabled (to avoid interference with its rectangle and its bins).
+		/// We redraw as we don't certain show off-scale regions or crosstalk when a marker label is enabled (to avoid interference with its rectangle and its bins).
 		self.needsDisplayTraces = YES;
 	}
 }
@@ -807,7 +828,6 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	self.needsDisplayTraces = YES; /// As peaks affect the display of traces (adjusted data)
 }
 
-
 - (void)labelDidChangeEnabledState:(ViewLabel *)label {
 	if([label isKindOfClass: RegionLabel.class]) {
 		RegionLabel *regionLabel = (RegionLabel *)label;
@@ -819,8 +839,13 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 				/// Hence we "manually" update of mouse location. This should make sure the cursor is correct
 				self.mouseLocation =  [self convertPoint:NSApp.currentEvent.locationInWindow fromView:nil];
 				self.enabledMarkerLabel = regionLabel;
-			} else if(self.enabledMarkerLabel == regionLabel) {
-				self.enabledMarkerLabel = nil;
+			} else {
+				if(self.enabledMarkerLabel == regionLabel) {
+					self.enabledMarkerLabel = nil;
+				}
+				if(!self.showDisabledBins && (self.trace || self.loadedGenotypes.count > 0)) {
+					regionLabel.hidden = YES;
+				}
 			}
 		}
 	}
@@ -851,6 +876,52 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 }
 
 
+- (void)labelDidChangeEditState:(RegionLabel *)label previousState:(EditState)previousState {
+	[super labelDidChangeEditState:label previousState:previousState];
+	EditState editState = label.editState;
+	if(editState == editStateNil && previousState == editStateOffset) {
+		/// When the label exist the offset edit state, the change is not set to its marker
+		/// hence to the corresponding label on the marker view. So we do it explicitly.
+		Mmarker *marker = label.region;
+		for(RegionLabel *markerLabel in self.markerView.markerLabels) {
+			if(markerLabel.region == marker && markerLabel.editState != editState) {
+				markerLabel.editState = editState;
+			}
+		}
+	}
+}
+
+
+
+-(void) _updateHighlightedRegions {
+	NSArray *regions = self.regionsToHighlight;
+	needsUpdateHighlightedRegions = NO;
+	BOOL labelHighlighted = NO;
+	/// We scroll or zoom the view to see all highlighted labels, if necessary.
+	
+	for(RegionLabel *markerLabel in self.markerLabels) {
+		if(_hScale > 0 && markerLabel.needsUpdateAppearance) {
+			[markerLabel updateAppearance]; /// Forces the marker label to update its bin labels.
+		}
+		CGFloat minX = INFINITY;
+		CGFloat maxX = 0.0;
+		for(RegionLabel *label in markerLabel.binLabels) {
+			label.needsUpdateAppearance = YES;
+			BOOL highlight = _hScale > 0 && regions && [regions indexOfObjectIdenticalTo:label.region] != NSNotFound;
+			if(highlight) {
+				labelHighlighted = YES;
+				NSRect frame = label.frame;
+				minX = MIN(minX, frame.origin.x);
+				maxX = MAX(maxX, NSMaxX(frame));
+			}
+		}
+		if(labelHighlighted) {
+			[self scrollRectToVisible:NSMakeRect(minX, 0.0, maxX - minX, 1) animate:YES zoomOut:YES];
+		}
+	}
+}
+
+
 - (void)labelDidChangeHighlightedState:(ViewLabel *)label {
 	if([label isKindOfClass:PeakLabel.class]) {
 		/// The vertical line must show on a label that is highlighted.
@@ -869,7 +940,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 				}
 			}
 			Genotype *genotype = [fragmentLabel.representedObject genotype];
-			[self.delegate traceView:self revealSourceItem:genotype isolate:NO];
+			[self.delegate revealSourceItem:genotype fromTraceView:self isolate:NO];
 		}
 	}
 }
@@ -885,6 +956,10 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		if(!rulerView.needsUpdateOffsets && [viewLabel respondsToSelector:@selector(isMarkerLabel)]) {
 			RegionLabel *regionLabel = (RegionLabel *)viewLabel;
 			if(regionLabel.isMarkerLabel) {
+				if(regionLabel.enabled) {
+					needsEnableDisablePeakLabels = YES;
+					self.needsDisplayTraces = YES; /// as we mask offscale regions in the marker's range
+				}
 				rulerView.needsUpdateOffsets = YES;
 			}
 		}
@@ -898,7 +973,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	} else {
 		verticalLineLayer.hidden = NO;
 		CGFloat tipPos = [self xForScan:hoveredPeakLabel.scan ofSample:self.trace.chromatogram];
-		verticalLineLayer.frame = CGRectMake(tipPos, 0, 1, viewHeight);
+		verticalLineLayer.frame = CGRectMake(tipPos, 0.0, 1.0, viewHeight);
 	}
 }
 
@@ -1100,7 +1175,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	NSSize size = bounds.size;
 	/// This method assumes that all layers start at y = –0.5 and end at the top of the view.
 	CGFloat yOffset = -bounds.origin.y - 0.5;
-	if(oldSize.height - yOffset <= 0 || oldSize.width <= 0) {
+	if(oldSize.height - yOffset <= 0.0 || oldSize.width <= 0.0) {
 		return;
 	}
 	CGFloat xRatio = size.width / oldSize.width;
@@ -1128,7 +1203,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 /// Positions a trace layer (or several)  to cover the visible area of the view.
 -(void)repositionTraceLayer {
-	const CGFloat defaultTraceLayerWidth = 512; /// Default width of a trace layer in points
+	const CGFloat defaultTraceLayerWidth = 512.0; /// Default width of a trace layer in points
 
 	NSRect clipRect = self.clipRect;
 	CGFloat visibleStart = clipRect.origin.x;
@@ -1205,9 +1280,9 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		/// This path should be taken during scrolling / overdraw.
 		placeLeft = start < drawnRangeStart;
 		/// We first try to get a layer from the pool of unused layers
-		traceLayer = traceLayers.anyObject;
+		traceLayer = traceLayers.firstObject;
 		if(traceLayer) {
-			[traceLayers removeObject:traceLayer]; /// It is therefore no longer unused
+			[traceLayers removeObjectIdenticalTo:traceLayer]; /// It is therefore no longer unused
 		} else {
 			/// Otherwise, we reuse a layer that is positioned in the view.
 			/// If we should place it at the left, we use the last layer (the one at the right) or vise versa.
@@ -1264,10 +1339,11 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
 	if(layer.superlayer == traceLayerParent) {
-		if(_maintainPeakHeights) start = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+		//if(_maintainPeakHeights) start = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
 		/// We assume that the whole layer is redrawn (no method calls partial redrawing), but this isn't much flexible.
 		[self drawTracesInRect:layer.bounds context:ctx];
-		self.needsDisplayTraces = NO; /*
+		self.needsDisplayTraces = NO;
+		/*
 		uint64_t end = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
 		NSRect dirtyRect = layer.bounds;
 		int startScan = [self scanForX:NSMinX(dirtyRect)];
@@ -1275,13 +1351,12 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		NSString *string = [NSString stringWithFormat:@"%d, %0.1f", endScan-startScan+1, (end-start)/1e6];
 		[_rulerView showTime: string];
 		start = end; */
-		
 	} 
 }
 
 
 - (void)drawRect:(NSRect)dirtyRect {
-	/// This is only called in the context of printing, as the view responds `YES` to `wantsUpdateLayer` otherwise
+	/// This is only called in the context of printing, as the view responds `YES` to `wantsUpdateLayer` otherwise.
 	/// We try to produce a vectorized output, which means we can't just call `renderInContext` on the view main layer.
 	/// This method is not future-proof and may require modifications if the view is modified regarding its sublayer hierarchy.
 	static BOOL isDrawing = NO; /// To prevent recursion, it case `renderInContext:` bellow calls `drawRect`.
@@ -1304,8 +1379,8 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		[mainLayer layoutIfNeeded];
 		
 		/// First, we draw layers that are behind traces (bin rectangles, mainly). These only have basic shapes that don't get rasterized.
-		NSMutableSet<CALayer *> *layersBehindTraces = NSMutableSet.new;
-		NSMutableSet<CALayer *> *layersAboveTraces = NSMutableSet.new;
+		NSMutableArray<CALayer *> *layersBehindTraces = NSMutableArray.new;
+		NSMutableArray<CALayer *> *layersAboveTraces = NSMutableArray.new;
 		for(CALayer *layer in mainLayer.sublayers) {
 			if(!layer.isHidden) {
 				if(layer.zPosition >= traceLayerParent.zPosition) {
@@ -1332,7 +1407,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			layer.hidden = YES;
 		}
 		
-		NSMutableSet *textLayers = NSMutableSet.new;
+		NSMutableArray *textLayers = NSMutableArray.new;
 		/// We also hide text layers, which we will draw individually to avoid rasterizing text.
 		/// Here, we assume that all these layers are not behind traces.
 		for(CALayer *layer in mainLayer.allSublayers) {
@@ -1395,20 +1470,28 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	/// We don't drawn them if we have traces from several samples and if a marker label is enabled,
 	/// as these regions can mask the edges  of this label or its bin labels
 	NSArray *offScaleColors = self.colorsForOffScaleRegions;
-	if (self.showOffscaleRegions && (visibleTraceCount == 1 || self.genotype || self.channel < 0) &&
-		!self.enabledMarkerLabel) {
+	if (self.showOffscaleRegions && (visibleTraceCount == 1 || self.genotype || self.channel < 0)) {
 		/// channel is normally -1 if we show traces for the same sample. In this case, we can draw off-scale regions
-		
 		NSData *offscaleRegions = sample.offscaleRegions;
 		const long nRegions = offscaleRegions.length/sizeof(OffscaleRegion);
 		if(nRegions > 0) {
 			NSColor *currentOffscaleColor;
 			NSInteger colorCount = offScaleColors.count;
 			NSData *sizeData = sample.sizes;
+			if(!sizeData) {
+				/// If the sample somehow doesn't have size data or if the trace has no sample, there is nothing we can draw.
+				return;
+			}
+			
 			const float *sizes = sizeData.bytes;
 			const long nScans = sizeData.length/sizeof(float);
-			
 			const OffscaleRegion *regions = offscaleRegions.bytes;
+			
+			/// We don't draw offscale regions within the enabled marker label.
+			NSRect markerLabelFrame = self.enabledMarkerLabel.frame;
+			CGFloat markerLabelStart = markerLabelFrame.origin.x;
+			CGFloat markerLabelEnd = NSMaxX(markerLabelFrame);
+			
 			for (int i = 0; i < nRegions; i++) {
 				OffscaleRegion const *region = &regions[i];
 				int32_t startScan = region->startScan;
@@ -1423,9 +1506,10 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 					if(regionStart <= endSize) {
 						CGFloat xStart = (regionStart - sampleStartSize) * hScale;
 						CGFloat xWidth = (regionEnd - regionStart) * hScale;
+						CGFloat xEnd = xStart + xWidth;
 						CGFloat scanWidth = xWidth/regionWidth;
 						ChannelNumber channel = region->channel;
-						if(channel >= 0 && channel < colorCount) {
+						if(channel >= 0 && channel < colorCount && (xStart > markerLabelEnd || xEnd < markerLabelStart)) {
 							NSColor *color = offScaleColors[channel];
 							if(color != currentOffscaleColor) {
 								CGContextSetFillColorWithColor(ctx, color.CGColor);
@@ -1502,8 +1586,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	}
 	
 	if(_clickedTrace) { /// We draw the clickedTrace last so it is not masked by others.
-		currentStrokeColor = self.colorsForChannels[_clickedTrace.channel];
-		currentStrokeColor = [currentStrokeColor blendedColorWithFraction:0.3 ofColor:NSColor.textColor];
+		currentStrokeColor = colorsForClickedTraces[_clickedTrace.channel];
 		CGContextSetStrokeColorWithColor(ctx, currentStrokeColor.CGColor);
 		CGContextSetLineWidth(ctx, 2.0);
 		[_clickedTrace drawInContext:ctx];
@@ -1525,7 +1608,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		const int16_t *fluo = fluoData.bytes;
 		return fluo[scan] * _vScale;
 	}
-	return 0;
+	return 0.0;
 }
 
 
@@ -1600,7 +1683,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			}
 		}
 		NSRect bounds = self.bounds;
-		if(bounds.size.height > 0) {
+		if(bounds.size.height > 0.0) {
 			self.vScale = NSMaxY(bounds)/_topFluoLevel;
 		}
 		[self.delegate traceViewDidChangeTopFluoLevel:self];
@@ -1620,7 +1703,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			}
 		}
 		NSRect bounds = self.bounds;
-		if(bounds.size.height > 0) {
+		if(bounds.size.height > 0.0) {
 			self.vScale = NSMaxY(bounds)/_topFluoLevel;
 		}
 	}
@@ -1649,13 +1732,13 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 -(BOOL) scrollRectToVisible:(NSRect)rect {
 	/// overridden because our visible rect is particular and because the trace scroll view filters scroll events
-	return [self scrollRectToVisible:rect animate:NO];
+	return [self scrollRectToVisible:rect animate:NO zoomOut:NO];
 }
 
 
--(BOOL)scrollRectToVisible:(NSRect)rect animate:(BOOL)animate {
+-(BOOL)scrollRectToVisible:(NSRect)rect animate:(BOOL)animate zoomOut:(BOOL)zoomOut {
 	CGFloat startX = rect.origin.x;
-	if(startX < 0) {
+	if(startX < 0.0) {
 		return NO;
 	}
 	
@@ -1665,13 +1748,21 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	}
 	
 	NSRect clipRect = self.clipRect;
+	
+	if(zoomOut && clipRect.size.width < rect.size.width) {
+		CGFloat startSize = [self sizeForX:rect.origin.x];
+		CGFloat len =  rect.size.width/self.hScale;
+		[self setVisibleRange:MakeBaseRange(startSize, len) animate:animate];
+		return YES;
+	}
+	
 	if(startX < clipRect.origin.x) {
-		[self scrollPoint:NSMakePoint(startX, 0) animate:animate];
+		[self scrollPoint:NSMakePoint(startX, 0.0) animate:animate];
 		return YES;
 	}
 	
 	if(endX > NSMaxX(clipRect)) {
-		[self scrollPoint:NSMakePoint(endX - clipRect.size.width, 0) animate:animate];
+		[self scrollPoint:NSMakePoint(endX - clipRect.size.width, 0.0) animate:animate];
 		return YES;
 	}
 	
@@ -1700,9 +1791,16 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		CGFloat previous = _visibleOrigin;
 		_visibleOrigin = newVisibleOrigin;
 		
+		/// We scroll the view and account for the fact that scrolling is appkit is constrained to integral positions.
+		CGFloat theoreticalX = newVisibleOrigin - self.leftInset;
+		CGFloat integralX = round(theoreticalX);
+		CGFloat fractionalX = theoreticalX - integralX;
+
 		NSClipView *clipView = (NSClipView *)self.superview;
-		[clipView scrollToPoint:NSMakePoint(newVisibleOrigin - self.leftInset, 0)];
+		[clipView scrollToPoint:NSMakePoint(integralX, 0.0)];
 		[self.enclosingScrollView reflectScrolledClipView:clipView];
+		_backgroundLayer.position = CGPointMake(-fractionalX, 0);
+	
 		traceLayerFillingClipRect = nil;  /// The layer showing traces no longer fits the visible rectangle
 		
 		if(!_resizedWithAnimation) {
@@ -1767,7 +1865,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			/// if we autoscale to the highest peak, we take advantage of the fact that we know the final range,
 			/// hence we animate the change in vertical scale in sync
 			float targetFluo = [self topFluoForRange:visibleRange];
-			if(targetFluo > 0) {
+			if(targetFluo > 0.0f) {
 				/// if a peak is in the range, we change the scale
 				self.animator.topFluoLevel = targetFluo;
 			}
@@ -1786,7 +1884,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 - (void)zoomTo:(CGFloat)zoomPoint withFactor:(CGFloat)zoomFactor animate:(BOOL)animate {
 	/// We prevent negative or null zoom factors that may happen if the user zooms too fast.
-	if (zoomFactor <= 0) {
+	if (zoomFactor <= 0.0) {
 		zoomFactor = 0.01;
 	}
 	/// The position in base pairs that is under the mouse and should remain that way
@@ -1838,17 +1936,8 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 - (BaseRange)ourMarkerRange {
-	
-	float start = self.marker.start;
-	float end = self.marker.end;
-	if(self.genotype) {
-		MarkerOffset offset = self.genotype.offset;
-		start = start * offset.slope + offset.intercept;
-		end = end * offset.slope + offset.intercept;
-	}
-	BaseRange range = MakeBaseRange(start, end-start);
+	BaseRange range = self.genotype? self.genotype.range : self.marker.range;
 	if(self.markerView) {
-		
 		/// if we have a marker view, we use a wider range to make the marker show in full between the navigation buttons
 		range = [self.markerView safeRangeForBaseRange:range];
 	}
@@ -1857,8 +1946,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 - (BaseRange)baseRangeForMarkerLabel:(RegionLabel *)markerLabel {
-	float startSize = markerLabel.startSize;
-	BaseRange range = MakeBaseRange(startSize, markerLabel.endSize - startSize);
+	BaseRange range = markerLabel.range;
 	if(self.markerView) {
 		/// if we have a marker view, we use a wider range to make the marker show in full between the navigation buttons
 		return [self.markerView safeRangeForBaseRange:range];
@@ -1875,19 +1963,19 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	
 	/// we change ivars related to geometry to signify the the view is not in its final state.
 	/// We don't use the setters as we don't want the view to actually change the geometry of the view to match these dummy values
-	_hScale = -1.0; viewHeight = 0; _visibleRange = MakeBaseRange(0, 2.0);
-	_topFluoLevel = -1;
+	_hScale = -1.0; viewHeight = 0.0f; _visibleRange = MakeBaseRange(0.0f, 2.0f);
+	_topFluoLevel = -1.0f;
 	self.isMoving = NO;
 	
 	/// we determine the visible range of the trace(s) or the marker
 	BaseRange refRange;
 	if(self.marker) {
 		BaseRange genotypeRange = self.genotype.visibleRange;
-		if(genotypeRange.len > 0) {
+		if(genotypeRange.len > 0.0f) {
 			refRange = genotypeRange;
 		} else {
 			BaseRange markerRange = self.marker.visibleRange;
-			if(markerRange.len > 0) {
+			if(markerRange.len > 0.0f) {
 				refRange = markerRange;
 			} else {
 				/// if we show a genotype or just a marker, we show the range of the marker
@@ -1902,15 +1990,15 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	/// we set the vertical scale of the fluorescence curves
 	/// the first time the view shows, it doesn't have the proper height (doesn't fill the clipView's visible rectangle)
 	[self fitVertically];
-	float topFluoLevel = 1000;  /// we set an arbitrary default fluo level
+	float topFluoLevel = 1000.0f;  /// we set an arbitrary default fluo level
 	
 	if(visibleTraces.count > 0 || self.loadedGenotypes.count > 0) {
 		if(!self.autoScaleToHighestPeak) {
 			topFluoLevel = [self.delegate topFluoLevelForTraceView:self];
 		}
-		if(topFluoLevel <= 0 || self.autoScaleToHighestPeak) {
+		if(topFluoLevel <= 0.0f || self.autoScaleToHighestPeak) {
 			topFluoLevel = [self topFluoForRange:refRange];
-			if(topFluoLevel <= 0) {
+			if(topFluoLevel <= 0.0f) {
 				/// if no peak was detected, we return the max fluo across all traces
 				topFluoLevel = [[visibleTraces valueForKeyPath:@"@max.maxFluo"] floatValue];
 			}
@@ -1944,7 +2032,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		NSEdgeInsets insets = scrollView.contentInsets;
 		insets.left = leftInset;
 		scrollView.contentInsets = insets;
-		if(self.hScale > 0) {
+		if(self.hScale > 0.0) {
 			/// We update our geometry to maintain the visible range
 			self.hScale = self.visibleWidth / _visibleRange.len;
 			self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
@@ -1956,12 +2044,12 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 - (void)setBoundsOrigin:(NSPoint)newOrigin {
 	/// bounds x origin must be reflected by the top ruler view and the marker view, so that graduations and markers show at the correct position relative to the traces
 	[super setBoundsOrigin:newOrigin];
-	[self.markerView setBoundsOrigin:NSMakePoint(newOrigin.x,0)];
-	[self.rulerView setBoundsOrigin:NSMakePoint(newOrigin.x, 0)];
+	[self.markerView setBoundsOrigin:NSMakePoint(newOrigin.x,0.0)];
+	[self.rulerView setBoundsOrigin:NSMakePoint(newOrigin.x, 0.0)];
 	VScaleView *vScaleView = self.vScaleView;
-	NSPoint point = [vScaleView convertPoint:NSMakePoint(0, 0) fromView:self];
+	NSPoint point = [vScaleView convertPoint:NSZeroPoint fromView:self];
 	point.y -= vScaleView.bounds.origin.y;
-	[vScaleView setBoundsOrigin:NSMakePoint(0, -point.y)];
+	[vScaleView setBoundsOrigin:NSMakePoint(0.0, -point.y)];
 	self.needsRepositionLabels = YES;		/// This is because bin labels must span the whole view vertically, regardless of the bounds origin.
 }
 
@@ -1974,8 +2062,8 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	CGFloat inset = self.leftInset;
 	rect.origin.x += inset;
 	rect.size.width -= inset;
-	if(rect.size.width < 0) {
-		rect.size.width = 0;
+	if(rect.size.width < 0.0) {
+		rect.size.width = 0.0;
 	}
 	return rect;
 }
@@ -2002,7 +2090,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		[self fitVertically];
 	}
 	
-	if(newSize.width != oldSize.width && self.hScale > 0) {
+	if(newSize.width != oldSize.width && self.hScale > 0.0) {
 		self.hScale = self.visibleWidth / _visibleRange.len;
 		self.visibleOrigin = (_visibleRange.start - _sampleStartSize) * _hScale;
 		if(_resizedWithAnimation) {
@@ -2035,7 +2123,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 - (void)fitVertically {
 	/// as we the view doesn't scroll vertically, we make sure its height is that of the visible rect of the clipview
 	/// we have to consider the height of the horizontal ruler, which overlaps the clipView. We don't want to show behind that
-	CGFloat topInset = 0;
+	CGFloat topInset = 0.0;
 	RulerView *rulerView = self.rulerView;
 	NSRect clipViewFrame = self.superview.frame;
 	if(rulerView && !rulerView.hidden) {
@@ -2049,7 +2137,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		NSRect bounds = self.bounds;
 		float topFluoLevel = self.topFluoLevel;
 		CGFloat maxY = NSMaxY(bounds);
-		if(topFluoLevel > 0) {
+		if(topFluoLevel > 0.0f) {
 			if(self.autoScaleToHighestPeak) {
 				/// To maintain the 20-point margin above the highest peak, the top fluo level must be updated
 				float level = topFluoLevel/(1+20/previousMaxY);
@@ -2062,10 +2150,10 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		
 		if(dashedLineLayer) {
 			/// we make the dashed line layer as tall as the view
-			dashedLineLayer.bounds = CGRectMake(0, 0, 1, viewHeight);
+			dashedLineLayer.bounds = CGRectMake(0.0, 0.0, 1.0, viewHeight);
 			CGMutablePathRef path = CGPathCreateMutable();
 			CGPathMoveToPoint(path, NULL, 0.5, NSMaxY(dashedLineLayer.bounds));
-			CGPathAddLineToPoint(path, NULL, 0.5,0);
+			CGPathAddLineToPoint(path, NULL, 0.5,0.0);
 			dashedLineLayer.path = path;
 			CGPathRelease(path);
 		}
@@ -2107,7 +2195,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 -(float)topFluoForRange:(BaseRange)range {
-	float maxLocalFluo = 0;
+	float maxLocalFluo = 0.0f;
 	float startSize = range.start, endSize = range.start + range.len;
 	BOOL useRawData = self.showRawData || self.maintainPeakHeights;
 	BOOL ignoreCrosstalk = self.ignoreCrosstalkPeaks;
@@ -2122,13 +2210,19 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			}
 			Chromatogram *sample = trace.chromatogram;
 			NSData *sizeData = sample.sizes;
+			if(!sizeData) {
+				continue;
+			}
 			const float *sizes = sizeData.bytes;
 			long nSizes = sizeData.length / sizeof(float);
+			NSData *fluoData = useRawData? trace.primitiveRawData : [trace adjustedDataMaintainingPeakHeights:NO];
+			if(fluoData.length/sizeof(int16_t) < nSizes || nSizes <= 0) {
+				continue;
+			}
 			const Peak *peaks = tracePeaks.bytes;
 			long nPeaks = tracePeaks.length/sizeof(Peak);
 			int minScan = sample.minScan, maxScan = sample.maxScan;
-			NSData *fluoData = useRawData? trace.primitiveRawData : [trace adjustedDataMaintainingPeakHeights:NO];
-			NSInteger nScans = fluoData.length/sizeof(int16_t);
+
 			const int16_t *fluo = fluoData.bytes;
 			for(int i = 0; i < nPeaks; i++) {
 				const Peak *peakPTR = &peaks[i];
@@ -2136,7 +2230,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 					continue;
 				}
 				int scan = peakPTR->startScan + peakPTR->scansToTip;
-				if(peakEndScan(peakPTR) > maxScan || scan >= nSizes || sizes[scan] > endSize || scan >= nScans) {
+				if(peakEndScan(peakPTR) > maxScan || scan >= nSizes || sizes[scan] > endSize) {
 					break;
 				}
 				if(peakPTR->startScan < minScan || sizes[scan] < startSize) {
@@ -2153,7 +2247,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 				Trace *trace = allele.trace;
 				int scan = allele.scan;
 				NSData *fluoData = useRawData? trace.primitiveRawData : [trace adjustedDataMaintainingPeakHeights:NO];
-				if(fluoData.length/sizeof(int16_t) > scan) {
+				if(fluoData.length/sizeof(int16_t) > scan & scan > 0) {
 					const int16_t *fluo = fluoData.bytes;
 					int16_t fluoAtScan = fluo[scan];
 					maxLocalFluo = MAX(fluoAtScan, maxLocalFluo);
@@ -2180,7 +2274,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 - (void)scaleToHighestPeakWithAnimation:(BOOL) animate {
 	if(visibleTraces.count > 0 || self.loadedGenotypes.count > 0) {
 		float fluo = [self topFluoForRange:self.visibleRange];
-		if(fabs(fluo - self.topFluoLevel) > 0.5 && fluo > 0) {
+		if(fabs(fluo - self.topFluoLevel) > 0.5f && fluo > 0.0f) {
 			[self setTopFluoLevel:fluo withAnimation:animate];
 		}
 	}
@@ -2198,8 +2292,8 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 - (NSSize)intrinsicContentSize {
 	CGFloat hScale = self.hScale;
-	if(hScale < 0) {
-		hScale = 0;
+	if(hScale < 0.0) {
+		hScale = 0.0;
 	}
 	return NSMakeSize(viewLength * hScale - self.bounds.origin.x, viewHeight);
 }
@@ -2212,9 +2306,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			/// when the view gets resized, we remove tracking areas. During zoom, we don't reposition the areas, so their position is invalid.
 			/// After resizing, they will be rebuilt
 			for(NSTrackingArea *area in self.trackingAreas) {
-				if(area != trackingArea) {
-					[self removeTrackingArea:area];
-				}
+				[self removeTrackingArea:area];
 			}
 			if(self.showPeakTooltips) {
 				[self removeAllToolTips];
@@ -2248,10 +2340,10 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 -(void) updateAppearance {
-	self.needsUpdateLabelAppearance = YES;
+	self.needsUpdateLabelColors = YES;
 	needsUpdateAppearance = YES;
 	/// we tell other views of the row to update their appearance.
-	self.markerView.needsUpdateLabelAppearance = YES;
+	self.markerView.needsUpdateLabelColors = YES;
 	self.rulerView.needsChangeAppearance = YES;
 }
 
@@ -2263,16 +2355,9 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		return;
 	}
 	for (RegionLabel *markerLabel in self.markerLabels) {
-		if((markerLabel.enabled) && !showBins) {
+		if(!markerLabel.enabled) {
 			/// we don't hide bins if the marker label is enabled.
-			continue;
-		}
-		for(RegionLabel *label in markerLabel.binLabels) {
-			label.hidden = !showBins;
-		}
-		if(showBins) {
-			self.allowsAnimations = NO;
-			[self labelNeedsRepositioning:markerLabel]; /// required to avoid overlap in bin names
+			markerLabel.hidden = !showBins;
 		}
 	}
 }
@@ -2375,7 +2460,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			self.markerView.hidden = self.channel == multipleChannelNumber || (referenceTrace.isLadder && visibleTraces.count > 0);
 			Panel *panel = self.panelToShow;
 			if(panel != self.panel) {
-				self.panel = self.panelToShow;
+				self.panel = panel;
 			}
 		}
 
@@ -2409,14 +2494,14 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 - (NSArray<NSColor *> *)colorsForOffScaleRegions {
 	if(_colorsForOffScaleRegions.count < 5) {
-		float fraction =0.2;
+		float fraction =0.2f;
 		if(@available(macOS 10.14, *)) {
-			fraction = [self.effectiveAppearance.name isEqualToString:NSAppearanceNameDarkAqua]? 0.3 : 0.2;
+			fraction = [self.effectiveAppearance.name isEqualToString:NSAppearanceNameDarkAqua]? 0.3f : 0.2f;
 		}
 		_colorsForOffScaleRegions = NSArray.new;
 		ChannelNumber i = 0;
 		for (NSColor *color in self.colorsForChannels) {		/// the offscale color as derived from the channel color
-			float usedFraction = i == blackChannelNumber && fraction <= 0.3 ? fraction : fraction;
+			float usedFraction = i == blackChannelNumber && fraction <= 0.3f ? fraction : fraction;
 			_colorsForOffScaleRegions = [_colorsForOffScaleRegions arrayByAddingObject:[color colorWithAlphaComponent:usedFraction]];
 			
 			i++;
@@ -2426,9 +2511,23 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 }
 
 
+- (void)updateColorsForChannels {
+	[super updateColorsForChannels];
+
+	colorsForClickedTraces = NSArray.new;
+	[self updateRegionLabelEdgeColor];
+	NSColor *blendColor = [NSColor colorWithCGColor:self.regionLabelEdgeColor];
+	for(NSColor *color in _colorsForChannels) {
+		NSColor *clickedTraceColor = [color blendedColorWithFraction:0.5 ofColor:blendColor];
+		if(!clickedTraceColor) clickedTraceColor = color;
+		colorsForClickedTraces = [colorsForClickedTraces arrayByAddingObject:clickedTraceColor];
+	}
+}
+
+
 - (void)updateFragmentLabelBackgroundColor {
 	CGColorRelease(_fragmentLabelBackgroundColor);
-	_fragmentLabelBackgroundColor = CGColorCreateCopyWithAlpha(self.backgroundColor.CGColor, 0.7);
+	_fragmentLabelBackgroundColor = CGColorCreateCopyWithAlpha(self.backgroundColor.CGColor, 0.7f);
 }
 
 
@@ -2572,6 +2671,20 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 }
 
 
+- (void)updateTraceViewMarkerLabelInnerLayerColor {
+	CGColorRelease(_traceViewMarkerLabelInnerLayerColor);
+	_traceViewMarkerLabelInnerLayerColor = CGColorRetain([NSColor colorNamed:ACColorNameTraceViewMarkerLabelInnerLayerColor].CGColor);
+}
+
+
+- (CGColorRef)traceViewMarkerLabelInnerLayerColor {
+	if(!_traceViewMarkerLabelInnerLayerColor) {
+		[self updateTraceViewMarkerLabelInnerLayerColor];
+	}
+	return _traceViewMarkerLabelInnerLayerColor;
+}
+
+
 #pragma mark - reacting to mouse and key events
 
 - (BOOL)acceptsFirstResponder {
@@ -2580,24 +2693,10 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 - (BOOL)resignFirstResponder {
-	[super resignFirstResponder];
 	self.rulerView.currentPosition = -10000;
 	self.clickedTrace = nil;
-	for (ViewLabel *label in self.viewLabels) {
-		/// We deselect any highlighted label that is not the enabled marker label.
-		if(label != _enabledMarkerLabel) {
-			if([label respondsToSelector:@selector(attachedPopover)]) {
-				if([(RegionLabel *)label attachedPopover] == nil) {
-					/// if the label has a popover, this method is likely call because the popover is spawn
-					/// in this case we don't de-highlight the label. We only do it if it has no popover attached.
-					label.highlighted = NO;
-				}
-			} else {
-				label.highlighted = NO;
-			}
-		}
-	}
-	return YES;
+	
+	return [super resignFirstResponder];
 }
 
 
@@ -2638,6 +2737,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 - (void)setMouseLocation:(NSPoint)location {
+//	location.x -= _backgroundLayer.position.x;
 	_mouseLocation = location;
 	mouseIn = (NSPointInRect(location, self.visibleRect));
 	/// we make the ruler view indicates the current position of the cursor, in base pairs
@@ -2645,7 +2745,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		self.rulerView.currentPosition = [self sizeForX:_mouseLocation.x];
 		/// if the mouse is within a marker label (which means it is editable), we position the vertical dashed line that helps the user add a bin.
 		if(self.enabledMarkerLabel && dashedLineLayer) {
-			dashedLineLayer.position = CGPointMake(_mouseLocation.x, 0);
+			dashedLineLayer.position = CGPointMake(_mouseLocation.x, 0.0);
 		}
 	}
 }
@@ -2657,7 +2757,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	hoveredPeakLabel = nil;
 	hoveredMarkerLabel = nil;
 	[super mouseExited:event];
-	self.rulerView.currentPosition = -10000;		/// this removes the display of the current cursor position from the ruler view
+	self.rulerView.currentPosition = -10000.0;		/// this removes the display of the current cursor position from the ruler view
 }
 
 
@@ -2695,7 +2795,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 			Trace *clickedTrace = [self closestTraceToPoint:mouseLocation withinDistance:3];
 			self.clickedTrace = clickedTrace;
 			if(clickedTrace) {
-				[self.delegate traceView:self revealSourceItem:clickedTrace isolate:NO];
+				[self.delegate revealSourceItem:clickedTrace fromTraceView:self isolate:NO];
 				return;
 			}
 		}
@@ -2743,6 +2843,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	}
 	
 	/// If the clicked occurred within a marker range, we use the menu from the corresponding marker label.
+	/// This menu would not have be returned in super if the marker label was disabled, as it is the case for marker labels by default.
 	NSPoint clickedPoint = [self convertPoint:event.locationInWindow fromView:nil];
 	for(RegionLabel *markerLabel in self.markerLabels) {
 		if(NSPointInRect(clickedPoint, markerLabel.frame)) {
@@ -2761,7 +2862,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	Trace *clickedTrace = nil;
 	
 	if(visibleTraces.count > 1 && self.channel >= 0 && !self.genotype) {
-		clickedTrace = [self closestTraceToPoint:clickedPoint withinDistance:3];
+		clickedTrace = [self closestTraceToPoint:clickedPoint withinDistance:3.0f];
 		self.clickedTrace = clickedTrace;
 	}
 	
@@ -2777,6 +2878,15 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		item.image = [NSImage imageNamed:ACImageNameLookingLeft];
 		item.representedObject = clickedTrace;
 		item.target = self;
+		
+		item = [[NSMenuItem alloc]initWithTitle:@"Isolate Chromatogram"
+										 action:@selector(isolateSampleWithMenuItem:)
+								  keyEquivalent:@""];
+		item.representedObject = clickedTrace;
+		item.image = [NSImage imageNamed:ACImageNameCallAllelesBadge];
+		item.target = self;
+		[menu addItem:item];
+
 		return menu;
 	}
 	
@@ -2786,9 +2896,10 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		int clickedScan = [self scanForX:clickedPoint.x];
 		CGFloat y = [self yForScan:clickedScan ofTrace:self.trace];
 		if(y > clickedPoint.y) {
-			/// if the clicked point is below the curve, we do nothing, the user may want to add a missing peak
+			/// if the clicked point is below the curve, the user may want to add a missing peak
 			Peak addedPeak = [self.trace missingPeakForScan:clickedScan useRawData:self.showRawData];
-			if(addedPeak.startScan > 0) {					/// this would be 0 if there there is no peak
+			if(addedPeak.startScan > 0) {
+				/// there is a peak at the clicked point.
 				NSMenuItem *item = [[NSMenuItem alloc]initWithTitle:@"Add Peak here"
 															 action:@selector(addPeakWithMenuItem:)
 													  keyEquivalent:@""];
@@ -2809,8 +2920,12 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 - (void)highLightSampleWithMenuItem:(NSMenuItem *)sender {
-	[self.delegate traceView:self revealSourceItem:sender.representedObject isolate:NO];
-	sender.representedObject = nil;
+	[self.delegate revealSourceItem:sender.representedObject fromTraceView:self isolate:NO];
+}
+
+
+- (void)isolateSampleWithMenuItem:(NSMenuItem *)sender {
+	[self.delegate revealSourceItem:sender.representedObject fromTraceView:self isolate:YES];
 }
 
 
@@ -2866,7 +2981,11 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 - (void)deleteSelection:(id)sender {
-	[self.activeLabel deleteAction:sender];
+	for(ViewLabel *label in self.viewLabels) {
+		if(label.highlighted && !label.dragged) {
+			[label deleteAction:self];
+		}
+	}
 }
 
 
@@ -2935,6 +3054,9 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 
 - (void)setClickedTrace:(Trace *)clickedTrace {
+	if(colorsForClickedTraces.count == 0) {
+		[self updateColorsForChannels];
+	}
 	if(clickedTrace != _clickedTrace) {
 		_clickedTrace = clickedTrace;
 		self.needsDisplayTraces = YES;
@@ -2999,28 +3121,11 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		/// if the mouse is dragged in the enabled marker label, the user may be trying to add a bin
 		/// a bin can be added in the region covered by the unlocked marker label, but it must not overlap an existing bin label
 		if(fabs(self.clickedPoint.x - self.mouseLocation.x) > 3) {
-			for(RegionLabel *binLabel in enabledMarkerLabel.binLabels) {
-				if (binLabel.clicked) {
-					/// The user must click outside a bin.
-					return;
-				}
-			}
-			/// the rest is similar to the addition of new marker (see equivalent method in MarkerView.m)
-			Mmarker *marker = (Mmarker*)enabledMarkerLabel.region;
-			CGFloat position = [self sizeForX:self.mouseLocation.x];         			/// we convert the mouse position in base pairs
-			CGFloat clickedPosition =  [self sizeForX:self.clickedPoint.x];      		/// we obtain the original clicked position in base pairs
 			
-			/// we check if we have room to add the new bin
-			CGFloat safePosition = position < clickedPosition? clickedPosition - 0.13 : clickedPosition + 0.13;
-			for(Bin *bin in marker.bins) {
-				if(safePosition >= bin.start && safePosition <= bin.end) {
-					return;
-				}
-			}
 			NSError *error;
 			draggedLabel = [enabledMarkerLabel labelWithNewBinByDraggingWithError:&error];
 			if(error) {
-				error = [NSError errorWithDescription:@"The bin could not be added because an error occurred in the database."
+				error = [error errorWithNewDescription:@"The bin could not be added because an error occurred in the database."
 													suggestion:@"You may quit the application and try again"];
 				[[NSAlert alertWithError:error] beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
 				}];
@@ -3035,9 +3140,19 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 
 - (void)labelIsDragged:(ViewLabel *)label {
 	draggedLabel = label;
-	if(label != self.enabledMarkerLabel) {
+	RegionLabel *enabledMarkerLabel = self.enabledMarkerLabel;
+	if(label != enabledMarkerLabel) {
 		/// We don't scroll while dragging this label, as it would be disturbing.
 		[self autoscrollWithDraggedLabel:label];
+	} else if(enabledMarkerLabel.editState == editStateOffset && self.loadedGenotypes.count > 0) {
+		/// When alleles are shown as dots, dragging the marker label to modify the offset requires moving the alleles
+		/// as the label doesn't update genotype offsets during the drag (only at the end)
+		MarkerOffset offset = enabledMarkerLabel.offset;
+		self.allowsAnimations = NO;
+		for(FragmentLabel *fragmentLabel in self.fragmentLabels) {
+			[fragmentLabel moveByOffset:offset];
+		}
+		self.allowsAnimations = YES;
 	}
 }
 
@@ -3054,7 +3169,7 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 		}
 	} else if([draggedLabel respondsToSelector:@selector(dragHandleEndPosition)]) {
 		CGFloat xPos = [(PeakLabel *)draggedLabel dragHandleEndPosition].x;
-		labelFrame = NSMakeRect(xPos-3, 0, 6, 1);
+		labelFrame = NSMakeRect(xPos-3.0, 0.0, 6.0, 1.0);
 	}
 	
 	[self scrollRectToVisible:labelFrame];
@@ -3098,12 +3213,8 @@ static const int threshold = 1;   	/// height (in points) below which we do not 
 	
 	
 -(void)updateLabelAreas {
-	RegionLabel *enabledMarkerLabel = self.enabledMarkerLabel;
-	if (enabledMarkerLabel) {
-		[enabledMarkerLabel updateTrackingArea];
-	} else {
-		[self updateTrackingAreasOf:self.peakLabels];
-	}
+	[self.enabledMarkerLabel updateTrackingArea];
+	[self updateTrackingAreasOf:self.peakLabels];
 }
 
 

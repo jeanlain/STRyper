@@ -82,6 +82,16 @@
 }
 
 
+-(NSArray *)intersectionWithArray:(NSArray *)array {
+	if(!array) {
+		return NSArray.new;
+	}
+	return [self filteredArrayUsingBlock:^BOOL(id  _Nonnull obj, NSUInteger idx) {
+		return [array indexOfObjectIdenticalTo:obj] != NSNotFound;
+	}];
+}
+
+
 - (BOOL)containsAllObjectsOf:(NSArray *)array {
 	for(id object in array) {
 		if([self indexOfObjectIdenticalTo:object] == NSNotFound) {
@@ -187,6 +197,73 @@
 		}
 	}
 	return result;
+}
+
+-(nullable NSArray<NSIndexSet *> *)indexesOfDifferencesWithArray:(nullable NSArray *)array {
+	NSInteger myCount = self.count;
+	NSInteger otherCount = array.count;
+	if((myCount > 1 && [NSSet setWithArray:self].count != myCount) || (otherCount > 1 && [NSSet setWithArray:array].count != otherCount)) {
+		return nil;
+	}
+	
+	if(myCount != otherCount && myCount >= 2 && otherCount >= 2) {
+		NSArray *intersect = [self intersectionWithArray:array];
+		if(intersect.count > 1 && ![intersect isEquivalentTo:[array intersectionWithArray:self]]) {
+			return nil;
+		}
+	}
+	
+	if(myCount != otherCount || myCount == 0 || otherCount == 0) {
+		NSIndexSet *indexesOfRemovals = [self indexesOfObjectsPassingTest:^BOOL(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+			return [array indexOfObjectIdenticalTo:obj] == NSNotFound || array == nil;
+		}];
+		
+		NSIndexSet *indexesOfInsertions = [array indexesOfObjectsPassingTest:^BOOL(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+			return [self indexOfObjectIdenticalTo:obj] == NSNotFound;
+		}];
+		
+		if(indexesOfRemovals.count > 0 && indexesOfInsertions.count > 0) {
+			return nil;
+		}
+		return @[indexesOfRemovals, indexesOfInsertions? indexesOfInsertions:NSIndexSet.new];
+	}
+	
+	NSMutableIndexSet *sourceIndexesDown = NSMutableIndexSet.new,
+	*sourceIndexesUp = NSMutableIndexSet.new,
+	*destinationIndexesDown = NSMutableIndexSet.new,
+	*destinationIndexesUp = NSMutableIndexSet.new;
+	
+	[self enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+		NSInteger index = [array indexOfObject:obj];
+		if(index > idx) {
+			[sourceIndexesUp addIndex:idx];
+			[destinationIndexesUp addIndex:index];
+		} else if(index < idx) {
+			[sourceIndexesDown addIndex:idx];
+			[destinationIndexesDown addIndex:index];
+		}
+	}];
+	
+	NSInteger upCount = sourceIndexesUp.count, downCount = sourceIndexesDown.count;
+	if(upCount + downCount == 0) {
+		return @[sourceIndexesUp.copy, destinationIndexesUp.copy];
+	}
+	
+	if((upCount != 1 && downCount != 1) || upCount == 0 || downCount == 0) {
+		return nil;
+	}
+	
+	NSInteger sourceIndex = upCount < downCount? sourceIndexesUp.firstIndex : sourceIndexesDown.firstIndex;
+	NSInteger destinationIndex = upCount < downCount? destinationIndexesUp.firstIndex : destinationIndexesDown.firstIndex;
+
+	NSMutableArray *mutable = self.mutableCopy;
+	id obj = [self objectAtIndex:sourceIndex];
+	[mutable removeObject:obj];
+	[mutable insertObject:obj atIndex:destinationIndex];
+	if([mutable isEquivalentTo:array]) {
+		return @[[NSIndexSet indexSetWithIndex:sourceIndex],[NSIndexSet indexSetWithIndex:destinationIndex]];
+	}
+	return nil;
 }
 
 

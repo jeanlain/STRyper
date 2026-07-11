@@ -65,13 +65,12 @@
 - (void)setView:(TraceView *)view {
 	super.view = view;
 	if(view && layer) {
-		if(!view.needsUpdateLabelAppearance) {
+		if(!view.needsUpdateLabelColors) {
 			layer.backgroundColor = view.binLabelColor;
 			layer.borderColor = view.regionLabelEdgeColor;
 			bandLayer.backgroundColor = view.binNameBackgroundColor;
 			bandLayer.borderColor = view.hoveredBinLabelColor;
 		}
-		stringLayer.foregroundColor = NULL;
 		stringLayer.foregroundColor = view.labelStringColor;
 		[view.backgroundLayer addSublayer:bandLayer];
 	}
@@ -107,27 +106,23 @@
 
 
 - (MarkerOffset)offset {
-	return _parentLabel.offset;
+	return _parentLabel.binOffset;
 }
 
 
 - (void)updateAppearance {
-	layer.backgroundColor = NULL;
-	bandLayer.backgroundColor = NULL;
 	TraceView *view = self.view;
-	BOOL hovered = self.hovered;
+	BOOL hidden = self.hidden;
+	BOOL hovered = self.hovered || (!hidden && self.isRegionHighlighted);
 	BOOL highlighted = self.highlighted;
 	layer.backgroundColor = (hovered || highlighted)? view.hoveredBinLabelColor : view.binLabelColor;
 	bandLayer.backgroundColor = (hovered || highlighted)? view.hoveredBinNameBackgroundColor : view.binNameBackgroundColor;
 	bandLayer.borderWidth = (hovered || highlighted)? 1.0 : 0.0;
 	
-	/// We determine of the visibility of the bin name should change. It must be visible if the label became hovered or highlighted.
-	BOOL hideBinName = (hovered || highlighted)? NO : _binNameHidden;
+	/// We determine if the visibility of the bin name should change. It must be visible if the label became hovered or highlighted.
+	BOOL hideBinName = (hovered || highlighted)? NO : _binNameHidden || hidden;
 	if(hideBinName != bandLayer.isHidden) {
-		if(_binNameHidden) {
-			/// Which means the bin name must show.
-			bandLayer.hidden = NO;
-		}
+		bandLayer.hidden = hideBinName;
 		/// To avoid overlaps of bin names, we arrange other labels.
 		/// We do it immediately rather than asking the view to reposition the parent label, because the call of this method is already deferred
 		/// and this should be executed only once per cycle (when the user hovers a label or selects/deselects it).
@@ -138,22 +133,20 @@
 }
 
 
-- (void)updateForTheme {
-	TraceView *view = self.view;
-	layer.borderColor = view.regionLabelEdgeColor;
-	layer.backgroundColor = self.hovered? view.hoveredBinLabelColor : view.binLabelColor;
-	bandLayer.backgroundColor = view.binNameBackgroundColor;
-	bandLayer.borderColor = view.hoveredBinLabelColor;
-	stringLayer.foregroundColor = NULL;
-	stringLayer.foregroundColor = view.labelStringColor;
+-(BOOL) isRegionHighlighted {
+	NSArray *regionsToHighlight = self.view.regionsToHighlight;
+	return regionsToHighlight && [regionsToHighlight indexOfObjectIdenticalTo:self.region] != NSNotFound;
 }
 
 
-- (void)setHidden:(BOOL)hidden {
-	if(self.hidden != hidden) {
-		self.binNameHidden = hidden;	/// for these labels, the bandlayer is not hosted by the layer, so we must hide/show it separately
-		super.hidden = hidden;
-	}
+- (void)updateColors {
+	TraceView *view = self.view;
+	BOOL hovered = self.hovered || self.isRegionHighlighted || self.highlighted;
+	layer.borderColor = view.regionLabelEdgeColor;
+	layer.backgroundColor = hovered? view.hoveredBinLabelColor : view.binLabelColor;
+	bandLayer.backgroundColor = hovered? view.hoveredBinNameBackgroundColor : view.binNameBackgroundColor;
+	bandLayer.borderColor = view.hoveredBinLabelColor;
+	stringLayer.foregroundColor = view.labelStringColor;
 }
 
 
@@ -182,19 +175,19 @@
 - (void)reposition {
 	TraceView *view = self.view;
 	CGFloat hScale = view.hScale;
-	if(hScale <= 0) {
+	if(hScale <= 0.0) {
 		return;
 	}
 
 	float startSize = self.startSize;
 	float endSize = self.endSize;
 	CGFloat startX = [view xForSize:startSize];
-	regionRect = NSMakeRect(startX, 0, (endSize - startSize) * hScale, NSMaxY(view.bounds));
+	regionRect = NSMakeRect(startX, 0.0, (endSize - startSize) * hScale, NSMaxY(view.bounds));
 	
 	self.frame = regionRect;
 	
 	/// The layer is a bit taller than its host view to hide the bottom and top edges.
-	layer.frame = CGRectInset(regionRect, 0, -2);
+	layer.frame = CGRectInset(regionRect, 0.0, -2.0);
 	
 	[self layoutInternalLayers];
 	
@@ -209,6 +202,10 @@
 	return _allowsAnimations && _parentLabel.allowsAnimations;
 }
 
+
+- (BOOL)hidden {
+	return _parentLabel.hidden;
+}
 
 - (void)_shiftByOffset:(MarkerOffset)offset {
 	Bin *bin = self.region;
@@ -231,7 +228,7 @@
 
 
 + (void)arrangeLabels:(NSArray *)binLabels withRepositioning:(BOOL)reposition {
-	CGFloat currentMaxX = 0;
+	CGFloat currentMaxX = 0.0;
 	for(BinLabel *binLabel in binLabels) {
 		if(!binLabel.hidden) {
 			if(reposition) {
@@ -248,7 +245,7 @@
 					currentMaxX = nameRectMaxX;
 				}
 				if(hideBinName) {
-					/// Here, the overlaps with a previous one, which is normal if the label is hovered or highlighted
+					/// Here, the label overlaps with a previous one, which is normal if the label is hovered or highlighted
 					/// We go back to hide names of previous bins that overlap.
 					CGFloat nameRectMinX = nameRect.origin.x;
 					for(BinLabel *previousBinLabel in binLabels) {

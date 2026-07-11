@@ -69,7 +69,10 @@
 
 - (void)dealloc {
 	if(_managedObjectContext) {
-		[NSNotificationCenter.defaultCenter removeObserver:self];
+		@try {
+			[NSNotificationCenter.defaultCenter removeObserver:self];
+		} @catch (NSException *exception) {
+		}
 	}
 }
 

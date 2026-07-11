@@ -38,7 +38,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// The subclasses can perform various actions on their represented ``region`` and on other objects depending on their ``editState`` property.
 /// See their respective header for more information.
-@interface RegionLabel : ViewLabel <NSPopoverDelegate, NSControlTextEditingDelegate, NSTextFieldDelegate>
+@interface RegionLabel : ViewLabel <NSPopoverDelegate, NSTextFieldDelegate>
 {
 	
 	/// Used to determine the limit up to which a label edge can move when it is dragged and avoid on-the-fly computation
@@ -56,12 +56,12 @@ NS_ASSUME_NONNULL_BEGIN
 	/// Backs the readonly ``start`` property, and allows it to be set by subclasses.
 	float _start;
 	
-	/// Backs the readonly ``start`` property, and allows it to be set by subclasses.
+	/// Backs the readonly ``end`` property, and allows it to be set by subclasses.
 	float _end;
 	
-	/// Backs the readonly ``start`` property, and allows it to be set by subclasses.
+	/// Backs the readonly ``offset`` property, and allows it to be set by subclasses.
 	MarkerOffset _offset;
-	
+		
 	/// Backs the readonly ``binLabels`` property, and allows it to be set by subclasses.
 	NSArray *_binLabels;
 }
@@ -99,11 +99,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Bins can be created by click-and drag within a label representing a marker on a ``TraceView``. The receiver must be such label.
 /// This method uses the ``LabelView/mouseLocation`` and the
 /// ``LabelView/clickedPoint`` of the receiver's ``ViewLabel/view`` to determine the bin's start and end.
-/// These properties must be set properly before the method is called. If the bin could not be created, the method returns `nil` and sets the `error`.
+/// These properties must be set properly before the method is called.
+///  If the bin could not be created because of lack of space, the method returns `nil` but does not set the `error`.
 /// - note: The method does not check if the ``Region/start`` and ``Region/end`` of the new bin are valid.
 /// - Important: The new region is added in a temporary managed object context on the main queue.
 /// - Parameter error: On output, any error preventing creating the bin, which would correspond to a core data error.
-- (nullable __kindof RegionLabel*)labelWithNewBinByDraggingWithError:( NSError * _Nullable *)error;
+- (nullable __kindof RegionLabel*)labelWithNewBinByDraggingWithError:(NSError * _Nullable *)error;
 
 /// Whether the label represents a marker.
 @property (nonatomic, readonly) BOOL isMarkerLabel;
@@ -134,7 +135,7 @@ typedef NS_ENUM(NSUInteger, EditState) {
 	/// Denotes that the label is being used to allow the edition of individual bins.
 	editStateBins = 2,
 	
-	/// Denotes that the label is being used to allow editing the offset of genotypes at the marker.
+	/// Denotes that the label is being used to edit the offset of genotypes at the marker.
 	editStateOffset = 3
 };
 
@@ -152,6 +153,15 @@ typedef NS_ENUM(NSUInteger, EditState) {
 /// The default value is `MarkerOffsetNone`.
 @property (nonatomic) MarkerOffset offset;
 
+/// The offset that should be applied to bin positions for labels showing an ``offset``.
+///
+/// If the host view shows allele labels as dots (compact), the value should be `MarkerOffsetNone`,
+/// as alleles rathen than bins are represented with the offset in this viewing mode.
+@property (nonatomic) MarkerOffset binOffset;
+
+extern float const minOffsetSlope;
+extern float const maxOffsetSlope;
+
 /// The position (in base pairs) of the left edge of the label, without considering its ``offset``.
 ///
 /// This property reflects the ``Region/start`` position of the ``region``.
@@ -167,6 +177,9 @@ typedef NS_ENUM(NSUInteger, EditState) {
 
 /// The position (in base pairs) of the right edge of the label, considering its ``offset``, i.e., as it appears in the ``ViewLabel/view``.
 @property (nonatomic, readonly) float endSize;
+
+/// The base range corresponding to the label's ``startSize`` and ``endSize``.
+@property (nonatomic,readonly) BaseRange range;
 																
 /// The edge of the label that is clicked (the mouse button still being pressed).
 ///

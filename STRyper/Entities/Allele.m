@@ -27,15 +27,6 @@
 #import "Mmarker.h"
 
 
-@interface Allele ()
-
-/// The attribute corresponding to the``LadderFragment/additional`` property, as defined in the managed object model.
-///
-/// It was written in a typo which I didn't want to shown in the public header.
-/// I didn't want to create a new model version just to correct the typo either.
-@property (nonatomic) BOOL additionnal;
-
-@end
 
 @interface Allele (DynamicAccessors)
 /// to set attributes and relationships that are readonly in the interface file
@@ -49,6 +40,12 @@
 
 @interface Allele ()
 
+/// The attribute corresponding to the``LadderFragment/additional`` property, as defined in the managed object model.
+///
+/// It was written in a typo which I didn't want to shown in the public header.
+/// I didn't want to create a new model version just to correct the typo either.
+@property (nonatomic) BOOL additionnal;
+
 /// The allele size as it can be shown in a table. This allows returning `nil` if the allele has a scan of 0 (to avoid showing a size of 0).
 @property (nonatomic, readonly) NSNumber *visibleSize;
 
@@ -59,7 +56,10 @@
 @end
 
 
-@implementation Allele
+@implementation Allele {
+	BOOL isObserving; /// To avoid registering as observers several times
+}
+
 @dynamic genotype, additionnal, size;
 
 - (nullable instancetype)initWithGenotype:(Genotype *)genotype additional:(BOOL)additional {
@@ -110,9 +110,13 @@ static void *attributeChangeContext = &attributeChangeContext;
 
 
 -(void) observeAttributes {
-	for(NSString *attribute in observedAttributes) {
-		[self addObserver:self forKeyPath:attribute options:NSKeyValueObservingOptionNew context:attributeChangeContext];
+	if(!isObserving) {
+		for(NSString *attribute in observedAttributes) {
+			[self addObserver:self forKeyPath:attribute options:NSKeyValueObservingOptionNew context:attributeChangeContext];
+		}
+		isObserving = YES;
 	}
+	/// We don't remove observation as we should not override dealloc and there is no method that is guaranteed to be called before the object disappears.
 }
 
 
@@ -122,18 +126,6 @@ static void *attributeChangeContext = &attributeChangeContext;
 	} else {
 		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
 	}
-}
-
-
-- (void)willTurnIntoFault {
-	[super willTurnIntoFault];
-	@try {
-		for(NSString *attribute in observedAttributes) {
-			[self removeObserver:self forKeyPath:attribute];
-		}
-	 } @catch (NSException *exception) {
-		 // If observer wasn’t added, ignore exception
-	 }
 }
 
 
@@ -183,12 +175,12 @@ static void *attributeChangeContext = &attributeChangeContext;
 -(void) computeSize {
 	if(self.scan <= 0) {
 		/// an allele that is missing (no peak found) has a scan of zero, but is still present
-		self.size = -1000;
+		self.size = -1000.0f;
 	} else {
 		Chromatogram *sample = self.trace.chromatogram;
 		if(sample) {
-			if(sample.sizingQuality.floatValue <= 0) {
-				self.size = -1000;
+			if(sample.sizingQuality.floatValue <= 0.0f) {
+				self.size = -1000.0f;
 				return;
 			}
 			float size = [sample sizeForScan:self.scan];
@@ -253,8 +245,10 @@ static void *attributeChangeContext = &attributeChangeContext;
 	Trace *trace = *value;
 	if(trace.channel != self.genotype.marker.channel) {
 		if (error != NULL) {
-			*error = [NSError errorWithDescription:[NSString stringWithFormat:@"The allele's trace (sample '%@') and marker '%@' have different channels!", self.trace.chromatogram.sampleName, self.genotype.marker.name]
-											suggestion:@""];
+			*error = [NSError managedObjectValidationErrorWithDescription:@"The allele's trace is invalid."
+															   suggestion:@""
+																   object:self
+																   reason:[NSString stringWithFormat:@"The allele's trace (sample '%@') and marker '%@' have different channels!", self.trace.chromatogram.sampleName, self.genotype.marker.name]];
 		}
 		return NO;
 	}

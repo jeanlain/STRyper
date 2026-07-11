@@ -79,7 +79,7 @@ static NSColor *backgroundColor;
 
 
 -(void)setAttributes {
-	[self setBoundsOrigin:NSMakePoint(0, -1)];
+	[self setBoundsOrigin:NSMakePoint(0.0, -1.0)];
 	self.wantsLayer = YES;
 	self.layer.drawsAsynchronously = YES;
 }
@@ -126,12 +126,12 @@ static NSColor *backgroundColor;
 
 	int maxPointsInCurve = appleSilicon? 40 : 400;			/// we stoke the curve if it has enough points.
 	NSPoint pointArray[maxPointsInCurve];          			/// points to add to the curve (VLA)
-	int startScan = dirtyRect.origin.x / hScale -3;			/// The 3-scan margin is necessary to avoid drawing artifacts.
+	int startScan = dirtyRect.origin.x / hScale -3.0;			/// The 3-scan margin is necessary to avoid drawing artifacts.
 	if(startScan < 0) {
 		startScan = 0;
 	}
 	
-	int endScan = NSMaxX(dirtyRect) / hScale +3;
+	int endScan = NSMaxX(dirtyRect) / hScale +3.0;
 	
 	
 	int color = -1;
@@ -141,16 +141,20 @@ static NSColor *backgroundColor;
 			return;
 		}
 
-		const int16_t *fluo = fluoData.bytes;
 		long nRecordedScans = fluoData.length/sizeof(int16_t);
+		if(nRecordedScans <= 0) {
+			return;
+		}
+		
+		const int16_t *fluo = fluoData.bytes;
 		int maxScan = (int)MIN(nRecordedScans, endScan);
 		
 		NSColor *curveColor = colorsForChannel[color];
 		CGContextSetStrokeColorWithColor(ctx, curveColor.CGColor);
 		CGFloat lastX = startScan * hScale;
 		CGFloat y = fluo[startScan]*vScale;
-		if (y < 1) {
-			y = 0;
+		if (y < 1.0) {
+			y = 0.0;
 		}
 		pointArray[0] = CGPointMake(lastX, y);
 		int pointsInPath = 1;		/// current number of points being added
@@ -174,9 +178,9 @@ static NSColor *backgroundColor;
 				}
 			}
 			lastX = x;
-			float y = scanFluo * vScale;
-			if (y < 1) {
-				y = 0;
+			CGFloat y = scanFluo * vScale;
+			if (y < 1.0) {
+				y = 0.0;
 			}
 			
 			CGPoint point = CGPointMake(x, y);
@@ -223,8 +227,8 @@ static NSColor *backgroundColor;
 	CGFloat minScale = superviewWidth / totScans;
 	if(hScale < minScale) {
 		hScale = minScale;
-	} else if(hScale > 2) {
-		hScale = 2;
+	} else if(hScale > 2.0) {
+		hScale = 2.0;
 	}
 	
 	if(hScale != _hScale) {
@@ -260,9 +264,7 @@ static NSColor *backgroundColor;
 	for(NSData *traceData in traces) {
 		const int16_t *fluo = traceData.bytes;
 		long nScans = traceData.length / sizeof(int16_t);
-		if(nScans > totScans) {
-			totScans = nScans;
-		}
+		totScans = MAX(nScans, totScans);
 		for (int scan = 0; scan < nScans; scan++) {
 			if(fluo[scan] > maxFluo) {
 				maxFluo = fluo[scan];
@@ -294,7 +296,7 @@ static NSColor *backgroundColor;
 	if (altKeyDown && vertical) {
 		/// if scrolling is mostly vertical and the alt key is pressed, we zoom the trace
 		NSPoint mouseLocation = [self convertPoint:theEvent.locationInWindow fromView:nil];
-		CGFloat zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
+		CGFloat zoomFactor = (40.0 + theEvent.scrollingDeltaY)/40.0;
 		[self zoomTo:mouseLocation.x withFactor:zoomFactor];
 	}
 	else [super scrollWheel:theEvent];
@@ -303,7 +305,7 @@ static NSColor *backgroundColor;
 
 - (void)zoomTo:(CGFloat) zoomPoint withFactor:(CGFloat)zoomFactor {
 	
-	if (zoomFactor <= 0) {
+	if (zoomFactor <= 0.0) {
 		zoomFactor = 0.01;
 	}
 	
@@ -314,13 +316,13 @@ static NSColor *backgroundColor;
 	self.hScale = newScale;
 	
 	CGFloat newVisibleOrigin = ratio * self.frame.size.width - distanceFromLeft;
-	if(newVisibleOrigin < 0) {
-		newVisibleOrigin = 0;
+	if(newVisibleOrigin < 0.0) {
+		newVisibleOrigin = 0.0;
 	}
 	
 	NSClipView *clipView = (NSClipView *)self.superview;
 	if (clipView.bounds.origin.x != newVisibleOrigin) {
-		[clipView scrollToPoint:NSMakePoint(newVisibleOrigin, 0)];
+		[clipView scrollToPoint:NSMakePoint(newVisibleOrigin, 0.0)];
 		[self.enclosingScrollView reflectScrolledClipView:clipView];
 	}
 	hasBeenZoomed = YES;

@@ -141,10 +141,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// The fragment labels that the view shows.
 ///
 /// These labels represent the ``FluoTrace/fragments`` of the view's ``trace``.
-/// The view only shows fragment labels it it shows a single trace.
+/// The view shows fragment labels only if it shows a single trace or if it has loaded a genotype.
 @property (nonatomic, readonly, nullable) NSArray<FragmentLabel *> *fragmentLabels;
 
-/// The labels representing peaks when hovered (vertical line and tooltips) or clicked, if the view shows a single trace.
+/// The labels representing peaks when hovered (vertical line and tooltips) or clicked, if the view shows a single trace or it is has loaded a genotype.
 @property (nonatomic, readonly, nullable) NSArray<PeakLabel *> *peakLabels;
 
 /******** colors that adapt to the view appearance and which are use by view labels ******/
@@ -187,11 +187,17 @@ NS_ASSUME_NONNULL_BEGIN
 /// The color denoting the allowed range of a marker being resized/moved when moving bins or adjusting the marker offset.
 @property (readonly, nonatomic) CGColorRef traceViewMarkerLabelAllowedRangeColor;
 
+
+/// The color denoting the allowed range of a marker being resized/moved when moving bins or adjusting the marker offset.
+@property (readonly, nonatomic) CGColorRef traceViewMarkerLabelInnerLayerColor;
+
 																		 
 /// Tells the view whether its ``fragmentLabels`` must be repositioned.
 ///
 /// This method accounts for the fact that the position of a ``FragmentLabel`` depends on the vertical scale and peak height, as opposed to other labels.
 /// Hence, only these labels may need to be repositioned in certain conditions.
+///
+/// The view set this property on itself as appropriate.
 @property (nonatomic) BOOL needsRepositionFragmentLabels;
 
 
@@ -215,7 +221,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// The default value is `YES`.
 @property (nonatomic) BOOL showOffscaleRegions;
 
-/// Whether the views shows tooltips indicating information about the ``trace``'s ``FluoTrace/peaks``.
+/// Whether the views shows tooltips listing information about the ``trace``'s ``FluoTrace/peaks``.
 ///
 /// The default value is `NO`.
 @property (nonatomic) BOOL showPeakTooltips;
@@ -294,8 +300,6 @@ ShowPeakTooltipsBinding;
 /// This property determines the ``visibleOrigin`` and reflects the ``VScaleView/width`` of the ``vScaleView``.
 @property (nonatomic) CGFloat leftInset;
 
-- (void)getRangeAndScale;
-
 /// The x origin of the visible rectangle of the view.
 ///
 /// The visible rectangle excludes the region that is masked by the ``vScaleView``,
@@ -337,10 +341,11 @@ ShowPeakTooltipsBinding;
 /// - Parameters:
 ///   - rect: The rectangle that should be visible.
 ///   - animate: Whether the scroll should be animated.
-- (BOOL)scrollRectToVisible:(NSRect)rect animate:(BOOL)animate;
+///   - zoomOut: Whether the view should zoom out so that the whole rectangle width is visible.
+- (BOOL)scrollRectToVisible:(NSRect)rect animate:(BOOL)animate zoomOut:(BOOL)zoomOut;
 
 
-/// Performs `-scrollPoint:point` with optional animation and returns if any scrolling was made.
+/// Performs `-scrollPoint:point` with optional animation .
 /// - Parameters:
 ///   - point: The pont that should become the visible origin of the view.
 ///   - animate: Whether the scroll should be animated.
@@ -358,7 +363,7 @@ ShowPeakTooltipsBinding;
 									
 /// Zooms the view from a start and end positions defined in base pairs, with animation.
 ///
-/// If `end` is lower than `start`, the parameters are swapped.
+/// - Note: If `end` is lower than `start`, the parameters are swapped.
 /// - Parameters:
 ///   - start: The position in base pairs that will correspond to the ``visibleOrigin`` of the view.
 ///   - end: The position in base pairs that will correspond to the right edge of the view's visible rectangle.
@@ -366,7 +371,7 @@ ShowPeakTooltipsBinding;
 
 /// Zooms the view to the range of a marker label, with animation
 ///
-/// This method assumes that the label` is among the ``LabelView/markerLabels`` that the view shows.
+/// This method assumes that the `label` is among the ``LabelView/markerLabels`` that the view shows.
 /// - Parameter label: The label whose range should occupy the whole visible width of the view.
 - (void)zoomToMarkerLabel:(RegionLabel *)label;
 

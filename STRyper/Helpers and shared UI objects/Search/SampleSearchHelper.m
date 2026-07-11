@@ -68,7 +68,7 @@
 			return self;
 		}
 		
-		NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:Chromatogram.entity.name];
+		NSFetchRequest *request = Chromatogram.fetchRequest;
 		request.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"nChannels" ascending:YES]];		/// we don't use sorting (the samples array controller does it for us), but a sort descriptor is required
 		fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:request
 																	   managedObjectContext:MOC sectionNameKeyPath:nil cacheName:nil];
@@ -240,7 +240,10 @@
 
 
 - (void)dealloc {
-	[NSNotificationCenter.defaultCenter removeObserver:self];
+	@try {
+		[NSNotificationCenter.defaultCenter removeObserver:self];
+	} @catch (NSException *exception) {
+	}
 }
 
 @end

@@ -79,13 +79,13 @@
 }
 
 
-- (NSSet <CALayer *>*)allSublayers {
+- (NSArray <CALayer *>*)allSublayers {
 	if(!self.sublayers) {
-		return NSSet.new;
+		return NSArray.new;
 	}
-	NSMutableSet *sublayers = [NSMutableSet setWithArray:self.sublayers];
+	NSMutableArray *sublayers = self.sublayers.mutableCopy;
 	for(CALayer *sublayer in self.sublayers) {
-		[sublayers unionSet:sublayer.allSublayers];
+		[sublayers addObjectsFromArray: sublayer.allSublayers];
 	}
 	return sublayers.copy;
 }
@@ -121,7 +121,11 @@
 	if(NSContainsRect(clipRect, frame)) {
 		clip = NO;
 	}
-	
+
+	/// We apply an empirical correction to reproduce core animation drawing,
+	/// which draws the text slightly closer to the top edge compared to `drawInRect:` below.
+	/// It would be best to use coreText, but it would be much more complex.
+	frame.origin.y += 1.1;
 	if(clip) {
 		NSGraphicsContext *ctx = NSGraphicsContext.currentContext;
 		

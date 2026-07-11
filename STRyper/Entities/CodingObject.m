@@ -57,6 +57,8 @@
 	
 	if ([delegate respondsToSelector:@selector(childContext)]) {
 		MOC = [delegate childContext];
+	} else if ([delegate respondsToSelector:@selector(managedObjectContext)]) {
+		MOC = [delegate managedObjectContext];
 	}
 	
 	if(!MOC) {
@@ -129,6 +131,61 @@
 	return result;
 }
 
+# pragma mark - pasteboard support and copy
+
+NSPasteboardType _Nonnull const CodingObjectIDPasteboardType = @"org.jpeccoud.stryper.codingObjectIDPasteboardType",
+CodingObjectArchivePasteboardType = @"org.jpeccoud.stryper.codingObjectArchivePasteboardType";
+
+/// We don't implement the NSPasteboardReading protocol, because we wouldn't know which managed object context to use to init an instance from the paste board
+
+- (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
+	return @[CodingObjectIDPasteboardType]; /// By default, we don't include `CodingObjectArchivePasteboardType` as encoding an an object can be quite involved.
+}
+
+
+- (NSPasteboardWritingOptions)writingOptionsForType:(NSPasteboardType)type pasteboard:(NSPasteboard *)pasteboard {
+	return 0;
+}
+
+
+- (id)pasteboardPropertyListForType:(NSPasteboardType)type {
+	if(self.isDeleted) {
+		return nil;
+	}
+	if([type isEqualToString:CodingObjectIDPasteboardType]) {
+		/// since we write the object id, we ensure that it is not temporary.
+		NSManagedObjectID *objectID = self.objectID;
+		if(objectID.isTemporaryID) {
+			if(![self.managedObjectContext obtainPermanentIDsForObjects:@[self] error:nil]) {
+				NSLog(@"Error obtaining permanent ID for object '%@': copy not made.", self.description);
+				return nil;
+			}
+		}
+		return objectID.URIRepresentation.absoluteString;
+	}
+	
+	if([type isEqualToString:CodingObjectArchivePasteboardType]) {
+		NSError *error;
+		NSData *archive = [NSKeyedArchiver archivedDataWithRootObject:self requiringSecureCoding:NO error:&error];
+		
+		if(error) {
+			NSLog(@"error: %@", error);
+		} else {
+			return archive;
+		}
+	}
+	
+	if([type isEqualToString:NSPasteboardTypeString]) {
+		return self.stringRepresentation;
+	}
+	
+	return nil;
+}
+
+
+- (NSString *)stringRepresentation {
+	return nil;
+}
 
 
 - (nullable id)copy {

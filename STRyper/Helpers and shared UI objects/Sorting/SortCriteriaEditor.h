@@ -58,24 +58,27 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// The table view that contains the rows representing sort descriptors.
 ///
-/// The table content, its `delegate` and its `datasource` must not be changed as they are set internally.
+/// - Important: The table content, its `delegate` and its `datasource` must not be changed as they are set internally.
 /// Only visuals attributes may be changed.
 @property (nonatomic, readonly) NSTableView *sortCriteriaTable;
 
 
 /// Convenience method that sets the full dragged rows of a table view as images of dragging items.
-///
+/// 
 /// This method should be called within `tableView:draggingSession:willBeginAtPoint:forRowIndexes:`.
-/// It sets the image of the session's dragged items as the rows being dragged, with proper positioning.
+/// It sets the image of the session's dragged items as the rows being dragged, with proper positioning, for the rows with visible table row views.
 /// - Parameters:
 ///   - session: The dragging session.
 ///   - tableView: The table view whose rows will be dragged.
 ///   - rowIndexes: The indexes of dragged rows.
 ///   - screenPoint: The drag point in screen coordinates
+///   - alignWithTop: whether the drag image should be aligned with the top of the initially dragged rows.
+///   This only matters for drag images that are taller than the rows.
 + (void)setRowImagesForDraggingSession:(NSDraggingSession *)session
 						 fromTableView:(NSTableView *)tableView
 						  atRowIndexes:(NSIndexSet *)rowIndexes
-							  forPoint:(NSPoint)screenPoint;
+							  forPoint:(NSPoint)screenPoint
+						  alignWithTop:(BOOL)alignWithTop;
 
 @end
 

@@ -23,14 +23,14 @@
                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                 <subviews>
                     <outlineView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" tableStyle="plain" selectionHighlightStyle="none" columnReordering="NO" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" typeSelect="NO" autosaveName="" viewBased="YES" floatsGroupRows="NO" indentationPerLevel="16" autosaveExpandedItems="YES" indentationMarkerFollowsCell="NO" outlineTableColumn="BmY-Na-dVQ" id="Sgz-4Y-9vU" userLabel="sample inspector" customClass="InfoOutlineView">
-                        <rect key="frame" x="0.0" y="0.0" width="467" height="845"/>
+                        <rect key="frame" x="0.0" y="0.0" width="468" height="845"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <size key="intercellSpacing" width="3" height="2"/>
                         <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                         <tableViewGridLines key="gridStyleMask" horizontal="YES"/>
                         <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                         <tableColumns>
-                            <tableColumn identifier="AutomaticTableColumnIdentifier.0" width="464" minWidth="40" maxWidth="1000" id="BmY-Na-dVQ">
+                            <tableColumn identifier="AutomaticTableColumnIdentifier.0" width="464.5" minWidth="40" maxWidth="1000" id="BmY-Na-dVQ">
                                 <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border">
                                     <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
                                     <color key="backgroundColor" name="headerColor" catalog="System" colorSpace="catalog"/>
@@ -61,7 +61,7 @@
                                         </connections>
                                     </tableCellView>
                                     <customView identifier="Sample information" translatesAutoresizingMaskIntoConstraints="NO" id="Tky-Bz-Qcs" userLabel="Sample info" customClass="InfoTableRowView">
-                                        <rect key="frame" x="1" y="27" width="464" height="124"/>
+                                        <rect key="frame" x="1" y="27" width="465" height="124"/>
                                         <subviews>
                                             <textField focusRingType="none" horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="rxj-R4-5gt">
                                                 <rect key="frame" x="53" y="105" width="38" height="14"/>
@@ -72,7 +72,7 @@
                                                 </textFieldCell>
                                             </textField>
                                             <textField identifier="sampleName" focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="1" translatesAutoresizingMaskIntoConstraints="NO" id="sxA-ih-G2y">
-                                                <rect key="frame" x="91" y="103" width="368" height="19"/>
+                                                <rect key="frame" x="91" y="103" width="369" height="19"/>
                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingMiddle" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" title="sample name" id="h48-jF-CPx">
                                                     <font key="font" metaFont="smallSystem"/>
                                                     <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
@@ -88,7 +88,7 @@
                                                 </textFieldCell>
                                             </textField>
                                             <textField identifier="comment" focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="1" translatesAutoresizingMaskIntoConstraints="NO" id="zIB-TG-jjZ">
-                                                <rect key="frame" x="91" y="81" width="368" height="19"/>
+                                                <rect key="frame" x="91" y="81" width="369" height="19"/>
                                                 <textFieldCell key="cell" controlSize="small" lineBreakMode="truncatingMiddle" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" id="vsd-lt-zdJ">
                                                     <font key="font" metaFont="smallSystem"/>
                                                     <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
@@ -281,7 +281,7 @@
                                         </constraints>
                                     </customView>
                                     <customView identifier="Run information" translatesAutoresizingMaskIntoConstraints="NO" id="8FF-13-elx" userLabel="Run Info" customClass="InfoTableRowView">
-                                        <rect key="frame" x="1" y="153" width="464" height="114"/>
+                                        <rect key="frame" x="1" y="153" width="465" height="114"/>
                                         <subviews>
                                             <textField focusRingType="none" horizontalHuggingPriority="750" verticalHuggingPriority="750" horizontalCompressionResistancePriority="752" translatesAutoresizingMaskIntoConstraints="NO" id="0Eb-H9-ala">
                                                 <rect key="frame" x="34" y="95" width="54" height="14"/>
@@ -443,11 +443,11 @@
                                         </constraints>
                                     </customView>
                                     <customView identifier="Sizing" id="XH8-mz-4tB" userLabel="Sizing" customClass="InfoTableRowView">
-                                        <rect key="frame" x="1" y="269" width="464" height="500"/>
+                                        <rect key="frame" x="1" y="269" width="465" height="500"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                         <subviews>
                                             <customView translatesAutoresizingMaskIntoConstraints="NO" id="38N-5C-afy" userLabel="Fitting View" customClass="FittingView">
-                                                <rect key="frame" x="0.0" y="0.0" width="464" height="500"/>
+                                                <rect key="frame" x="0.0" y="0.0" width="465" height="500"/>
                                             </customView>
                                             <textField toolTip="Size standard name as encoded in the source file" focusRingType="none" horizontalHuggingPriority="755" verticalHuggingPriority="750" horizontalCompressionResistancePriority="755" verticalCompressionResistancePriority="751" translatesAutoresizingMaskIntoConstraints="NO" id="83v-Nc-X0W">
                                                 <rect key="frame" x="19" y="481" width="111" height="14"/>
@@ -594,7 +594,7 @@
                 </subviews>
                 <nil key="backgroundColor"/>
             </clipView>
-            <scroller key="horizontalScroller" hidden="YES" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="cxL-wr-LWH">
+            <scroller key="horizontalScroller" wantsLayer="YES" verticalHuggingPriority="750" horizontal="YES" id="cxL-wr-LWH">
                 <rect key="frame" x="0.0" y="829" width="467" height="16"/>
                 <autoresizingMask key="autoresizingMask"/>
             </scroller>

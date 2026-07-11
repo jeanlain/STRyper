@@ -38,6 +38,7 @@
 @property (nonatomic) NSArray *genotypeContent;
 
 @property (nonatomic) NSDictionary<NSString *, NSString *> *actionNamesForColumnIDs;
+@property (nonatomic) Folder *selectedFolder;
 
 @end
 
@@ -50,17 +51,9 @@
 	NSArray<NSImage *> *statusImages;		/// The images that represent the different genotype statuses.
 	NSMutableDictionary *filterDictionary;	/// To save filters to the user defaults, for each folder that has a filter
 	__weak SampleFolder *currentFolder; 	/// To update filters and selected rows, which are associated to sample folders
-}
+	NSSet * allele2ColumnIDs;
+	NSSet * alleleSizeColumnIDs;
 
-
-+ (instancetype)sharedController {
-	static GenotypeTableController *controller = nil;
-	static dispatch_once_t once;
-	
-	dispatch_once(&once, ^{
-		controller = self.new;
-	});
-	return controller;
 }
 
 
@@ -86,13 +79,22 @@
 					 [NSImage imageNamed:ACImageNameEditedRound],
 					 [NSImage imageNamed:ACImageNameStopSign]];
 	
-	if(SampleTableController.sharedController.samples) {
+	SampleTableController *sampleTableController = SampleTableController.sharedController;
+	
+	if(sampleTableController.samples) {
 		
 		[self bind:ContentArrayBinding
-		  toObject:SampleTableController.sharedController.samples
+		  toObject:sampleTableController.samples
 	   withKeyPath:@"arrangedObjects.@unionOfSets.genotypes" options:nil];
 		
+		[self bind:@"selectedFolder"
+		  toObject:sampleTableController
+	   withKeyPath:@"selectedFolder" options:nil];
 	}
+	
+	allele2ColumnIDs = [NSSet setWithObjects: @"genotypeAllele2Column", @"genotypeSize2Column", @"genotypeHeight2Column", nil];
+	alleleSizeColumnIDs = [NSSet setWithObjects: @"genotypeSize1Column", @"genotypeSize2Column", nil];
+
 }
 
 
@@ -102,7 +104,7 @@
 
 
 - (NSArrayController *)genotypes {
-	return self.tableContent;
+	return _arrayController;
 }
 
 
@@ -127,8 +129,8 @@
 	return columnDescription;
 }
 
-
 - (NSArray<NSString *> *)orderedColumnIDs {
+
 	return @[@"genotypeStatusColumn", @"genotypeSampleColumn", @"genotypePanelColumn",@"genotypeMarkerColumn",
 			 @"genotypeSize1Column",@"genotypeSize2Column", @"genotypeAllele1Column", @"genotypeAllele2Column", @"genotypeHeight1Column", @"genotypeHeight2Column", @"genotypeOffsetColumn", @"additionalFragmentsColumn", @"genotypeNotesColumn"];
 }
@@ -173,7 +175,7 @@
 }
 
 
-- (NSTableView *)viewForCellPrototypes {
+- (NSTableView *)viewForCellPrototypeForColumn:(NSTableColumn *)column row:(NSInteger)row {
 	return SampleTableController.sharedController.tableView;
 }
 
@@ -190,10 +192,10 @@
 
 - (NSView *)tableView:(NSTableView *)tableView viewForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
 	NSString *ID = tableColumn.identifier;
-	
-	if([@[@"genotypeAllele2Column", @"genotypeSize2Column", @"genotypeHeight2Column"] containsObject:ID]) {
-		/// if the genotype is haploid, the columns for allele 2 should have no cell
-		NSArray *genotypes = self.genotypes.arrangedObjects;
+		
+	if([allele2ColumnIDs containsObject:ID]) {
+		/// if the genotype is haploid, the columns for allele 2 should have no cell (bindings to nil causes exceptions)
+		NSArray *genotypes = self.arrangedObjects;
 		if(genotypes.count > row) {
 			Genotype *gen = genotypes[row];
 			if(gen.assignedAlleles.count < 2) {
@@ -201,6 +203,19 @@
 			}
 		}
 	}
+	
+	/*if([alleleSizeColumnIDs containsObject:ID]) { /// currently unused
+		NSTableCellView *view = [self.tableView makeViewWithIdentifier:ID owner:self];
+		if(view) {
+			return view;
+		}
+		view = (NSTableCellView*)[super tableView:self.tableView viewForTableColumn:tableColumn row:row];
+		if([view respondsToSelector:@selector(textField)]) {
+			NSTextField *textField = view.textField;
+			[textField bind:NSTextColorBinding toObject:view withKeyPath:@"objectValue.alleleStringColor" options:nil];
+		}
+		return view;
+	}*/
 	
 	NSTableCellView *view = (NSTableCellView *)[super tableView:tableView viewForTableColumn:tableColumn row:row];
 	
@@ -222,49 +237,52 @@
 	
 }
 
-
-- (void)_loadContent {
-	[super _loadContent];
-	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
-	if(selectedFolder && selectedFolder != currentFolder) {
-		currentFolder = selectedFolder;
-		[self filterGenotypesOfSelectedFolder];
-		[self restoreSelectedItems];
-	}
+- (BOOL)selectAndShowObjects:(NSArray *)objects {
+	BOOL success = [super selectObjects:objects];
+	MainWindowController.sharedController.sourceController = self;
+	return success;
 }
+
+
+- (void)setSelectedFolder:(Folder *)selectedFolder {
+	_selectedFolder = selectedFolder;
+	[self filterGenotypesOfSelectedFolder];
+
+}
+
 
 #pragma mark - user actions on genotypes
 
 
 - (NSArray *)validTargetsOfSender:(id)sender {
 	NSArray *targetGenotypes = [super validTargetsOfSender:sender];
+	SEL action = [sender action];
 	BOOL fromContextMenu = [sender respondsToSelector:@selector(topMenu)] && [sender topMenu] == self.tableView.menu;
-	if([sender action] == @selector(binAlleles:) || [sender action] == @selector(callAlleles:)) {
+	if(action == @selector(binAlleles:) || [sender action] == @selector(callAlleles:)) {
 		if(!fromContextMenu) {
 			/// If the sender is not from the table's contextual menu, its potential targets are all listed genotypes
-			targetGenotypes = self.genotypes.arrangedObjects;
+			targetGenotypes = self.arrangedObjects;
 		}
 		targetGenotypes = [targetGenotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
 			/// We don't bin/call alleles of samples that are not sized, or genotypes that have been edited manually, except when called from the contextual menu
 			GenotypeStatus status = genotype.status;
 			return  status != genotypeStatusNoSizing && (fromContextMenu || status != genotypeStatusManual);
 		}];
-	} else if([sender action] == @selector(removeOffsets:)) {
+	} else if(action == @selector(removeOffsets:)) {
 		targetGenotypes = [targetGenotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx) {
 			/// Only genotypes with an offset are relavant.
 			MarkerOffset offset = genotype.offset;
 			return  offset.intercept != 0.0 || offset.slope != 1.0;
 		}];
-	} else if([sender action] == @selector(removeAdditionalFragments:)) {
+	} else if(action == @selector(removeAdditionalFragments:)) {
 		targetGenotypes = [targetGenotypes filteredArrayUsingBlock:^BOOL(Genotype*  _Nonnull genotype, NSUInteger idx){
 			return  genotype.additionalFragments.count > 0;
 		}];
-	} else if([sender action] == @selector(exportSelection:) && !fromContextMenu) {
+	} else if(action == @selector(exportSelection:) && !fromContextMenu) {
 		/// All genotypes can be exported.
-		targetGenotypes = self.genotypes.arrangedObjects;
+		targetGenotypes = self.arrangedObjects;
 	}
-	
-	return targetGenotypes.count > 0 ? targetGenotypes : nil;
+	return targetGenotypes;
 }
 
 
@@ -304,17 +322,6 @@
 - (void)remove:(id)sender {
 	/// The UI doesn't allow removing genotypes. They can only be removed by removing a marker applied to samples
 	/// but as a safety measure, we make sure we cannot remove genotypes
-}
-
-- (BOOL)tableView:(NSTableView *)tableView shouldSelectRow:(NSInteger)row {
-	/// when the user clicks one of the selected rows and the table is not active, this should not deselect other rows.
-	/// We implement this behavior as we expect users to frequently switch between sample table and genotype table
-	if(MainWindowController.sharedController.sourceController == self) {
-		return YES;
-	}
-	NSIndexSet *selectedRows = tableView.selectedRowIndexes;
-	NSIndexSet *selectedItems = self.genotypes.selectionIndexes;
-	return ![selectedItems containsIndexes:selectedRows] || ![selectedItems containsIndex:row];
 }
 
 
@@ -406,21 +413,15 @@ static NSInteger genotypeIndex = 0;
 
 
 - (IBAction)selectSamples:(id)sender {
-	MainWindowController *mainWindowController = MainWindowController.sharedController;
-	mainWindowController.sourceController = SampleTableController.sharedController;		/// we activate the sample tableview
-	[SampleTableController.sharedController.samples setSelectedObjects:[[self validTargetsOfSender:sender] valueForKeyPath:@"@unionOfObjects.sample"]];
-	NSTableView *sampleTable = SampleTableController.sharedController.tableView;
-	if(sampleTable) {
-		NSInteger row = sampleTable.selectedRow;
-		if(row >= 0) {
-			[sampleTable scrollRowToVisible:row];
-		}
-	}
+	NSArray *samples = [[self validTargetsOfSender:sender] valueForKeyPath:@"@unionOfObjects.sample"];
+	
+	SampleTableController *sampleTableController = SampleTableController.sharedController;
+	[sampleTableController selectAndShowObjects:samples];
 }
 
 
 - (void)removeOffsets:(id)sender {
-	[self.undoManager setActionName:@"Reset Genotype Offset(s)"];
+	[self.undoManager setActionName:@"Remove Genotype Offset(s)"];
 	NSArray *genotypes = [self validTargetsOfSender:sender];
 	for(Genotype *genotype in genotypes) {
 		genotype.offsetData = nil;
@@ -457,7 +458,7 @@ static NSInteger genotypeIndex = 0;
 
 - (IBAction)exportSelection:(id)sender {
 	NSArray *targetGenotypes = [self validTargetsOfSender:sender];
-	NSArray *selectedGenotypes = self.genotypes.selectedObjects;
+	NSArray *selectedGenotypes = self.selectedObjects;
 
 	if(targetGenotypes.count == 0) {
 		/// Which should not happen
@@ -488,7 +489,7 @@ static NSInteger genotypeIndex = 0;
 		exportSelectionOnly = exportSelectionRadioButton.state;
 	}
 	
-	panel.nameFieldStringValue = [FolderListController.sharedController.selectedFolder.name stringByAppendingString: @" genotypes.txt"];
+	panel.nameFieldStringValue = [self.selectedFolder.name stringByAppendingString: @" genotypes.txt"];
 	panel.allowedFileTypes = @[@"public.plain-text"];
 	
 	[panel beginSheetModalForWindow:self.view.window completionHandler:^(NSInteger result){
@@ -721,27 +722,35 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 
 
 - (void)applyFilterPredicate:(NSPredicate *)filterPredicate {
-	if(self.genotypes.filterPredicate != filterPredicate) {
-		[self recordFilterPredicate:filterPredicate];
-	}
-	[super applyFilterPredicate:filterPredicate];
+	CDUndoManager *undoManager = (CDUndoManager*)self.undoManager;
+	NSString *actionName = filterPredicate == nil ? @"Remove Filter on Genotypes" : @"Apply Filter on Genotypes";
+	[undoManager forceActionName:actionName];
+	
+	[self setAndRecordFilterPredicate:filterPredicate forFolder:FolderListController.sharedController.selectedFolder];
 }
 
 
 /// Associates the filter predicate to the selected folder in the user defaults
--(void)recordFilterPredicate:(NSPredicate *)filterPredicate {
-	Folder *selectedFolder = FolderListController.sharedController.selectedFolder;
-	if(!selectedFolder) {
+-(void)setAndRecordFilterPredicate:(NSPredicate *)filterPredicate forFolder:(Folder *)folder {
+	if(!folder) {
 		return;
 	}
 	
-	if(selectedFolder.objectID.isTemporaryID) {
-		if(![selectedFolder.managedObjectContext obtainPermanentIDsForObjects:@[selectedFolder] error:nil]) {
+	if(folder == FolderListController.sharedController.selectedFolder) {
+		if(self.genotypes.filterPredicate == filterPredicate) {
+			[self.genotypes rearrangeObjects];
+		} else {
+			self.genotypes.filterPredicate = filterPredicate;
+		}
+	}
+	
+	if(folder.objectID.isTemporaryID) {
+		if(![folder.managedObjectContext obtainPermanentIDsForObjects:@[folder] error:nil]) {
 			return;
 		}
 	}
 	
-	NSString *key = selectedFolder.objectID.URIRepresentation.absoluteString;
+	NSString *key = folder.objectID.URIRepresentation.absoluteString;
 	
 	if(!filterDictionary) {
 		filterDictionary = [NSUserDefaults.standardUserDefaults dictionaryForKey:GenotypeFiltersKey].mutableCopy;
@@ -758,6 +767,17 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 
 	}
 	
+	NSPredicate *previousPredicate = nil;
+	NSData *predicateData = filterDictionary[key];
+	if([predicateData isKindOfClass:NSData.class]) {
+		previousPredicate = [NSKeyedUnarchiver unarchivedObjectOfClass:NSPredicate.class fromData:predicateData error:nil];
+		[previousPredicate allowEvaluation];
+	}
+	
+	[self.undoManager registerUndoWithTarget:self handler:^(id  _Nonnull target) {
+		[self setAndRecordFilterPredicate:previousPredicate forFolder:folder];
+	}];
+	
 	if(filterPredicateData) {
 		filterDictionary[key] = filterPredicateData;
 	} else {
@@ -766,6 +786,7 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 	
 	[NSUserDefaults.standardUserDefaults setObject:filterDictionary forKey:GenotypeFiltersKey];
 }
+
 
 /// Applies the filter associated to the selected folder to the table, retrieving it from the user defaults
 -(void) filterGenotypesOfSelectedFolder {
@@ -822,37 +843,6 @@ UserDefaultKey GenotypeFiltersKey = @"genotypeFiltersKey";
 				}
 			}
 		}
-	}
-}
-
-
-#pragma mark - recording and restoring selection
-
-- (NSString *)userDefaultKeyForSelectedItemIDs {
-	return @"selectedGenotypes";
-}
-
-
--(void)recordSelectedItems {
-	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
-	if(!selectedFolder) {
-		return;
-	}
-	NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
-	if(folderID) {
-		[self recordSelectedItemsAtKey:folderID maxRecorded:100];
-	}
-}
-
-
--(void)restoreSelectedItems {
-	SampleFolder *selectedFolder = FolderListController.sharedController.selectedFolder;
-	if(!selectedFolder) {
-		return;
-	}
-	NSString *folderID = selectedFolder.objectID.URIRepresentation.absoluteString;
-	if(folderID) {
-		[self restoreSelectedItemsAtKey:folderID];
 	}
 }
 

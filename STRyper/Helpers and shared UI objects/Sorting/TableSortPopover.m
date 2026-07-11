@@ -88,14 +88,14 @@
 	/// The editor itself cannot be resized (possibly due to contraints), so, we resize ourselves, which resizes the editor.
 	NSSize intrinsicContentSize = sortCriteriaEditor.intrinsicContentSize;
 	CGFloat tableHeight = intrinsicContentSize.height;
-	if(tableHeight < 10) {
+	if(tableHeight < 10.0) {
 		return;
 	}
 	
 	/// we determine our new content height based on the difference in height of the editor and its intrinsic height
 	/// We don't query our -contentSize property as it is 0 when we are not yet shown
 	NSSize contentSize = sortCriteriaEditor.superview.bounds.size;
-	contentSize.height += tableHeight - sortCriteriaEditor.bounds.size.height +1;
+	contentSize.height += tableHeight - sortCriteriaEditor.bounds.size.height +1.0;
 	contentSize.width = intrinsicContentSize.width;
 	
 	if(animate) {

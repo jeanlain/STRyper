@@ -59,11 +59,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// shown by these views.
 /// This method can be used to reveal the item in the source list.
 /// - Parameters:
-///   - traceView:The trace view that sent the message
-///   - item: The item to reveal.
+///   - itemToReveal: The item to reveal.
+///   - traceView:The trace view that hosts the item.
 ///   - isolate: Wether the item should be the only item shown. If `NO`, the item will be revealed without changing
 ///   the items that are shown.
-- (void)traceView:(nullable TraceView*) traceView revealSourceItem:(id)item isolate:(BOOL)isolate;
+-(void) revealSourceItem:(id)itemToReveal fromTraceView:(nullable TraceView *)traceView isolate:(BOOL)isolate;
 
 
 /// Returns a menu that allows applying a size standard to samples show on a `TraceView`.

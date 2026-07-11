@@ -57,6 +57,7 @@
 	CALayer *anchorSymbolLayer;		/// A symbol that conveys the notion that the anchor won't move during resizing.
 	Genotype *observedGenotype; 	/// The genotype we observe to react to a change of its offset.
 	BOOL needsUpdateBinLabels;
+	BOOL offsetAffectsAlleles;		/// Whether the offset of the label changes allele position (rather than bin position)
 }
 
 # pragma mark - attributes and appearance
@@ -83,10 +84,10 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (instancetype)init {
 	self = [super init];
 	if (self) {
-		layer.anchorPoint = CGPointMake(0, 0);
+		layer.anchorPoint = CGPointZero;
 		
 		/// Our layer represents the range of our region and is a light pink rectangle with black borders
-		layer.zPosition = -1;  				/// this makes sure we show behind bin labels
+		layer.zPosition = -1.0;  				/// this makes sure we show behind bin labels
 		
 		/// This type is disabled by default
 		_enabled = NO;
@@ -98,15 +99,19 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (void)setView:(TraceView *)view {
 	if(self.view) {
 		[self.view removeObserver:self forKeyPath:@"trace"];
+		[self.view removeObserver:self forKeyPath:@"loadedGenotypes"];
 	}
 	super.view = view;
 	if(layer && view) {
-		if(view) {
-			/// We get notified if the view has loaded a new trace, as the offset of our marker depends on the sample shown.
-			[view addObserver:self forKeyPath:@"trace"
-					  options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
-					  context:viewTraceChangedContext];
-		}
+		/// We get notified if the view has loaded a new trace, as the offset of our marker depends on the sample shown.
+		[view addObserver:self forKeyPath:@"trace"
+					options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+					context:viewTraceChangedContext];
+		
+		[view addObserver:self forKeyPath:@"loadedGenotypes"
+					options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+					context:viewTraceChangedContext];
+		
 		layer.borderColor = view.regionLabelEdgeColor;
 		[view.backgroundLayer addSublayer:layer];
 		for(BinLabel *binLabel in self.binLabels) {
@@ -135,10 +140,11 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		needsUpdateBinLabels = YES;
 		self.needsUpdateAppearance = YES;
 	} else if(context == viewTraceChangedContext) {
+		offsetAffectsAlleles = self.view.loadedGenotypes.count > 0;
 		[self observeGenotype];
 	} else if(context == genotypeOffsetChangedContext) {
-		if(self.editState != editStateBinSet) {
-			self.offset = observedGenotype.offset;
+		if(self.editState != editStateBinSet && !(self.editState == editStateBins && offsetAffectsAlleles)) {
+			[self applyGenotypeOffset];
 		}
 	} else {
 		[super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
@@ -146,15 +152,28 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 }
 
 
+-(void)applyGenotypeOffset {
+	MarkerOffset offset = observedGenotype.offset;
+	if(offsetAffectsAlleles) {
+		offset.intercept = -offset.intercept/offset.slope;
+		offset.slope = 1/offset.slope;
+	}
+	self.offset = offset;
+}
+
 - (void)observeGenotype {
+	Genotype *genotype;
 	Chromatogram *sample = self.view.trace.chromatogram;
-	Genotype *genotype = [sample genotypeForMarker:self.region]; /// nil if there is no sample shown
+	if(sample) {
+		genotype = [sample genotypeForMarker:self.region]; /// nil if there is no sample shown
+	} else {
+		genotype = self.view.loadedGenotypes.firstObject;
+	}
+	if(self.editState >= editStateOffset) {
+		/// we exit the editing.
+		self.editState = editStateNil;
+	}
 	if(genotype != observedGenotype) {
-		if(self.editState == editStateOffset) {
-			/// if the genotype that the view showed has changed and its offset was being edited
-			/// we exit the editing.
-			self.editState = editStateNil;
-		}
 		if(observedGenotype) {
 			[observedGenotype removeObserver:self forKeyPath:@"offsetData"];
 		}
@@ -197,10 +216,9 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		[self updateBinLabels];
 	}
 	
-	layer.backgroundColor = NULL;
-	/// The label has no background color when no enabled.
+	/// The label has no background color when not enabled.
 	layer.backgroundColor = self.enabled? self.view.traceViewMarkerLabelBackgroundColor : nil;
-	if(!self.highlighted) {
+	if(!self.highlighted || !self.enabled) {
 		_anchorLayer.hidden = YES;
 	}
 	[super updateAppearance];
@@ -210,10 +228,6 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (void)setEnabled:(BOOL) state {
 	if(self.enabled != state) {
 		super.enabled = state;
-		if(!state) {
-			/// when disabled, we exit the edit state of our marker (which will affect all labels showing this marker)
-			self.region.editState = editStateNil;
-		}
 		anchorPos = -1;
 	}
 }
@@ -222,15 +236,28 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (void)setHidden:(BOOL)hidden {
 	if(self.hidden != hidden) {
 		super.hidden = hidden;
-		if(hidden && _anchorLayer) {
-			/// As the anchorLayer is not a sublayer of our layer (otherwise it would show behind traces), it must be hidden separately
-			_anchorLayer.hidden = YES;
+		for (BinLabel *binLabel in self.binLabels) {
+			/// We update the appearance of bin labels as their band layers are not sublayers of the label's layer.
+			binLabel.needsUpdateAppearance = YES;
+		}
+		if(!hidden) {
+			self.view.allowsAnimations = NO;
+			/// As bins label become visible, they need repositioning (without animation)
+			[self.view labelNeedsRepositioning:self];
 		}
 	}
 }
 
 
+- (BOOL)deHighlightAutomatically {
+	/// This type of label is highlighted to move bins or adjust offsets, and all labels representing the marker are highlighted for this operation.
+	/// Therefore, they must not de-highlight automatically.
+	return NO;
+}
+
+
 - (NSMenu *)menu {
+	/// The menu is that which appear when the user right-click within the marker range.
 	NSMenu *menu = NSMenu.new;
 	RegionLabel *targetLabel;
 	for(RegionLabel *label in self.view.markerView.markerLabels) {
@@ -285,14 +312,14 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			TraceView *view = self.view;
 			CGFloat clickedPosition = [view sizeForX:view.clickedPoint.x];
 			CGFloat clickedPositionInMarker = (clickedPosition - offset.intercept)/offset.slope;
-			if(clickedPositionInMarker > self.start +1 && clickedPositionInMarker < self.end -1) {
+			if(clickedPositionInMarker > self.start +1.0 && clickedPositionInMarker < self.end -1.0) {
 				anchorPos = clickedPositionInMarker;
 				anchorPosInView = clickedPosition;
 				self.anchorLayer.hidden = NO;
 				/// Since the anchor layer must be repositioned with the label whenever it shows
 				/// we just reposition the whole label rather than setting `needsUpdateAppearance`.
 			} else {
-				anchorPos = anchorPosInView = -1;
+				anchorPos = anchorPosInView = -1.0;
 			}
 			[self.view labelNeedsRepositioning:self];
 		}
@@ -300,7 +327,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 }
 
 
-- (void)updateForTheme {
+- (void)updateColors {
 	
 	static NSImage *anchorImage;
 	if(!anchorImage) {
@@ -310,12 +337,16 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	TraceView *view = self.view;
 	layer.borderColor = view.regionLabelEdgeColor;
 	layer.backgroundColor = self.enabled? view.traceViewMarkerLabelBackgroundColor : nil;
-	_outerLayer.backgroundColor = view.traceViewMarkerLabelAllowedRangeColor;
-	_innerLayer.borderColor = view.regionLabelEdgeColor;
+	if(_outerLayer) {
+		_outerLayer.backgroundColor = view.traceViewMarkerLabelAllowedRangeColor;
+	}
+	if(_innerLayer) {
+		_innerLayer.backgroundColor = view.traceViewMarkerLabelInnerLayerColor;
+	}
 	anchorSymbolLayer.contents = (__bridge id _Nullable)([anchorImage CGImageForProposedRect:nil context:nil hints:nil]);
 	
 	for(BinLabel *binLabel in self.binLabels) {
-		[binLabel updateForTheme];
+		[binLabel updateColors];
 	}
 }
 
@@ -323,26 +354,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 
 
 -(void)setEditStateFromMenuItem:(NSMenuItem *)sender {
-	NSInteger tag = sender.tag;
-	Mmarker *marker = self.region;
-	if(tag <= editStateBins) {
-		/// We transfer the edit state to our marker, hence to all labels representing it (via KVO)
-		marker.editState = tag;
-	} else {
-		/// Otherwise, the state relates to an offset that is specific to target samples (and not to the marker in general)
-		/// all labels representing the marker should end their edit state (otherwise, the user may get confused about the various states of enabled labels)
-		/// This is a safety measure, as the menu items allowing to enter an edit states are disabled if the marker is already in an edit state
-		marker.editState = editStateNil;
-		self.editState = tag;
-	}
-	if(tag != editStateNil) {
-		/// only one marker per view at a time can be in an edit state
-		for(Mmarker *aMarker in [marker.panel markersForChannel:marker.channel]) {
-			if(aMarker != marker) {
-				aMarker.editState = editStateNil;
-			}
-		}
-	}
+	self.editState = sender.tag;
 }
 
 
@@ -351,9 +363,10 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	if(!_innerLayer) {
 		TraceView *view = self.view;
 		_innerLayer = CALayer.new;
-		_innerLayer.borderWidth = 2.0;
-		_innerLayer.borderColor = view.regionLabelEdgeColor;
-		_innerLayer.zPosition = 2;		/// otherwise, this could be hidden by bins
+		_innerLayer.borderWidth = 1.0;
+		_innerLayer.borderColor = NSColor.grayColor.CGColor;
+		_innerLayer.backgroundColor = self.view.traceViewMarkerLabelInnerLayerColor;
+		_innerLayer.zPosition = -0.5;		/// otherwise, this could be hidden by bins
 		_innerLayer.delegate = self;
 		[view.backgroundLayer addSublayer:_innerLayer];
 	}
@@ -381,24 +394,24 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		_anchorLayer = CALayer.new;
 		_anchorLayer.delegate = self;
 		_anchorLayer.backgroundColor = NSColor.redColor.CGColor;
-		_anchorLayer.anchorPoint = CGPointMake(1, 0);
+		_anchorLayer.anchorPoint = CGPointMake(1.0, 0.0);
 		_anchorLayer.zPosition = 10.0;		/// this layer shows on top
 		_anchorLayer.delegate = self;
 		anchorSymbolLayer = CALayer.new;
 		anchorSymbolLayer.delegate = self;
-		anchorSymbolLayer.bounds = CGRectMake(0, 0, 15.0, 14.0);
+		anchorSymbolLayer.bounds = CGRectMake(0.0, 0.0, 15.0, 14.0);
 		[_anchorLayer addSublayer:anchorSymbolLayer];
 		TraceView *view = self.view;
 		[view.backgroundLayer addSublayer:_anchorLayer];
 		
 		/// Because the anchorSymbolLayer is an image that depends on the app appearance,
-		/// it must be set during updateForTheme to have the correct appearance.
-		view.needsUpdateLabelAppearance = YES;
+		/// it must be set during updateColors to have the correct appearance.
+		view.needsUpdateLabelColors = YES;
 	}
 	return _anchorLayer;
 }
 
-
+/// Overridden as the label does not get highlighted by a click. 
 - (void)mouseDownInView {
 	if(self.enabled) {
 		if(!NSPointInRect(self.view.clickedPoint, self.frame)) {
@@ -422,7 +435,6 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	/// We don't get highlighted by clicks
 	if(self.enabled) {
 		self.clicked = NO;
-		self.dragged = NO;
 	}
 }
 
@@ -433,18 +445,44 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		return;
 	}
 	
-	if(editState == editStateBinSet) {
+	if(editState == editStateBinSet || (editState == editStateBins && offsetAffectsAlleles)) {
 		/// if we enter this edit state, we make as if the marker had no offset (otherwise, moving bins would not be intuitive).
 		self.offset = MarkerOffsetNone;
 	}
 	
-	if(self.editState == editStateBinSet) {
+	if(self.editState == editStateBinSet || (self.editState == editStateBins && offsetAffectsAlleles)) {
 		/// if we exit the "binset" edit stage, we get back the offset of the genotype at our marker
-		if(observedGenotype) {
-			self.offset = observedGenotype.offset;
-		}
+		[self applyGenotypeOffset];
 	}
 	
+	if(editState == editStateOffset && self.view.loadedGenotypes.count > 0) {
+		NSInteger offsetCount = 0;
+		MarkerOffset refOffset = MarkerOffsetNone;
+		for(Genotype *genotype in self.view.loadedGenotypes) {
+			MarkerOffset offset = genotype.offset;
+			if((offset.intercept != refOffset.intercept || offset.slope != refOffset.slope) && (offset.intercept != 0.0f && offset.slope != 1.0f)) {
+				refOffset = offset;
+				offsetCount++;
+				if(offsetCount > 1) {
+					break;
+				}
+			}
+		}
+		
+		if(offsetCount > 1) {
+			NSAlert *alert = NSAlert.new;
+			alert.messageText = @"The selected genotypes have different offsets for the marker.";
+			alert.informativeText = @"If you proceed, these genotypes will get the same offset.";
+			[alert addButtonWithTitle:@"Adjust Offset"];
+			[alert addButtonWithTitle:@"Cancel"];
+			NSModalResponse response = [alert runModal];
+			if(response != NSAlertFirstButtonReturn) {
+				self.region.editState = editStateNil;
+				return;
+			}
+		}
+		[self observeGenotype];
+	}
 	super.editState = editState;
 	
 	BOOL binEnabledState = NO;
@@ -490,8 +528,8 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			float lastBinPos = (lastBin.start + lastBin.end)/2;
 			float firstBinWidth = (firstBin.end - firstBin.start);
 			float lastBinWidth = (lastBin.end - lastBin.start);
-			float firstBinAllowedPos = marker.start + 0.1 + firstBinWidth * 0.5;	/// we leave a 0.1 bp margin to make sure the bins won't go out of range
-			float lastBinAllowedPos = marker.end - 0.1 - lastBinWidth * 0.5;
+			float firstBinAllowedPos = marker.start + 0.1f + firstBinWidth * 0.5f;	/// we leave a 0.1 bp margin to make sure the bins won't go out of range
+			float lastBinAllowedPos = marker.end - 0.1f - lastBinWidth * 0.5f;
 			
 			/// We specify outer limits to prevent bins from being pushed out of the marker range when the label is expanded.
 			if(anchorPos > firstBinPos) {
@@ -533,17 +571,21 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		
 		} else {
 			/// Here the user is about to modify the marker offset.
-			/// we determine allowed limits for the edge so that the slope remains between 0.9 and 1.1
-			outerLeftLimit = anchorViewPos - 1.1*(anchorPos - start);
-			innerLeftLimit = anchorViewPos - 0.9*(anchorPos - start);
-			outerRightLimit = anchorViewPos - 1.1*(anchorPos - end);
-			innerRightLimit = anchorViewPos - 0.9*(anchorPos - end);
+			/// we determine allowed limits for the edge so that the slope does not go beyond limit
+			/// When the offset affects allele, the limits are different, but results in the same effect limits for the genotype offset
+			float maxSlope = offsetAffectsAlleles? 1/minOffsetSlope : maxOffsetSlope;
+			float minSlope = offsetAffectsAlleles? 1/maxOffsetSlope : minOffsetSlope;
+			
+			outerLeftLimit = anchorViewPos - maxSlope*(anchorPos - start);
+			innerLeftLimit = anchorViewPos - minSlope*(anchorPos - start);
+			outerRightLimit = anchorViewPos - maxSlope*(anchorPos - end);
+			innerRightLimit = anchorViewPos - minSlope*(anchorPos - end);
 		
 			/// We ensure that the edges of the marker don't go too far out of their position without offset
 			/// This limits the risk of overlap between bin labels from different markers
-			float maxDistance = (end - start)/20;  		/// we allow a distance that is 5% the marker width
-			if(maxDistance < 2.0) {						/// and no less than 2.0 bp, to allow a sufficient offset for "narrow" markers
-				maxDistance = 2.0;
+			float maxDistance = (end - start)/20.0f;  		/// we allow a distance that is 5% the marker width
+			if(maxDistance < 2.0f) {						/// and no less than 2.0 bp, to allow a sufficient offset for "narrow" markers
+				maxDistance = 2.0f;
 			}
 			
 			if(outerLeftLimit < start - maxDistance) {
@@ -554,25 +596,17 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			}
 		}
 		
-		if(anchorPos <= end -1 && anchorPos >= start +1) {		/// if the anchor point is between edges, moving an edge affects the other edge
+		if(anchorPos <= end -1 && anchorPos >= start +1.0) {		/// if the anchor point is between edges, moving an edge affects the other edge
 																/// this may modify the allowed limits
 			CGFloat anchorPositionRatio = (anchorPos - start) / (end - anchorPos);
 			CGFloat estimatedOuterLeftLimit = anchorViewPos - (outerRightLimit - anchorViewPos) * anchorPositionRatio;
 			CGFloat estimatedInnerLeftLimit = anchorViewPos - (innerRightLimit - anchorViewPos) * anchorPositionRatio;
 			CGFloat estimatedOuterRightLimit = anchorViewPos + (anchorViewPos - outerLeftLimit) / anchorPositionRatio;
 			CGFloat estimatedInnerRightLimit = anchorViewPos + (anchorViewPos - innerLeftLimit) / anchorPositionRatio;
-			if(outerLeftLimit < estimatedOuterLeftLimit) {
-				outerLeftLimit = estimatedOuterLeftLimit;
-			}
-			if(innerLeftLimit > estimatedInnerLeftLimit) {
-				innerLeftLimit = estimatedInnerLeftLimit;
-			}
-			if(outerRightLimit > estimatedOuterRightLimit) {
-				outerRightLimit = estimatedOuterRightLimit;
-			}
-			if(innerRightLimit < estimatedInnerRightLimit) {
-				innerRightLimit = estimatedInnerRightLimit;
-			}
+			outerLeftLimit = MAX(outerLeftLimit, estimatedOuterLeftLimit);
+			innerLeftLimit = MIN(estimatedInnerLeftLimit, innerLeftLimit);
+			outerRightLimit = MIN(estimatedOuterRightLimit, outerRightLimit);
+			innerRightLimit = MAX(estimatedInnerRightLimit, innerRightLimit);
 		} else {
 			/// Else the limits of the edge that is not dragged are set to the corresponding marker end.
 			if(edge == leftEdge) {
@@ -601,10 +635,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			outerRightLimit = end + rightMargin;
 			innerRightLimit = end - leftMargin;
 		} else {
-			CGFloat maxDistance = (end - start)/20;
-			if(maxDistance < 2.0) {
-				maxDistance = 2.0;
-			}
+			CGFloat maxDistance = MAX((end - start)/20, 2.0f);
 			outerLeftLimit = start - maxDistance;
 			outerRightLimit = end + maxDistance;
 		}
@@ -624,7 +655,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		/// This is to avoid a drag by a single click.
 		NSPoint clickedPoint = view.clickedPoint;
 		CGFloat dist = fabs(mouseLocation.x - clickedPoint.x);
-		if(dist < 2) {
+		if(dist < 2.0) {
 			return;
 		}
 		self.dragged = YES;
@@ -633,18 +664,16 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	/// This implementation computes the label's offset even if the user is moving the bin set and not modifying a marker offset,
 	/// but we use this offset differently depending on the edit state
 	CGFloat mousePos = [view sizeForX:mouseLocation.x];
-	float slope = self.offset.slope;
-	float intercept = self.offset.intercept;
+	MarkerOffset offset = self.offset;
+	
+	float slope = offset.slope;
+	float intercept = offset.intercept;
 	Region *marker = self.region;
 	float markerStart = marker.start;
 	float markerEnd = marker.end;
 	
 	if(self.clickedEdge == leftEdge || self.clickedEdge == rightEdge) {
-		if(mousePos < leftLimit) {
-			mousePos = leftLimit;
-		} else if(mousePos > rightLimit) {
-			mousePos = rightLimit;
-		}
+		mousePos = MIN(rightLimit, MAX(mousePos, leftLimit));
 		/// we compute the slope corresponding to the mouse position. It is computed such that the offset of the anchor does not change
 		float draggedEdgePos = self.clickedEdge == leftEdge? markerStart : markerEnd;
 		CGFloat anchorViewPos = anchorPos * slope + intercept;
@@ -652,19 +681,15 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		intercept = anchorViewPos - slope * anchorPos;
 		
 	} else {
-		/// the user is moving the label. To reflect the change, only the intercept need to be changed
+		/// the user is moving the label. To reflect the change, only the intercept needs to be changed
 		float minIntercept = leftLimit - markerStart * slope;
 		float maxIntercept = rightLimit - markerEnd * slope;
 		intercept = mousePos - slope * anchorPos;
-		if(intercept < minIntercept){
-			intercept = minIntercept;
-		} else if(intercept > maxIntercept) {
-			intercept = maxIntercept;
-		}
+		intercept = MIN(maxIntercept, MAX(minIntercept, intercept));
 	}
 	
 	anchorPosInView = anchorPos * slope + intercept;
-	MarkerOffset offset = MakeMarkerOffset(intercept, slope);
+	offset = MakeMarkerOffset(intercept, slope);
 	if(self.editState == editStateOffset) {
 		self.offset = offset;
 	} else {
@@ -679,7 +704,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		_dragged = dragged;
 		if(!dragged) {
 			/// We hide inner and outer layers when dragging ends. It's easier to do it now
-			/// than deferring it to `updateAppearance`, as `setDragged` should not be called several times per cycle.
+			/// than deferring it to `updateAppearance`, as `setDragged` is not called several times per cycle.
 			/// This avoids cluttering the `updateAppearance` method, which is called more often.
 			self.outerLayer.hidden = YES;
 			self.innerLayer.hidden = YES;
@@ -693,7 +718,12 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 				[self moveByOffset:MarkerOffsetNone];
 			} else {
 				/// we update the offset of the target genotype(s) at the end of a drag
-				if([self _updateOffset:self.offset]) {
+				MarkerOffset offset = self.offset;
+				if(offsetAffectsAlleles) {
+					offset.intercept = -offset.intercept/offset.slope;
+					offset.slope = 1/offset.slope;
+				}
+				if([self _updateOffset: offset]) {
 					[self updateAnchorPos:anchorPos];
 				}
 			}
@@ -779,6 +809,10 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 
 
 - (void)reposition {
+	if(_hidden) {
+		return;
+	}
+	
 	TraceView *view = self.view;
 	CGFloat hScale = view.hScale;
 	if(hScale <= 0) {
@@ -795,7 +829,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	self.frame = regionRect;
 
 	/// the layer is a bit taller than its host view to  hide the bottom and top edges.
-	NSRect layerFrame = CGRectInset(regionRect, 0, -2);
+	NSRect layerFrame = CGRectInset(regionRect, 0.0, -2.0);
 	layer.bounds = layerFrame;
 	layer.position = layerFrame.origin;
 	
@@ -803,9 +837,9 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		if(anchorPosInView < startSize+1 || anchorPosInView > endSize-1) {
 			_anchorLayer.hidden = YES;
 		}
-		CGRect bounds = CGRectMake(0, 0, 1, layer.bounds.size.height);
+		CGRect bounds = CGRectMake(0.0, 0.0, 1.0, layer.bounds.size.height);
 		_anchorLayer.bounds = bounds;
-		_anchorLayer.position = CGPointMake([view xForSize: anchorPosInView], 0);
+		_anchorLayer.position = CGPointMake([view xForSize: anchorPosInView], 0.0);
 		anchorSymbolLayer.position = CGPointMake(NSMidX(bounds), NSMidY(bounds));
 	}
 	if(_outerLayer && !_outerLayer.hidden) {
@@ -815,7 +849,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 		if(_innerLayer && !_innerLayer.hidden) {
 			startX =  [view xForSize:innerLeftLimit];
 			endX = [view xForSize:innerRightLimit];
-			_innerLayer.frame = NSMakeRect(startX, viewBoundsOrigin - 3, endX-startX, NSMaxY(viewBounds)+6);
+			_innerLayer.frame = NSMakeRect(startX, viewBoundsOrigin - 3.0, endX-startX, NSMaxY(viewBounds)+6);
 		}
 	}
 	
@@ -847,14 +881,8 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	float maxEnd = self.start;
 	
 	for(Bin *bin in [self.region bins]) {
-		float binStart = bin.start;
-		if(binStart < minStart) {
-			minStart = binStart;
-		}
-		float binEnd = bin.end;
-		if(binEnd > maxEnd) {
-			maxEnd = binEnd;
-		}
+		minStart = MIN(minStart, bin.start);
+		maxEnd = MAX(maxEnd, bin.end);
 	}
 	return MakeBaseRange(minStart, maxEnd - minStart);
 }
@@ -864,13 +892,13 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 - (float)maxShrinkRatio {
 	NSArray *sortedBins = [self.region sortedBins];
 	NSInteger sortedBinsCount = sortedBins.count;
-	float maxShrinkRatio = 0;
+	float maxShrinkRatio = 0.0f;
 	for (int i = 0; i < sortedBinsCount -1; i++) {
 		Bin *bin1 = sortedBins[i];
 		Bin *bin2 = sortedBins[i+1];
 		float midBinDist =(bin2.end + bin2.start)/2 - (bin1.end + bin1.start)/2;
 		float edgeDist = bin2.start - bin1.end;
-		float shrinkRatio = (midBinDist - edgeDist + 0.05) / midBinDist;
+		float shrinkRatio = (midBinDist - edgeDist + 0.05f) / midBinDist;
 		maxShrinkRatio = MAX(shrinkRatio, maxShrinkRatio);
 	}
 	return maxShrinkRatio;
@@ -878,6 +906,26 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 
 
 - (nullable __kindof RegionLabel*)labelWithNewBinByDraggingWithError:( NSError * _Nullable *)error {
+	for(BinLabel *binLabel in self.binLabels) {
+		if (binLabel.clicked) {
+			/// The user must click outside a bin.
+			return nil;
+		}
+	}
+	TraceView *view = self.view;
+	/// the rest is similar to the addition of new marker (see equivalent method in MarkerView.m)
+	Mmarker *marker = (Mmarker*)self.region;
+	CGFloat position = [view sizeForX:view.mouseLocation.x];         			/// we convert the mouse position in base pairs
+	CGFloat clickedPosition =  [view sizeForX:view.clickedPoint.x];      		/// we obtain the original clicked position in base pairs
+	
+	/// we check if we have room for the new bin
+	CGFloat safePosition = position < clickedPosition? clickedPosition - 0.13 : clickedPosition + 0.13;
+	for(Bin *bin in marker.bins) {
+		if(safePosition >= bin.start && safePosition <= bin.end) {
+			return nil;
+		}
+	}
+	
 	BinLabel *binLabel = [RegionLabel regionLabelWithNewRegionByDraggingInView:self.view error:error];
 	if(binLabel) {
 		/// We add the label to the binLabel array, because this array won't update automatically since the bin
@@ -904,11 +952,9 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	TraceView *view = self.view;
 	
 	NSArray *newBinLabels = [view regionLabelsForRegions:marker.bins.allObjects reuseLabels:self.binLabels];
-	BOOL hide = !self.enabled && !view.showDisabledBins && (view.trace || view.loadedGenotypes.count > 0);		/// we hide the new bin labels if needed.
 	BOOL enable = self.editState == editStateBins;
 	for(BinLabel *binLabel in newBinLabels) {
 		binLabel.parentLabel = self;
-		binLabel.hidden = hide;
 		binLabel.enabled = enable;
 	}
 	
@@ -938,6 +984,11 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 	if(_highlighted && binLabels.count == 0) {
 		self.editState = editStateNil;
 	}
+}
+
+
+- (MarkerOffset) binOffset {
+	return offsetAffectsAlleles? MarkerOffsetNone : _offset;
 }
 
 
@@ -975,7 +1026,7 @@ static void * const genotypeOffsetChangedContext = (void*)&genotypeOffsetChanged
 			float intercept = self.offset.intercept;
 			size = (size-intercept)/slope;    /// the position of the mouse in base pairs (in marker coordinates)
 
-			Bin *newBin = [marker insertBinAtSize:size desiredWidth:1.0];
+			Bin *newBin = [marker insertBinAtSize:size desiredWidth:1.0f];
 			if(newBin) {
 				[view.undoManager setActionName:@"Add Bin"];
 				[self updateBinLabels];

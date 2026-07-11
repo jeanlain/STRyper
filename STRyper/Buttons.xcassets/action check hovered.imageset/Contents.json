@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "action check filled hovered 1.pdf",
+      "filename" : "action check curved hovered.pdf",
       "idiom" : "mac"
     },
     {
@@ -11,7 +11,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "action check filled hovered dark.pdf",
+      "filename" : "action check curved hovered dark.pdf",
       "idiom" : "mac"
     }
   ],

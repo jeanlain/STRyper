@@ -51,7 +51,7 @@ LadderFragmentOffsetKey = @"offset";
 - (NSString *)string {
 	
 	float size = self.size;
-	if(size <= -1000) {
+	if(size <= -1000.0f) {
 		return @"???";
 	}
 	if(size == roundf(size)) { 				/// if its size is integer (typical for ladder fragment), we show it as is
@@ -74,7 +74,7 @@ LadderFragmentOffsetKey = @"offset";
 	if(fluoData) {
 		const int16_t *fluo = fluoData.bytes;
 		long nScans = fluoData.length/sizeof(int16_t);
-		if(nScans > scan && scan >= 0) {
+		if(nScans > scan) {
 			return @(fluo[scan]);
 		}
 	}

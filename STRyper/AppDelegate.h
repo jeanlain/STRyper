@@ -106,7 +106,7 @@ ReferenceStartSize,
 /// The synchronized end size of trace views
 ReferenceEndSize,
 
-/// The number of trace views to show in the detailed view (see ``DetailedViewController/numberOfRowsPerWindow``).
+/// The number of trace views to show in the viewer (see ``DetailedViewController/numberOfRowsPerWindow``).
 TraceRowsPerWindow,
 
 /// An integer describing how traces are stacked in trace views (see ``DetailedViewController/stackMode``).
@@ -194,7 +194,16 @@ DefaultSizingOrder,
 BottomTab,
 
 /// Whether sample search should be case sensitive.
-CaseSensitiveSampleSearch;
+CaseSensitiveSampleSearch,
+
+/// Where the selected samples of the folders are recorded
+SelectedSamplesKey,
+
+/// Where the selected genotypes of the folders are recorded
+SelectedGenotypesKey,
+
+/// The vertical order of the sections shown in the sample inspector (see ``SampleInspectorController``).
+SampleInspectorSections;
 
 
 																																																										

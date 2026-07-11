@@ -64,7 +64,7 @@ NS_ASSUME_NONNULL_BEGIN
 	float _sampleStartSize;
 	
 	/// Backs the ``colorsForChannels`` readonly property and allows subclasses to set it.
-	NSArray *_colorsForChannels;
+	NSArray<NSColor *> *_colorsForChannels;
 	
 	
 	BOOL _resizedWithAnimation;
@@ -75,12 +75,15 @@ NS_ASSUME_NONNULL_BEGIN
 	ViewLabel *draggedLabel;
 	
 	/// The labels that need to be repositioned in `-updateLayer`
-	NSMutableSet *labelsToReposition;
+	NSMutableSet<ViewLabel *> *labelsToReposition;
 	
 	/// Whether the mouse has entered the view and not yet exited.
 	///
 	/// This ivar is used internally to avoid computations that should not be performed if the mouse is not in the view.
 	BOOL mouseIn;
+	
+	/// Whether `_updateHighlightedRegions` should be called during `updateLayer`.
+	BOOL needsUpdateHighlightedRegions;
 
 }
 
@@ -140,15 +143,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter label: the label that sent this message.
 -(void)labelDidChangeHoveredState:(ViewLabel *)label;
 
-/// Called by a label that had its ``RegionLabel/hoveredEdge`` property changed.
-///
-/// The default implementation calls ``updateCursor``.
-/// - Parameter label: the label that sent this message.
--(void)labelEdgeDidChangeHoveredState:(RegionLabel *)label;
 
 /// Notifies the view that a label had its `highlighted` property changed.
-///
-///	By default, a ``ViewLabel`` calls this method on its view.
+/// 
+/// By default, a ``ViewLabel`` calls this method on its view.
 /// The default implementation does nothing, this method is overridden.
 /// - Parameter label: The label that had its ``ViewLabel/highlighted`` changed .
 -(void)labelDidChangeHighlightedState:(ViewLabel *)label;
@@ -164,7 +162,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///	By default, a ``RegionLabel`` calls this method on its ``ViewLabel/view``.
 /// The default implementation does nothing.
 /// - Parameter label: The label that had its ``RegionLabel/editState`` changed.
--(void)labelDidChangeEditState:(RegionLabel *)label;
+/// - Parameter previousState: The `label`'s `editState` before the change.
+-(void)labelDidChangeEditState:(RegionLabel *)label previousState:(EditState)previousState;
 
 /// Notifies the view that a `ViewLabel` is performing its drag behavior.
 ///
@@ -238,6 +237,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)repositionLabels:(NSArray<ViewLabel *> *)labels;
 
 
+/// Regions (markers or bins) that are highlighted on the view.
+/// ``RegionLabel`` objects representing the `regionsToHighlight` get the appearance of their ``ViewLabel/hovered`` state.
+@property (nonatomic, copy, nullable) NSArray<Region *> *regionsToHighlight;
+
 /// The label that is the target of actions in the view.
 ///
 /// It is by default the first label among the ``viewLabels`` that is ``ViewLabel/highlighted``.
@@ -280,13 +283,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Note:For the colors to adapt to the appearance, those set in ``colorsForChannels-property`` must be dynamic.
 - (void)updateColorsForChannels;
 																
-/// Whether the appearance of some of the ``viewLabels`` needs to be updated in response to change in dark/light appearance.
+/// Whether the colors used by some of the ``viewLabels`` needs to be updated in response to change in dark/light appearance.
 ///
 /// As some labels use core animation layers, the colors of these layers must be set during `-drawRect` or `-updateLayer` to take effect.
 /// Hence setting this property to `YES` also sets `-needsDisplay` to `YES`.
 ///
 /// Subclasses can use this property to avoid setting `CALayer` colors every time the view must redisplay.
-@property (nonatomic) BOOL needsUpdateLabelAppearance;
+@property (nonatomic) BOOL needsUpdateLabelColors;
 															
 
 /// Makes the view update the mouse cursor.

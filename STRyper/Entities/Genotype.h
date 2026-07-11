@@ -36,7 +36,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// A new genotype comes with "blank" alleles that have a ``LadderFragment/scan`` of 0 and no ``LadderFragment/name``.
 ///
 /// The ``callAllelesAndAdditionalPeak:`` method can be used to identify the genotype's ``alleles`` in terms of size and name, given the ``FluoTrace/peaks``  found in its sample's trace in the range of its marker.
-@interface Genotype : CodingObject <NSPasteboardWriting>;
+@interface Genotype : CodingObject;
 
 
 /// Inits an returns a genotype for a sample and a marker, giving it the necessary alleles.
@@ -45,6 +45,8 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// This method returns `nil` if the `sample` and `marker` do not have the same managed object context, if the sample's ``Chromatogram/panel`` doesn't contain the `marker`, if  the `sample` already has a genotype for the `marker`,
 /// of if `sample` contains no valid ``Chromatogram/traces`` for the ``Mmarker/channel`` of the `marker`.
+/// - Note: You should generally not call this method directly, as genotypes are created
+/// by ``Chromatogram/applyPanel:withAlleleName:`` or by ``Mmarker/createGenotypesWithAlleleName:`` via this method.
 - (nullable instancetype)initWithMarker:(Mmarker *)marker sample:(Chromatogram *)sample;
 
 
@@ -71,14 +73,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// The "assigned" (non additional) alleles composing the genotype.
 ///
 /// The number of alleles must be the same as the ``Mmarker/ploidy`` of the genotype's ``marker``.
-@property (nonatomic, readonly, nullable) NSSet<Allele *> *assignedAlleles;
+@property (nonatomic, readonly, nullable) NSArray<Allele *> *assignedAlleles;
 
 
 /// The fragments (putative alleles) that may have cause additional peak at the marker.
 ///
 /// This relationship can be used to indicate the presence of DNA contamination, paralogs of the marker
 /// or polyploidy.
-@property (nonatomic, readonly, nullable) NSSet<Allele *> *additionalFragments;
+@property (nonatomic, readonly, nullable) NSArray<Allele *> *additionalFragments;
 
 /// A string describing the ``additionalFragments``.
 ///

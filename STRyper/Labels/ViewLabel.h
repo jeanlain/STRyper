@@ -35,7 +35,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// its labels (see ``LabelView/needsRepositionLabels`` ).
 /// A `ViewLabel` may also notify the view that it needs to be repositioned, typically after an attribute of the object
 /// it represents has changed.
-@interface ViewLabel : NSObject <CALayerDelegate, NSMenuItemValidation>
+@interface ViewLabel : NSObject <CALayerDelegate, NSMenuItemValidation, NSViewToolTipOwner>
 {
 	/// The base layer that can be used to display the label.
 	///
@@ -67,6 +67,9 @@ NS_ASSUME_NONNULL_BEGIN
 	
 	/// Backs the readonly ``frame`` property and allows subclasses to set it.
 	NSRect _frame;
+	
+	/// A tag that the label can use to add a toolTip rect to the ``view``.
+	NSToolTipTag toolTipTag;
 	
 }
 
@@ -181,6 +184,16 @@ NS_ASSUME_NONNULL_BEGIN
 /// If this property changes, the label sends ``LabelView/labelDidChangeHighlightedState:`` to its ``view``.
 @property (nonatomic) BOOL highlighted;
 
+/// Whether the label monitors mouse clicks to de-highlight itself.
+/// If `YES`, the label sets ``highlighted`` to `NO` if a mouse down event occurred in its ``view``'s window
+/// outside the label's ``frame``.
+///
+///	This allows the label to de-highlight if the event occurred outside its view,
+///	which the host view may not detect.
+///
+/// The default value is `YES`.
+@property (nonatomic, readonly) BOOL deHighlightAutomatically;
+
 /// Whether the label should be highlighted when clicked only after the mouse button is released.
 ///
 /// The default value is `NO` (the label can get ``highlighted`` on `mouseDown`).
@@ -216,7 +229,18 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Whether the label is being dragged.
 @property (nonatomic, readonly) BOOL dragged;
-													
+
+
+/// The string that the label should show as a tooltip when it is ``hovered``.
+///
+///	If `nil` is returned, no tooltip rectangle is added to the view.
+/// The default value is `nil`.
+@property (readonly, nonatomic, nullable) NSString *stringForToolTip;
+
+
+/// Removes the tooltip rectangle used by the label, if any.
+- (void)removeTooltip;
+
 /// The menu that should display when the user right/ctrl-clicks the label.
 ///
 /// The default value is `nil`.
@@ -285,7 +309,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Makes the label set the colors used by its core animation layers.
 ///
 /// This can be called within `-drawRect` or `-updateLayer` to adapt  the label to the appearance (dark/light) of the host view..
-- (void)updateForTheme;
+- (void)updateColors;
 
 /// Removes the label from its ``view``.
 ///

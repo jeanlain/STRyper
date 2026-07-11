@@ -36,12 +36,12 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A marker must not overlap other markers of the same ``panel`` and ``channel``.
 ///
-/// A marker can be copied to the paste board and accessed with in `MarkerPasteboardType` key.
+/// A marker can be copied to the paste board and accessed with the `MarkerPasteboardType` key.
 /// It is copied as an archive that can be decoded with an NSKeyedUnarchiver.
 /// Its ``stringRepresentation`` can also be accessed with the `NSPasteboardTypeString` key.
 ///
 /// An "m" was added to the class name to avoid collision with a structure named "Marker".
-@interface Mmarker : Region <NSPasteboardWriting>
+@interface Mmarker : Region
 
 /// An integer that denotes the ploidy of a marker, that is, the number of expected alleles at the locus for an individual.
 typedef NS_ENUM(int16_t, Ploidy) {
@@ -56,7 +56,7 @@ typedef NS_ENUM(int16_t, Ploidy) {
 ///
 /// The marker name is set automatically with ``Region/autoName``.
 ///
-/// The method does not check if `start` and `end` coordinates are valid.
+/// - Important:The method does not check if `start` and `end` coordinates are valid.
 /// Improper parameters will results in validation errors.
 /// - Parameters:
 ///   - start: The ``Region/start`` of the marker.
@@ -90,7 +90,7 @@ typedef NS_ENUM(int16_t, Ploidy) {
 
 /// The marker's ``bins`` sorted by ``Region/start`` in ascending order.
 ///
-/// This property is generated dynamically on demand.
+/// The value is generated on demand.
 @property (nonatomic, nullable, readonly) NSArray<Bin *> *sortedBins;
 
 /// The genotypes that samples have for the marker.
@@ -106,7 +106,7 @@ typedef NS_ENUM(int16_t, Ploidy) {
 @property (nonatomic, readonly) Panel *panel;
 
 
-/// A string representation describing the attributes of the marker.
+/// The string representation describing the attributes of the marker.
 ///
 /// The string is composed of the ``Region/name``, ``Region/start``, ``Region/end``, ``channel`` and ``ploidy`` attributes, separated by tabs.
 @property (readonly, nonatomic) NSString *stringRepresentation;
@@ -143,6 +143,14 @@ typedef NS_ENUM(int16_t, Ploidy) {
 /// on each of its ``genotypes``.
 /// This method is called when the  coordinates of the marker change.
 -(void) updateGenotypeStatuses;
+
+/// A marker that should be used instead of the receiver when decoding a archived ``SampleFolder``.
+///
+/// When a folder is decoded, any decoded ``Panel`` is replaced by an equivalent panel in the database, if any.
+/// However, when a ``Genotype`` object decodes its ``Genotype/marker``, the coder  returns the marker that belongs to the replaced panel.
+/// This property must be set with the replacement marker (in the equivalent panel) before genotypes are decoded.
+/// If not `nil`, the value of this property is used instead of the receiver in``Genotype``'s implementation of `initWithCoder:`.
+@property (nonatomic, nullable) Mmarker *_replacementMarker;
 
 @end
 

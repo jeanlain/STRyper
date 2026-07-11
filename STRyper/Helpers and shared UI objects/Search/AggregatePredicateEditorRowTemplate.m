@@ -40,6 +40,20 @@ NS_ENUM(NSUInteger, SelectedSegmentIndex) {
 
 @implementation AggregatePredicateEditorRowTemplate
 
+
+- (instancetype)initWithLeftExpressions:(NSArray<NSExpression *> *)leftExpressions rightExpressionAttributeType:(NSAttributeType)attributeType modifier:(NSComparisonPredicateModifier)modifier operators:(NSArray<NSNumber *> *)operators options:(NSUInteger)options {
+	
+	if(attributeType == NSFloatAttributeType) {
+		operators = [operators filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(NSNumber * _Nullable operator, NSDictionary<NSString *,id> * _Nullable bindings) {
+			return [@[@(NSGreaterThanPredicateOperatorType), @(NSLessThanPredicateOperatorType)] containsObject: operator];
+		}]];
+	}
+	
+	return [super initWithLeftExpressions:leftExpressions rightExpressionAttributeType:attributeType modifier:modifier operators:operators options:options];
+}
+
+
+
 - (NSSegmentedControl *)modifierControl {
 	if(!_modifierControl) {
 		_modifierControl = [NSSegmentedControl segmentedControlWithLabels:@[@"Any", @"All"]
@@ -102,8 +116,8 @@ NS_ENUM(NSUInteger, SelectedSegmentIndex) {
 						textField.formatter = self.formatter;
 					}
 					NSSize frameSize = textField.frame.size;
-					if(frameSize.width < 100) {
-						frameSize.width = 100;
+					if(frameSize.width < 100.0) {
+						frameSize.width = 100.0;
 						[textField setFrameSize:frameSize];
 					}
 				}

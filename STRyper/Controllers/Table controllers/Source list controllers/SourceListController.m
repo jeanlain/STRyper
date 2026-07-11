@@ -32,43 +32,9 @@
 
 
 /// Implementation notes:
-/// We update the outline view to react to changes in folders in two ways. One is explicit regarding the change that was made and allows animation.
-/// The change is defined in methods of this class and describes what the user has done: adding, deleting or moving a folder
-/// This allows updating the view with animation, even upon undo/redo.
-/// However, if a folder has been modified (with respect to its subfolders) externally, we must also update the table. We use another approach that involves receiving notification from folders and maintaining a set of folders to reload in the table
-/// Either way, the table is (generally) updated only when the managed object context commits changes (so as to avoid updating the table too early)
+/// The outline view does not use a NSTreeController, as changes in the model generally mess with the selected folder and cannot be animated.
+/// We instead monitor changes in subfolders (via notifications) and update the view my adding/removing/moving rows.
 
-
-NSPasteboardType _Nonnull const FolderDragType = @"org.jpeccoud.stryper.folderDragType";
-
-/// to describe a type of change applied to a folder and to update the view with animation accordingly, we use a dictionary with these keys
-typedef NSString *const FolderChangeKey;
-
-/// values for describing the type of folder change
-typedef NSString *const FolderChangeDescription;
-
-/// key for the type of folder change. The value must be a FolderChangeDescription
-static FolderChangeKey FolderChangeTypeKey = @"FolderChangeTypeKey";
-																						
-/// denotes that a folder has been deleted
-FolderChangeDescription FolderChangeTypeDeletion = @"FolderChangeTypeDeletion",
-/// denotes that a folder has been added
-FolderChangeTypeAddition = @"FolderChangeTypeAddition",
-/// denotes that a folder has been moved
-FolderChangeTypeMove = @"FolderChangeTypeMove";
-
-/// key for the folder that is moved/added/deleted. The value must be a folder
-FolderChangeKey TargetFolderKey = @"TargetFolderKey",
-/// key for the parent folder affected by the change. The value must be a folder
-SourceParentKey = @"SourceParentKey",
-/// Key for the child index of targetFolder in its parent (e.g., the index of the deletion or insertion). The value must be an unsigned integer.
-/// Note that the source and the index do not reflect the actual state of the model, but the state in the view before the change is applied
-SourceIndexKey = @"SourceIndexKey",
-																						
-/// For a FolderChangeTypeMove change, the parent that is the destination of the move. The value must be a folder
-DestinationParentKey = @"DestinationParentKey",
-/// For a FolderChangeTypeMove change, the child index that is the destination of the move. The value must be an unsigned integer
-DestinationIndexKey = @"DestinationIndexKey";
 
 static void *trashContentChangedContext = &trashContentChangedContext;	/// to give context to KVO. We react when items are added to the trash (or removed, upon undo)
 
@@ -76,13 +42,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 @interface SourceListController ()
 
-/// the managed object context of the folders we show
-@property (nonatomic) NSManagedObjectContext *managedObjectContext;
-
-/// the dictionary describing the change to make to the view.
-@property (nonatomic) NSDictionary *pendingChange;
-
-/// Folders that may have to be reloaded to the outlineview, as their subfolder content has changed
+/// Folders that may have to be reloaded to the outline view, as their subfolder content has changed
 @property (nonatomic) NSMutableSet <__kindof Folder *> *foldersToReload;
 
 @end
@@ -91,14 +51,8 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 @implementation SourceListController {
 	BOOL trashContentChanged; /// Set to `YES` after detecting a change in the trash folder content.
-
-	///set to `YES` after the outline view is updated with a given change. We use it to avoid redundant changes.
-	BOOL folderListUpdated;
-	
-	/// Whether there is at least one subfolder in the source list.
-	/// This is workaround a bug with source list outline views where the indentation level would not be set properly after adding the first subfolder.
-	BOOL hasSubfolders;
 }
+
 @synthesize rootFolder = _rootFolder;
 
 
@@ -115,10 +69,18 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 - (void)configureTableContent {
 	
-	NSManagedObjectContext *MOC = AppDelegate.sharedInstance.managedObjectContext;
-	[self bind:@"managedObjectContext" toObject:NSApp.delegate withKeyPath:NSManagedObjectContextBinding options:nil];
+	NSManagedObjectContext *MOC = self.managedObjectContext;
 	
-	[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(contextDidChange:) name:NSManagedObjectContextObjectsDidChangeNotification object:MOC];
+	[NSNotificationCenter.defaultCenter addObserver:self
+										   selector:@selector(contextDidChange:)
+											   name:NSManagedObjectContextObjectsDidChangeNotification object:MOC];
+	
+	/// we react when the view context saves, to potentially fetch samples.
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(contextDidSave:)
+												 name:NSManagedObjectContextDidSaveNotification
+											   object:MOC];
+
 	
 	
 	if(!self.rootFolder) {
@@ -238,9 +200,12 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 -(void)subfoldersDidChange:(NSNotification *)notification {
 	Folder *folder = notification.object;
-	if(folder.managedObjectContext == self.managedObjectContext) {
-		if(folder != self.trashFolder) { 		/// since we don't show the trash, we don't need to reload it if its content has changed
-			[self.foldersToReload addObject:folder];
+	if(folder.managedObjectContext == self.managedObjectContext && !folder.isDeleted) {
+		Folder *trashFolder = self.trashFolder;
+		if(folder != trashFolder) { 		/// since we don't show the trash, we don't need to reload it if its content has changed
+			if(folder.topAncestor != trashFolder) {
+				[self.foldersToReload addObject:folder];
+			}
 		} else {
 			trashContentChanged = YES; 	/// however we note that its content has changed
 		}
@@ -249,7 +214,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 
 -(void)contextDidChange:(NSNotification *)notification {
-	/// this is where we update the outline view if needed, mostly during undo/redo or if another class made change to folders
 	if(trashContentChanged) {
 		/// if the trash content has changed, we refresh the content of the selected smart folder, has it should not show samples that are in the trash
 		Folder *selectedFolder = self.selectedFolder;
@@ -259,63 +223,30 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		trashContentChanged= NO;
 	}
 	
-	/// We clear the foldersToReload and the pendingChange as they are only valid now.
-	NSDictionary *folderChange = self.pendingChange;
-	self.pendingChange = nil;
-
-	
-	NSSet *foldersToReload = [NSSet setWithSet:self.foldersToReload];
-	for(Folder *folder in foldersToReload) {
-		for(Folder *subfolder in folder.allSubfolders) {
-			subfolder.parent = subfolder.parent; /// this is to avoid a core data bug in which unmodified subfolders are turned into faults in the next save if siblings are inserted or removed.
+	if(self.foldersToReload.count > 0) {
+		if(![self updateOutlineViewWithAnimation]) {
+			NSLog(@"forced reloading");
+			[self reloadFolders:self.foldersToReload];
 		}
-	}
-	
-	[self.foldersToReload removeAllObjects];
-	
-	if(folderListUpdated) {
-		folderListUpdated = NO;
-		return;
-	}
-	
-	/// if folders have been modified by methods of this class, both pendingChange and foldersToReload properties can be used to update the table.
-	/// We use the former, as it describes the change explicitly and allows animation.
-	/// Also, foldersToReload sometimes contain folders that didn't have their subfolders changed and which posted their notification for unclear reasons.
-	/// NOTE however that if folders are modified in an other class and in this class at the same time (same event loop),
-	/// this may cause a problem as some changes may not be reflected in the table.
-	/// This should not occur however. 
-	/*
-	if(foldersToReload.count > 0) {		// disabling TO TEST. This was implemented to check if foldersToReload was consistent with pendingChange, but as said above, the set may contain folders that don't need to be updated
-		if(!folderChange || foldersToReload.count > 2) {
-			if(foldersToReload.count > 2) {
-				NSArray *names = [foldersToReload.allObjects valueForKeyPath:@"@unionOfObjects.name"];
-				NSSet *foldersInChange = [NSSet setWithObjects:folderChange[SourceParentKey], folderChange[DestinationParentKey], nil];
-				NSArray *names2 = [foldersInChange.allObjects valueForKeyPath:@"@unionOfObjects.name"];
-
-				NSLog(@"reload: %@, change: %@, target: %@",names, names2, [folderChange[TargetFolderKey] name]);
-			}
-			[self reloadFolders: foldersToReload];
-			return;
-		}
-		NSSet *foldersInChange = [NSSet setWithObjects:folderChange[SourceParentKey], folderChange[DestinationParentKey], nil];
-		if(![foldersToReload isSubsetOfSet:foldersInChange]) {
-			[self reloadFolders:foldersToReload];
-			return;
-		}
-	}   */
-	
-	if(folderChange) {
-		if([self updateOutlineViewWithFolderChange:folderChange]) {
-			return;
-		}
-	}
-	
-	if(foldersToReload.count > 0) {
-		[self reloadFolders:foldersToReload];
+		[self.foldersToReload removeAllObjects];
 	}
 }
 
-
+-(void) contextDidSave:(NSNotification *)notification {
+	/// Some folders tend to be faulted upon save, which makes their names disappear.
+	NSMutableIndexSet *rowsToReload = NSMutableIndexSet.new;
+	[outlineView enumerateAvailableRowViewsUsingBlock:^(__kindof NSTableRowView * _Nonnull rowView, NSInteger row) {
+		Folder *folder = [self itemAtRow:row];
+		if(folder.isFault) {
+			[rowsToReload addIndex:row];
+		}
+	}];
+	if(rowsToReload.count > 0) {
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[self->outlineView reloadDataForRowIndexes:rowsToReload columnIndexes:[NSIndexSet indexSetWithIndex:0]];
+		});
+	}
+}
 
 
 -(void)reloadFolders:(NSSet *)folders {
@@ -328,147 +259,145 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 }
 
 
-/// tries to update the outline view according to folderChange and returns whether the update could be performed
--(BOOL)updateOutlineViewWithFolderChange:(NSDictionary *)folderChange {
-	Folder *target = folderChange[TargetFolderKey];
-	Folder *source = folderChange[SourceParentKey];
-	NSNumber *sourceIndexNumber = folderChange[SourceIndexKey];
-	NSUInteger sourceIndex = 0;
-	if(![target isKindOfClass:Folder.class] || ![source isKindOfClass:Folder.class] || ![sourceIndexNumber respondsToSelector:@selector(unsignedIntValue)]) {
-		return NO;
-	}
-	sourceIndex = sourceIndexNumber.unsignedIntValue;
-	
-	BOOL folderWasDeleted = [folderChange[FolderChangeTypeKey] isEqualToString:FolderChangeTypeDeletion];
-	BOOL folderWasAdded = [folderChange[FolderChangeTypeKey] isEqualToString:FolderChangeTypeAddition];
-	BOOL folderWasMoved = [folderChange[FolderChangeTypeKey] isEqualToString:FolderChangeTypeMove];
-	
-	if(!folderWasMoved && !folderWasDeleted && !folderWasAdded) {
+/// Updates the outline view to reflect the current states of folders, by moving, removing or inserting rows if possible.
+/// Returns whether the view was updated.
+-(BOOL)updateOutlineViewWithAnimation {
+	/// We compare the current state of folders that need refreshing to how their state on the outline view.
+	NSArray *folders = self.foldersToReload.allObjects;
+	NSInteger folderCount = folders.count;
+	if(folderCount > 2 || folderCount == 0) {
+		/// We manage changes in two folders at most. As the user can only select a single folder,
+		/// a change should not affect more than two parent folders, which happens after dragging a folder between these parents.
 		return NO;
 	}
 	
-	NSOrderedSet *subfolders = source.subfolders;
-	if(folderWasAdded) {
-		/// if a folder was added, we check that it  is be present in the source folder at the specified index
-		if(sourceIndex >= subfolders.count || [subfolders objectAtIndex:sourceIndex] != target) {
-			return NO;
+	BOOL updated = NO; /// Wether the outline view is updated.
+
+	NSArray<NSIndexSet *> *folder1diffs, *folder2diffs;
+	NSArray<Folder *> *displayedSubfolders1, *displayedSubfolders2; /// The parents' subfolders as they appear on the outline view
+	NSInteger count = 0;
+	for(Folder *folder in folders) {
+		count++;
+		NSArray *displayedSubfolders = [self displayedChildrenOfParent:folder];
+		if(displayedSubfolders) {
+			NSArray *diffIndexes = [displayedSubfolders indexesOfDifferencesWithArray:folder.subfolders.array];
+			if(count == 1) {
+				displayedSubfolders1 = displayedSubfolders;
+				folder1diffs = diffIndexes;
+			} else {
+				displayedSubfolders2 = displayedSubfolders;
+				folder2diffs = diffIndexes;
+			}
 		}
 	}
 	
-	/// if a folder was deleted from a source at a given index, the source must contain at least as many subfolders as the given index
-	if((folderWasDeleted || folderWasMoved) && sourceIndex >= subfolders.count+1) {
-		return NO;
-	}
-	
-	Folder *destination;
-	NSNumber *destinationIndexNumber;
-	NSInteger destinationIndex = 0;
-	
-	if(folderWasMoved) {
-		destination = folderChange[DestinationParentKey];
-		destinationIndexNumber = folderChange[DestinationIndexKey];
-		if(![destination isKindOfClass:Folder.class] || ![destinationIndexNumber respondsToSelector:@selector(unsignedIntValue)]) {
-			return NO;
+	BOOL move = NO; /// Whether we move a row to reflect the change.
+					/// One folder should have a subfolder that is not shown (the recipient) and the other should show a folder that is not in the model (the source)
+	Folder *source = folders.firstObject, *recipient = folders.lastObject; /// Initializes source and recipient assuming the first folder as source.
+	NSInteger sourceIndex = folder1diffs.firstObject.firstIndex, recipientIndex = folder2diffs.lastObject.firstIndex;
+	NSArray *sourceDisplayedSubFolder = displayedSubfolders1;
+	if(folder1diffs.firstObject.count + folder1diffs.lastObject.count == 1 &&
+	   folder2diffs.firstObject.count + folder2diffs.lastObject.count == 1 &&
+	   folder1diffs.firstObject.count != folder2diffs.firstObject.count) {
+		/// The source has one removed object, an no inserted object, and the opposite for the recipient (or reciprocally).
+		move = YES;
+		if(folder1diffs.lastObject.count > 0) {
+			/// If the folder 1 is the recipient, we redefine pointers.
+			recipient = folders.firstObject;
+			source = folders.lastObject;
+			sourceDisplayedSubFolder = displayedSubfolders2;
+			sourceIndex = folder2diffs.firstObject.firstIndex;
+			recipientIndex = folder1diffs.lastObject.firstIndex;
 		}
-		destinationIndex = destinationIndexNumber.unsignedIntValue;
-		/// we check that the destination folder contains that target at the specified index
-		if(destinationIndex >= destination.subfolders.count || [destination.subfolders objectAtIndex:destinationIndex] != target) {
-			return NO;
-		}
+	} else if(folderCount == 1 && folder1diffs.firstObject.count == 1 && folder1diffs.lastObject.count == 1) {
+		/// Case of a move within the same folder. The source and destination are already set properly, but the destination index needs to be specified.
+		recipientIndex = folder1diffs.lastObject.firstIndex;
+		move = YES;
 	}
-	
-	/// if we are here, the change will be applied to the table.
-	/// For this change to be undoable with animation, we record its reverse
-	NSDictionary *reversedChange = [self reversedFolderChangeForChange:folderChange];
-	[self.undoManager registerUndoWithTarget:self selector:@selector(setPendingChange:) object:reversedChange];
-	
-	Folder *currentSelection = self.selectedFolder;		/// to restore the current selection
-	
-	BOOL sourceExpanded = [outlineView isItemExpanded:source];
-	BOOL destinationExpanded = [outlineView isItemExpanded:destination];
-	
+
 	NSAnimationContext.currentContext.duration = 0.2;
 	[NSAnimationContext beginGrouping];
 	[outlineView beginUpdates];
-	if(folderWasMoved) {
-		if(sourceExpanded || destinationExpanded) {		
-			/// We only need to move the row if the source and destinations aren't collapsed.
-			[outlineView moveItemAtIndex:sourceIndex inParent:source toIndex:destinationIndex inParent:destination];
+	
+	if(move && recipientIndex < recipient.subfolders.count && sourceIndex < sourceDisplayedSubFolder.count &&
+	   sourceDisplayedSubFolder[sourceIndex] == [recipient.subfolders objectAtIndex:recipientIndex]) {
+		/// Checks that the folder at the destination index in the recipient (model) is the same as the folder in the source at the source index (as displayed)
+		
+		[outlineView moveItemAtIndex:sourceIndex inParent:source toIndex:recipientIndex inParent:recipient];
+		if(source != recipient) {
+			[outlineView reloadItem:source];			/// To update disclosure triangles.
+			[outlineView reloadItem:recipient];
 		}
-		[outlineView reloadItem:destination];
-		if(!destinationExpanded) {
-			[self openAncestorsOf:destination];
-			[outlineView.animator expandItem:destination];
-		}
-	} else if(folderWasAdded) {
-		if(sourceExpanded) {
-			[outlineView insertItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideDown];
-		} else {
-			/// We expand the parent folder. We reload first to make sure the outline view knows it has a child.
-			[outlineView reloadItem:source];
-			[self openAncestorsOf:source];
-			[outlineView.animator expandItem:source];
-		}
-	} else if(folderWasDeleted && sourceExpanded) {
-		/// On macOS 14, removing the row can cause a freeze if its text field is currently edited.
-		/// This can occur if the user undoes the addition of a folder since the name of a new folder is selected on the view.
-		/// To avoid this, we abort editing.
-
-		NSUInteger rowToRemove = [outlineView rowForItem:target];
-		NSTableRowView *rowView = [outlineView rowViewAtRow:rowToRemove makeIfNecessary:NO];
-		if(rowView) {
-			for (NSTableCellView *cellView in rowView.subviews) {
-				if([cellView respondsToSelector:@selector(textField)] && cellView.textField.isEditable) {
-					[cellView.textField abortEditing];
+		updated = YES;
+	}
+	
+	if(!updated) {
+		/// Here we don't move a row, but we may add/remove a row, which could reflect the addition/deletion of folders,
+		/// or a move when the source or destination if collapsed (in this case, adding/removing a row provides good feedback).
+		count = 0;
+		NSInteger expanded = 0, inserted = 0; 	/// Wether a folder is expanded during the change, and a row is inserted
+		NSArray<NSIndexSet *> *diffs;			/// The indices of rows to remove/add to a given folder.
+		for(Folder *folder in folders) {
+			count++;
+			diffs = count == 1 ? folder1diffs : folder2diffs;
+			
+			NSIndexSet *removals = diffs.firstObject, *insertions = diffs.lastObject;
+			/// There cannot be removals (or insertions) of subfolders in more than one parent, since the view can only select one folder.
+			if(removals.count > 0 && insertions.count == 0) {
+				[outlineView removeItemsAtIndexes:removals inParent:folder withAnimation:NSTableViewAnimationSlideUp];
+				[outlineView reloadItem:folder];
+				updated = YES;
+			} else if(removals.count == 0 && insertions.count > 0) {
+				[outlineView insertItemsAtIndexes:insertions inParent:folder withAnimation:NSTableViewAnimationSlideDown];
+				[outlineView reloadItem:folder];
+				inserted++;
+				updated = YES;
+			} else {
+				/// Here, the change in subfolders cannot be show, which should mean the parent is collapsed.
+				/// We expand it to indicate that a change occurred.
+				if((count == 2 && !inserted && !expanded) || (count == 1 && folder2diffs.lastObject.count == 0)) {
+					/// We do not expand more than one folder, and we don't if the other folder has an animated insertion
+					/// (which should reflect a move between parent folders if two folders must be updated). The insertion is sufficient for feedback.
+					[outlineView reloadItem:folder];
+					[self openAncestorsOf:folder];
+					[outlineView.animator expandItem:folder];
+					expanded++;
+					updated = YES;
 				}
 			}
 		}
-		[outlineView removeItemsAtIndexes:[NSIndexSet indexSetWithIndex:sourceIndex] inParent:source withAnimation:NSTableViewAnimationSlideUp];
 	}
-	if(folderWasAdded && !hasSubfolders && source.parent) {
-		/// if the added folder is the first subfolder of any (non-root) parent, we reload its grandparent (which should be the root) and parent.
-		/// because the source list outline view style does not indent the children of group items if they don't themselves have children.
-		/// This leaves no space for the the outline button (triangle). Only reloading corrects that.
-		/// The hasSubfolders ivar avoids doing it more than once, as this breaks the animation.
-		[outlineView reloadItem:source.parent reloadChildren:YES];
-	} else {
-		[outlineView reloadItem:source]; ///(possibly a safety measure. May no longer be needed.
-	}
+	
 	[outlineView endUpdates];
 	[NSAnimationContext endGrouping];
-	
-	if(target == currentSelection) {
-		[self selectFolder:currentSelection];
-	}
-	return YES;
+
+	return updated;
 }
 
 
-/// returns the reverse change of a change in folder
-/// It doesn't control if the dictionary has valid entries
--(NSDictionary *)reversedFolderChangeForChange:(NSDictionary *)folderChange {
-																					
-	NSDictionary *reversed;
-	if([folderChange[FolderChangeTypeKey] isEqualToString:FolderChangeTypeMove]) {
-		reversed = @{FolderChangeTypeKey: FolderChangeTypeMove,
-					 TargetFolderKey: folderChange[TargetFolderKey],
-					 SourceParentKey: folderChange[DestinationParentKey],
-					 SourceIndexKey: folderChange[DestinationIndexKey],
-					 DestinationParentKey: folderChange[SourceParentKey],
-					 DestinationIndexKey: folderChange[SourceIndexKey]};
-		
-	} else if([folderChange[FolderChangeTypeKey] isEqualToString:FolderChangeTypeAddition]) {
-		reversed = @{FolderChangeTypeKey: FolderChangeTypeDeletion,
-					 TargetFolderKey: folderChange[TargetFolderKey],
-					 SourceParentKey: folderChange[SourceParentKey],
-					 SourceIndexKey: folderChange[SourceIndexKey]};
-	} else if([folderChange[FolderChangeTypeKey] isEqualToString:FolderChangeTypeDeletion]) {
-		reversed = @{FolderChangeTypeKey: FolderChangeTypeAddition,
-					 TargetFolderKey: folderChange[TargetFolderKey],
-					 SourceParentKey: folderChange[SourceParentKey],
-					 SourceIndexKey: folderChange[SourceIndexKey]};
+/// The children of a parent item as they appear on the outline view.
+///
+/// Returns `nil` if the `parent` has no row or is collapsed.
+/// - Parameter parent: An item potentially shown by the view.
+-(nullable NSArray*) displayedChildrenOfParent:(id)parent {
+	NSInteger folderRow = [self rowForItem:parent];
+	if(folderRow < 0 || ![outlineView isItemExpanded:parent]) {
+		return nil;
 	}
-	return reversed;
+	NSInteger childLevel = [outlineView levelForRow:folderRow]+1;
+	NSMutableArray *children = NSMutableArray.new;
+	for (NSInteger row = folderRow+1; row < outlineView.numberOfRows; row++) {
+		NSInteger rowLevel = [outlineView levelForRow:row];
+		if(rowLevel == childLevel) {
+			id child = [outlineView itemAtRow:row];
+			if(child) {
+				[children addObject:child];
+			}
+		} else if(rowLevel < childLevel) {
+			break;
+		}
+	}
+	return children.copy;
 }
 
 
@@ -545,7 +474,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		view.imageView.image = [NSImage imageNamed:folder.folderType];
 	}
 	if(view.textField) {
-		view.textField.delegate = (id)self;
+		view.textField.delegate = self;
 	}
 	
 	return view;
@@ -561,10 +490,6 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 - (BOOL)outlineView:(NSOutlineView *)outlineView shouldShowOutlineCellForItem:(id)item {
 	Folder *folder = [self _folderForItem:item];
-	if(!hasSubfolders && folder.parent.parent) { 
-		/// We take this opportunity to check for the presence of subfolders (ignoring the root, which is a parent that has no parent)
-		hasSubfolders = YES;
-	}
 	return folder != self.rootFolder;		/// we don't allow collapsing the root folder.
 }
 
@@ -623,6 +548,7 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 -(void)setSelectedFolder:(__kindof Folder *)selectedFolder {
 	_selectedFolder = selectedFolder;
+	[self recordSelectedFolder];
 }
 
 
@@ -668,18 +594,10 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 - (id<NSPasteboardWriting>)outlineView:(NSOutlineView *)outlineView pasteboardWriterForItem:(id)item {
 	/// the user can drag folders (including panels) into other folders. Other types are managed by subclasses
 	Folder *draggedFolder = [self _folderForItem:item];
-	if(!draggedFolder.parent) {
-		return nil;			/// we don't allow dragging folder sections
+	if(draggedFolder.parent) {
+		return draggedFolder;			/// only folders that have parents can be dragged (not folder sections)
 	}
-	/// we identify the dragged folder by its object ID.
-	if(draggedFolder.objectID.isTemporaryID) {
-		if(![draggedFolder.managedObjectContext obtainPermanentIDsForObjects:@[draggedFolder] error:nil]) {
-			return nil;
-		}
-	}
-	NSPasteboardItem *pasteBoardItem = NSPasteboardItem.new;
-	[pasteBoardItem setString:draggedFolder.objectID.URIRepresentation.absoluteString forType:FolderDragType];
-	return pasteBoardItem;
+	return nil;
 }
 
 
@@ -706,9 +624,10 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 			/// this ensures that folders are dropped into folders that can accept them
 			return NSDragOperationNone;
 		}
-		
+				
 		if([draggedFolder isAncestorOf:destination]) {
 			/// we do not authorise dropping a folder into one of its subfolders (causes a loop)
+			/// This is technically possible during a copy-drag, but this would be somewhat counterintuitive.
 			return NSDragOperationNone;
 		}
 		
@@ -717,14 +636,17 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 			return NSDragOperationNone;
 		}
 		
-		NSInteger currentIndex = [outlineView childIndexForItem:draggedFolder];
-		
-		/// we don't drop folders in the position they already have
-		if(draggedFolder.parent == destination && (index < 0 || index == currentIndex+ 1 || index == currentIndex)) {
-			return NSDragOperationNone;
+		BOOL copy = (NSApp.currentEvent.modifierFlags & NSEventModifierFlagOption) != 0 && [pboard.types containsObject:FolderArchivePasteboardType];
+				
+		if(!copy) {
+			/// we don't move folders to the position they already have
+			NSInteger currentIndex = [outlineView childIndexForItem:draggedFolder];
+			if(draggedFolder.parent == destination && (index < 0 || index == currentIndex+ 1 || index == currentIndex)) {
+				return NSDragOperationNone;
+			}
 		}
 		
-		return NSDragOperationMove;
+		return copy? NSDragOperationCopy : NSDragOperationMove;
 		
 	}
 	return NO;
@@ -746,10 +668,12 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 			return NO;
 		}
 		
+		BOOL copy = (NSApp.currentEvent.modifierFlags & NSEventModifierFlagOption) != 0 && [pboard.types containsObject:FolderArchivePasteboardType];
+		
 		/// we check if the destination can take the folder (which it cannot if it has a subfolder with the same name).
 		/// We did not prevent that in validateDrop: as we want to explain the user why this is not permitted.
 		NSError *validationError = nil;
-		if(destination != draggedFolder.parent) {
+		if(destination != draggedFolder.parent && !copy) {
 			[draggedFolder validateValue:&destination forKey:@"parent" error:&validationError];
 			if(validationError) {
 				[NSApp presentError:validationError];
@@ -765,34 +689,23 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 		}
 		
 		NSInteger sourceIndex = [outlineView childIndexForItem:draggedFolder];
-		Folder *originalParent = [outlineView parentForItem:draggedFolder];
+		Folder *sourceParent = [outlineView parentForItem:draggedFolder];
 		
-		if(originalParent == destination) {
+		if(copy) {
+			return [self addFoldersFromPasteboard:pboard toFolder:destination atIndex:index].count > 0;
+		}
+		
+		if(sourceParent == destination) {
 			/// the folder is moved within its parent
 			/// we must decrease the destination index if the folder is moved down in the view (hence moved up in the child index)
 			if(index > sourceIndex) {
 				index--;
 			}
-			/// We must also remove it from the parent before inserting it at the new index (otherwise, insertion has no effect)
-			/// I haven't found a coreData method that moves objects within on ordered relationship.
-			[originalParent removeSubfoldersObject:draggedFolder];
-			/// Reordering within the same parent turns some folders into faults upon save, but I haven't found
-			/// a way to prevent this. Moving the dragged folder to another parent, then immediately to the destination doesn't work.
+			[sourceParent removeSubfoldersObject:draggedFolder]; /// `insertObject:inSubfoldersAtIndex:` below has no effect if the folder is already in the subfolders.
 		}
 		
 		[self.undoManager setActionName:[@"Move " stringByAppendingString: draggedFolder.folderType]];
 		[destination insertObject:draggedFolder inSubfoldersAtIndex:index];
-
-		self.pendingChange = @{FolderChangeTypeKey: FolderChangeTypeMove,
-							   TargetFolderKey: draggedFolder,
-							   SourceParentKey: originalParent,
-							   SourceIndexKey: @(sourceIndex),
-							   DestinationParentKey: destination,
-							   DestinationIndexKey: @(index)
-		};
-		/// it is better to update the table now.
-		/// If we do it in contextDidChange, the dragged folder ends up taking two identical rows if the destination is collapsed and already has folders.
-		folderListUpdated = [self updateOutlineViewWithFolderChange:self.pendingChange];
 		
 		[AppDelegate.sharedInstance saveAction:self];
 		return YES;
@@ -800,6 +713,66 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	return NO;
 }
 
+- (void)paste:(id)sender {
+	NSPasteboard *pboard = NSPasteboard.generalPasteboard;
+	Folder *targetFolder = [self _targetFolderOfSender:sender];
+	[self addFoldersFromPasteboard:pboard toFolder:(PanelFolder *)targetFolder atIndex:-1];
+}
+
+
+/// Adds folders copied in a pasteboard to a folder and returns the pasted folder(s).
+/// - Parameters:
+///   - pboard: A paste board containing keys for `FolderArchivePasteboardType`.
+///   - destination: The folder to which the pasted folder(s) should be added.
+///   - index: The destination index of the pasted folder(s) in the `destination`'s subfolders. If negative, the pasted elements are inserted at the last index.
+-(NSArray<Folder *> *) addFoldersFromPasteboard:(NSPasteboard *)pboard toFolder:(Folder *)destination atIndex:(NSInteger)index {
+	if(destination == nil || destination.isPanel || destination.isSmartFolder) {
+		return nil;
+	}
+	
+	if(index > destination.subfolders.count || index < 0) {
+		index = destination.subfolders.count;
+	}
+		
+	NSMutableArray<Folder *> *pastedFolders = NSMutableArray.new;
+	NSError *error;
+
+	for(NSPasteboardItem *item in pboard.pasteboardItems) {
+		NSData *archivedPanel = [item dataForType:FolderArchivePasteboardType];
+		if(archivedPanel) {
+			NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingFromData:archivedPanel error:&error];
+			unarchiver.requiresSecureCoding = NO;
+			if(!error) {
+				unarchiver.delegate = self; /// This allows the panel to be decoded in our managed object context.
+				Folder *folder = [unarchiver decodeTopLevelObjectOfClass:Folder.class forKey:NSKeyedArchiveRootObjectKey error:&error];
+				[unarchiver finishDecoding];
+				if(!error && folder) {
+					[destination insertObject:folder inSubfoldersAtIndex:index];
+					[folder autoName];
+					[pastedFolders addObject:folder];
+				}
+			}
+			if(error) {
+				break;
+			}
+		}
+	}
+	
+	if(error) {
+		error = [error errorWithNewDescription:@"The panel could not be pasted due to a database error" suggestion:@""];
+		[MainWindowController.sharedController showAlertForError:error];
+	}
+	
+	if(pastedFolders.count > 0) {
+		NSString *action = [pboard.name isEqualToString:NSPasteboardNameDrag]? @"Copy" : @"Paste";
+		action = [action stringByAppendingFormat:@" %@%@", pastedFolders.firstObject.folderType, pastedFolders.count > 1? @"s": @""];
+		[self.undoManager setActionName:action];
+		[AppDelegate.sharedInstance saveAction:self];
+		[self selectFolder:pastedFolders.firstObject];
+	}
+	
+	return pastedFolders.copy;
+}
 
 
 #pragma mark - editing, removing and renaming folders or panels
@@ -822,6 +795,8 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 	} else if([sender action] == @selector(addFolder:) || [sender action] == @selector(addSampleOrSmartFolder:)) {
 		/// Even if no row was clicked, we allow adding a folder to the root folder.
 		return self.rootFolder;
+	} else if([sender action] == @selector(copy:) && ![folder conformsToProtocol:@protocol(NSPasteboardWriting)]) {
+		return nil;
 	}
 	return folder;
 }
@@ -902,12 +877,10 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 /// we use it to avoid replicating code, as adding a smart folder involves a completion handler, while adding other folder types does not
 -(void)finishAddingFolder:(Folder *)folder {
 	if(folder) {
-		[self _addFolderToTable:folder]; /// we add the folder directly as we want to select the item name
-		[self selectItemName:folder];
 		[self.undoManager setActionName:[@"New " stringByAppendingString: folder.folderType]];
 		[AppDelegate.sharedInstance saveAction:self];
+		[self selectItemName:folder];
 	}
-
 }
 
 
@@ -921,41 +894,21 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 
 
--(void)_addFolderToTable:(Folder *)folder {
-	Folder *parent = folder.parent;
-	if(parent) {
-		self.pendingChange = @{FolderChangeTypeKey: FolderChangeTypeAddition,
-							   TargetFolderKey:folder,
-							   SourceParentKey:parent,
-							   SourceIndexKey:@([parent.subfolders indexOfObject:folder])};
-		folderListUpdated = [self updateOutlineViewWithFolderChange:self.pendingChange];
-	}
-}
-
-
 - (void)deleteItems:(NSArray *)items {
 	for(Folder *folder in items) {
-		[self _removeFolderFromTable:folder];
 		[folder.managedObjectContext deleteObject:folder];
 	}
+	[AppDelegate.sharedInstance saveAction:self];
 }
 
-
--(void) _removeFolderFromTable:(Folder *)folder {
-	Folder *parent = folder.parent;
-	if(parent && folder.managedObjectContext == self.managedObjectContext) {
-		NSUInteger index = [parent.subfolders indexOfObject:folder];
-		
-		self.pendingChange = @{FolderChangeTypeKey: FolderChangeTypeDeletion,
-							   TargetFolderKey:folder,
-							   SourceParentKey:parent,
-							   SourceIndexKey:@(index)};
-	}
-}
 
 
 
 -(void) openAncestorsOf:(Folder *)folder {
+	if([outlineView rowForItem:folder] >= 0) {
+		/// The folder is already visible.
+		return;
+	}
 	NSArray *ancestors = folder.ancestors;
 	if(ancestors.count > 0) {
 		/// we start from the most distant ancestor (which can be the root folder)
@@ -989,8 +942,17 @@ static void *trashContentChangedContext = &trashContentChangedContext;	/// to gi
 
 
 
+- (void)copyItems:(NSArray *)items ToPasteBoard:(NSPasteboard *)pasteboard {
+	[pasteboard clearContents];
+	[pasteboard writeObjects:items];
+}
+
+
 - (void)dealloc {
-	[NSNotificationCenter.defaultCenter removeObserver:self];
+	@try {
+		[NSNotificationCenter.defaultCenter removeObserver:self];
+	} @catch (NSException *exception) {
+	}
 }
 
 

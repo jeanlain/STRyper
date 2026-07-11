@@ -37,12 +37,6 @@
 
 @end
 
-@interface SizeStandard ()
-
-@property (nonatomic, readonly) NSString* tooltip;	/// a string used to bind to a tooltip of an image view (padlock) in the size standard table, telling that the size standard cannot be modified.
-													/// this solution is a bit lazy. It would be better to separate the model form the UI
-
-@end
 
 CodingObjectKey SizeStandardNameKey = @"name";
 
@@ -61,7 +55,7 @@ typedef  struct LadderPeak {
 	short height;					/// its height in fluorescence level
 	int area;						/// the area of the peak = sum of fluorescence levels from first scan to last scan within the peak
 	float size;						/// the size in base pairs that is assigned to the peak. Negative is no size is assigned
-	float offset;					/// difference between size and the size computed given the scan and sizing properties of the trace
+	float residual;					/// difference between size and the size computed given the scan and sizing properties of the trace
 	int crossTalk;					/// see equivalent property in `Peak` struct
 	
 } LadderPeak;
@@ -79,8 +73,8 @@ LadderPeak LadderPeakFromPeak(const Peak *peak, Trace *trace) {
 	int endScan = peakEndScan(peak);
 	if(endScan >= nScans) {
 		ladderPeak.crossTalk = 0;
-		ladderPeak.size = 0;
-		ladderPeak.offset = 0;
+		ladderPeak.size = 0.0f;
+		ladderPeak.residual = 0.0f;
 		return ladderPeak;
 	}
 	for(int scan = peak->startScan; scan <= endScan; scan++) {
@@ -88,8 +82,8 @@ LadderPeak LadderPeakFromPeak(const Peak *peak, Trace *trace) {
 	}
 	ladderPeak.height = fluo[ladderPeak.scan];
 	ladderPeak.crossTalk = peak->crossTalk;
-	ladderPeak.size = -1.0;
-	ladderPeak.offset = 0.0;
+	ladderPeak.size = -1.0f;
+	ladderPeak.residual = 0.0f;
 	return ladderPeak;
 }
 
@@ -101,20 +95,19 @@ typedef struct LadderSize {			/// describes a size in a size standard
 } LadderSize;
 
 
-+ (void)sizeSample:(Chromatogram *)sample {
+- (void)sizeSample:(Chromatogram *)sample {
 	
 	Trace *trace = sample.ladderTrace;
 	if(!trace) {
 		return;
 	}
 
-	SizeStandard *sizeStandard = sample.sizeStandard;
-	if(!sizeStandard) {
-		return;
+	if(sample.sizeStandard != self) {
+		sample.sizeStandard = self;
 	}
 	
 	/// we retrieve the sizes of fragments in the size standard in ascending order to create an array of LadderSize struct
-	NSArray *sortedFragments = [sizeStandard.sizes.allObjects sortedArrayUsingComparator:^NSComparisonResult(SizeStandardSize *size1, SizeStandardSize *size2) {
+	NSArray *sortedFragments = [self.sizes.allObjects sortedArrayUsingComparator:^NSComparisonResult(SizeStandardSize *size1, SizeStandardSize *size2) {
 		if(size1.size < size2.size) {
 			return NSOrderedAscending;
 		} else {
@@ -133,7 +126,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 		return;
 	}
 	
-	LadderSize *ladderSizes = malloc(sizeCount * sizeof(LadderSize));
+	LadderSize *ladderSizes = malloc(sizeCount * sizeof(*ladderSizes));
 	int i = 0;
 	for(SizeStandardSize *fragment in sortedFragments) {
 		LadderSize size = {.size = (float)fragment.size, .ladderPeakPTR = NULL, .scan = 0};
@@ -146,17 +139,17 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	if (peakCount < trace.fragments.count /3 || peakCount < 3) {
 		/// if we don't have enough peaks, we don't assign them
 		/// we still create ladder fragments, which will have no scan but can still assigned manually on a traceView
-		[self setLadderFragmentsForTrace:trace WithSizes:ladderSizes sizeCount:sizeCount];
+		setLadderFragmentsForTrace(trace, ladderSizes, sizeCount);
 		[sample setLinearCoefsForReadLength:ladderSizes[sizeCount-1].size + 50.0];
 		free(ladderSizes);
 		return;
 	}
 	
-	LadderPeak *ladderPeaks = malloc(peakCount * sizeof(LadderPeak)); 	/// array of LadderPeak structs based on the peaks of the trace
+	LadderPeak *ladderPeaks = malloc(peakCount * sizeof(*ladderPeaks)); 	/// array of LadderPeak structs based on the peaks of the trace
 	
 	/// We try to ignore short peaks that amount to noise, as they can mess with size assignment. For this, we first need to sort peaks by decreasing height (fluo level)
-	vDSP_Length *indices = malloc(peakCount * sizeof(vDSP_Length));  /// This requires an array of indices
-	float *heights = malloc(peakCount * sizeof(float));
+	vDSP_Length *indices = malloc(peakCount * sizeof(*indices));  /// This requires an array of indices
+	float *heights = malloc(peakCount * sizeof(*heights));
 	
 	const Peak *peaks = peakData.bytes;
 	
@@ -180,7 +173,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	int minSize = ladderSizes[0].size;
 	int leftScan = firstPeakScan + scanDiff * minSize/maxSize; /// We won't stop before finding a peak before this scan
 	int rightScan = lastPeakScan - 0.2 * scanDiff; /// and before finding one after that scan
-	float minHeight = 0;
+	float minHeight = 0.0f;
 
 	int n = 0, nPeaksInRange = 0;
 	for (int i = 0; i < peakCount; i++) {
@@ -219,7 +212,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	}
 	
 	if (n < 3) {
-		[self setLadderFragmentsForTrace:trace WithSizes:ladderSizes sizeCount:sizeCount];
+		setLadderFragmentsForTrace(trace, ladderSizes, sizeCount);
 		[sample setLinearCoefsForReadLength:ladderSizes[sizeCount-1].size + 50.0];
 		free(ladderPeaks); free(ladderSizes); free(ladderPeakPTRs);
 		return;
@@ -227,7 +220,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 	
 	float meanHeight = sumHeight/n;
 	
-	NSData *bestAssignment = [self assignSizes:ladderSizes toPeaks:ladderPeakPTRs sizeCount:sizeCount peakCount:n meanHeight:meanHeight];
+	NSData *bestAssignment = assignSizes(ladderSizes, ladderPeakPTRs, sizeCount, n, meanHeight);
 	
 	float score = refineAssignments(bestAssignment, ladderSizes, ladderPeaks, peakCount);
 	
@@ -247,13 +240,13 @@ typedef struct LadderSize {			/// describes a size in a size standard
 			
 			if(n2 > n) {
 				meanHeight = sumHeight/n2;
-				NSData *bestAssignment2 = [self assignSizes:ladderSizes toPeaks:ladderPeakPTRs sizeCount:sizeCount peakCount:n2 meanHeight:meanHeight];
+				NSData *bestAssignment2 = assignSizes(ladderSizes, ladderPeakPTRs, sizeCount, n2, meanHeight);;
 				
 				LadderSize ladderSizes2[sizeCount];
 				float score2 = refineAssignments(bestAssignment2, ladderSizes2, ladderPeaks, peakCount);
 				
 				if(score2 > score) {
-					[self setLadderFragmentsForTrace:trace WithSizes:ladderSizes2 sizeCount:sizeCount];
+					setLadderFragmentsForTrace(trace, ladderSizes2, sizeCount);
 					[sample computeFitting];
 					return;
 				}
@@ -261,7 +254,7 @@ typedef struct LadderSize {			/// describes a size in a size standard
 		}
 	}
 	
-	[self setLadderFragmentsForTrace:trace WithSizes:ladderSizes sizeCount:sizeCount];
+	setLadderFragmentsForTrace(trace, ladderSizes, sizeCount);
 	
 	[sample computeFitting];
 	free(ladderPeaks); free(ladderSizes); free(ladderPeakPTRs);
@@ -270,17 +263,16 @@ typedef struct LadderSize {			/// describes a size in a size standard
 
 /// Assigns ladder sizes to peaks and returns the assigned sizes.
 /// - Parameters:
-///   - ladderSizes: Array of `LadderSize` to assign. Sizes will me modified by the method.
+///   - ladderSizes: Array of `LadderSize` to assign. Sizes will me modified by the function.
 ///   - ladderPeakPTRs: Array of `LadderPeak` pointers of peaks to assign. These ladder peaks will be modified.
 ///   - sizeCount: Number of elements in the `ladderSizes` array.
 ///   - peakCount: Number of elements in the `ladderPeaks` array.
 ///   - meanHeight: Mean peak height, used for peak assignment. 
-+(NSData*) assignSizes:(LadderSize*)ladderSizes toPeaks:(LadderPeak**)ladderPeakPTRs
-			 sizeCount:(int)sizeCount peakCount:(int)peakCount meanHeight:(float) meanHeight {
-	float bestScore = -1;
+NSData* assignSizes(LadderSize* ladderSizes, LadderPeak** ladderPeakPTRs, int sizeCount, int peakCount, float meanHeight) {
+	float bestScore = -1.0f;
 	int minSizeCount = 2; 				/// minimum number of assigned sizes to consider the results
-	const float goodScore = 0.8; 		/// threshold for good quality score
-	NSData *bestAssignment = [NSData dataWithBytes:ladderSizes length:sizeCount*sizeof(ladderSizes)];	
+	const float goodScore = 0.8f; 		/// threshold for good quality score
+	NSData *bestAssignment = [NSData dataWithBytes:ladderSizes length:sizeCount*sizeof(ladderSizes)];
 
 	/// We assign the first peak (in scan number) to the first size, the last peak to the last size.
 	/// We will assign other intermediate peaks to intermediate sizes (based on proximity).
@@ -356,19 +348,20 @@ void assignPeaksToSizes(LadderPeak **ladderPeakPTRs, LadderSize *ladderSizes, in
 	/// we assign peaks to sizes from right to left. This is because the left part of the trace often contains noise
 	for(int i = lastPeakIndex-1; i >= 0; i--) {
 		LadderPeak *ladderPeakPTR = ladderPeakPTRs[i];
-		ladderPeakPTR->offset = INFINITY;
+		ladderPeakPTR->residual = INFINITY;
 		for(int j = sizeIndex; j >= 0; j--) {
 			/// we inspect sizes from right to left to see which is the most suitable for the peak
 			/// to predict the location of the peak to a lower size than the last assigned one, we use the slope and intercept
 			float predictedSize = (j < leftAssignedSize)? localSlope*ladderPeakPTR->scan + localIntercept : slope*ladderPeakPTR->scan + intercept;
-			float offset = ladderSizes[j].size - predictedSize;
-			float previousOffset = ladderPeakPTR->offset;
-			float offsetRatio = offset / previousOffset ;
-			if(fabs(offsetRatio) < 1) {
+			float theoreticalSize = ladderSizes[j].size;
+			float residual = theoreticalSize - predictedSize;
+			float previousResidual = ladderPeakPTR->residual;
+			float residualRatio = residual / previousResidual ;
+			if(fabs(residualRatio) < 1.0f) {
 				/// if the peak is closer to the current size than the previous size
-				if(offsetRatio < 0 && (previousOffset - fabs(offset)) < 7 && previousOffset < 10) {
-					/// we do further inspection if the current size isn't much closer (7bp closer) or if the previous offset is not too large.
-					/// The negative ratio means that the peak is between both sizes (previous offset is negative, current is positive)
+				if(residualRatio < 0 && (previousResidual - fabs(residual)) < 7 && previousResidual < 10.0f) {
+					/// we do further inspection if the current size isn't much closer (7bp closer) or if the previous residual is not too large.
+					/// The negative ratio means that the peak is between both sizes (previous residual is negative, current is positive)
 					/// We do these checks to make sure the previous size isn't skipped with no peak assigned
 					LadderSize previousSize = ladderSizes[j+1];
 					/// if the previous size has no peak or has a peak of poor quality peak (crosstalk, etc.), we don't take the current size and keep the previous
@@ -386,17 +379,17 @@ void assignPeaksToSizes(LadderPeak **ladderPeakPTRs, LadderSize *ladderSizes, in
 					slope = localSlope;
 					intercept = localIntercept;
 				}
-				ladderPeakPTR->offset = offset;
+				ladderPeakPTR->residual = residual;
 				sizeIndex = j;
 			} else {
-				break;  /// when the offset starts to get higher than the previous one, we can exit (since sizes are decreasing)
+				break;  /// when the residual starts to get higher than the previous one, we can exit (since sizes are decreasing)
 			}
 		}
-		/// based on the offset, we assign the peak to the size (assignment is not guaranteed because some other peaks may be better)
+		/// based on the residual, we assign the peak to the size (assignment is not guaranteed because some other peaks may be better)
 		BOOL assigned = assignPeakToSize(ladderPeakPTR, &ladderSizes[sizeIndex], meanHeight);
 
 		/// if the peak is assigned, we compute the local slope and intercept based on the peaks assigned to this size and to the previous size
-		if(assigned && fabsf(ladderPeakPTR->offset) < 30)  {
+		if(assigned && fabsf(ladderPeakPTR->residual) < 30)  {
 			if(sizeIndex < leftAssignedSize) {
 				leftAssignedSize = sizeIndex;
 			}
@@ -420,8 +413,8 @@ void assignPeaksToSizes(LadderPeak **ladderPeakPTRs, LadderSize *ladderSizes, in
 ///   - meanHeight: A mean value of peak height that is used to asses peak quality.
 BOOL assignPeakToSize(LadderPeak *candidate, LadderSize *ladderSizePTR, float meanHeight) {
 	candidate->size = -1;				/// we deassign the peak
-	if(fabs(candidate->offset) > 15) {
-		/// if the peak offset is just too large, we cannot assign it
+	if(fabs(candidate->residual) > 15) {
+		/// if the peak residual is just too large, we cannot assign it
 		return NO;
 	}
 	/// we check if a previously inspected peak is assigned to this size
@@ -432,7 +425,7 @@ BOOL assignPeakToSize(LadderPeak *candidate, LadderSize *ladderSizePTR, float me
 		float residentShape = (float)resident->area / resident->height;
 		float candidateShape = (float)candidate->area / candidate->height;
 		bool replace = false ;				/// will be true if the resident peak needs to be replaced by the candidate
-		bool closer = fabs(candidate->offset) < fabs(resident->offset);
+		bool closer = fabs(candidate->residual) < fabs(resident->residual);
 		bool crossTalk = candidate->crossTalk < 0;
 		if(resident->crossTalk < 0) {
 			if(!crossTalk || closer) {
@@ -484,9 +477,9 @@ float regressionForPeaks (const LadderPeak *peaks, int peakCount, int first, flo
 ///   - sizes: Array of `LadderSize` objects.
 ///   - sizeCount: Number of elements the `sizes` array.
 ///   - usedCount: On output, the number of assigned ladder sizes, i.e., whose `scan` is greater than 0.
-///   - emphasizeOnOffset: If `true` the score puts more emphasis on the offset between the predicted
+///   - emphasizeOnResidual: If `true` the score puts more emphasis on the residual between the predicted
 ///   size and the observed size. Otherwise, more emphasis is put on the proportion of sizes that are unassigned (`sizeCount` – `usedCount`).
-float sizingScoreForSizes(LadderSize *sizes, int sizeCount, int *usedCount, float *slope, float*intercept, bool emphasizeOnOffset) {
+float sizingScoreForSizes(LadderSize *sizes, int sizeCount, int *usedCount, float *slope, float*intercept, bool emphasizeOnResidual) {
 	float sumXX=0, sumXY=0, sumX=0, sumY=0;
 	int used = 0;
 	LadderSize *usedSizePTRs[sizeCount];
@@ -507,29 +500,73 @@ float sizingScoreForSizes(LadderSize *sizes, int sizeCount, int *usedCount, floa
 	*slope= (used*sumXY - sumX*sumY)/(used*sumXX - sumX*sumX);
 	*intercept = (sumY - *slope*sumX)/used;
 	
-	float maxDiffOffset = 0.0;
-	float previousOffset = 0.0;
+	float maxDiffResidual = 0.0f;
+	float previousResidual = 0.0f;
 	for (int i = 0; i < used; i++) {
 		LadderSize *sizePTR = usedSizePTRs[i];
-		float offset = sizePTR->size -  (*slope*sizePTR->scan + *intercept);
+		float residual = sizePTR->size -  (*slope*sizePTR->scan + *intercept);
 		if(i > 0) {
-			float diffOffset = previousOffset-offset;
-			if(emphasizeOnOffset) {
-				diffOffset *= diffOffset;
+			float diffResidual = previousResidual-residual;
+			if(emphasizeOnResidual) {
+				diffResidual *= diffResidual;
 			}
-			diffOffset = fabs(diffOffset) / abs(usedSizePTRs[i-1]->scan - sizePTR->scan);
-			if(diffOffset > maxDiffOffset) {
-				maxDiffOffset = diffOffset;
+			diffResidual = fabs(diffResidual) / abs(usedSizePTRs[i-1]->scan - sizePTR->scan);
+			if(diffResidual > maxDiffResidual) {
+				maxDiffResidual = diffResidual;
 			}
 		}
-		previousOffset = offset;
+		previousResidual = residual;
 	}
 	float diffSizeCount = sizeCount - used;
-	float score = emphasizeOnOffset?  (1 - maxDiffOffset/0.3 - 0.1*diffSizeCount) : (1 - maxDiffOffset*3 - sqrt(diffSizeCount/sizeCount));
+	float score = emphasizeOnResidual?  (1 - maxDiffResidual/0.3 - 0.1*diffSizeCount) : (1 - maxDiffResidual*3 - sqrt(diffSizeCount/sizeCount));
 	
-	return MAX(0, score);
+	return MAX(0.0f, score);
 }
 
+
+float sizingScoreForSizesNew(LadderSize *sizes, int sizeCount, int *usedCount, float *slope, float*intercept, bool emphasizeOnResidual) {
+	float sumXX=0, sumXY=0, sumX=0, sumY=0;
+	int used = 0;
+	LadderSize *usedSizePTRs[sizeCount];
+	for (int i = 0; i < sizeCount; i++) {
+		LadderSize *sizePTR = &sizes[i];
+		int scan = sizePTR->scan;
+		if(scan > 0) {
+			sumXX += scan * scan;
+			sumX += scan;
+			sumY += sizePTR->size;
+			sumXY += scan * sizePTR->size;
+			usedSizePTRs[used] = sizePTR;
+			used++;
+		}
+	}
+		
+	*usedCount = used;
+	*slope= (used*sumXY - sumX*sumY)/(used*sumXX - sumX*sumX);
+	*intercept = (sumY - *slope*sumX)/used;
+	
+	float maxDiffResidual = 0.0f;
+	float previousResidual = 0.0f;
+	for (int i = 0; i < used; i++) {
+		LadderSize *sizePTR = usedSizePTRs[i];
+		float residual = sizePTR->size -  (*slope*sizePTR->scan + *intercept);
+		if(i > 0) {
+			float diffResidual = previousResidual-residual;
+			if(emphasizeOnResidual) {
+				diffResidual *= diffResidual;
+			}
+			diffResidual = fabs(diffResidual) / abs(usedSizePTRs[i-1]->scan - sizePTR->scan);
+			if(diffResidual > maxDiffResidual) {
+				maxDiffResidual = diffResidual;
+			}
+		}
+		previousResidual = residual;
+	}
+	float diffSizeCount = sizeCount - used;
+	float score = emphasizeOnResidual?  (1 - maxDiffResidual/0.3 - 0.1*diffSizeCount) : (1 - maxDiffResidual*3 - sqrt(diffSizeCount/sizeCount));
+	
+	return MAX(0.0f, score);
+}
 
 float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderPeaks, int peakCount) {
 	int sizeCount = (int)(sizeData.length/sizeof(LadderSize));
@@ -538,13 +575,13 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 		sizes[i] = dataSize[i];
 	}
 
-	float slope = 0, intercept = 0, a = 0, b = 0;
+	float slope = 0.0f, intercept = 0.0f, a = 0.0f, b = 0.0f;
 	int used = 0;
 	float refScore = sizingScoreForSizes(sizes, sizeCount, &used, &slope, &intercept, true);
 	int currentPeakIndex = 0;
 	
 	for (int i = 0; i < sizeCount; i++) {
-		float maxOffset = 5;
+		float maxResidual = 5.0f;
 		LadderSize *sizePTR = &sizes[i];
 		sizePTR->ladderPeakPTR = NULL;
 		int scan = sizePTR->scan;
@@ -552,22 +589,22 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 			/// We measure the score as if the size was not assigned.
 			sizePTR->scan = 0;
 			float scoreWithoutSize = sizingScoreForSizes(sizes, sizeCount, &used, &a, &b, true);
-			if((scoreWithoutSize - refScore) < 0.3) {
+			if((scoreWithoutSize - refScore) < 0.3f) {
 				/// If the difference is score is not too big, we consider the assignment good enough and we restore the scan
 				sizePTR->scan = scan;
 			} else {
 				refScore = scoreWithoutSize;
 				slope = a; intercept = b;
-				maxOffset = (scan * slope + intercept) - sizePTR->size;
+				maxResidual = (scan * slope + intercept) - sizePTR->size;
 			}
 		}
 		if(sizePTR->scan <= 0) {
 			for (int peakIndex = currentPeakIndex; peakIndex < peakCount; peakIndex++) {
 				LadderPeak *peakPTR = &ladderPeaks[peakIndex];
 				int peakScan = peakPTR->scan;
-				float sizeOffset = (peakScan * slope + intercept) - sizePTR->size;
-				if(fabsf(sizeOffset) >= maxOffset) {
-					if(sizeOffset < 0) {
+				float sizeResidual = (peakScan * slope + intercept) - sizePTR->size;
+				if(fabsf(sizeResidual) >= maxResidual) {
+					if(sizeResidual < 0.0f) {
 						continue;
 					} else {
 						currentPeakIndex = peakIndex;
@@ -583,7 +620,7 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 				} else {
 					sizePTR->scan = 0;
 					sizePTR->ladderPeakPTR = NULL;
-					if(sizeOffset > 0) {
+					if(sizeResidual > 0) {
 						currentPeakIndex = peakIndex;
 						break;
 					}
@@ -601,10 +638,10 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 /// - Parameters:
 ///   - sizes: An array of sizes to be represented by ladder fragments.
 ///   - nSizes: The number of elements in the `sizes` array.
-+ (void)setLadderFragmentsForTrace:(Trace *) trace WithSizes:(LadderSize *)sizes sizeCount:(int)sizeCount {
+void setLadderFragmentsForTrace(Trace * trace, LadderSize * sizes,int sizeCount) {
 	NSSet *ladderFragments = trace.fragments;
 	bool *alreadyAssigned = calloc(sizeCount, sizeof(bool));
-	NSMutableSet *reusedFragments = NSMutableSet.new;
+	NSMutableArray *reusedFragments = NSMutableArray.new;
 	NSMutableArray *remainingFragments = [NSMutableArray arrayWithArray:ladderFragments.allObjects];
 	
 	/// We try to assign a size to a ladder fragment that already has this size (if any).
@@ -620,7 +657,7 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 						fragment.scan = scan;
 					}
 					[reusedFragments addObject:fragment];
-					[remainingFragments removeObject:fragment];
+					[remainingFragments removeObjectIdenticalTo:fragment];
 					break;
 				}
 			}
@@ -651,7 +688,7 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 	
 	free(alreadyAssigned);
 	alreadyAssigned = NULL;
-	trace.fragments = reusedFragments;
+	trace.fragments = [NSSet setWithArray:reusedFragments];
 	
 }
 
@@ -660,17 +697,13 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 
 - (void)autoName {
 	NSArray<NSString *> *existingNames = [self.siblings valueForKeyPath:@"@unionOfObjects.name"];
-	NSString *prefix = self.managedObjectContext.concurrencyType == NSMainQueueConcurrencyType? @"-copy" : @"-imported";
 	
 	if (existingNames.count > 0) {
-		NSString *candidateName;
+		NSString *candidateName = self.name;
 		int i = 1;
-		while(true) {
+		while([existingNames containsObject:candidateName]) {
 			NSString *suffix = i == 1? @"" : [NSString stringWithFormat:@" %d",i];
-			candidateName =[NSString stringWithFormat:@"%@ %@%@", self.name, prefix, suffix];
-			if(![existingNames containsObject:candidateName]) {
-				break;
-			}
+			candidateName =[NSString stringWithFormat:@"%@ %@%@", self.name, @"-copy", suffix];
 			i++;
 		}
 		self.name = candidateName;
@@ -683,11 +716,6 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 	NSArray *siblings = [self.managedObjectContext executeFetchRequest:request error:nil];
 	return [siblings arrayByRemovingObject:self];
 }
-
-- (NSString *)tooltip {
-	return self.editable? @"": @"This size standard cannot be modified";
-}
-
 
 
 - (BOOL)validateName:(id  _Nullable __autoreleasing *) value error:(NSError *__autoreleasing  _Nullable *)error {
@@ -702,7 +730,7 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 		}
 	}
 	/// we verify is the name is not already used by another size standard.
-    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:SizeStandard.entity.name];
+    NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:self.entity.name];
     NSArray *standards = [self.managedObjectContext executeFetchRequest:request error:nil];
     if(standards) {
         for (SizeStandard *standard in standards) {
@@ -739,22 +767,57 @@ float refineAssignments(NSData *sizeData, LadderSize *sizes, LadderPeak *ladderP
 
 
 
-#pragma mark - archiving/unarchiving
+#pragma mark - pasteboard, archiving, unarchiving
+
+NSPasteboardType _Nonnull const SizeStandardDragType = @"org.jpeccoud.stryper.sizeStandardDragType",	/// used when copying a size standard to the pasteboard.
+SizeStandardArchivePasteboardType = @"org.jpeccoud.stryper.sizeStandardArchivePasteboardType";
+
+- (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
+	return @[SizeStandardDragType, SizeStandardArchivePasteboardType];
+}
+
+
+- (id)pasteboardPropertyListForType:(NSPasteboardType)type {
+	if([type isEqualToString: SizeStandardDragType]) {
+		return [super pasteboardPropertyListForType:CodingObjectIDPasteboardType];
+	}
+	if([type isEqualToString: SizeStandardArchivePasteboardType]) {
+		return [super pasteboardPropertyListForType:CodingObjectArchivePasteboardType];
+	}
+	return nil;
+}
+
 
 +(BOOL)supportsSecureCoding {
 	return YES;
 }
+
 
 - (void)encodeWithCoder:(NSCoder *)coder {
 	[super encodeWithCoder:coder];
 	[coder encodeObject:self.sizes forKey:@"sizes"];
 }
 
+
 - (instancetype)initWithCoder:(NSCoder *)coder {
 	self = [super initWithCoder:coder];
 	if(self) {
 		self.sizes = [coder decodeObjectOfClasses:[NSSet setWithObjects:NSSet.class, SizeStandardSize.class, nil]  forKey:@"sizes"];
 		self.editable = YES;				/// standards imported from folder archives are always editable. Non-editable standards should not be imported anyway (see below), since they are already in the database
+	}
+	return self;
+}
+
+
+- (id)awakeAfterUsingCoder:(NSCoder *)coder {
+	if(coder.requiresSecureCoding) {
+		NSArray<SizeStandard *> *sizeStandards = [self.managedObjectContext executeFetchRequest:self.class.fetchRequest error:nil];
+		for(SizeStandard *sizeStandard in sizeStandards) {
+			if(sizeStandard != self && [sizeStandard isEquivalentTo:self]) {
+				[self.managedObjectContext deleteObject:self];
+				return sizeStandard;
+			}
+		}
 	}
 	return self;
 }

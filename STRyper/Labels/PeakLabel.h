@@ -36,7 +36,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// A peak label does not have a ``ViewLabel/representedObject`` but shows in a tooltip describing basic peak information.
 /// when the label is ``ViewLabel/hovered`` and if its view returns `YES` to ``TraceView/showPeakTooltips``.
-@interface PeakLabel : ViewLabel <NSViewLayerContentScaleDelegate, NSViewToolTipOwner>
+@interface PeakLabel : ViewLabel <NSViewLayerContentScaleDelegate>
 
 /// Returns an peak label configured with the attributes of the peak it should represents.
 /// - Parameters:
@@ -79,14 +79,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setPeak:(Peak)peak;
 
 
-/// The marker whose range comprises the ``size`` of the label, or `nil` if there is no such marker.
+/// The ``Mmarker`` whose range comprises the ``size`` of the label, or `nil` if there is no such marker.
 ///
 /// The marker is searched among those of the ``Chromatogram/panel`` applied to the ``FluoTrace/chromatogram`` of the ``TraceView/trace`` that the view shows,
 /// for the appropriate ``FluoTrace/channel``.
 @property (weak, readonly, nonatomic, nullable) Mmarker *marker;
 
-/// Removes the tooltip rectangle used by the label, if any.
-- (void)removeTooltip;
 
 
 /****************notable implementations of methods defined in superclasses *****************/
@@ -99,7 +97,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Implements the ``ViewLabel/drag`` method.
 ///
-/// If the label is within a range of a ``Mmarker`` and its view shows ``BinLabel`` objects, 
+/// If the label is within the range of a ``Mmarker`` and its view shows ``BinLabel`` objects,
 /// the method draws a handle starting at the horizontal position of the peak tip and ending a the mouse location.
 /// When the mouse reaches a bin label, the label takes its ``ViewLabel/hovered`` state.
 ///

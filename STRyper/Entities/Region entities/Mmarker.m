@@ -38,11 +38,10 @@
 @implementation Mmarker
 
 @dynamic ploidy, channel, motiveLength, bins, panel, genotypes;
-@synthesize channelImage, channelName, visibleRange;
+@synthesize channelImage, channelName, visibleRange, _replacementMarker;
 
 NSString * _Nonnull const MarkerBinsKey = @"bins";
 NSString * _Nonnull const MarkerPanelKey = @"panel";
-NSPasteboardType _Nonnull const MarkerPasteboardType = @"org.jpeccoud.stryper.markerPasteboardType";
 static void * const binsChangedContext = (void*)&binsChangedContext;
 
 
@@ -85,6 +84,12 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 		}
 		return NSOrderedDescending;
 	}];
+}
+
+
+- (Mmarker *)marker {
+	/// A trick that helps showing bins and markers on the viewer.
+	return self;
 }
 
 
@@ -166,9 +171,10 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	return YES;
 }
 
-- (float)minimumWidth {
-	return 2.0;
++ (float)minimumWidth {
+	return 2.0f;
 }
+
 
 - (BOOL)validateCoordinate:(id *) valueRef isStart:(BOOL)isStart error:(NSError * _Nullable *)error {
 
@@ -199,7 +205,7 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 		
 	float start = isStart? coordinate : self.start;
 	float end = isStart? self.end : coordinate;
-	if(end - start < 2.0) {
+	if(end - start < 2.0f) {
 		if (error != NULL) {
 			NSString *reason = [NSString stringWithFormat:@"Marker '%@' range of %g bp is too short (min: 2bp).", self.name, end-start];
 			*error = [NSError managedObjectValidationErrorWithDescription: reason
@@ -393,7 +399,7 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 
 }
 
-#pragma mark - copying and archiving
+#pragma mark - pasteboard, copying and archiving
 
 - (BOOL)isEquivalentTo:(__kindof NSManagedObject *)obj {
 	if(![super isEquivalentTo:obj]) {
@@ -429,6 +435,7 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	/// we don't encode the genotype either, as many won't relate to the folder being archived
 }
 
+
 - (instancetype)initWithCoder:(NSCoder *)coder {
 	self = [super initWithCoder:coder];
 	if(self) {
@@ -442,6 +449,7 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 	return [NSString stringWithFormat:@"marker\t%@\t%.2f\t%.2f\t%@\t%d\t%d", self.name, self.start, self.end, self.channelName, self.ploidy, self.motiveLength];
 }
 
+NSPasteboardType _Nonnull const MarkerPasteboardType = @"org.jpeccoud.stryper.markerPasteboardType";
 
 - (NSArray<NSPasteboardType> *)writableTypesForPasteboard:(NSPasteboard *)pasteboard {
 	/// the string representation of the marker is copied as tabular text, though we don't use it within the app.
@@ -460,16 +468,9 @@ static void * const binsChangedContext = (void*)&binsChangedContext;
 		return self.stringRepresentation;
 	} else if ([type isEqualToString:MarkerPasteboardType]) {
 		/// the marker is copied as an archive
-		NSError *error;
-		NSData *archive = [NSKeyedArchiver archivedDataWithRootObject:self requiringSecureCoding:YES error:&error];
-		
-		if(error) {
-			NSLog(@"error: %@", error);
-		} else {
-			return archive;
-		}
+		return [super pasteboardPropertyListForType:CodingObjectArchivePasteboardType];
 	}
-	return nil;
+	return [super pasteboardPropertyListForType:type];
 }
 
 @end

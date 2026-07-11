@@ -78,7 +78,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 	if([self.documentView isKindOfClass:TraceView.class]) {
 		traceView = self.documentView;
 		if(!vScaleView) {
-			vScaleView = [[VScaleView alloc] initWithFrame:NSMakeRect(0, 0, vScaleView.width, NSMaxY(self.bounds)-20) ]; /// the frame isn't  important as it is set during -tile
+			vScaleView = [[VScaleView alloc] initWithFrame:NSMakeRect(0.0, 0.0, vScaleView.width, NSMaxY(self.bounds)-20.0) ]; /// the frame isn't  important as it is set during -tile
 		}
 		traceView.vScaleView = vScaleView;
 		[self addSubview:vScaleView];
@@ -123,9 +123,9 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 
 -(void)setVScaleViewBoundsOrigin {
 	if(traceView) {
-		NSPoint point = [vScaleView convertPoint:NSMakePoint(0, 0) fromView:traceView];
+		NSPoint point = [vScaleView convertPoint:NSZeroPoint fromView:traceView];
 		point.y -= vScaleView.bounds.origin.y;
-		[vScaleView setBoundsOrigin:NSMakePoint(0, -point.y)];
+		[vScaleView setBoundsOrigin:NSMakePoint(0.0, -point.y)];
 	}
 	needsUpdateVScaleViewBoundsOrigin = NO;
 }
@@ -161,12 +161,12 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 		return;
 	}
 
-	CGFloat topInset = 0;
+	CGFloat topInset = 0.0;
 	NSRulerView *rulerView = self.horizontalRulerView;
 	if(rulerView && !rulerView.isHidden) {
-		topInset = rulerView.frame.size.height -4 ;		/// the vScaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level it displays.
+		topInset = rulerView.frame.size.height -4.0 ;		/// the vScaleView slightly overlaps the ruler view to avoid clipping the topmost fluorescence level it displays.
 	}
-	NSRect newFrame = NSMakeRect(0, topInset, vScaleView.width, self.frame.size.height - topInset);
+	NSRect newFrame = NSMakeRect(0.0, topInset, vScaleView.width, self.frame.size.height - topInset);
 	if(!NSEqualRects(vScaleView.frame, newFrame)) {
 		vScaleView.frame = newFrame;
 		if(traceView.leftInset != vScaleView.width) {
@@ -178,15 +178,15 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 		[self setVScaleViewBoundsOrigin];
 	}
 
-	if(traceView.hScale > 0) {
+	if(traceView.hScale > 0.0) {
 		/// The scroll position of the trace view may correspond to its visibleOrigin.
 		/// This happens when appkit imposes some scrolling  without calling `scrollClipView:toPoint:`
 		/// We scroll the view to fix any inconsistency.
 		NSClipView *clipView = self.contentView;
 		CGFloat boundX = clipView.bounds.origin.x;
 		CGFloat expectedBoundX = traceView.visibleOrigin - traceView.leftInset;
-		if(fabs(expectedBoundX - boundX) > 2) {
-			[clipView scrollToPoint:NSMakePoint(expectedBoundX, 0)];
+		if(fabs(expectedBoundX - boundX) > 2.0) {
+			[clipView scrollToPoint:NSMakePoint(expectedBoundX, 0.0)];
 			[self reflectScrolledClipView:clipView];
 		}
 	}
@@ -241,7 +241,7 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 			/// if scrolling is mostly vertical and the alt key is pressed, we zoom the trace
 			NSPoint mouseLocation = [self.documentView convertPoint:theEvent.locationInWindow fromView:nil];
 			CGFloat zoomPoint = mouseLocation.x;
-			CGFloat zoomFactor = (40 + theEvent.scrollingDeltaY)/40;
+			CGFloat zoomFactor = (40.0 + theEvent.scrollingDeltaY)/40.0;
 			[traceView zoomTo:zoomPoint withFactor:zoomFactor animate:NO];
 		}
 	} else {
@@ -311,9 +311,9 @@ const NSBindingName AlwaysShowsScrollerBinding = @"alwaysShowsScroller";
 	}
 	/// We move between markers upon swipe
 	CGFloat deltaX = event.deltaX;
-	if(deltaX > 0) {
+	if(deltaX > 0.0) {
 		[markerView moveToNextMarker:self];
-	} else if(deltaX < 0) {
+	} else if(deltaX < 0.0) {
 		[markerView moveToPreviousMarker:self];
 	}
 }

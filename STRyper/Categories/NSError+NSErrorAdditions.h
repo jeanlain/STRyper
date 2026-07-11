@@ -45,6 +45,18 @@ extern NSString *const STRyperErrorDomain;
 /// Errors are stored in the int the `userInfo` dictionary at the `NSDetailedErrorsKey`.
 + (instancetype)fileReadErrorWithFileName:(NSString *)fileName Errors:(NSArray<NSError *> *)errors;
 
+
+/// Returns an error based on the receiver, with a new specified description and recovery suggestion.
+///
+/// - Note: The receiver is stored at the `NSUnderlyingErrorKey` in the `userInfo` dictionary of the returned error.
+///
+/// - Important: Passing `nil` as an argument does not remove the description or suggestion, but uses the one of the receiver.
+/// If you want to remove it, pass an empty string.
+/// - Parameters:
+///   - description: The string serving a description. If `nil`, the receiver description is used.
+///   - suggestion: The string for the recovery suggestion. If `nil`, the receiver recovery suggestion is used.
+- (instancetype) errorWithNewDescription:(nullable NSString *)description suggestion:(nullable NSString *)suggestion;
+
 @end
 
 NS_ASSUME_NONNULL_END

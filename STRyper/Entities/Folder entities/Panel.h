@@ -37,10 +37,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// Although the `Panel` class inherits from ``Folder`` for practical reasons, a panel must not have ``Folder/subfolders``.
 /// Its ``Folder/parent`` should be a ``PanelFolder`` object.
 ///
-/// - Note: ``CodingObject/encodeWithCoder:``  and ``CodingObject/initWithCoder:``  are currently implement in the context of a ``SampleFolder`` unarchiving/archiving,
-/// in that the ``Folder/parent`` of the receiver is encoded/decoded.
-@interface Panel : Folder {
-}
+/// A panel can be copied to the paste board and accessed with the `PanelPasteboardType` key.
+/// It is copied as an archive that can be decoded with an NSKeyedUnarchiver.
+/// When the archiver requires secured coding, the archive also encodes the ``Folder/parent`` folder (see note).
+///
+/// - Note: When the coder requires secured coding, ``CodingObject/encodeWithCoder:``  and ``CodingObject/initWithCoder:``
+/// are assumed to be called in the context of a ``SampleFolder`` unarchiving/archiving. In this case, the ``Folder/parent`` of the receiver is encoded/decoded.
+@interface Panel : Folder
+
 
 /************molecular markers *********/
 
@@ -71,18 +75,18 @@ NS_ASSUME_NONNULL_BEGIN
 /// The reverse relationship is ``Chromatogram/panel`` .
 @property (nonatomic, nullable) NSSet <Chromatogram *> *samples;
 
-/// Returns the receiver in an array.
+/// Returns the receiver in a set.
 ///
 /// This getter is similar to ``PanelFolder/panels`` to simplify code using ``PanelFolder`` and ``Panel`` objects
-- (NSArray<Panel *> *)panels;
+- (NSSet<Panel *> *)panels;
 
 
 /************************Panel import / export *************/
 
-/// A string representation of the panel, which can be used to export it to a text file.
+/// The string representation of the panel, which can be used to export it to a text file.
 ///
 /// See the ``STRyper`` user guide for details about the format of this string.
--(NSString *)exportString;
+@property (readonly, nonatomic) NSString *stringRepresentation;
 
 
 /// Sets bins for ``markers`` of the panel, using bin descriptions in a text file, and returns these bins.
@@ -98,7 +102,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /***************************/
 
-
+/// A pasteboard type used to drag panels to apply to samples.
+extern NSPasteboardType  _Nonnull const PanelDragType;
 
 /// some constant that avoid using strings in code, as these are often used in this application.
 extern NSString * _Nonnull const PanelMarkersKey;

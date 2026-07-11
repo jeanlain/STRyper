@@ -26,29 +26,24 @@
 #import "TableViewController.h"
 
 
-/// A singleton class that manages the detailed view showing chromatogram traces or molecular markers in ``STRyper``.
+/// A singleton class that manages the viewer showing chromatogram traces or molecular markers in ``STRyper``.
 ///
-/// This class manages the detailed view whose rows contain ``TraceView`` instances.
+/// This class manages the viewer whose rows contain ``TraceView`` instances.
 /// The ``TableViewController/contentArray`` property determines what the trace views show: ``Chromatogram``,  ``Genotype``  or ``Mmarker`` objects.
+/// If the content array contains ``Bin`` objects, their ``Bin/marker`` is represented by a row and the labels corresponding to bins are highlighted on the trace view.
 ///
-/// When it shows genotypes or chromatograms, and depending on the ``stackMode`` property, the detailed view also shows "regular" table rows with sample metadata,
+/// When it shows genotypes or chromatograms, and depending on the ``stackMode`` property, the viewer also shows "regular" table rows with sample metadata,
 /// like the table managed by the ``SampleTableController``.
 @interface DetailedViewController : TableViewController <TraceViewDelegate, TraceOutlineViewDelegate, NSOutlineViewDataSource>
 
 
-/// Forces the controller to set its ``TableViewController/contentArray`` to the  selected samples/genotypes/markers and to show them in the detailed view.
-/// - Parameter sender: The object that sent the message. It is not used by the method.
-///
-/// This methods considers that the content set by setting ``TableViewController/contentArray`` may not be loaded if it contains to many elements.
--(IBAction)confirmLoadContent:(NSButton *)sender;
-
-/// Whether the detailed view shows genotypes (the ``TableViewController/contentArray`` contains ``Genotype`` objects).
+/// Whether the viewer shows genotypes (the ``TableViewController/contentArray`` contains ``Genotype`` objects).
 @property (readonly) BOOL showGenotypes;
 
-/// Whether the detailed view shows markers (the ``TableViewController/contentArray`` contains ``Mmarker`` objects).
+/// Whether the viewer shows markers (the ``TableViewController/contentArray`` contains ``Mmarker`` objects).
 @property (readonly) BOOL showMarkers;
 															
-/// An integer that specifies how the detailed view displays traces when it shows chromatograms.
+/// An integer that specifies how the viewer displays traces when it shows chromatograms.
 typedef NS_ENUM(NSUInteger, StackMode) {
 	
 	/// Each trace is shown in a separate row.
@@ -66,9 +61,9 @@ typedef NS_ENUM(NSUInteger, StackMode) {
 } ;
 
 
-/// The mode of stacking traces in rows of the detailed view.
+/// The mode of stacking traces in rows of the viewer.
 ///
-/// Setting this property reloads the detailed view if it shows samples (that is, if ``TableViewController/contentArray`` contains ``Chromatogram`` objects).
+/// Setting this property reloads the viewer if it shows samples (that is, if ``TableViewController/contentArray`` contains ``Chromatogram`` objects).
 @property (nonatomic) StackMode stackMode;
 
 
@@ -77,17 +72,17 @@ typedef NS_ENUM(NSUInteger, StackMode) {
 /// This property has a visible effect only when the ``showGenotypes`` returns `YES`.
 @property (nonatomic) BOOL stackGenotypes;
 
-/// The desired number of rows showing traces to fit the visible height of the detailed view.
+/// The desired number of rows showing traces to fit the visible height of the viewer.
 ///
 /// The effective value is constrained to 1...5. Changing it resize the rows vertically.
 ///
-/// Depending on the height of visible area of the detailed view, and given that the height of rows is
+/// Depending on the height of visible area of the viewer, and given that the height of rows is
 /// constrained to [40, 1000] points,  this number may differ from effective number of rows that can fit the view.
 @property (nonatomic) NSUInteger numberOfRowsPerWindow;
 
 /// Whether the ``TraceView/visibleRange`` of trace views should be synchronized between rows.
 ///
-/// Synchronization is effective only when the detail view shows chromatograms (``showMarkers`` and ``showGenotypes`` return `NO`).
+/// Synchronization is effective only when the viewer shows chromatograms (``showMarkers`` and ``showGenotypes`` return `NO`).
 @property (nonatomic) BOOL synchronizeViews;
 
 /// Records the synchronized visible range of trace views in the user defaults

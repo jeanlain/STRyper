@@ -77,6 +77,8 @@ NS_ASSUME_NONNULL_BEGIN
 -(NSArray *) arrayByRemovingObject:(id)object;
 
 
+-(nullable NSArray<NSIndexSet *> *)indexesOfDifferencesWithArray:(nullable NSArray *)array;
+
 /// Returns the unique values at a keypath for objects in the array, in the order of occurrence of each new value.
 ///
 /// This method workarounds the fact that `@distinctUnionOfObjects` does not guarantee an order for the values.

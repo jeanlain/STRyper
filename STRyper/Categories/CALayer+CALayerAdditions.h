@@ -40,7 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 /// Returns all `sublayers` of the layer and their descendants, recursively.
-@property (readonly) NSSet <CALayer *> *allSublayers;
+@property (readonly) NSArray <CALayer *> *allSublayers;
 
 /// Draws the `string` of the layer at its position in a given layer.
 ///

@@ -43,7 +43,6 @@
 	__weak Trace *trace;					/// The trace of which the label represents a peak
 	__weak RegionLabel *targetBinLabel;		/// the bin label that is the current target of a drag
 	NSPoint startPoint;						/// to implement dragging behavior. Position of the dragging handle fixed point
-	NSToolTipTag toolTipTag;				/// The tag of the tooltip showing peak information on our view
 }
 
 #pragma mark - initialization and base attributes setting
@@ -51,11 +50,11 @@
 + (void)initialize {
 	if (self == PeakLabel.class) {
 		dragLineLayer = CALayer.new;
-		dragLineLayer.anchorPoint = CGPointMake(0, 0);
+		dragLineLayer.anchorPoint = CGPointZero;
 		dragLineLayer.contentsScale = 2.0;
 		dragLineLayer.shadowOpacity = 1.0;
 		dragLineLayer.shadowRadius = 1.0;
-		dragLineLayer.shadowOffset = CGSizeMake(0, -1);
+		dragLineLayer.shadowOffset = CGSizeMake(0.0, -1.0);
 	}
 }
 
@@ -108,10 +107,13 @@
 
 
 
+/// Returns the marker that encompasses the peak's tip.
 -(nullable Mmarker *) marker {
-	if(trace && !trace.isLadder) {
-		Chromatogram *sample = trace.chromatogram;
-		float size = [sample sizeForScan:self.scan];
+	Chromatogram *sample = trace.chromatogram;
+	if(!trace.isLadder && sample.sizingQuality.floatValue > 0) {
+		/// This requires proper sizing.
+		float size = [sample sizeForScan:self.scan]; /// We use the chromatogram's method rather than the trace's method
+													 /// as we don't use the marker offset to determine whether the peak is in the marker's range;
 		for (Mmarker *marker in [sample.panel markersForChannel:trace.channel]) {
 			if(size >= marker.start && size <= marker.end)  {
 				return marker;
@@ -176,20 +178,6 @@
 }
 
 
-- (void)removeTrackingArea {
-	[super removeTrackingArea];
-	[self removeTooltip];
-}
-
-
-- (void)removeTooltip {
-	if(toolTipTag != 0) {
-		[self.view removeToolTip:toolTipTag];
-		toolTipTag = 0;
-	}
-}
-
-
 - (void)reposition {
 	TraceView *view = self.view;
 	if(view.hScale <= 0) {
@@ -197,7 +185,7 @@
 	}
 	Chromatogram *sample = trace.chromatogram;
 	CGFloat startX = round([view xForScan:self.startScan ofSample:sample] - 0.5);
-	self.frame = NSMakeRect(startX, 0, [view xForScan:self.endScan ofSample:sample] - startX, NSMaxY(view.bounds));
+	self.frame = NSMakeRect(startX, 0.0, [view xForScan:self.endScan ofSample:sample] - startX, NSMaxY(view.bounds));
 }
 
 
@@ -217,21 +205,19 @@
 	return YES;
 }
 
-- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
-	if(tag == toolTipTag) {
-		BOOL noSizing = trace.chromatogram.sizingQuality.floatValue <= 0;
-		NSString *sizeInfo = @"unavailable";
-		if(!noSizing) {
-			sizeInfo = [NSString stringWithFormat:@"%.01f bp", self.size];
-		}
-		int16_t fluo = [self.view.trace fluoForScan:self.scan useRawData:self.view.showRawData maintainPeakHeights:self.view.maintainPeakHeights];
-		NSString *string = [NSString stringWithFormat:@"Scan: %d\nSize: %@\nFluorescence: %d RFU", self.scan, sizeInfo, fluo];
-		if(self.crossTalk < 0) {
-			string = [string stringByAppendingString:@"\nCaution: crosstalk"];
-		}
-		return string;
+- (NSString *)stringForToolTip {
+	TraceView *view = self.view;
+	if(!view.showPeakTooltips) {
+		return nil;
 	}
-	return @"";
+	int scan = self.scan;
+	NSString *sizeInfo = trace.chromatogram.sizingQuality.floatValue <= 0 ? @"unavailable" : [NSString stringWithFormat:@"%.01f bp", self.size];
+	int16_t fluo = [trace fluoForScan:scan useRawData:view.showRawData maintainPeakHeights:view.maintainPeakHeights];
+	NSString *string = [NSString stringWithFormat:@"Scan: %d\nSize: %@\nFluorescence: %d RFU", scan, sizeInfo, fluo];
+	if(self.crossTalk < 0) {
+		string = [string stringByAppendingString:@"\nCaution: crosstalk"];
+	}
+	return string;
 }
 
 
@@ -373,8 +359,8 @@ static CALayer *dragLineLayer;
 		/// This layer goes from the start point of the drag to the end point, and takes the whole view height
 		/// We could make it larger, but performance is better when the layer is not larger than needed
 		CGFloat distX = ceil(startPoint.x - dragHandleEndPosition.x);
-		CGFloat x = distX < 0? startPoint.x : dragHandleEndPosition.x;
-		CGRect frame = CGRectMake(x - 5, 0, fabs(distX) + 10, view.frame.size.height);
+		CGFloat x = distX < 0.0? startPoint.x : dragHandleEndPosition.x;
+		CGRect frame = CGRectMake(x - 5.0, 0.0, fabs(distX) + 10.0, view.frame.size.height);
 		dragLineLayer.position = frame.origin;
 		dragLineLayer.bounds = frame; /// so the layer coordinates match those of its super layer (hence the trace view).
 		[dragLineLayer setNeedsDisplay];
@@ -382,18 +368,6 @@ static CALayer *dragLineLayer;
 	}
 }
 
-
-- (void)setHovered:(BOOL)hovered {
-	if((hovered != _hovered || (hovered && toolTipTag == 0)) && !(self.dragged && !hovered)) {
-		/// a peak label that is dragged keeps its hovered state
-		_hovered = hovered;
-		TraceView *view = self.view;
-		[view labelDidChangeHoveredState:self];
-		if(toolTipTag == 0 && hovered && view.showPeakTooltips) {
-			toolTipTag = [view addToolTipRect:self.frame owner:self userData:nil];
-		}
-	}
-}
 
 
 - (NSPoint)dragHandleEndPosition {
@@ -418,7 +392,7 @@ static CALayer *dragLineLayer;
 			/// This avoids assigning the peak to an allele for what could be a simple click.
 			NSPoint clickedPoint = view.clickedPoint;
 			CGFloat dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
-			if(dist < 5) {
+			if(dist < 5.0) {
 				return;
 			}
 			
@@ -458,9 +432,9 @@ static CALayer *dragLineLayer;
 }
 
 
-/// Names alleles that are at our peak after a bin.
+/// Names alleles that are at the peak of the label after a bin.
 ///
-/// The method may move alleles at our peak (give them the peak scan) before naming them.
+/// The method may move alleles at the peak (give them the peak scan) before naming them.
 ///
 /// - Parameter bin: The bin to use for naming. If `nil`, alleles get the "non-binned" name, or no name if the marker has no bins.
 -(void) attachAllelesWithBin:(nullable Bin *)bin {
@@ -477,16 +451,16 @@ static CALayer *dragLineLayer;
 	if(genotype) {
 		/// Every fragment at our peak scan (including our fragment, if any) will be named after the bin.
 		int scan = self.scan;
-		NSSet *allelesWeTake;
+		NSArray *allelesWeTake;
 		if(self.fragment.additional) {
-			allelesWeTake = [genotype.additionalFragments filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Allele *allele, NSDictionary<NSString *,id> * _Nullable bindings) {
+			allelesWeTake = [genotype.additionalFragments filteredArrayUsingBlock:^BOOL(Allele* _Nonnull allele, NSUInteger idx) {
 				return allele.scan == scan;
-			}]];
+			}];
 		} else {
 			/// If we don't host an additional fragment (could be no fragment at all), we also take all unused alleles (of scan 0)
-			allelesWeTake = [genotype.assignedAlleles filteredSetUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(Allele *allele, NSDictionary<NSString *,id> * _Nullable bindings) {
+			allelesWeTake = [genotype.assignedAlleles filteredArrayUsingBlock:^BOOL(Allele* _Nonnull allele, NSUInteger idx) {
 				return allele.scan <= 0 || allele.scan == scan;
-			}]];
+			}];
 			if(allelesWeTake.count == 0) { /// If there is no such allele, we take the used allele that is closest to our peak.
 				Allele *closestAllele;
 				int minDist = INT_MAX;
@@ -498,7 +472,7 @@ static CALayer *dragLineLayer;
 					}
 				}
 				if(closestAllele) {
-					allelesWeTake = [NSSet setWithObject:closestAllele];
+					allelesWeTake = @[closestAllele];
 				}
 			}
 		}
@@ -525,22 +499,22 @@ static CALayer *dragLineLayer;
 		CGContextSetFillColorWithColor(context, NSColor.grayColor.CGColor);
 
 		NSPoint start = startPoint;
-		CGRect origin = CGRectMake(start.x-4,start.y -4, 8, 8);
+		CGRect origin = CGRectMake(start.x-4.0,start.y -4.0, 8.0, 8.0);
 		
 		NSPoint endPoint = _dragHandleEndPosition;
-		CGFloat maxY = NSMaxY(self.view.bounds) -18;
+		CGFloat maxY = NSMaxY(self.view.bounds) -18.0;
 		BOOL outOfBounds = NO;
 		if(endPoint.y > maxY) {
-			outOfBounds = endPoint.y > maxY + 5;
+			outOfBounds = endPoint.y > maxY + 5.0;
 			endPoint.y = maxY;
 		} else if(endPoint.y < 2) {
-			outOfBounds = endPoint.y < -5;
-			endPoint.y = 2;
+			outOfBounds = endPoint.y < -5.0;
+			endPoint.y = 2.0;
 		}
 		endPoint.y += 2;
-		layer.opacity = outOfBounds? 0.3 : 1;
+		layer.opacity = outOfBounds? 0.3 : 1.0;
 				
-		CGRect current = CGRectMake(endPoint.x-4, endPoint.y-4, 8, 8);
+		CGRect current = CGRectMake(endPoint.x-4.0, endPoint.y-4.0, 8.0, 8.0);
 		
 		CGContextFillEllipseInRect(context, origin);
 		
@@ -549,7 +523,7 @@ static CALayer *dragLineLayer;
 		CGContextSetLineWidth(context, 1.5);
 		
 		CGPoint points[] = {start, endPoint};
-		CGContextStrokeLineSegments(context, points, 2);
+		CGContextStrokeLineSegments(context, points, 2.0);
 		
 	}
 }
@@ -610,31 +584,27 @@ static CALayer *dragLineLayer;
 
 
 -(void)attachAllele:(id)sender {
-	if(self.view.panel) {
-		/// The view may not show a panel even thought the sample has a panel (but sizing failed).
-		/// We don't allow manual genotyping when a panel is not shown.
-		Mmarker *marker = self.marker;
-		if(marker) {
-			Allele *currentAllele = self.fragment;
-			if(currentAllele.additional) {
-				[currentAllele removeFromGenotypeAndDelete];
-			} else if(currentAllele) {
-				return;
-			}
-			/// else if we are in a marker range, we find an an allele (or alleles) to add to our peak
-			Bin *ourBin;		/// we attach it to the bin at our position, if any
-			float ourSize = self.size;
-			for(Bin *bin in marker.bins) {
-				if(bin.start <= ourSize && bin.end >= ourSize) {
-					ourBin = bin;
-					break;
-				}
-			}
-			[self attachAllelesWithBin:ourBin];
+	Mmarker *marker = self.marker;
+	if(marker) {
+		Allele *currentAllele = self.fragment;
+		if(currentAllele.additional) {
+			[currentAllele removeFromGenotypeAndDelete];
+		} else if(currentAllele) {
+			return;
 		}
+		/// else if we are in a marker range, we find an an allele (or alleles) to add to our peak
+		Bin *ourBin;		/// we attach it to the bin at our position, if any
+		float ourSize = self.size;
+		for(Bin *bin in marker.bins) {
+			if(bin.start <= ourSize && bin.end >= ourSize) {
+				ourBin = bin;
+				break;
+			}
+		}
+		[self attachAllelesWithBin:ourBin];
 	}
 }
-	
+
 
 /// Allows the user to assign/detach an allele to the peak we represent
 - (void)doubleClickAction:(id)sender {

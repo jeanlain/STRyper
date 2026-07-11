@@ -31,6 +31,8 @@ const CGFloat markerViewHeight = 20.0;
 
 @interface MarkerView () {
 	NSArray <RegionLabel *> *sortedMarkerLabels; /// marker labels sorted by increasing start size
+	NSToolTipTag addMarkerTooltip;
+
 }
 
 /// Whether the view is in a mode that allows if the user can add a region (marker)  by clicking add dragging.
@@ -141,7 +143,7 @@ enum ButtonTag : NSUInteger {
 		_noPanelStringLayer.contentsScale = 3.0;
 		_noPanelStringLayer.delegate = self;
 		_noPanelStringLayer.alignmentMode = kCAAlignmentCenter;
-		_noPanelStringLayer.bounds = CGRectMake(0, 0, 200, 15);
+		_noPanelStringLayer.bounds = CGRectMake(0.0, 0.0, 200.0, 15.0);
 		[self.backgroundLayer addSublayer:_noPanelStringLayer];
 	}
 	return _noPanelStringLayer;
@@ -176,18 +178,18 @@ enum ButtonTag : NSUInteger {
 			/// The button action is actually implemented by its binding
 			[button bind:NSValueBinding toObject:self withKeyPath:NSStringFromSelector(@selector(inAddMode)) options:nil];
 			button.toolTip = @"Add marker (click & drag)";
-			button.frame = NSMakeRect(15, 0, 15, self.bounds.size.height);
+			button.frame = NSMakeRect(15.0, 0.0, 15.0, self.bounds.size.height);
 			button.autoresizingMask =  NSViewHeightSizable;
 			break;
 		case previousMarkerButtonTag:
 			button.action = @selector(moveToPreviousMarker:);
-			button.frame = NSMakeRect(0, 0, 15, self.bounds.size.height);
+			button.frame = NSMakeRect(0.0, 0.0, 15.0, self.bounds.size.height);
 			button.toolTip = @"Move to previous marker";
 			button.autoresizingMask = NSViewHeightSizable;
 			break;
 		case nextMarkerButtonTag:
 			button.action = @selector(moveToNextMarker:);
-			button.frame = NSMakeRect(NSMaxX(self.bounds) - 15, 0, 15, self.bounds.size.height);
+			button.frame = NSMakeRect(NSMaxX(self.bounds) - 15.0, 0.0, 15.0, self.bounds.size.height);
 			button.toolTip = @"Move to next marker";
 			button.autoresizingMask = NSViewMinXMargin | NSViewHeightSizable;
 		default:
@@ -235,7 +237,7 @@ enum ButtonTag : NSUInteger {
 
 - (void)setBackgroundColor:(NSColor *)backgroundColor {
 	super.backgroundColor = backgroundColor;
-	self.needsUpdateLabelAppearance = YES;
+	self.needsUpdateLabelColors = YES;
 }
 
 
@@ -244,16 +246,16 @@ enum ButtonTag : NSUInteger {
 		[self updateContent];
 	}
 	
-	if(self.needsUpdateLabelAppearance) {
+	if(self.needsUpdateLabelColors) {
 		[self updateColorsForChannels];
 		self.layer.backgroundColor = self.backgroundColor.CGColor;
 		if(_noPanelStringLayer) {
 			_noPanelStringLayer.foregroundColor = NSColor.secondaryLabelColor.CGColor;
 		}
 		for(RegionLabel *label in self.markerLabels) {
-			[label updateForTheme];
+			[label updateColors];
 		}
-		self.needsUpdateLabelAppearance = NO;
+		self.needsUpdateLabelColors = NO;
 	}
 	/// We make sure the layer showing the absence of panel is centered.
 	/// This could have been done with a layout constraint, but this would have required more code, probably
@@ -268,7 +270,7 @@ enum ButtonTag : NSUInteger {
 	if(!_backgroundLayer) {
 		_backgroundLayer = CALayer.new;
 		_backgroundLayer.delegate = self;
-		_backgroundLayer.anchorPoint = CGPointMake(0, 0);
+		_backgroundLayer.anchorPoint = CGPointZero;
 		
 		/// The layer only occupies the area between navigation buttons, such that marker labels don't overlap with the buttons
 		/// We could have used a CAScrollLayer as the view looks like it scrolls, but since the marker labels need to be repositioned at every scroll step
@@ -312,6 +314,9 @@ enum ButtonTag : NSUInteger {
 	self.backgroundLayer.position = visibleRect.origin;
 }
 
+- (BaseRange)visibleRange {
+	return self.traceView.visibleRange;
+}
 
 - (CGFloat)visibleOrigin {
 	return self.traceView.visibleOrigin;
@@ -341,7 +346,7 @@ enum ButtonTag : NSUInteger {
 - (NSRect)visibleRect {
 	/// We return a rectangle that corresponds to the area between the buttons. This avoid the overlap between marker labels and buttons
 	NSRect bounds = self.bounds;
-	CGFloat start = 0; CGFloat end = NSMaxX(bounds);
+	CGFloat start = 0.0; CGFloat end = NSMaxX(bounds);
 	if(addMarkerButton && !addMarkerButton.hidden) {
 		start = NSMaxX(addMarkerButton.frame);
 	}
@@ -349,7 +354,7 @@ enum ButtonTag : NSUInteger {
 	if(nextMarkerButton && !nextMarkerButton.hidden) {
 		end = nextMarkerButton.frame.origin.x;
 	}
-	return NSMakeRect(start, 0, end-start, bounds.size.height);
+	return NSMakeRect(start, 0.0, end-start, bounds.size.height);
 }
 
 
@@ -456,7 +461,7 @@ enum ButtonTag : NSUInteger {
 				_applyPanelButton = nil;
 			}
 			if(!noPanelString) {
-				noPanelString = foundPanel? @"Cannot show marker panel" : @"Cannot apply marker panel";
+				noPanelString = foundPanel? @"Cannot show markers" : @"Cannot apply marker panel";
 			}
 			
 			CATextLayer *noPanelStringLayer = self.noPanelStringLayer;
@@ -510,7 +515,7 @@ enum ButtonTag : NSUInteger {
 		return NSOrderedDescending;
 	}];
 	if(markerCount > 0) {
-		self.needsUpdateLabelAppearance = YES;
+		self.needsUpdateLabelColors = YES;
 		self.needsRepositionLabels = YES;
 	}
 	if(self.hScale > 0) {
@@ -519,8 +524,21 @@ enum ButtonTag : NSUInteger {
 }
 
 
-- (void)labelDidChangeEditState:(RegionLabel *)label {
-	if(label.editState != editStateNil) {
+- (void)labelDidChangeEditState:(RegionLabel *)label previousState:(EditState)previousState {
+	[super labelDidChangeEditState:label previousState:previousState];
+	EditState editState = label.editState;
+	if(editState == editStateOffset || (editState == editStateNil && previousState == editStateOffset)) {
+		/// When the label enters or exists the offset edit state, the change is not set to its marker
+		/// hence to the corresponding label on the trace view. So we do it explicitly.
+		Mmarker *marker = label.region;
+		for(RegionLabel *markerLabel in self.traceView.markerLabels) {
+			if(markerLabel.region == marker && markerLabel.editState != editState) {
+				markerLabel.editState = editState;
+			}
+		}
+	}
+	
+	if(editState != editStateNil) {
 		/// if a marker label enters some edit state, exits the add mode
 		self.inAddMode = NO;
 	}
@@ -529,12 +547,12 @@ enum ButtonTag : NSUInteger {
 
 - (BaseRange)safeRangeForBaseRange:(BaseRange)range {
 	BaseRange safeRange = range;
-	NSRect rect = NSInsetRect(self.visibleRect, 4, 0);
+	NSRect rect = NSInsetRect(self.visibleRect, 4.0, 0.0);
 	CGFloat leftDiff = rect.origin.x - self.traceView.leftInset;
-	if(leftDiff < 0) {
+	if(leftDiff < 0.0) {
 		rect.origin.x -= leftDiff;
 		rect.size.width += leftDiff;
-		leftDiff = 0;
+		leftDiff = 0.0;
 	}
 	CGFloat rightDiff = NSMaxX(self.bounds) - NSMaxX(rect);
 	CGFloat targetHScale = rect.size.width / range.len;
@@ -564,6 +582,7 @@ enum ButtonTag : NSUInteger {
 
 
 - (void)updateCursor {
+	BOOL addToolTip = NO;
 	if(!self.traceView.isMoving && NSEvent.pressedMouseButtons == 0) {
 		if(hoveredMarkerLabel.hoveredEdge) {
 			[NSCursor.resizeLeftRightCursor set];
@@ -571,20 +590,34 @@ enum ButtonTag : NSUInteger {
 			[NSCursor.arrowCursor set];
 		} else if(self.inAddMode && mouseIn) {
 			[NSCursor.dragCopyCursor set];
+			addToolTip = YES;
 		} else {
 			[NSCursor.arrowCursor set];
 		}
 	}
+	if(addToolTip) {
+		if(addMarkerTooltip == 0) {
+			addMarkerTooltip = [self addToolTipRect:self.visibleRect owner:self userData:nil];
+		}
+	} else if(addMarkerTooltip > 0) {
+		[self removeToolTip:addMarkerTooltip];
+		addMarkerTooltip = 0;
+	}
 }
 
-
+- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data {
+	if(tag == addMarkerTooltip) {
+		return @"Click & drag to add marker";
+	}
+	return @"";
+}
 
 - (void)resetCursorRects {
 	/// we make sure that the buttons we have as subviews show the arrow cursor
 	for(NSButton *button in self.subviews) {
 		/// the cursor rect leaves 2 points at the top of bottom of the button, so that it is not as tall as the view.
 		/// Otherwise the cursor may not change when entering the rect (Ventura+ does not have this issue).
-		[self addCursorRect:  NSInsetRect(button.frame, 0, 2) cursor:NSCursor.arrowCursor];
+		[self addCursorRect:  NSInsetRect(button.frame, 0.0, 2.0) cursor:NSCursor.arrowCursor];
 	}
 }
 
@@ -598,14 +631,16 @@ enum ButtonTag : NSUInteger {
 	RegionLabel *targetLabel;
 	for(RegionLabel *markerLabel in sortedMarkerLabels) {
 		if(markerLabel.startSize < rangeStart) {
-			targetLabel = markerLabel;
+			if(markerLabel.enabled) {
+				targetLabel = markerLabel;
+			}
 		} else if(markerLabel.startSize > rangeStart) {
 			break;
 		}
 	}
 	if(targetLabel == nil) {
 		RegionLabel *firstLabel = sortedMarkerLabels.firstObject;
-		if(sender == previousMarkerButton || firstLabel.endSize <= visibleRange.start + visibleRange.len) {
+		if(firstLabel.enabled && (sender == previousMarkerButton || firstLabel.endSize <= visibleRange.start + visibleRange.len)) {
 			targetLabel = firstLabel;
 		}
 	}
@@ -625,14 +660,14 @@ enum ButtonTag : NSUInteger {
 	float rangeEnd = visibleRange.start + visibleRange.len;
 	RegionLabel *targetLabel;
 	for(RegionLabel *markerLabel in sortedMarkerLabels) {
-		if(markerLabel.endSize > rangeEnd) {
+		if(markerLabel.enabled && markerLabel.endSize > rangeEnd) {
 			targetLabel = markerLabel;
 			break;
 		}
 	}
 	if(targetLabel == nil) {
 		RegionLabel *lastLabel = sortedMarkerLabels.lastObject;
-		if(sender == nextMarkerButton || lastLabel.startSize >= visibleRange.start) {
+		if(lastLabel.enabled && (sender == nextMarkerButton || lastLabel.startSize >= visibleRange.start)) {
 			targetLabel = lastLabel;
 		}
 	}
@@ -645,16 +680,32 @@ enum ButtonTag : NSUInteger {
 
 
 - (void)updateNavigationButtonEnabledState {
+	BOOL enablePrevious = NO;
+	BOOL enabledNext = NO;
 	if(sortedMarkerLabels.count > 0) {
 		NSRect visibleRect = self.visibleRect;
 		CGFloat rightSize = [self sizeForX:NSMaxX(visibleRect)];
 		CGFloat leftSize = [self sizeForX:visibleRect.origin.x];
-		previousMarkerButton.enabled = leftSize > sortedMarkerLabels.firstObject.startSize;
-		nextMarkerButton.enabled = rightSize < sortedMarkerLabels.lastObject.endSize;
-	} else {
-		previousMarkerButton.enabled = NO;
-		nextMarkerButton.enabled = NO;
+		for(RegionLabel *markerLabel in sortedMarkerLabels) {
+			if(markerLabel.enabled) {
+				if(markerLabel.startSize < leftSize) {
+					enablePrevious = YES;
+				}
+				if(markerLabel.endSize > rightSize) {
+					enabledNext = YES;
+					break;
+				}
+			}
+		}
 	}
+	previousMarkerButton.enabled = enablePrevious;
+	nextMarkerButton.enabled = enabledNext;
+}
+
+
+- (void)zoomToMarkerLabel:(RegionLabel *)label {
+	BaseRange range = [self safeRangeForBaseRange:label.range];
+	[self.traceView setVisibleRange:range animate:YES];
 }
 
 
@@ -711,7 +762,7 @@ enum ButtonTag : NSUInteger {
 		CGFloat position = [self sizeForX:self.mouseLocation.x];         	/// we convert the mouse position in base pairs
 		CGFloat clickedPosition =  [self sizeForX:self.clickedPoint.x];   /// we obtain the original clicked position in base pairs
 		
-		if(fabs(point.x - self.clickedPoint.x) < 4) {
+		if(fabs(point.x - self.clickedPoint.x) < 4.0) {
 			/// we do not yet react when the drag is to short, to avoid creating a marker that is too short
 			return;
 		}
@@ -727,7 +778,7 @@ enum ButtonTag : NSUInteger {
 		NSError *error;
 		draggedLabel = [RegionLabel regionLabelWithNewRegionByDraggingInView:self error:&error];
 		if(error) {
-			error = [NSError errorWithDescription:@"The marker could not be added because an error occurred in the database."
+			error = [error errorWithNewDescription:@"The marker could not be added because an error occurred in the database."
 												suggestion:@"You may quit the application and try again"];
 			[[NSAlert alertWithError:error] beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse returnCode) {
 			}];
@@ -770,14 +821,14 @@ enum ButtonTag : NSUInteger {
 	/// we scroll the trace view if the label frame goes beyond the limits
 	CGFloat delta = location - leftLimit;
 	CGFloat newOrigin = traceView.visibleOrigin;
-	if(delta < 0) {	/// the mouse has passed the left limit
+	if(delta < 0.0) {	/// the mouse has passed the left limit
 		newOrigin += delta;
 		if(newOrigin <= traceViewBounds.origin.x) {
 			return;	/// this would scroll the traceView too far
 		}
 	} else {
 		delta = location - rightLimit;
-		if(delta > 0) {	/// the mouse has passed the right limit
+		if(delta > 0.0) {	/// the mouse has passed the right limit
 			newOrigin += delta;
 			if(newOrigin + traceView.visibleRect.size.width > NSMaxX(traceViewBounds)) {
 				return;
@@ -787,7 +838,7 @@ enum ButtonTag : NSUInteger {
 		}
 	}
 	
-	[traceView scrollPoint:NSMakePoint(newOrigin, 0)];
+	[traceView scrollPoint:NSMakePoint(newOrigin, 0.0)];
 	
 }
 
@@ -800,11 +851,7 @@ enum ButtonTag : NSUInteger {
 		self.inAddMode = NO;  /// when we are no longer the first responder, the user will no longer be able to add a marker. They will have to click the button again
 	}
 	
-	RegionLabel *activeLabel = self.activeLabel;
-	if(!activeLabel.attachedPopover) {
-		activeLabel.highlighted = NO;
-	}
-	return YES;
+	return [super resignFirstResponder];
 }
 
 

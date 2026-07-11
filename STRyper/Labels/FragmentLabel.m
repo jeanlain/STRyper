@@ -25,7 +25,6 @@
 #import "SizeStandard.h"
 #import "TraceView.h"
 #import "Allele.h"
-#import "Genotype.h"
 #import "Mmarker.h"
 @import Accelerate;
 
@@ -61,10 +60,9 @@ typedef NS_ENUM(NSUInteger, FragmentLabelType) {
 
 	/// ivars used for dragging the label
 	__weak PeakLabel *destination;		 	/// the peak label that is the possible destination of the fragment label being dragged
-	CGFloat refDist;							/// The maximum distance allowed between the destination and the dragged label.
+	CGFloat refDist;						/// The maximum distance allowed between the destination and the dragged label.
 											/// It depends on the label width.
 	
-	NSTimer *clickedTimer;					/// A timer used to set the dragged state of the label has been clicked for a long time
 	BOOL draggedOut;						/// Whether the label is being dragged out of the view (above the top edge)
 					
 	/// We use this ivar to force animating ladder fragment labels that have been
@@ -118,7 +116,7 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 			[self addObserver:self forKeyPath:fragmentOffsetKey options:NSKeyValueObservingOptionNew context:fragmentOffsetChangedContext];
 		} else {
 			type = compactAlleleLabel;
-			layer.bounds = CGRectMake(0, 0, 6, 6);
+			layer.bounds = CGRectMake(0.0, 0.0, 6.0, 6.0);
 			_frame = layer.frame;
 			[self addObserver:self forKeyPath:fragmentSizeKey options:NSKeyValueObservingOptionNew context:fragmentSizeChangedContext];
 		}	
@@ -179,13 +177,6 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 }
 
 
-- (void)removeFromView {
-	if(clickedTimer.isValid) {
-		[clickedTimer invalidate];
-	}
-	[super removeFromView];
-}
-
 
 # pragma mark - changes in appearance
 
@@ -219,6 +210,7 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 
 
 - (void)updateAppearance {
+	[super updateAppearance];
 	layer.borderWidth = self.highlighted?  2.0 : 0.0; /// the border becomes visible when the label is highlighted
 													  
 	if(type == compactAlleleLabel) {
@@ -245,7 +237,6 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 
 /// Update or sets the appropriate string color, which depends on our type, or offset of our fragment
 - (void)updateStringColor {
-	stringLayer.foregroundColor = NULL;
 	TraceView *view = self.view;
 	if(type == ladderFragmentLabel) {
 		/// We denote our fragment's offset by the level of red in the string
@@ -254,9 +245,9 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 		CGColorSpaceRef space = CGColorGetColorSpace(stringColor);
 		if(CGColorSpaceGetModel(space) == kCGColorSpaceModelRGB) {
 			const CGFloat *components = CGColorGetComponents(stringColor);
-			CGFloat redComponents[] = {1, 0, 0, 1};
+			CGFloat redComponents[] = {1.0, 0.0, 0.0, 1.0};
 			/// The fraction of red depends on the original color. It's higher when it is white.
-			float fraction = components[0] > 0.9 ? fabs(self.fragment.offset)/20 : fabs(self.fragment.offset)/10;
+			float fraction = components[0] > 0.9f ? fabs(self.fragment.offset)/20.0 : fabs(self.fragment.offset)/10.0;
 			for (int i = 0; i < 4; i++) {
 				redComponents[i] = fraction * redComponents[i] + (1 - fraction) * components[i];
 			}
@@ -275,8 +266,7 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 
 
 -(void) updateBackgroundColor {
-	layer.backgroundColor = NULL;
-	if(!self.enabled) {
+	if(!self.enabled && !self.isCompact) {
 		layer.backgroundColor = NSColor.lightGrayColor.CGColor;
 	} else {
 		TraceView *view = self.view;
@@ -295,7 +285,7 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 }
 
 
-- (void)updateForTheme {
+- (void)updateColors {
 	[self updateStringColor];
 	[self updateBackgroundColor];
 }
@@ -326,14 +316,14 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 		/// This avoids assigning the peak to an allele for what could be a simple click
 		NSPoint clickedPoint = view.clickedPoint;
 		CGFloat dist = pow(pow(mouseLocation.x - clickedPoint.x, 2.0) + pow(mouseLocation.y - clickedPoint.y, 2.0), 0.5);
-		if(dist < 5) {
+		if(dist < 5.0) {
 			return;
 		}
 		self.dragged = YES;
 	}
 	
 	/// The user can drag a label out (over the top edge) to remove the label.
-	if(mouseLocation.y > NSMaxY(view.bounds) + 2) {
+	if(mouseLocation.y > NSMaxY(view.bounds) + 2.0) {
 		if(!draggedOut) {
 			draggedOut = YES;
 			if(self.fragment.scan > 0) {
@@ -383,26 +373,20 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 
 
 - (void)setClicked:(BOOL)clicked {
-	/// If the label is clicked for 1 sec, we consider it dragged (which changes its appearance).
 	if(clicked != self.clicked) {
 		[super setClicked:clicked];
 		if(clicked) {
-			clickedTimer = [NSTimer scheduledTimerWithTimeInterval:0.7 
-															target:self
-														  selector:@selector(clickedLong) 
-														  userInfo:nil
-														   repeats:NO];
-		} else {
-			if([clickedTimer isValid]) {
-				[clickedTimer invalidate];
-			}
+			/// If the label is clicked for some time, we consider it dragged (which changes its appearance).
+			__weak typeof(self) weakSelf = self;
+			dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+										 (int64_t)(0.7 * NSEC_PER_SEC)),
+						   dispatch_get_main_queue(), ^{
+				if(weakSelf.clicked && weakSelf.view) {
+					weakSelf.dragged = YES;
+				}
+			});
 		}
 	}
-}
-
-
--(void)clickedLong {
-	self.dragged = YES;
 }
 
 
@@ -412,10 +396,10 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 		if(dragged) {
 			draggedOut = NO;
 			refDist = self.frame.size.width /2;
-			if(refDist > 15) {
-				refDist = 15;
+			if(refDist > 15.0) {
+				refDist = 15.0;
 			}
-			
+			/// When dragged initially, the `destination` is the current peak.
 			int scan = self.fragment.scan;
 			if(scan > 0) {
 				for(PeakLabel *peakLabel in self.view.peakLabels) {
@@ -451,13 +435,13 @@ static void * const fragmentSizeChangedContext = (void*)&fragmentSizeChangedCont
 		layer.zPosition = 2.0;
 		layer.shadowOpacity = 0.5;
 		layer.shadowRadius = 5.0;
-		layer.shadowOffset = CGSizeMake(0, -3);
-		float factor = type == compactAlleleLabel? 1.5 : 1.2;
+		layer.shadowOffset = CGSizeMake(0.0, -3.0);
+		float factor = type == compactAlleleLabel? 1.5f : 1.2f;
 		layer.transform = CATransform3DMakeScale(factor, factor, 1);
 	} else {
 		layer.zPosition = 0.0;
-		layer.shadowOpacity = 0;
-		layer.shadowRadius = 0;
+		layer.shadowOpacity = 0.0f;
+		layer.shadowRadius = 0.0f;
 		layer.transform = CATransform3DIdentity;
 	}
 }
@@ -581,7 +565,7 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 	NSRect frame = self.frame;
 	CGFloat frameWidth = frame.size.width;
 	CGFloat frameHeight = frame.size.height;
-	CGFloat yAnchor = 0; /// The distance between the anchor point of the layer and the bottom of the frame
+	CGFloat yAnchor = 0.0; /// The distance between the anchor point of the layer and the bottom of the frame
 	int fragmentScan = fragment.scan;
 	
 	NSPoint location;
@@ -594,7 +578,7 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 				location.x = [view xForScan:fragmentScan ofSample:trace.chromatogram];
 			} else {
 				location.x = [view xForSize:fragment.size];
-				yAnchor = frameHeight/2;
+				yAnchor = frameHeight/2.0;
 			}
 		} else {
 			/// In this case, our fragment is "deleted"
@@ -604,9 +588,9 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 			} else {
 				/// For an deleted allele, we position above our view (higher than its frame), at the midpoint of the marker range
 				Mmarker *marker = ((Allele *)fragment).genotype.marker;
-				float midSize = (marker.end + marker.start)/2;
-				_yOffset = -1000;  /// We use this offset do denote that the label need not check for collisions with others
-				location = NSMakePoint([view xForSize:midSize], NSMaxY(viewBounds) + 20);
+				float midSize = (marker.end + marker.start)/2.0;
+				_yOffset = -1000.0;  /// We use this offset do denote that the label need not check for collisions with others
+				location = NSMakePoint([view xForSize:midSize], NSMaxY(viewBounds) + 20.0);
 			}
 		}
 	} else {
@@ -623,13 +607,13 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 		location.y -= halfHeight;
 	}
 	
-	CGFloat margin = draggedOut? -3:topMargin;
+	CGFloat margin = draggedOut? -3.0:topMargin;
 	
 	NSRect newFrame = NSMakeRect(location.x - frameWidth/2, location.y - yAnchor, frameWidth, frameHeight);
 	
 	if(fragmentScan > 0 || self.dragged) {
 		CGFloat delta =  NSMaxY(view.bounds) - margin - NSMaxY(newFrame); /// prevents the label from being clipped by the view
-		if (delta < 0) {
+		if (delta < 0.0) {
 			_yOffset = -delta;
 			newFrame.origin.y += delta;
 		}
@@ -637,6 +621,17 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 	
 	self.frame = newFrame;
 	forceAnimations = NO;
+}
+
+
+- (void)moveByOffset:(MarkerOffset)offset {
+	NSRect currentFrame = self.frame;
+	TraceView *view = self.view;
+	LadderFragment *fragment = self.fragment;
+	CGFloat xLocation = [view xForScan:fragment.scan ofSample:fragment.trace.chromatogram];
+	xLocation = xLocation * offset.slope + offset.intercept * view.hScale;
+	currentFrame.origin.x = xLocation - currentFrame.size.width/2;
+	self.frame = currentFrame;
 }
 
 
@@ -667,11 +662,11 @@ static int const topMargin = 10; /// The minimum distance between a fragment lab
 	NSSize size = stringLayer.preferredFrameSize;
 	/// We constrain the string width between 15 and 50.
 	CGFloat width = MAX(size.width, 15.0);
-	width = MIN(50, width);
-	CGRect bounds = CGRectMake(0, 0, width + 2, size.height + 2);
+	width = MIN(50.0, width);
+	CGRect bounds = CGRectMake(0.0, 0.0, width + 2.0, size.height + 2.0);
 	layer.bounds = bounds;
 	_frame = layer.frame;
-	stringLayer.bounds = CGRectMake(0, 0, width, size.height);
+	stringLayer.bounds = CGRectMake(0.0, 0.0, width, size.height);
 	stringLayer.position = CGPointMake(NSMidX(bounds), NSMidY(bounds));
 	needsUpdateString = NO;
 }
@@ -691,22 +686,22 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 
 +(void) avoidCollisionsInView:(TraceView *)view {
 
-	
-	NSPredicate	*filterPredicate = [NSPredicate predicateWithBlock:^BOOL(FragmentLabel *label, NSDictionary<NSString *,id> * _Nullable bindings) {
-			return label.yOffset > -800;
-		}];
-	
-	NSArray<FragmentLabel *> *fragmentLabels = [view.fragmentLabels filteredArrayUsingPredicate: filterPredicate];
+	NSMutableArray<FragmentLabel *> *fragmentLabels = [NSMutableArray arrayWithCapacity:view.fragmentLabels.count];
+	for(FragmentLabel *label in view.fragmentLabels) {
+		if(label.yOffset > -800.0) {
+			[fragmentLabels addObject:label];
+		}
+	}
 	
 	NSInteger labelCount = fragmentLabels.count;
 	if(labelCount < 2) {
 		return;
 	}
 	
-	CGFloat ceiling = NSMaxY(view.bounds) - (view.trace.isLadder? 0 : topMargin); /// The maximum position of a top edge of a label.
+	CGFloat ceiling = NSMaxY(view.bounds) - (view.trace.isLadder? 0.0 : topMargin); /// The maximum position of a top edge of a label.
 	
 	/// We determine alleles that overlap along the X axis. For this, we sort labels by the x coordinates of their frame's origin.
-	fragmentLabels = [fragmentLabels sortedArrayUsingComparator:^NSComparisonResult(FragmentLabel *label1, FragmentLabel *label2) {
+	[fragmentLabels sortUsingComparator:^NSComparisonResult(FragmentLabel *label1, FragmentLabel *label2) {
 		if(label1.frame.origin.x < label2.frame.origin.x) {
 			return NSOrderedAscending;
 		}
@@ -715,9 +710,9 @@ bool overlapXRects(NSRect rectA, NSRect rectB) {
 	
 	CGFloat maxX = -INFINITY;  /// The largest X coordinate of the frame of the current label.
 	vDSP_Length nOverlaps = 0; /// number of labels that overlap along the x axis (-1)
-	NSRect *frames = malloc(labelCount * sizeof(NSRect)); /// Their frames
-	CGFloat *yOrigins = malloc(labelCount * sizeof(CGFloat));	/// The origin of their frame (on the Y axis), which will be used for sorting
-	vDSP_Length *indices = malloc(labelCount * sizeof(vDSP_Length)); /// indices used for sorting
+	NSRect *frames = malloc(labelCount * sizeof(*frames)); /// Their frames
+	CGFloat *yOrigins = malloc(labelCount * sizeof(*yOrigins));	/// The origin of their frame (on the Y axis), which will be used for sorting
+	vDSP_Length *indices = malloc(labelCount * sizeof(*indices)); /// indices used for sorting
 
 	int i = 0;
 	for(FragmentLabel *label in fragmentLabels) {
@@ -753,18 +748,18 @@ void spreadLabels(NSRect *frames, vDSP_Length* indices, CGFloat *yOrigins, vDSP_
 	/// We sort the frames by ascending Y origin.
 	vDSP_vsortiD(yOrigins, indices, NULL, frameCount, 1);
 	
-	CGFloat maxY = 0; /// Will be the top edge position of the highest label, which we will use to determine it we must move labels down given the height of the view.
-	CGFloat *yOffsets = malloc(frameCount * sizeof(CGFloat)); /// The vertical distance by which a label will be moved
+	CGFloat maxY = 0.0; /// Will be the top edge position of the highest label, which we will use to determine it we must move labels down given the height of the view.
+	CGFloat *yOffsets = malloc(frameCount * sizeof(*yOffsets)); /// The vertical distance by which a label will be moved
 	yOffsets[0] = 0;	   /// We don't reposition the first label (bottom one).
 	CGFloat lowestY = frames[indices[0]].origin.y;
 	
 	for (int i = 1; i < frameCount; i++) {
-		yOffsets[i] = 0;
+		yOffsets[i] = 0.0;
 		NSRect *frameI = &frames[indices[i]]; /// The frame that may be moved vertically to avoid a collision.
 		
 		/// We go through frames that are (were)  lower than `frameI` to check which overlap / intersect with it.
 		long topOverlapRect = -1;  /// The index of the highest frame that overlaps.
-		CGFloat topOverlapY = 0;	   /// The top edge of its frame.
+		CGFloat topOverlapY = 0.0;	   /// The top edge of its frame.
 		CGFloat minOverlapY = INFINITY;  /// The bottom edge position of the lowest frame that overlaps.
 		BOOL intersects = NO;		/// Whether a frame intersects with frameI.
 		for (int j = 0; j < i; j++) {
@@ -794,7 +789,7 @@ void spreadLabels(NSRect *frames, vDSP_Length* indices, CGFloat *yOrigins, vDSP_
 				/// To be safe, we try to go bellow the lowest frame that overlaps (this may not be optimal if there is room between overlapping labels
 				/// on the vertical axis, but it works well enough).
 				CGFloat newOrigin = minOverlapY - frameI->size.height;
-				if(minOverlapY > lowestY && newOrigin > 0 && (originalY - newOrigin) < (topOverlapY - originalY)) {
+				if(minOverlapY > lowestY && newOrigin > 0.0 && (originalY - newOrigin) < (topOverlapY - originalY)) {
 					/// But we don't go this far down if the distance is greater than what were needed if we moved up.
 					frameI->origin.y = newOrigin;
 				} else {
@@ -871,7 +866,7 @@ void spreadLabels(NSRect *frames, vDSP_Length* indices, CGFloat *yOrigins, vDSP_
 												   keyEquivalent:[NSString stringWithFormat:@"%c",NSBackspaceCharacter]];
 			item.keyEquivalentModifierMask = 0;
 		} else {
-			item = [[NSMenuItem alloc] initWithTitle:@"View Chromatogram" action:@selector(isolateAllele:)
+			item = [[NSMenuItem alloc] initWithTitle:@"View Chromatogram" action:@selector(isolateChromatogram:)
 												   keyEquivalent:@""];
 			item.image = [NSImage imageNamed:ACImageNameCallAllelesBadge];
 		}
@@ -930,9 +925,9 @@ void spreadLabels(NSRect *frames, vDSP_Length* indices, CGFloat *yOrigins, vDSP_
 }
 
 
--(void)isolateAllele:(id)sender {
+-(void)isolateChromatogram:(id)sender {
 	TraceView *view = self.view;
-	[view.delegate traceView:view revealSourceItem:self.fragment isolate:YES];
+	[view.delegate revealSourceItem:self.fragment fromTraceView:view isolate:YES];
 }
 
 
@@ -955,7 +950,9 @@ static NSTextField *alleleNameTextField;	/// the text field allowing the user to
 
 
 -(void)showAlleleNameTextFieldAfterDelay:(id)sender {
-	[self performSelector:@selector(showAlleleNameTextField) withObject:self afterDelay:0];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[self showAlleleNameTextField];
+	});
 }
 
 
@@ -976,9 +973,9 @@ static NSTextField *alleleNameTextField;	/// the text field allowing the user to
 		alleleNameTextField.delegate = self;
 	}
 	alleleNameTextField.hidden = NO;
-	alleleNameTextField.frame = NSInsetRect(self.frame, -3, 0);
+	alleleNameTextField.frame = NSInsetRect(self.frame, -3.0, 0.0);
 	[alleleNameTextField selectText:self];
-	[self.view scrollRectToVisible:alleleNameTextField.frame animate:YES];
+	[self.view scrollRectToVisible:alleleNameTextField.frame animate:YES zoomOut:NO];
 	self.highlighted = YES; 	/// we make sure we stay highlighted (the textfield becoming the first responder would make the trace view de-highlight us)
 								/// This has some implication for when the textfield disappears, to avoid remaining highlighted.
 }
@@ -1000,11 +997,11 @@ static NSTextField *alleleNameTextField;	/// the text field allowing the user to
 	/// There's probably a more elegant solution. We could also compute the attributed string width...
 
 	temp = temp; 													/// to suppress the unused variable warning
-	CGFloat newWidth = MIN(150, MAX(alleleNameTextField.cell.cellSize.width, self.frame.size.width + 6));
+	CGFloat newWidth = MIN(150.0, MAX(alleleNameTextField.cell.cellSize.width, self.frame.size.width + 6.0));
 	NSRect rect = alleleNameTextField.frame;
 	rect = NSMakeRect(NSMidX(rect) - newWidth/2, rect.origin.y, newWidth, rect.size.height);
 	[alleleNameTextField setFrame:rect];
-	[self.view scrollRectToVisible:rect animate:YES];
+	[self.view scrollRectToVisible:rect animate:YES zoomOut:NO];
 }
 
 
@@ -1015,13 +1012,7 @@ static NSTextField *alleleNameTextField;	/// the text field allowing the user to
 		if(window.firstResponder == window) {
 			/// when the user validates with the enter key, the first responder becomes the window, but it makes more sense for it to be the view.
 			[window performSelector:@selector(makeFirstResponder:) withObject:view afterDelay:0.0];
-		} else {
-			/// Otherwise, the user must have clicked outside the textfield (hence the label)
-			/// In this case the highlighting should not remain.
-			/// The view would not do it for us if the user has clicked elsewhere and the view is not the first responder.
-
-			self.highlighted = NO;
-		}
+		} 
 		alleleNameTextField.hidden = YES;
 		NSString *actionName = type == alleleLabel? @"Rename Allele" : @"Rename Additional Peak";
 		[view.undoManager setActionName:actionName];
