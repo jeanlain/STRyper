@@ -415,6 +415,9 @@ const float DefaultReadLength = 550.0;
 
 - (void)setAppliedSizeStandard:(SizeStandard *)sizeStandard {
 	if(sizeStandard) {
+		if(self.polynomialOrder == NoFittingMethod) {
+			[self managedObjectOriginal_setPolynomialOrder: [NSUserDefaults.standardUserDefaults integerForKey:DefaultSizingOrder]];
+		}
 		[sizeStandard sizeSample:self];
 	}
 }
